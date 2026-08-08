@@ -2,13 +2,14 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "tsx src/server.ts",
-    "dev": "tsx watch src/server.ts",
+    "start": "node src/server.ts",
+    "dev": "node --watch src/server.ts",
     "build": "tsc",
     "start:prod": "node dist/server.js",
     "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "echo \"No tests configured yet\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -23,6 +24,9 @@
   "author": "",
   "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "bugs": {
     "url": "https://github.com/NEO-Kaizen/backend/issues"
   },
@@ -34,7 +38,6 @@
     "eslint": "^10.8.1",
     "globals": "^17.9.0",
     "prettier": "3.9.6",
-    "tsx": "^4.23.11",
     "typescript-eslint": "^8.66.0"
   },
   "dependencies": {
