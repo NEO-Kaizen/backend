@@ -14,7 +14,12 @@ export const autenticate = async (req: Request, res: Response) => {
   }
 
   try {
-    authService.foundUser(user);
+    if(await authService.foundUser(user)){
+      //
+    }
+    else{
+      res.status(401).json({message: 'Credenciais inválidas'})
+    }
   } catch (error) {
     if (error instanceof HttpError) {
       return res.status(error.status).json({ error });

@@ -1,7 +1,7 @@
 import type { User } from "../../types/user.ts";
-import bcrypt from 'bcryptjs';
 import * as authRepository from './auth_ repository.ts'
 import { HttpError } from "../../errors/httpError.ts";
+import {comparePassword} from "../../shared/utils/passwordHandler.ts";
 
 
 export async function foundUser(user: User) {
@@ -9,14 +9,10 @@ export async function foundUser(user: User) {
     const found = await authRepository.userFind(user);
 
     if(!found) {
-        throw new HttpError("Usuario não encontrado ou senha invalida", 404);
+        throw new HttpError("Credenciais inválidas", 400);
     }
 
-    const isPasswordValid = await bcrypt.compare(user.password, found.password);
-
-    if (!isPasswordValid){
-         throw new HttpError("Usuario não encontrado ou senha invalida", 404);
-    }
-
-    return "Usuario encontrado";
+    const isPasswordValid = await comparePassword(user.password, found.password);
+    
+    return isPasswordValid;
 }
