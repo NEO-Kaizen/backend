@@ -4,7 +4,7 @@ Esqueleto inicial do backend do projeto Neo Kaizen.
 
 ## Requisitos
 
-- Node.js 20+ (recomendado: LTS mais recente)
+- Node.js 24+ (recomendado: LTS mais recente)
 - npm 9+
 
 ## Instalação
@@ -70,8 +70,9 @@ src/
     ├── middleware/
     │   ├── auth.ts         # Middleware de validação do token JWT (rotas protegidas)
     │   └── errorHandler.ts # Middleware de captura e resposta global de erros
-    ├── services/
-    │   └── JwtService.ts   # Serviço para geração de tokens JWT assinados
-    └── types/
-        └── express.d.ts    # Extensão da tipagem nativa do Express (ex: req.user)
+    ├── types/
+    │   ├── express.d.ts    # Extensão da tipagem nativa do Express (ex: req.user)
+    │   └── role.ts         # Enum de perfis de usuário (solicitante, analista, gestor, administrador)
+    └── utils/
+        └── jwtUtil.ts      # Geração e validação de tokens JWT assinados
 ```

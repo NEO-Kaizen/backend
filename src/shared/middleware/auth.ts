@@ -1,3 +1,4 @@
+import { JsonWebTokenError, NotBeforeError, TokenExpiredError } from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
@@ -28,6 +29,14 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
 
     next();
   } catch (error) {
+    if (
+      error instanceof TokenExpiredError ||
+      error instanceof JsonWebTokenError ||
+      error instanceof NotBeforeError
+    ) {
+      next(new AppError("Invalid or expired token", 401));
+      return;
+    }
     next(error);
   }
 }
