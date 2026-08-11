@@ -9,7 +9,7 @@ export async function hashPassword(password: string) {
 
     return hashedPassword;
   } catch {
-    throw new AppError("Erro ao gerar hash da senha", 400);
+    throw new AppError("Erro ao gerar hash da senha", 500);
   }
 }
 
@@ -19,6 +19,6 @@ export async function comparePassword(password: string, hashedPassword: string) 
 
     return match;
   } catch {
-    throw new AppError("Erro ao compara as senhas:", 400);
+    throw new AppError("Erro ao compara as senhas:", 500);
   }
 }
