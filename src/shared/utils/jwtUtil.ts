@@ -13,7 +13,7 @@ export function generateToken(payload: TokenPayload): string {
   const expiresIn = (process.env.JWT_EXPIRES_IN ?? "1d") as SignOptions["expiresIn"];
 
   if (!secret) {
-    throw new Error("JWT_SECRET environment variable is not defined");
+    throw new Error("Variável de ambiente JWT_SECRET não está definida");
   }
 
   return sign(payload, secret, { expiresIn });
@@ -23,7 +23,7 @@ export function verifyToken(token: string): TokenPayload {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
-    throw new Error("JWT_SECRET environment variable is not defined");
+    throw new Error("Variável de ambiente JWT_SECRET não está definida");
   }
 
   const decoded = verify(token, secret) as TokenPayload;
@@ -34,7 +34,7 @@ export function verifyToken(token: string): TokenPayload {
     typeof decoded.role !== "string" ||
     !isRole(decoded.role)
   ) {
-    throw new AppError("Invalid Token", 401);
+    throw new AppError("Token inválido", 401);
   }
 
   return { id: decoded.id, email: decoded.email, role: decoded.role };

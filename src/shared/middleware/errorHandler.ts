@@ -19,11 +19,11 @@ export function errorHandler(
   const maybeHttp = err as Partial<AppError> & { status?: number };
   const statusCode = maybeHttp.status ?? maybeHttp.statusCode ?? 500;
 
-  console.error("[Unhandled Error]", req.method, req.url, err);
+  console.error("[Erro não tratado]", req.method, req.url, err);
 
   res.status(statusCode).json({
     status: "error",
     statusCode,
-    message: statusCode >= 500 ? "Internal Server Error" : err.message,
+    message: statusCode >= 500 ? "Erro interno do servidor" : err.message,
   });
 }

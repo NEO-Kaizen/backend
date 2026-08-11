@@ -7,14 +7,14 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    next(new AppError("Token not provided", 401));
+    next(new AppError("Token não fornecido", 401));
     return;
   }
 
   const [scheme, token] = authHeader.split(" ");
 
   if (scheme !== "Bearer" || !token) {
-    next(new AppError("Token not provided", 401));
+    next(new AppError("Token não fornecido", 401));
     return;
   }
 
@@ -34,7 +34,7 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
       error instanceof JsonWebTokenError ||
       error instanceof NotBeforeError
     ) {
-      next(new AppError("Invalid or expired token", 401));
+      next(new AppError("Token inválido ou expirado", 401));
       return;
     }
     next(error);
