@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
-import { verifyToken, type TokenPayload } from "../services/JwtService.ts";
+import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
@@ -23,6 +23,7 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
     req.user = {
       id: payload.id,
       email: payload.email,
+      role: payload.role
     };
 
     next();

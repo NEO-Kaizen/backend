@@ -1,9 +1,11 @@
-import { sign, verify, type JwtPayload, type SignOptions } from "jsonwebtoken";
+import { sign, verify, type SignOptions } from "jsonwebtoken";
 import { AppError } from "../errors/AppError.ts";
+import { isRole, type Role } from "../types/role.ts";
 
 export interface TokenPayload {
   id: string;
   email: string;
+  role: Role;
 }
 
 export function generateToken(payload: TokenPayload): string {
@@ -24,11 +26,16 @@ export function verifyToken(token: string): TokenPayload {
     throw new Error("JWT_SECRET environment variable is not defined");
   }
 
-  const decoded = verify(token, secret) as JwtPayload;
+  const decoded = verify(token, secret) as TokenPayload;
 
-  if (typeof decoded.id !== "string" || typeof decoded.email !== "string") {
+  if (
+    typeof decoded.id !== "string" ||
+    typeof decoded.email !== "string" ||
+    typeof decoded.role !== "string" ||
+    !isRole(decoded.role)
+  ) {
     throw new AppError("Invalid Token", 401);
   }
 
-  return { id: decoded.id, email: decoded.email };
+  return { id: decoded.id, email: decoded.email, role: decoded.role };
 }
