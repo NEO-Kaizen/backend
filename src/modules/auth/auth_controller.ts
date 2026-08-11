@@ -3,7 +3,6 @@ import type { Request, Response } from "express";
 
 import * as authService from "./auth_service.ts";
 
-
 export const autenticate = async (req: Request, res: Response) => {
   const user: User = req.body;
 
