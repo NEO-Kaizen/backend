@@ -2,11 +2,10 @@ import type { User } from "../../types/user.ts";
 import type { Request, Response } from "express";
 import { HttpError } from "../../errors/httpError.ts";
 
-import * as authService from './auth_service.ts'
+import * as authService from "./auth_service.ts";
 
 export const autenticate = async (req: Request, res: Response) => {
-
-  const user: User = req.body
+  const user: User = req.body;
 
   if (!user.email || !user.password) {
     const error = "Usuario/senha não podem ser vazios";
@@ -14,11 +13,10 @@ export const autenticate = async (req: Request, res: Response) => {
   }
 
   try {
-    if(await authService.foundUser(user)){
+    if (await authService.foundUser(user)) {
       //
-    }
-    else{
-      res.status(401).json({message: 'Credenciais inválidas'})
+    } else {
+      return res.status(401).json({ message: "Credenciais inválidas" });
     }
   } catch (error) {
     if (error instanceof HttpError) {
