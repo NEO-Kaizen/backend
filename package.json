@@ -4,10 +4,10 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node src/server.ts",
-    "dev": "node --watch src/server.ts",
+    "start": "node --env-file=.env src/server.ts",
+    "dev": "node --env-file=.env --watch src/server.ts",
     "build": "tsc",
-    "start:prod": "node dist/server.js",
+    "start:prod": "node --env-file=.env dist/server.js",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "echo \"No tests configured yet\"",
@@ -34,6 +34,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.2.0",
     "eslint": "^10.8.1",
     "globals": "^17.9.0",
@@ -44,9 +45,11 @@
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true
+    
   }
 }
