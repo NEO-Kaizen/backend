@@ -4,6 +4,7 @@ import { isRole, type Role } from "../types/role.ts";
 
 export interface TokenPayload {
   id: string;
+  name: string;
   email: string;
   role: Role;
 }
@@ -30,6 +31,7 @@ export function verifyToken(token: string): TokenPayload {
 
   if (
     typeof decoded.id !== "string" ||
+    typeof decoded.name !== "string" ||
     typeof decoded.email !== "string" ||
     typeof decoded.role !== "string" ||
     !isRole(decoded.role)
@@ -37,5 +39,5 @@ export function verifyToken(token: string): TokenPayload {
     throw new AppError("Token inválido", 401);
   }
 
-  return { id: decoded.id, email: decoded.email, role: decoded.role };
+  return { id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role };
 }
