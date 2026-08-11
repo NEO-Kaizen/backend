@@ -1,8 +1,8 @@
-import express from 'express';
+import express from "express";
 const authRoutes = express.Router();
 
 import { autenticate } from "./auth_controller.ts";
 
-authRoutes.post("/login", autenticate );
+authRoutes.post("/login", autenticate);
 
-export default authRoutes
+export default authRoutes;

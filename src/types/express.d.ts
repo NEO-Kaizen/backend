@@ -1,9 +1,9 @@
 import { UserPayload } from "./user";
 
 declare global {
-    namespace Express {
-        interface Request {
-            user?: UserPayload;
-        }
+  namespace Express {
+    interface Request {
+      user?: UserPayload;
     }
+  }
 }

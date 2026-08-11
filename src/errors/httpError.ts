@@ -7,7 +7,7 @@ export class HttpError extends Error {
     this.status = status;
 
     Object.setPrototypeOf(this, HttpError.prototype);
-    
+
     this.name = this.constructor.name;
   }
 }
