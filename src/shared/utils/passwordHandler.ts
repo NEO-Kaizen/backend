@@ -1,5 +1,5 @@
 import { hash, genSalt, compare } from "bcrypt";
-import { HttpError } from "../../errors/httpError.ts";
+import { AppError } from "../errors/AppError.ts";
 
 export async function hashPassword(password: string) {
   try {
@@ -9,7 +9,7 @@ export async function hashPassword(password: string) {
 
     return hashedPassword;
   } catch {
-    throw new HttpError("Erro ao gerar hash da senha", 400);
+    throw new AppError("Erro ao gerar hash da senha", 400);
   }
 }
 
@@ -19,6 +19,6 @@ export async function comparePassword(password: string, hashedPassword: string) 
 
     return match;
   } catch {
-    throw new HttpError("Erro ao compara as senhas:", 400);
+    throw new AppError("Erro ao compara as senhas:", 400);
   }
 }
