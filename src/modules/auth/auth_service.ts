@@ -8,12 +8,12 @@ export async function findUser(user: User) {
   const foundUser = await authRepository.userFind(user);
 
   if (!foundUser) {
-    throw new AppError("Credenciais inválidas", 400);
+    throw new AppError("Credenciais inválidas", 401);
   }
 
   const isPasswordValid = await comparePassword(user.password, foundUser.password);
 
-  if (!isPasswordValid) throw new AppError("Credenciais inválidas", 400);
+  if (!isPasswordValid) throw new AppError("Credenciais inválidas", 401);
 
   return {
     email: foundUser.email,
