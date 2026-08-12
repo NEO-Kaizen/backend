@@ -1,14 +1,9 @@
-import type { Role } from "./role";
+import type { AuthenticatedUser } from "./user.ts";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        name: string;
-        email: string;
-        role: Role;
-      };
+      user?: AuthenticatedUser;
     }
   }
 }
