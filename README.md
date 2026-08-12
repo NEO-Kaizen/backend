@@ -44,6 +44,58 @@ npm run dev
 
 O servidor roda em `http://localhost:3000` (ou na porta definida em `PORT`).
 
+## Deploy com Docker
+
+### Requisitos na máquina (host)
+
+- Docker Engine + Docker Compose plugin (versão recente).
+- Repositório clonado (necessário para o serviço de desenvolvimento `api-dev`, que faz bind-mount de `./src`).
+- Arquivo `.env` criado a partir de `.env.example`.
+
+### Serviços
+
+| Serviço   | Porta | Uso                                                                  |
+| --------- | ----- | -------------------------------------------------------------------- |
+| `api`     | 3000  | Container de produção: roda `dist/` com `NODE_ENV=production`        |
+| `api-dev` | 3001  | Container de desenvolvimento: roda `src/` com hot reload (`--watch`) |
+
+Ambos os serviços usam a mesma imagem construída a partir do `Dockerfile` multi-stage
+(base `node:24-bookworm-slim`, usuário não-root `node`, sem segredos na imagem).
+
+### Build e execução
+
+```bash
+# Construir a imagem (necessário quando package.json/Dockerfile mudam)
+docker compose build
+
+# Produção
+docker compose up -d api
+
+# Desenvolvimento (hot reload)
+docker compose up -d api-dev
+
+# Logs
+docker compose logs -f api
+docker compose logs -f api-dev
+```
+
+Verificação de saúde do serviço de produção:
+
+```bash
+curl http://localhost:3000/health
+# {"status":"ok"}
+```
+
+### Endurecimento de segurança aplicado aos containers
+
+- Usuário não-root (`user: node`), sem privilégios elevados.
+- `cap_drop: ALL` e `no-new-privileges` — sem capabilities extras do kernel.
+- Sistema de arquivos raiz read-only (`read_only`) com `tmpfs` apenas em `/tmp`.
+- `init: true` — encerramento correto de processos filhos (sem processos zumbi).
+- Limites de recursos: `cpus: 1.0` e `mem_limit: 512m`.
+- Portas não-privilegiadas e exposição apenas do necessário.
+- Variáveis sensíveis (ex.: `JWT_SECRET`) somente via `.env` no host — nunca na imagem nem no repositório.
+
 ## Endpoints
 
 ### Autenticação
