@@ -3,6 +3,7 @@ import router from "./router.ts";
 import cors from "cors";
 import { errorHandler } from "./shared/middleware/errorHandler.ts";
 import Config from "./configs.ts";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
@@ -14,6 +15,9 @@ app.use(
 );
 
 app.disable("x-powered-by");
+
+app.use(cookieParser());
+
 app.use(express.json());
 
 app.use(router);
