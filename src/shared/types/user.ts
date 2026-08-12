@@ -1,4 +1,4 @@
-import type { Role } from "../shared/types/role.ts";
+import type { Role } from "./role.ts";
 
 export interface User {
   id: string;
@@ -7,3 +7,5 @@ export interface User {
   password: string;
   role: Role;
 }
+
+export type AuthenticatedUser = Omit<User, "password">;

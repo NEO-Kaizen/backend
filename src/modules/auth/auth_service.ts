@@ -1,4 +1,4 @@
-import type { User } from "../../types/user.ts";
+import type { User } from "../../shared/types/user.ts";
 import * as authRepository from "./auth_repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { comparePassword } from "../../shared/utils/passwordHandler.ts";

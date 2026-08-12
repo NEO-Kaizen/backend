@@ -1,4 +1,4 @@
-import type { User } from "../../types/user.ts";
+import type { User } from "../../shared/types/user.ts";
 import type { Request, Response } from "express";
 import * as authService from "./auth_service.ts";
 import { generateToken } from "../../shared/utils/jwtUtil.ts";

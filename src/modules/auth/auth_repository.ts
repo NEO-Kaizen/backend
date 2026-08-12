@@ -1,5 +1,5 @@
 import { hashPassword } from "../../shared/utils/passwordHandler.ts";
-import type { User } from "../../types/user.ts";
+import type { User } from "../../shared/types/user.ts";
 
 //an object created solely to simulate the use of a database in the code
 const db: User[] = [
