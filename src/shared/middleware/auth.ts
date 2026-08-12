@@ -1,7 +1,9 @@
-import { JsonWebTokenError, NotBeforeError, TokenExpiredError } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
+
+const { JsonWebTokenError, NotBeforeError, TokenExpiredError } = jwt;
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;

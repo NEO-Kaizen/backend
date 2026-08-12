@@ -1,7 +1,10 @@
-import { sign, verify, type SignOptions } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+import type { SignOptions } from "jsonwebtoken";
 import { AppError } from "../errors/AppError.ts";
 import { isRole, type Role } from "../types/role.ts";
 import Config from "../../configs.ts";
+
+const { sign, verify } = jwt;
 
 export interface TokenPayload {
   id: string;
