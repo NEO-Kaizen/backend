@@ -1,16 +1,24 @@
 import type { User } from "../../types/user.ts";
-import * as authRepository from "./auth_ repository.ts";
+import * as authRepository from "./auth_repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { comparePassword } from "../../shared/utils/passwordHandler.ts";
+import type { TokenPayload } from "../../shared/utils/jwtUtil.ts";
 
-export async function foundUser(user: User) {
-  const found = await authRepository.userFind(user);
+export async function findUser(user: User) {
+  const foundUser = await authRepository.userFind(user);
 
-  if (!found) {
+  if (!foundUser) {
     throw new AppError("Credenciais inválidas", 400);
   }
 
-  const isPasswordValid = await comparePassword(user.password, found.password);
+  const isPasswordValid = await comparePassword(user.password, foundUser.password);
 
-  return isPasswordValid;
+  if (!isPasswordValid) throw new AppError("Credenciais inválidas", 400);
+
+  return {
+    email: foundUser.email,
+    id: foundUser.id,
+    name: foundUser.name,
+    role: foundUser.role,
+  } as TokenPayload;
 }
