@@ -3,17 +3,12 @@ import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
 
+const COOKIE_NAME = process.env.COOKIE_NAME ?? "session_id";
+
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
+  const token = req.cookies?.[COOKIE_NAME];
 
-  if (!authHeader) {
-    next(new AppError("Token não fornecido", 401));
-    return;
-  }
-
-  const [scheme, token] = authHeader.split(" ");
-
-  if (scheme !== "Bearer" || !token) {
+  if (!token) {
     next(new AppError("Token não fornecido", 401));
     return;
   }
