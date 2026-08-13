@@ -16,7 +16,7 @@ A responsabilidade desta implementação está limitada à persistência dos dad
 
 A persistência de autenticação é composta inicialmente por duas tabelas:
 
-- `profiles`: armazena os perfis disponíveis para classificação dos usuários.
+- `profiles`: armazena os perfis disponíveis para classificação dos usuários;
 - `users`: armazena os usuários que poderão utilizar o mecanismo de autenticação.
 
 O relacionamento entre as tabelas é do tipo **1:N (um para muitos)**:
@@ -53,13 +53,13 @@ erDiagram
     }
 ```
 
-Aqui:
+Onde:
 
 - `PK` = Primary Key;
 - `FK` = Foreign Key;
 - `UK` = Unique Key.
 
-O ponto mais importante do desenho é:
+O relacionamento pode ser representado de forma simplificada como:
 
 ```text
 profiles
@@ -83,7 +83,7 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 | Campo         | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                   |
 | ------------- | ------------ | ----------- | --------------------------- | -------------------------------------------- |
 | `profile_id`  | INTEGER      | Sim         | Primary Key, auto increment | Identificador único do perfil                |
-| `name`        | VARCHAR(60)  | Sim         | UNIQUE                      | Nome do perfil                               |
+| `name`        | VARCHAR(60)  | Sim         | UNIQUE, NOT NULL            | Nome do perfil                               |
 | `description` | VARCHAR(255) | Não         | NULL permitido              | Descrição opcional do perfil                 |
 | `is_active`   | BOOLEAN      | Sim         | DEFAULT TRUE                | Indica se o perfil está ativo                |
 | `created_at`  | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro           |
@@ -91,10 +91,10 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 
 ### Restrições
 
-- `profile_id` é a chave primária da tabela.
-- `name` deve possuir valor único.
-- `name` não pode ser nulo.
-- `is_active` não pode ser nulo e possui valor padrão `TRUE`.
+- `profile_id` é a chave primária da tabela;
+- `name` deve possuir valor único;
+- `name` não pode ser nulo;
+- `is_active` não pode ser nulo e possui valor padrão `TRUE`;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
 ### Regra de atualização
@@ -124,13 +124,13 @@ Cada usuário possui um identificador único, um e-mail utilizado para identific
 
 ### Restrições
 
-- `user_id` é a chave primária da tabela.
-- `email` não pode ser nulo.
-- `email` deve possuir valor único.
-- `password_hash` não pode ser nulo.
-- `profile_id` não pode ser nulo.
-- `profile_id` referencia `profiles.profile_id`.
-- `is_active` não pode ser nulo e possui valor padrão `TRUE`.
+- `user_id` é a chave primária da tabela;
+- `email` não pode ser nulo;
+- `email` deve possuir valor único;
+- `password_hash` não pode ser nulo;
+- `profile_id` não pode ser nulo;
+- `profile_id` referencia `profiles.profile_id`;
+- `is_active` não pode ser nulo e possui valor padrão `TRUE`;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
 ### Relacionamento com `profiles`
@@ -145,16 +145,15 @@ Exemplo:
 profiles
 profile_id | name
 -----------|---------------
-1          | Administrator
+1          | administrador
 
 users
-user_id | full_name     | profile_id
---------|---------------|-----------
-1       | Example User  | 1
-
+user_id | full_name    | profile_id
+--------|--------------|-----------
+1       | Example User | 1
 ```
 
-Neste exemplo, o usuário está associado ao perfil `Administrator` por meio de `profile_id = 1`.
+Neste exemplo, o usuário está associado ao perfil `administrador` por meio de `profile_id = 1`.
 
 ### Regra de senha
 
@@ -230,6 +229,14 @@ As colunas `created_at` e `updated_at` recebem inicialmente a data e hora da cri
 
 A atualização posterior de `updated_at` será responsabilidade da aplicação.
 
+### Perfis como dados de referência
+
+Os perfis `solicitante`, `analista`, `administrador` e `gestor` fazem parte do domínio inicial da aplicação e são necessários para o relacionamento com os usuários.
+
+Por esse motivo, esses registros são tratados como **dados de referência versionados por migration**, e não como dados opcionais de carga inicial.
+
+Essa decisão garante que qualquer ambiente que execute as migrations receba automaticamente os perfis necessários para o funcionamento inicial da aplicação.
+
 ## Fora do escopo
 
 Esta implementação está limitada à preparação da persistência necessária para autenticação.
@@ -253,18 +260,40 @@ Esses itens deverão ser tratados pelas respectivas Issues ou alinhados posterio
 
 ## Migrations
 
-A estrutura de persistência desta Issue é criada por meio de migrations gerenciadas pelo Knex.
+A estrutura e os dados de referência desta Issue são controlados por migrations gerenciadas pelo Knex.
 
 As migrations devem ser executadas na seguinte ordem:
 
 1. `20260812234318_create_profiles.js`
-2. `20260812235002_create_users.js`
+2. `20260812234600_insert_initial_profiles.js`
+3. `20260812235002_create_users.js`
 
-A ordem é necessária porque a tabela `users` possui a chave estrangeira `profile_id`, que referencia a tabela `profiles`.
+Essa ordem garante que a tabela `profiles` exista antes da inserção dos perfis iniciais e que os perfis estejam disponíveis antes da criação e utilização da relação com `users`.
+
+A ordem também favorece o rollback, pois a tabela `users` é removida antes da tentativa de remoção dos perfis de referência.
 
 ### Migration `create_profiles`
 
 Responsável pela criação da tabela `profiles` e de suas restrições.
+
+### Migration `insert_initial_profiles`
+
+Responsável pela inserção dos dados de referência necessários para os perfis da aplicação.
+
+A migration cadastra os seguintes valores na tabela `profiles`:
+
+| `name`          |
+| --------------- |
+| `solicitante`   |
+| `analista`      |
+| `administrador` |
+| `gestor`        |
+
+Os identificadores `profile_id` não são definidos manualmente e são gerados automaticamente pelo banco de dados.
+
+Antes da inserção, a migration consulta quais perfis já existem e insere somente os registros ausentes.
+
+Essa estratégia reduz o risco de duplicidades sem utilizar `ON CONFLICT`, mantendo compatibilidade com o PostgreSQL 9.0 utilizado atualmente no ambiente de desenvolvimento.
 
 ### Migration `create_users`
 
@@ -295,7 +324,7 @@ O arquivo `.env` com os valores reais não deve ser versionado.
 
 ### Execução
 
-Após a disponibilização do ambiente PostgreSQL e das credenciais, as migrations poderão ser executadas com:
+Após configurar as credenciais do ambiente PostgreSQL, as migrations poderão ser executadas com:
 
 ```bash
 npm run migrate:latest
@@ -315,64 +344,15 @@ npm run migrate:make -- migration-name
 
 ### Situação atual
 
-As migrations foram criadas e tiveram sua estrutura e importação validadas localmente.
+A conectividade com o servidor PostgreSQL foi validada a partir do ambiente de desenvolvimento utilizando o driver `pg`.
 
-A execução contra o PostgreSQL permanece pendente porque as credenciais e o ambiente de banco ainda não foram disponibilizados.
+A versão do servidor foi confirmada como PostgreSQL 9.0.22.
+
+As migrations foram criadas e tiveram sua estrutura, formatação e importação validadas localmente.
+
+A execução das migrations no banco permanece pendente.
 
 A Issue não deve ser considerada completamente validada até que as migrations sejam executadas e a estrutura resultante seja conferida no PostgreSQL.
-
-## Seeds
-
-A persistência de autenticação possui um seed inicial para cadastro dos perfis reconhecidos pelo contrato atual do Backend.
-
-O arquivo utilizado é:
-
-```text
-seeds/initial_profiles.js
-```
-
-### Perfis iniciais
-
-O seed cadastra os seguintes valores na tabela `profiles`:
-
-| `name`          |
-| --------------- |
-| `solicitante`   |
-| `analista`      |
-| `administrador` |
-| `gestor`        |
-
-Esses valores correspondem aos perfis atualmente previstos pelo contrato do Backend.
-
-Os identificadores `profile_id` não são definidos manualmente pelo seed. Eles são gerados automaticamente pelo banco de dados.
-
-Os campos `is_active`, `created_at` e `updated_at` utilizam os valores padrão definidos pela migration da tabela `profiles`.
-
-### Reexecução do seed
-
-A coluna `profiles.name` possui restrição `UNIQUE`.
-
-O seed utiliza tratamento de conflito sobre a coluna `name`, evitando a criação de perfis duplicados quando o seed for executado novamente.
-
-O seed não remove registros existentes da tabela `profiles`.
-
-### Usuários de teste
-
-Nenhum usuário de teste é criado por esta implementação.
-
-A criação de usuários exige definição e validação do processo responsável pela geração de `password_hash`, que pertence ao Backend.
-
-Dessa forma, esta Issue fornece somente os dados iniciais de `profiles`.
-
-### Execução
-
-Após a execução das migrations, os dados iniciais poderão ser carregados com:
-
-```bash
-npm run seed:run
-```
-
-A execução do seed no PostgreSQL permanece pendente enquanto o ambiente e as credenciais do banco não estiverem disponíveis.
 
 ## Validações
 
@@ -381,29 +361,34 @@ A execução do seed no PostgreSQL permanece pendente enquanto o ambiente e as c
 Até o momento foram realizadas as seguintes validações:
 
 - carregamento do `knexfile.js` pelo Node.js;
+- conexão com o servidor PostgreSQL utilizando o driver `pg`;
+- confirmação da versão PostgreSQL 9.0.22;
 - importação da migration `create_profiles`;
+- importação da migration `insert_initial_profiles`;
 - importação da migration `create_users`;
-- presença das funções `up` e `down` nas duas migrations;
+- presença das funções `up` e `down` nas três migrations;
+- validação da migration `insert_initial_profiles` com Prettier;
+- definição dos perfis iniciais `solicitante`, `analista`, `administrador` e `gestor`;
+- revisão da estratégia de inserção dos perfis sem utilização de `ON CONFLICT`;
+- revisão da compatibilidade da estratégia de inserção com PostgreSQL 9.0;
 - `npm run typecheck` executado sem erros;
 - `npm run lint` executado sem erros;
+- `npm run build` executado sem erros;
 - arquivos relacionados à implementação validados com Prettier;
 - `git diff --cached --check` executado sem erros;
 - revisão dos nomes técnicos para conformidade com o padrão em inglês do projeto;
 - revisão do relacionamento `profiles` 1:N `users`;
 - documentação das constraints e decisões de modelagem.
-- importação do seed `initial_profiles.js`;
-- presença da função `seed`;
-- validação de formatação do seed com Prettier;
-- definição dos perfis iniciais `solicitante`, `analista`, `administrador` e `gestor`;
-- revisão da estratégia de reexecução do seed sem remoção dos registros existentes.
 
 ### Validações pendentes
 
-As seguintes validações dependem da disponibilização do ambiente PostgreSQL ou de alinhamento com outros integrantes:
+Ainda precisam ser realizadas as seguintes validações:
 
 - configurar as credenciais reais no arquivo `.env`;
 - executar `npm run migrate:latest`;
 - confirmar a criação das tabelas `profiles` e `users`;
+- confirmar a criação dos quatro perfis iniciais na tabela `profiles`;
+- confirmar que não foram criados perfis duplicados;
 - conferir os tipos das colunas;
 - validar as chaves primárias;
 - validar a restrição `UNIQUE` de `email`;
@@ -414,12 +399,11 @@ As seguintes validações dependem da disponibilização do ambiente PostgreSQL 
 - validar a normalização do e-mail com o Backend;
 - validar o contrato de persistência com o Backend;
 - solicitar revisão da modelagem por outro integrante.
-- executar `npm run seed:run`;
-- confirmar a criação dos quatro perfis iniciais na tabela `profiles`;
-- confirmar que a reexecução do seed não cria perfis duplicados.
 
 ## Status da Issue
 
-A estrutura de persistência, as migrations e a documentação estão preparadas.
+A estrutura de persistência, as migrations de schema, a migration de dados de referência e a documentação estão preparadas.
 
-A Issue permanece em validação enquanto o ambiente PostgreSQL não estiver disponível para execução das migrations e conferência da estrutura resultante.
+A conectividade com o PostgreSQL já foi validada.
+
+A Issue permanece em validação enquanto as migrations não forem executadas e a estrutura resultante não for conferida no banco de dados.

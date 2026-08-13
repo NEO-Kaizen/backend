@@ -46,22 +46,12 @@ As migrations podem ser executadas após a configuração das credenciais do ban
 npm run migrate:latest
 ```
 
+Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`.
+
 Para desfazer o último lote de migrations:
 
 ```bash
 npm run migrate:rollback
-```
-
-Após a execução das migrations, os dados iniciais podem ser carregados com:
-
-```bash
-npm run seed:run
-```
-
-Para criar um novo arquivo de seed:
-
-```bash
-npm run seed:make -- seed-name
 ```
 
 ## Execução
@@ -117,8 +107,6 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
 | `npm run migrate:make -- nome` | Cria uma nova migration                        |
 | `npm run migrate:latest`       | Executa as migrations pendentes                |
 | `npm run migrate:rollback`     | Desfaz o último lote de migrations             |
-| `npm run seed:make -- nome`    | Cria um novo arquivo de seed                   |
-| `npm run seed:run`             | Executa os seeds configurados                  |
 | `npm test`                     | Executa os testes                              |
 
 ## Estrutura do Projeto

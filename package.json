@@ -17,9 +17,7 @@
     "format:check": "prettier --check .",
     "migrate:make": "knex migrate:make --env development",
     "migrate:latest": "knex migrate:latest --env development",
-    "migrate:rollback": "knex migrate:rollback --env development",
-    "seed:make": "knex seed:make --env development",
-    "seed:run": "knex seed:run --env development"
+    "migrate:rollback": "knex migrate:rollback --env development"
   },
   "repository": {
     "type": "git",
