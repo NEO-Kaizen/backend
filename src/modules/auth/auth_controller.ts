@@ -3,13 +3,14 @@ import type { Request, Response } from "express";
 import * as authService from "./auth_service.ts";
 import { generateToken } from "../../shared/utils/jwtUtil.ts";
 import Config from "../../configs.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 
 export const autenticate = async (req: Request, res: Response) => {
   const user: User = req.body;
 
-  if (!user.email || !user.password) {
-    const error = "Usuario/senha não podem ser vazios";
-    return res.status(400).json({ error });
+  if (!user || !user.email || !user.password) {
+    const message = "Usuario/senha não podem ser vazios";
+    throw new AppError(message, 400)
   }
   const foundUser = await authService.findUser(user);
 
