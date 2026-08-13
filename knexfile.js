@@ -3,7 +3,7 @@ import process from "node:process";
 try {
   process.loadEnvFile();
 } catch {
-  // O .env pode ainda não existir enquanto o banco não foi disponibilizado.
+  // The .env file may not exist until the database environment is available.
 }
 
 export default {
@@ -21,6 +21,10 @@ export default {
     migrations: {
       directory: "./migrations",
       extension: "js",
+    },
+
+    seeds: {
+      directory: "./seeds",
     },
   },
 };
