@@ -14,7 +14,10 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "migrate:make": "knex migrate:make --env development",
+    "migrate:latest": "knex migrate:latest --env development",
+    "migrate:rollback": "knex migrate:rollback --env development"
   },
   "repository": {
     "type": "git",
@@ -41,6 +44,8 @@
     "typescript-eslint": "^8.66.0"
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "knex": "^3.3.0",
+    "pg": "^8.23.0"
   }
 }
