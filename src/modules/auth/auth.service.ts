@@ -2,7 +2,7 @@ import * as authRepository from "./auth.repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { comparePassword } from "../../shared/utils/passwordHandler.ts";
 import type { TokenPayload } from "../../shared/utils/jwtUtil.ts";
-import type { LoginRequestDTO } from "../DTOs/LoginRequest.dto.ts";
+import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
 
 export async function findUser(user: LoginRequestDTO) {
   const foundUser = await authRepository.userFind(user);
