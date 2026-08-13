@@ -5,6 +5,11 @@ import Config from "../../configs.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
 
+export const logout = (_req: Request, res: Response) => {
+  res.clearCookie(Config.COOKIE_NAME, { httpOnly: true });
+  return res.status(200).json({ message: "Sessão encerrada com sucesso" });
+};
+
 export const autenticate = async (req: Request, res: Response) => {
   const user: LoginRequestDTO = req.body;
 
