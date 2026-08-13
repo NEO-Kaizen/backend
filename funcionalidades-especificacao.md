@@ -263,11 +263,19 @@ Cria uma conta de usuário e retorna o token de autenticação.
 
 ### Fazer login
 
-Autentica o usuário e retorna os dados do usuário e o token.
+Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do usuário (sem a senha) e define um cookie de sessão HttpOnly com o token JWT.
 
 - `POST /auth/login`
   ```json
   { "email": "maria@instituicao.gov.br", "password": "123456" }
+  ```
+  ```json
+  {
+    "id": "1",
+    "email": "maria@instituicao.gov.br",
+    "name": "Maria Oliveira",
+    "role": "Solicitante"
+  }
   ```
 
 ### Criar usuário
