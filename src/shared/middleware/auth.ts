@@ -1,9 +1,11 @@
-import { JsonWebTokenError, NotBeforeError, TokenExpiredError } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
+import Config from "../../configs.ts";
 
-const COOKIE_NAME = process.env.COOKIE_NAME ?? "session_id";
+const { JsonWebTokenError, NotBeforeError, TokenExpiredError } = jwt;
+const COOKIE_NAME = Config.COOKIE_NAME;
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const token = req.cookies?.[COOKIE_NAME];
@@ -20,7 +22,7 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      role: payload.role
+      role: payload.role,
     };
 
     next();

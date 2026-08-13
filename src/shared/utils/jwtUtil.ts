@@ -1,6 +1,10 @@
-import { sign, verify, type SignOptions } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+import type { SignOptions } from "jsonwebtoken";
 import { AppError } from "../errors/AppError.ts";
 import { isRole, type Role } from "../types/role.ts";
+import Config from "../../configs.ts";
+
+const { sign, verify } = jwt;
 
 export interface TokenPayload {
   id: string;
@@ -10,8 +14,8 @@ export interface TokenPayload {
 }
 
 export function generateToken(payload: TokenPayload): string {
-  const secret = process.env.JWT_SECRET;
-  const expiresIn = (process.env.JWT_EXPIRES_IN ?? "1d") as SignOptions["expiresIn"];
+  const secret = Config.JWT_SECRET;
+  const expiresIn = Config.JWT_EXPIRES_IN as SignOptions["expiresIn"];
 
   if (!secret) {
     throw new Error("Variável de ambiente JWT_SECRET não está definida");
@@ -21,7 +25,7 @@ export function generateToken(payload: TokenPayload): string {
 }
 
 export function verifyToken(token: string): TokenPayload {
-  const secret = process.env.JWT_SECRET;
+  const secret = Config.JWT_SECRET;
 
   if (!secret) {
     throw new Error("Variável de ambiente JWT_SECRET não está definida");

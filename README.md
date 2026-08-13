@@ -21,12 +21,14 @@ Copie o arquivo de exemplo e ajuste as variáveis conforme necessário:
 cp .env.example .env
 ```
 
-| Variável         | Descrição                                                | Exemplo / Padrão    |
-| ---------------- | -------------------------------------------------------- | ------------------- |
-| `PORT`           | Porta do servidor HTTP                                   | `3000`              |
-| `JWT_SECRET`     | Chave secreta usada para assinar e validar os tokens JWT | `sua-chave-secreta` |
-| `JWT_EXPIRES_IN` | Tempo de expiração dos tokens gerados                    | `1d`                |
-| `NODE_ENV`       | Ambiente de execução (`development`, `production`)       | `development`       |
+| Variável         | Descrição                                                           | Exemplo / Padrão        |
+| ---------------- | ------------------------------------------------------------------- | ----------------------- |
+| `PORT`           | Porta do servidor HTTP                                              | `3000`                  |
+| `JWT_SECRET`     | Chave secreta usada para assinar e validar os tokens JWT            | `sua-chave-secreta`     |
+| `JWT_EXPIRES_IN` | Tempo de expiração dos tokens gerados                               | `1d`                    |
+| `NODE_ENV`       | Ambiente de execução (`development`, `production`)                  | `development`           |
+| `CORS_ORIGINS`   | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
+| `COOKIE_NAME`    | Nome do cookie de sessão de autenticação                            | `session_id`            |
 
 ## Execução
 
@@ -41,6 +43,27 @@ npm run dev
 ```
 
 O servidor roda em `http://localhost:3000` (ou na porta definida em `PORT`).
+
+## Endpoints
+
+### Autenticação
+
+#### POST /auth/login
+
+Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do usuário (sem a senha) e define um cookie de sessão HttpOnly com o token JWT.
+
+- Body: `{ "email": "maria@instituicao.gov.br", "password": "123456" }`
+- Resposta `200 OK`:
+  ```json
+  {
+    "id": "1",
+    "email": "maria@instituicao.gov.br",
+    "name": "Maria Oliveira",
+    "role": "Solicitante"
+  }
+  ```
+- Resposta `400 Bad Request`: e-mail ou senha ausentes.
+- Resposta `401 Unauthorized`: credenciais inválidas (e-mail não encontrado ou senha incorreta).
 
 ## Scripts
 
@@ -72,7 +95,7 @@ src/
     │   └── errorHandler.ts # Middleware de captura e resposta global de erros
     ├── types/
     │   ├── express.d.ts    # Extensão da tipagem nativa do Express (ex: req.user)
-    │   └── role.ts         # Enum de perfis de usuário (solicitante, analista, gestor, administrador)
+    │   └── role.ts         # Enum de perfis de usuário (Solicitante, Analista, Gestor, Administrador)
     └── utils/
         └── jwtUtil.ts      # Geração e validação de tokens JWT assinados
 ```
