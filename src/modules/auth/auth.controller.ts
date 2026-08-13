@@ -3,7 +3,7 @@ import * as authService from "./auth.service.ts";
 import { generateToken } from "../../shared/utils/jwtUtil.ts";
 import Config from "../../configs.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import type { LoginRequestDTO } from "../DTOs/LoginRequest.dto.ts";
+import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
 
 export const autenticate = async (req: Request, res: Response) => {
   const user: LoginRequestDTO = req.body;
