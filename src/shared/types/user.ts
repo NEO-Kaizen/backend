@@ -9,3 +9,4 @@ export interface User {
 }
 
 export type AuthenticatedUser = Omit<User, "password">;
+export type UserRequestDTO = Omit<User, "id">

@@ -1,7 +1,7 @@
 import express from "express";
 const authRoutes = express.Router();
 
-import { autenticate } from "./auth_controller.ts";
+import { autenticate } from "./auth.controller.ts";
 
 authRoutes.post("/login", autenticate);
 

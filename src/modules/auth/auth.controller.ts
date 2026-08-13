@@ -1,12 +1,12 @@
-import type { User } from "../../shared/types/user.ts";
 import type { Request, Response } from "express";
-import * as authService from "./auth_service.ts";
+import * as authService from "./auth.service.ts";
 import { generateToken } from "../../shared/utils/jwtUtil.ts";
 import Config from "../../configs.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
+import type { LoginRequestDTO } from "../DTOs/LoginRequest.dto.ts";
 
 export const autenticate = async (req: Request, res: Response) => {
-  const user: User = req.body;
+  const user: LoginRequestDTO = req.body;
 
   if (!user || !user.email || !user.password) {
     const message = "Usuario/senha não podem ser vazios";

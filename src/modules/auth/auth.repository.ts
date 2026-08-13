@@ -1,5 +1,6 @@
 import { hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { User } from "../../shared/types/user.ts";
+import type { LoginRequestDTO } from "../DTOs/LoginRequest.dto.ts";
 
 //an object created solely to simulate the use of a database in the code
 const db: User[] = [
@@ -26,7 +27,7 @@ const db: User[] = [
   },
 ];
 
-export async function userFind(user: User) {
+export async function userFind(user: LoginRequestDTO) {
   const userExist = await db.find((u: User) => u.email === user.email);
 
   return userExist;
