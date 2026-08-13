@@ -8,7 +8,21 @@ const db: User[] = [
     email: "job@email.com",
     name: "Andre Job",
     password: await hashPassword("22"),
+    role: "Gestor",
+  },
+  {
+    id: "2",
+    email: "clebson@email.com",
+    name: "Clebson Rodrigues",
+    password: await hashPassword("22"),
     role: "Administrador",
+  },
+  {
+    id: "1",
+    email: "rogerio@email.com",
+    name: "Rogério da Silva",
+    password: await hashPassword("22"),
+    role: "Analista",
   },
 ];
 
