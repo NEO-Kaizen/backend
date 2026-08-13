@@ -7,6 +7,8 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
+app.disable("x-powered-by");
+
 app.use(
   cors({
     origin: Config.CORS_ORIGINS,

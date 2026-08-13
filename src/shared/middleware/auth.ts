@@ -2,20 +2,15 @@ import jwt from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
+import Config from "../../configs.ts";
 
 const { JsonWebTokenError, NotBeforeError, TokenExpiredError } = jwt;
+const COOKIE_NAME = Config.COOKIE_NAME;
 
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
+  const token = req.cookies?.[COOKIE_NAME];
 
-  if (!authHeader) {
-    next(new AppError("Token não fornecido", 401));
-    return;
-  }
-
-  const [scheme, token] = authHeader.split(" ");
-
-  if (scheme !== "Bearer" || !token) {
+  if (!token) {
     next(new AppError("Token não fornecido", 401));
     return;
   }
