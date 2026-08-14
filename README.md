@@ -57,7 +57,7 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
   ```json
   {
     "id": "1",
-    "s": "maria@instituicao.gov.br",
+    "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
     "role": "Solicitante"
   }
