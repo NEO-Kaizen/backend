@@ -5,20 +5,28 @@ import type { TokenPayload } from "../../shared/utils/jwtUtil.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
 
 export async function findUser(user: LoginRequestDTO) {
-  const foundUser = await authRepository.userFind(user);
+  const foundUser = await authRepository.findUserByEmail(user);
 
   if (!foundUser) {
     throw new AppError("Credenciais inválidas", 401);
   }
 
-  const isPasswordValid = await comparePassword(user.password, foundUser.password);
+  
+
+  const isPasswordValid = await comparePassword(user.password, foundUser.password_hash);
 
   if (!isPasswordValid) throw new AppError("Credenciais inválidas", 401);
-
+console.log(foundUser)
+const roles: Record<number, string> = {
+  1: "Solicitante",
+  2: "Analista",
+  3: "Administrador",
+  4: "Gestor"
+}
   return {
     email: foundUser.email,
-    id: foundUser.id,
-    name: foundUser.name,
-    role: foundUser.role,
+    id: foundUser.user_id,
+    name: foundUser.full_name,
+    role: roles[foundUser.profile_id],
   } as TokenPayload;
 }

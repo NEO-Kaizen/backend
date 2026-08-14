@@ -30,6 +30,30 @@ cp .env.example .env
 | `CORS_ORIGINS`   | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
 | `COOKIE_NAME`    | Nome do cookie de sessão de autenticação                            | `session_id`            |
 
+## Banco de dados
+
+O projeto utiliza PostgreSQL como banco de dados e Knex para gerenciamento das migrations.
+
+As variáveis necessárias para conexão estão documentadas no arquivo `.env.example`.
+
+A documentação da persistência utilizada para autenticação está disponível em:
+
+- [Persistência para autenticação](docs/database/authentication-persistence.md)
+
+As migrations podem ser executadas após a configuração das credenciais do banco:
+
+```bash
+npm run migrate:latest
+```
+
+Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`.
+
+Para desfazer o último lote de migrations:
+
+```bash
+npm run migrate:rollback
+```
+
 ## Execução
 
 ```bash
@@ -54,6 +78,7 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
 
 - Body: `{ "email": "maria@instituicao.gov.br", "password": "123456" }`
 - Resposta `200 OK`:
+
   ```json
   {
     "id": "1",
@@ -62,6 +87,7 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
     "role": "Solicitante"
   }
   ```
+
 - Resposta `400 Bad Request`: e-mail ou senha ausentes.
 - Resposta `401 Unauthorized`: credenciais inválidas (e-mail não encontrado ou senha incorreta).
 
@@ -77,18 +103,21 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 
 ## Scripts
 
-| Comando                | Descrição                                      |
-| ---------------------- | ---------------------------------------------- |
-| `npm start`            | Executa o servidor                             |
-| `npm run dev`          | Executa o servidor com reload automático       |
-| `npm run build`        | Compila o TypeScript para `dist/`              |
-| `npm run start:prod`   | Executa o build gerado                         |
-| `npm run typecheck`    | Checa os tipos com `tsc --noEmit`              |
-| `npm run lint`         | Roda o ESLint                                  |
-| `npm run lint:fix`     | Corrige automaticamente os problemas do ESLint |
-| `npm run format`       | Formata o código com Prettier                  |
-| `npm run format:check` | Verifica a formatação com Prettier             |
-| `npm test`             | Executa os testes                              |
+| Comando                        | Descrição                                      |
+| ------------------------------ | ---------------------------------------------- |
+| `npm start`                    | Executa o servidor                             |
+| `npm run dev`                  | Executa o servidor com reload automático       |
+| `npm run build`                | Compila o TypeScript para `dist/`              |
+| `npm run start:prod`           | Executa o build gerado                         |
+| `npm run typecheck`            | Checa os tipos com `tsc --noEmit`              |
+| `npm run lint`                 | Roda o ESLint                                  |
+| `npm run lint:fix`             | Corrige automaticamente os problemas do ESLint |
+| `npm run format`               | Formata o código com Prettier                  |
+| `npm run format:check`         | Verifica a formatação com Prettier             |
+| `npm run migrate:make -- nome` | Cria uma nova migration                        |
+| `npm run migrate:latest`       | Executa as migrations pendentes                |
+| `npm run migrate:rollback`     | Desfaz o último lote de migrations             |
+| `npm test`                     | Executa os testes                              |
 
 ## Estrutura do Projeto
 
