@@ -65,16 +65,6 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
 - Resposta `400 Bad Request`: e-mail ou senha ausentes.
 - Resposta `401 Unauthorized`: credenciais inválidas (e-mail não encontrado ou senha incorreta).
 
-#### POST /auth/logout
-
-Encerra a sessão do usuário autenticado, removendo o cookie de sessão do navegador. O endpoint é idempotente — retorna sucesso mesmo quando não há sessão ativa.
-
-- Body: nenhum
-- Resposta `200 OK`:
-  ```json
-  { "message": "Sessão encerrada com sucesso" }
-  ```
-
 ## Scripts
 
 | Comando                | Descrição                                      |
