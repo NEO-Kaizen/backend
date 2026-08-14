@@ -1,10 +1,5 @@
-import process from "node:process";
-
-try {
-  process.loadEnvFile();
-} catch {
-  // The .env file may not exist until the database environment is available.
-}
+import config from 'dotenv'
+config.config({override:true})
 
 export default {
   development: {
