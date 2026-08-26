@@ -7,21 +7,21 @@ import db from "../../database/conection.ts";
 //an object created solely to simulate the use of a database in the code
 const database: User[] = [
   {
-    id: "1",
+    id: 1,
     email: "job@email.com",
     name: "Andre Job",
     password: await hashPassword("22"),
     role: "Gestor",
   },
   {
-    id: "2",
+    id: 2,
     email: "clebson@email.com",
     name: "Clebson Rodrigues",
     password: await hashPassword("22"),
     role: "Administrador",
   },
   {
-    id: "1",
+    id: 3,
     email: "rogerio@email.com",
     name: "Rogério da Silva",
     password: await hashPassword("22"),
