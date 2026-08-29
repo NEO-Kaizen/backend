@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    environment:
+      POSTGRES_USER: ${DB_USER:-neo_dev}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-neo_dev}
+      POSTGRES_DB: ${DB_NAME:-neo_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_READ_SEARCH
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    build:
+      context: .
+      target: dev
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - ./src:/app/src
+      - ./migrations:/app/migrations
+      - ./knexfile.js:/app/knexfile.js
+      - ./tsconfig.json:/app/tsconfig.json
+      - /app/node_modules
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  postgres_data:
