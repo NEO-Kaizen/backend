@@ -6,6 +6,7 @@ Esqueleto inicial do backend do projeto Neo Kaizen.
 
 - Node.js 24+ (recomendado: LTS mais recente)
 - npm 9+
+- Docker com o plugin Docker Compose (opcional: ambiente completo em containers)
 
 ## Instalação
 
@@ -29,6 +30,44 @@ cp .env.example .env
 | `NODE_ENV`       | Ambiente de execução (`development`, `production`)                  | `development`           |
 | `CORS_ORIGINS`   | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
 | `COOKIE_NAME`    | Nome do cookie de sessão de autenticação                            | `session_id`            |
+
+## Rodando com Docker
+
+O ambiente completo (PostgreSQL + aplicação) sobe com um único comando, sem precisar instalar Node ou PostgreSQL na máquina:
+
+```bash
+cp .env.example .env
+npm run docker:dev
+```
+
+O `docker compose up` inicia o PostgreSQL (aguardando o health check) e a aplicação com hot-reload via `--watch`. As variáveis do `.env` são usadas pelos containers; o valor padrão de `DB_HOST` (`postgres`) aponta para o serviço do banco dentro da rede do compose.
+
+Para rodar as migrations no container:
+
+```bash
+docker compose exec app npm run migrate:latest
+```
+
+Para desfazer o último lote:
+
+```bash
+docker compose exec app npm run migrate:rollback
+```
+
+Outros comandos úteis:
+
+```bash
+docker compose logs -f app
+docker compose exec app npx tsc --noEmit
+docker compose exec postgres pg_isready -U neo_dev
+```
+
+Notas:
+
+- A porta 5432 do host precisa estar livre: pare outros containers que a publicam antes de subir o ambiente.
+- Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
+- Quem já possui um `.env` com `DB_HOST=localhost` deve trocá-lo para `postgres` ao usar o fluxo Docker.
+- As imagens base estão fixadas por digest (`node:24-alpine` e `postgres:16-alpine`); atualize os digests periodicamente para receber correções de segurança.
 
 ## Banco de dados
 
@@ -107,6 +146,7 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 | ------------------------------ | ---------------------------------------------- |
 | `npm start`                    | Executa o servidor                             |
 | `npm run dev`                  | Executa o servidor com reload automático       |
+| `npm run docker:dev`           | Sobe o ambiente Docker (PostgreSQL + app)      |
 | `npm run build`                | Compila o TypeScript para `dist/`              |
 | `npm run start:prod`           | Executa o build gerado                         |
 | `npm run typecheck`            | Checa os tipos com `tsc --noEmit`              |
