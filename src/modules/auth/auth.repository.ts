@@ -1,7 +1,6 @@
 import { hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { User } from "../../shared/types/user.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
-import knex from "knex";
 import db from "../../database/conection.ts";
 
 //an object created solely to simulate the use of a database in the code

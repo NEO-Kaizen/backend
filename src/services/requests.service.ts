@@ -1,6 +1,6 @@
-import * as RequestRepository from "./requests.repository.ts";
-import { AppError } from "../../shared/errors/AppError.ts";
-import type { trackPublicRequestDTO } from "../DTOs/requests/Request.dto.ts";
+import * as RequestRepository from "../modules/requests/requests.repository.ts";
+import { AppError } from "../shared/errors/AppError.ts";
+import type { trackPublicRequestDTO } from "../modules/DTOs/requests/Request.dto.ts";
 
 export async function findRequest(request: trackPublicRequestDTO) {
   const normalizedEmail = request.email.trim().toLowerCase();
