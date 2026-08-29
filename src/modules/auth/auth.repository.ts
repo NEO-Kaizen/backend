@@ -1,6 +1,6 @@
 import { hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { User } from "../../shared/types/user.ts";
-import type { LoginRequestDTO } from "../DTOs/LoginRequest.dto.ts";
+import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
 
 //an object created solely to simulate the use of a database in the code
 const db: User[] = [
