@@ -1,19 +1,17 @@
 import type { Request, Response } from "express";
 import * as RequestService from "./requests.service.ts";
-// import { AppError } from "../../shared/errors/AppError.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 
 export const trackPublicRequest = async (req : Request, res: Response)=>{
     const protocol = req.params.protocol as string;
     const email = req.query.email as string;
 
-    if(typeof email !== "string" || email.trim() === "") {
-        return res.status(400).json({
-          error: 'Email é obrigatório'
-        })
+    if (!email || typeof email !== 'string' || email.trim() === '') {
+        throw new AppError("Email é obrigatório", 400);
     }
 
     const request = {
-        protocol : protocol ,
+        protocol : protocol,
         email : email,
     }
 

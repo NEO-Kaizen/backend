@@ -4,7 +4,7 @@ import type { trackPublicRequestDTO } from "../DTOs/requests/Request.dto.ts";
 
 export async function findRequest(request: trackPublicRequestDTO) {
   const normalizedEmail = request.email.trim().toLowerCase();
-  const protocol = request.protocol;
+  const protocol = request.protocol.trim();
 
   const response = await RequestRepository.findRequestByProtocol(protocol, normalizedEmail);
 

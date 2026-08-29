@@ -5,7 +5,6 @@ import type { RequestWithRequesterEmail } from "../DTOs/requests/Request.dto.ts"
 export async function findRequestByProtocol(protocol: string, email: string) : Promise<RequestWithRequesterEmail> {
   const response = await db("solicitacoes as p")
     .join("solicitante as s", "s.id", "p.solicitante_id")
-
     .select(
       "p.protocolo as protocol",
       "p.titulo_resumido as title",
