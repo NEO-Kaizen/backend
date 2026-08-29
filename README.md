@@ -42,16 +42,22 @@ npm run docker:dev
 
 O `docker compose up` inicia o PostgreSQL (aguardando o health check) e a aplicação com hot-reload via `--watch`. As variáveis do `.env` são usadas pelos containers; o valor padrão de `DB_HOST` (`postgres`) aponta para o serviço do banco dentro da rede do compose.
 
-Para rodar as migrations no container:
+Para rodar as migrations no container (com o ambiente no ar):
 
 ```bash
-docker compose exec app npm run migrate:latest
+npm run docker:migrate:latest
 ```
 
 Para desfazer o último lote:
 
 ```bash
-docker compose exec app npm run migrate:rollback
+npm run docker:migrate:rollback
+```
+
+Para criar uma nova migration:
+
+```bash
+npm run docker:migrate:make -- nome-da-migration
 ```
 
 Outros comandos úteis:
@@ -142,22 +148,25 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 
 ## Scripts
 
-| Comando                        | Descrição                                      |
-| ------------------------------ | ---------------------------------------------- |
-| `npm start`                    | Executa o servidor                             |
-| `npm run dev`                  | Executa o servidor com reload automático       |
-| `npm run docker:dev`           | Sobe o ambiente Docker (PostgreSQL + app)      |
-| `npm run build`                | Compila o TypeScript para `dist/`              |
-| `npm run start:prod`           | Executa o build gerado                         |
-| `npm run typecheck`            | Checa os tipos com `tsc --noEmit`              |
-| `npm run lint`                 | Roda o ESLint                                  |
-| `npm run lint:fix`             | Corrige automaticamente os problemas do ESLint |
-| `npm run format`               | Formata o código com Prettier                  |
-| `npm run format:check`         | Verifica a formatação com Prettier             |
-| `npm run migrate:make -- nome` | Cria uma nova migration                        |
-| `npm run migrate:latest`       | Executa as migrations pendentes                |
-| `npm run migrate:rollback`     | Desfaz o último lote de migrations             |
-| `npm test`                     | Executa os testes                              |
+| Comando                               | Descrição                                       |
+| ------------------------------------- | ----------------------------------------------- |
+| `npm start`                           | Executa o servidor                              |
+| `npm run dev`                         | Executa o servidor com reload automático        |
+| `npm run docker:dev`                  | Sobe o ambiente Docker (PostgreSQL + app)       |
+| `npm run docker:migrate:latest`       | Executa as migrations pendentes no container    |
+| `npm run docker:migrate:rollback`     | Desfaz o último lote de migrations no container |
+| `npm run docker:migrate:make -- nome` | Cria uma nova migration no container            |
+| `npm run build`                       | Compila o TypeScript para `dist/`               |
+| `npm run start:prod`                  | Executa o build gerado                          |
+| `npm run typecheck`                   | Checa os tipos com `tsc --noEmit`               |
+| `npm run lint`                        | Roda o ESLint                                   |
+| `npm run lint:fix`                    | Corrige automaticamente os problemas do ESLint  |
+| `npm run format`                      | Formata o código com Prettier                   |
+| `npm run format:check`                | Verifica a formatação com Prettier              |
+| `npm run migrate:make -- nome`        | Cria uma nova migration                         |
+| `npm run migrate:latest`              | Executa as migrations pendentes                 |
+| `npm run migrate:rollback`            | Desfaz o último lote de migrations              |
+| `npm test`                            | Executa os testes                               |
 
 ## Estrutura do Projeto
 

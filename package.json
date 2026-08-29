@@ -18,7 +18,10 @@
     "migrate:make": "knex migrate:make --env development",
     "migrate:latest": "knex migrate:latest --env development",
     "migrate:rollback": "knex migrate:rollback --env development",
-    "docker:dev": "docker compose up --build"
+    "docker:dev": "docker compose up --build",
+    "docker:migrate:latest": "docker compose exec app npm run migrate:latest",
+    "docker:migrate:rollback": "docker compose exec app npm run migrate:rollback",
+    "docker:migrate:make": "docker compose exec app npm run migrate:make --"
   },
   "repository": {
     "type": "git",
