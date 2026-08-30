@@ -40,7 +40,7 @@ cp .env.example .env
 npm run docker:dev
 ```
 
-O `docker compose up` inicia o PostgreSQL (aguardando o health check) e a aplicação com hot-reload via `--watch`. As variáveis do `.env` são usadas pelos containers; o valor padrão de `DB_HOST` (`postgres`) aponta para o serviço do banco dentro da rede do compose.
+O `docker compose up` inicia o PostgreSQL (aguardando o health check) e a aplicação com hot-reload via `--watch`. As variáveis do `.env` são usadas pelos containers; dentro da rede do compose o `DB_HOST` é sobrescrito para o serviço `postgres`, enquanto o fluxo local usa o `localhost` do `.env`.
 
 Para rodar as migrations no container (com o ambiente no ar):
 
@@ -65,15 +65,15 @@ Outros comandos úteis:
 ```bash
 docker compose logs -f app
 docker compose exec app npx tsc --noEmit
-docker compose exec postgres pg_isready -U neo_dev
+docker compose exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
 Notas:
 
-- A porta 5432 do host precisa estar livre: pare outros containers que a publicam antes de subir o ambiente.
+- O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `POSTGRES_HOST_PORT` (padrão `5432`). Se essa porta já estiver ocupada no host, defina `POSTGRES_HOST_PORT` no `.env`.
 - Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
-- Quem já possui um `.env` com `DB_HOST=localhost` deve trocá-lo para `postgres` ao usar o fluxo Docker.
-- As imagens base estão fixadas por digest (`node:24-alpine` e `postgres:16-alpine`); atualize os digests periodicamente para receber correções de segurança.
+- As credenciais do banco (`POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`, derivadas do `.env`) só inicializam o banco quando o volume está vazio. Alterá-las depois da primeira inicialização não muda o usuário e o banco existentes: recrie o ambiente com `docker compose down -v` (apaga os dados) ou ajuste as credenciais diretamente no banco.
+- As imagens base estão fixadas por digest (`node:24-bookworm-slim` e `postgres:18-alpine`); atualize os digests periodicamente para receber correções de segurança.
 
 ## Banco de dados
 
