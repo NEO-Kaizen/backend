@@ -1,10 +1,9 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS base
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS base
 WORKDIR /app
 
 FROM base AS dev
-RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
@@ -13,14 +12,12 @@ USER node
 CMD ["npm", "run", "dev"]
 
 FROM base AS build
-RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
 FROM base AS prod-deps
-RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
