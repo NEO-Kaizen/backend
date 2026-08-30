@@ -101,6 +101,26 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
   { "message": "Sessão encerrada com sucesso" }
   ```
 
+### Solicitações
+
+#### Acompanhar solicitação publicamente
+Consulta a solicitação pelo protocolo e e-mail do solicitante (acompanhamento público sem autenticação).
+
+- Body: `{ "protoclo": "MAAT-2026-001", "email: "usuario@empresa.com" }`
+- Resposta `200 OK`:
+  ```json
+  {
+    "protocol": "MAAT-2026-001",
+    "title": "Solicitação",
+    "status": "EM_ANDAMENTO",
+    "created_at": "2026-01-15T10:30:00Z",
+    "updated_at": "2026-01-16T14:20:00Z",
+    "requester_email": "usuario@empresa.com"
+  }
+  ```
+- Resposta `400 Bad Request`: e-mail ausente.
+- Resposta `402 Not Found`: informações inválidas (protocolo não encontrado ou email incorreto).
+
 ## Scripts
 
 | Comando                        | Descrição                                      |
