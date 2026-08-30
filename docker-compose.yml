@@ -1,14 +1,14 @@
 services:
   postgres:
-    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
     environment:
       POSTGRES_USER: ${DB_USER:-neo_dev}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-neo_dev}
       POSTGRES_DB: ${DB_NAME:-neo_dev}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -31,6 +31,8 @@ services:
       context: .
       target: dev
     env_file: .env
+    environment:
+      DB_HOST: postgres
     depends_on:
       postgres:
         condition: service_healthy
