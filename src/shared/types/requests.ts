@@ -19,6 +19,15 @@
 
     export type RequestPriority = "Baixa" | "Média" | "Alta" | "Crítica";
 
+    export type TriageResult =
+    | "Elegível para avaliação"
+    | "Pendente de informações"
+    | "Fora do escopo"
+    | "Direcionada para outra área"
+    | "Duplicada"
+    | "Cancelada"
+    | "Backlog";
+
     export type OperationalImpact = "Baixo" | "Médio" | "Alto" | "Crítico";
 
     export type YesNoDetail = false | string;
@@ -88,7 +97,6 @@
     dependsOnOtherAreas?: YesNoDetail;     // dependência de outras áreas (+ quais)
     handlesRestrictedInfo?: YesNoDetail;   // tratamento de informações restritas (LGPD/sigilo)
     additionalNotes?: string;              // observações adicionais, máx. 2.000
-    attachments?: AttachmentMetadata[];    // PDF, DOCX, XLSX, PNG ou JPG — até 10MB por arquivo
     }
 
     export type SchedulePreferences = string[]; // ISO "yyyy-mm-ddThh:mm" — max 3
