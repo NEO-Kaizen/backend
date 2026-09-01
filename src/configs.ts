@@ -8,6 +8,7 @@ const Config = {
   ],
   COOKIE_MAX_AGE: jwtExpiryToMs(process.env.JWT_EXPIRES_IN ?? "1d"),
   COOKIE_NAME: process.env.COOKIE_NAME ?? "session_id",
+  UPLOAD_DIR: process.env.UPLOAD_DIR ?? "uploads"
 };
 
 function jwtExpiryToMs(value: string): number {
