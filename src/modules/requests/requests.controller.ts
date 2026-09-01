@@ -1,8 +1,9 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
+import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
-import type { CreateRequestResponse } from "../DTOs/requests/RequestResponse.dto.ts";
 import { createRequestPayloadSchema } from "./requests.schema.ts";
+import { registerRequest } from "./requests.service.ts";
 
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
   const payloadPart: unknown = req.body.payload;
@@ -22,11 +23,12 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
   if (!parsed.success) {
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
+  const multerFiles = req.files;
+  const attachments =
+    multerFiles && !Array.isArray(multerFiles) ? (multerFiles.attachments ?? []) : [];
+  const savedAttachments = await saveFiles(attachments);
 
-  const response: CreateRequestResponse = {
-    protocol: "",
-    status: "Solicitação enviada",
-    createdAt: new Date().toISOString(),
-  };
+  const response = await registerRequest(parsed.data, savedAttachments);
+
   return res.status(201).json(response);
 };
