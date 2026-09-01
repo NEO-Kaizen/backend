@@ -292,13 +292,13 @@ psql -c 'CREATE DATABASE "Sistema NEO";'
 # 2. Conectar ao banco
 psql -d "Sistema NEO"
 
-# 3. Executar o script DDL
-\i database/ddl.sql
+# 3. Executar o script DDL (ddl.sql) para criar enums, tabelas, triggers e funções
+\i caminho/para/ddl.sql
 ```
 
 Ou via linha de comando:
 ```bash
-psql -d "Sistema NEO" -f database/ddl.sql
+psql -d "Sistema NEO" -f caminho/para/ddl.sql
 ```
 
 ---
