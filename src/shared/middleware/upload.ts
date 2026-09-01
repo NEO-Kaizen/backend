@@ -1,13 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import multer, { MulterError } from "multer";
-import { randomUUID } from "node:crypto";
-import path from "node:path";
-import fs from "node:fs";
-import Config from "../../configs.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-
-const uploadDir = path.resolve(Config.UPLOAD_DIR);
-fs.mkdirSync(uploadDir, { recursive: true })
 
 const ALLOWED_MIMES = new Set([
     "application/pdf",
@@ -21,17 +14,8 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENT_COUNT = 5;
 const MAX_FIELD_SIZE_BYTES = 2 * 1024 * 1024;
 
-const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, uploadDir)
-    },
-    filename: (_req, file, cb) => {
-        cb(null, `${randomUUID()}${path.extname(file.originalname)}`);
-    },
-})
-
 const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     limits: {
         fileSize: MAX_FILE_SIZE_BYTES,
         files: MAX_ATTACHMENT_COUNT,
