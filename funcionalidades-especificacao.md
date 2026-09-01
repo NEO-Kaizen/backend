@@ -274,7 +274,7 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
     "id": "1",
     "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
-    "role": "Solicitante"
+    "role": "Analista"
   }
   ```
 

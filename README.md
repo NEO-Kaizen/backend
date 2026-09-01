@@ -129,7 +129,7 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
     "id": "1",
     "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
-    "role": "Solicitante"
+    "role": "Analista"
   }
   ```
 
@@ -183,7 +183,7 @@ src/
     │   └── errorHandler.ts # Middleware de captura e resposta global de erros
     ├── types/
     │   ├── express.d.ts    # Extensão da tipagem nativa do Express (ex: req.user)
-    │   └── role.ts         # Enum de perfis de usuário (Solicitante, Analista, Gestor, Administrador)
+    │   └── role.ts         # Enum de perfis de usuário (Analista, Gestor, Administrador)
     └── utils/
         └── jwtUtil.ts      # Geração e validação de tokens JWT assinados
 ```
