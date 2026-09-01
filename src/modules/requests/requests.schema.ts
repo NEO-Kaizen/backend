@@ -8,8 +8,6 @@ import type {
 } from "../../shared/types/requests.ts";
 import type { CreateRequestPayload } from "../DTOs/requests/RequestRequests.dto.ts";
 
-// Resposta "Sim/Não (+ detalhamento)" — o detalhamento É a resposta positiva:
-// dizer "Sim" sem escrever o detalhe é estruturalmente impossível.
 const yesNoDetailSchema = z.union(
   [
     z.literal(false),
@@ -61,11 +59,14 @@ const operationalSchema = z.object({
   executionFrequency: requiredString(50),
   volumetry: requiredString(100),
   peopleInvolved: z
-    .number("Deve ser um número.")
+    .number()
     .int("Deve ser um número inteiro.")
     .positive("Deve ser maior que zero."),
   averageExecutionTime: requiredString(60),
-  monthlyEffortHours: z.number("Deve ser um número."),
+  monthlyEffortHours: z
+    .number()
+    .min(0, "Não pode ser negativo.")
+    .max(99999999.99, "Máximo de 99.999.999,99."),
   hasManualControls: yesNoDetailSchema,
   mainRisks: requiredString(2000),
   clientImpact: requiredString(2000),
@@ -86,6 +87,16 @@ const complementarySchema = z.object({
   additionalNotes: optionalString(2000),
 }) satisfies z.ZodType<ComplementaryBlock>;
 
+const isRealCalendarDateTime = (value: string): boolean => {
+  const [datePart, timePart] = value.split("T");
+  const [year, month, day] = (datePart ?? "").split("-").map(Number);
+  const [hour = 0, minute = 0] = (timePart ?? "00:00").split(":").map(Number);
+  if (!year || !month || !day) return false;
+  if (hour > 23 || minute > 59) return false;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day >= 1 && day <= lastDay;
+};
+
 export const createRequestPayloadSchema = z.object(
   {
     requester: requesterSchema,
@@ -97,9 +108,10 @@ export const createRequestPayloadSchema = z.object(
         z
           .string()
           .regex(
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/,
+            /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d$/,
             "Horário inválido — use o formato AAAA-MM-DDTHH:MM.",
-          ),
+          )
+          .refine(isRealCalendarDateTime, "Horário inexistente no calendário."),
       )
       .max(3, "Máximo de 3 opções de horário.")
       .optional(),
