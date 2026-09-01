@@ -16,9 +16,9 @@ export async function findUser(user: LoginRequestDTO) {
   if (!isPasswordValid) throw new AppError("Credenciais inválidas", 401);
 console.log(foundUser)
 const roles: Record<number, string> = {
-  1: "Analista",
-  2: "Administrador",
-  3: "Gestor"
+  2: "Analista",
+  3: "Administrador",
+  4: "Gestor"
 }
   return {
     email: foundUser.email,
