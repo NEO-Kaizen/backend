@@ -6,14 +6,9 @@ O **Sistema NEO** é uma plataforma de gestão de solicitações (tirador de ped
 
 ---
 
-## 🗂️ Estrutura do Banco
+## 📌 Documentação
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `ddl.sql` | Script completo de criação das tabelas, enums, triggers e funções |
-| `modelo-er.md` | Diagrama Entidade-Relacionamento em formato Mermaid |
-| `modelagem-dados-neo.pdf` | Representação visual do modelo de dados |
-| `gerar-pdf.py` | Script Python para gerar o PDF da modelagem |
+Este documento (`README.md`) é autocontido e descreve toda a modelagem de dados do Sistema NEO, incluindo o diagrama Entidade-Relacionamento, a descrição de todas as tabelas, enums, triggers e instruções de instalação.
 
 ---
 
