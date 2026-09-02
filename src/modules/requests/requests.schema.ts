@@ -113,6 +113,7 @@ export const createRequestPayloadSchema = z.object(
           )
           .refine(isRealCalendarDateTime, "Horário inexistente no calendário."),
       )
+      .min(1, "Selecione pelo menos 1 opção de horário.")
       .max(3, "Máximo de 3 opções de horário.")
       .optional(),
   },
