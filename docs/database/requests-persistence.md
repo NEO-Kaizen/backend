@@ -76,68 +76,68 @@ Armazena a solicitação completa. Cada linha é um pedido, identificado pelo pr
 
 ### Identificação e blocos do formulário
 
-| Campo | Tipo | Obrigatório | Restrição / Default | Finalidade |
-| --- | --- | --- | --- | --- |
-| `request_id` | INTEGER | Sim | Primary Key, auto increment | Identificador interno da solicitação |
-| `protocol` | VARCHAR(20) | Sim | UNIQUE, NOT NULL, DEFAULT da sequência | Protocolo público, único e gerado por sequência |
-| `requester_name` | VARCHAR(150) | Não | NULL permitido | Nome do solicitante |
-| `requester_email` | VARCHAR(254) | Não | NULL permitido; normalizado para minúsculo | E-mail do solicitante |
-| `requester_area` | VARCHAR(100) | Não | NULL permitido | Área do solicitante |
-| `requester_department` | VARCHAR(100) | Não | NULL permitido | Departamento do solicitante |
-| `requester_manager` | VARCHAR(150) | Não | NULL permitido | Gestor do solicitante |
-| `requester_additional_contact` | VARCHAR(50) | Não | NULL permitido | Contato adicional |
-| `process` | VARCHAR(150) | Não | NULL permitido | Processo associado à demanda |
-| `title` | VARCHAR(255) | Não | NULL permitido | Título da demanda |
-| `demand_type` | VARCHAR(60) | Não | NULL permitido | Tipo da demanda |
-| `category` | VARCHAR(60) | Não | NULL permitido; indexada | Categoria (filtro) |
-| `description` | TEXT | Não | NULL permitido | Descrição da necessidade |
-| `problem` | TEXT | Não | NULL permitido | Problema identificado |
-| `expected_result` | TEXT | Não | NULL permitido | Resultado esperado |
-| `justification` | TEXT | Não | NULL permitido | Justificativa |
-| `operational_steps` | TEXT | Não | NULL permitido | Etapas do processo atual |
-| `systems` | VARCHAR(255) | Não | NULL permitido | Sistemas envolvidos |
-| `frequency` | VARCHAR(60) | Não | NULL permitido | Frequência de execução |
-| `volume` | INTEGER | Não | NULL permitido | Volumetria |
-| `people_involved` | INTEGER | Não | NULL permitido | Pessoas envolvidas |
-| `average_execution_time` | VARCHAR(30) | Não | NULL permitido | Tempo médio de execução (ex.: `2h`) |
-| `manual_controls` | BOOLEAN | Não | NULL permitido | Existem controles manuais |
-| `risks` | TEXT | Não | NULL permitido | Riscos identificados |
-| `client_impact` | TEXT | Não | NULL permitido | Impacto no cliente |
-| `desired_deadline` | DATE | Não | NULL permitido | Prazo desejado |
-| `criticality` | VARCHAR(30) | Não | NULL permitido | Criticidade |
-| `has_documentation` | BOOLEAN | Não | NULL permitido | Existe documentação |
-| `dependency_other_areas` | VARCHAR(255) | Não | NULL permitido | Dependência de outras áreas |
-| `restricted_handling` | BOOLEAN | Não | NULL permitido | Tratamento restrito |
-| `notes` | TEXT | Não | NULL permitido | Observações |
+| Campo                          | Tipo         | Obrigatório | Restrição / Default                        | Finalidade                                      |
+| ------------------------------ | ------------ | ----------- | ------------------------------------------ | ----------------------------------------------- |
+| `request_id`                   | INTEGER      | Sim         | Primary Key, auto increment                | Identificador interno da solicitação            |
+| `protocol`                     | VARCHAR(20)  | Sim         | UNIQUE, NOT NULL, DEFAULT da sequência     | Protocolo público, único e gerado por sequência |
+| `requester_name`               | VARCHAR(150) | Não         | NULL permitido                             | Nome do solicitante                             |
+| `requester_email`              | VARCHAR(254) | Não         | NULL permitido; normalizado para minúsculo | E-mail do solicitante                           |
+| `requester_area`               | VARCHAR(100) | Não         | NULL permitido                             | Área do solicitante                             |
+| `requester_department`         | VARCHAR(100) | Não         | NULL permitido                             | Departamento do solicitante                     |
+| `requester_manager`            | VARCHAR(150) | Não         | NULL permitido                             | Gestor do solicitante                           |
+| `requester_additional_contact` | VARCHAR(50)  | Não         | NULL permitido                             | Contato adicional                               |
+| `process`                      | VARCHAR(150) | Não         | NULL permitido                             | Processo associado à demanda                    |
+| `title`                        | VARCHAR(255) | Não         | NULL permitido                             | Título da demanda                               |
+| `demand_type`                  | VARCHAR(60)  | Não         | NULL permitido                             | Tipo da demanda                                 |
+| `category`                     | VARCHAR(60)  | Não         | NULL permitido; indexada                   | Categoria (filtro)                              |
+| `description`                  | TEXT         | Não         | NULL permitido                             | Descrição da necessidade                        |
+| `problem`                      | TEXT         | Não         | NULL permitido                             | Problema identificado                           |
+| `expected_result`              | TEXT         | Não         | NULL permitido                             | Resultado esperado                              |
+| `justification`                | TEXT         | Não         | NULL permitido                             | Justificativa                                   |
+| `operational_steps`            | TEXT         | Não         | NULL permitido                             | Etapas do processo atual                        |
+| `systems`                      | VARCHAR(255) | Não         | NULL permitido                             | Sistemas envolvidos                             |
+| `frequency`                    | VARCHAR(60)  | Não         | NULL permitido                             | Frequência de execução                          |
+| `volume`                       | INTEGER      | Não         | NULL permitido                             | Volumetria                                      |
+| `people_involved`              | INTEGER      | Não         | NULL permitido                             | Pessoas envolvidas                              |
+| `average_execution_time`       | VARCHAR(30)  | Não         | NULL permitido                             | Tempo médio de execução (ex.: `2h`)             |
+| `manual_controls`              | BOOLEAN      | Não         | NULL permitido                             | Existem controles manuais                       |
+| `risks`                        | TEXT         | Não         | NULL permitido                             | Riscos identificados                            |
+| `client_impact`                | TEXT         | Não         | NULL permitido                             | Impacto no cliente                              |
+| `desired_deadline`             | DATE         | Não         | NULL permitido                             | Prazo desejado                                  |
+| `criticality`                  | VARCHAR(30)  | Não         | NULL permitido                             | Criticidade                                     |
+| `has_documentation`            | BOOLEAN      | Não         | NULL permitido                             | Existe documentação                             |
+| `dependency_other_areas`       | VARCHAR(255) | Não         | NULL permitido                             | Dependência de outras áreas                     |
+| `restricted_handling`          | BOOLEAN      | Não         | NULL permitido                             | Tratamento restrito                             |
+| `notes`                        | TEXT         | Não         | NULL permitido                             | Observações                                     |
 
 ### Colunas de fluxo
 
-| Campo | Tipo | Obrigatório | Restrição / Default | Finalidade |
-| --- | --- | --- | --- | --- |
-| `status` | VARCHAR(60) | Sim | NOT NULL, DEFAULT `Recebida`; indexada | Status atual do pedido |
-| `priority` | VARCHAR(60) | Não | NULL permitido | Prioridade, preenchida após a priorização |
-| `created_at` | TIMESTAMP | Sim | DEFAULT CURRENT_TIMESTAMP | Data e hora de criação |
-| `updated_at` | TIMESTAMP | Sim | DEFAULT CURRENT_TIMESTAMP | Data e hora da última atualização |
+| Campo        | Tipo        | Obrigatório | Restrição / Default                    | Finalidade                                |
+| ------------ | ----------- | ----------- | -------------------------------------- | ----------------------------------------- |
+| `status`     | VARCHAR(60) | Sim         | NOT NULL, DEFAULT `Recebida`; indexada | Status atual do pedido                    |
+| `priority`   | VARCHAR(60) | Não         | NULL permitido                         | Prioridade, preenchida após a priorização |
+| `created_at` | TIMESTAMP   | Sim         | DEFAULT CURRENT_TIMESTAMP              | Data e hora de criação                    |
+| `updated_at` | TIMESTAMP   | Sim         | DEFAULT CURRENT_TIMESTAMP              | Data e hora da última atualização         |
 
 ### Índices
 
-| Nome | Tipo | Colunas | Finalidade |
-| --- | --- | --- | --- |
-| `requests_pkey` | UNIQUE | `request_id` | Chave primária |
-| `requests_protocol_unique` | UNIQUE | `protocol` | Garante protocolo único |
-| `requests_requester_email_index` | BTREE | `requester_email` | Acompanhamento público por e-mail |
-| `requests_status_index` | BTREE | `status` | Filtro por status |
-| `requests_category_index` | BTREE | `category` | Filtro por categoria |
+| Nome                             | Tipo   | Colunas           | Finalidade                        |
+| -------------------------------- | ------ | ----------------- | --------------------------------- |
+| `requests_pkey`                  | UNIQUE | `request_id`      | Chave primária                    |
+| `requests_protocol_unique`       | UNIQUE | `protocol`        | Garante protocolo único           |
+| `requests_requester_email_index` | BTREE  | `requester_email` | Acompanhamento público por e-mail |
+| `requests_status_index`          | BTREE  | `status`          | Filtro por status                 |
+| `requests_category_index`        | BTREE  | `category`        | Filtro por categoria              |
 
 ## Tabela `request_time_preferences`
 
 Armazena os horários de preferência do bloco `preferenciasHorario`. Cada linha é um horário (`HH:MM`) associado a uma solicitação.
 
-| Campo | Tipo | Obrigatório | Restrição / Default | Finalidade |
-| --- | --- | --- | --- | --- |
-| `request_time_preference_id` | INTEGER | Sim | Primary Key, auto increment | Identificador único do horário |
-| `request_id` | INTEGER | Sim | Foreign Key, NOT NULL | Solicitação associada |
-| `slot` | VARCHAR(5) | Sim | NOT NULL | Horário no formato `HH:MM` |
+| Campo                        | Tipo       | Obrigatório | Restrição / Default         | Finalidade                     |
+| ---------------------------- | ---------- | ----------- | --------------------------- | ------------------------------ |
+| `request_time_preference_id` | INTEGER    | Sim         | Primary Key, auto increment | Identificador único do horário |
+| `request_id`                 | INTEGER    | Sim         | Foreign Key, NOT NULL       | Solicitação associada          |
+| `slot`                       | VARCHAR(5) | Sim         | NOT NULL                    | Horário no formato `HH:MM`     |
 
 Restrições:
 
