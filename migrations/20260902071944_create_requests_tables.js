@@ -2,8 +2,10 @@
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-export function up(knex) {
-    return knex.schema.createTable("requests", (table) => {
+export async function up(knex) {
+    await knex.raw("CREATE SEQUENCE requests_protocol_seq START 1 INCREMENT 1");
+
+    await knex.schema.createTable("requests", (table) => {
         table.increments("request_id");
         table.string("protocol", 20).notNullable().unique();
 
@@ -45,12 +47,17 @@ export function up(knex) {
         table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
         table.timestamp("updated_at").notNullable().defaultTo(knex.fn.now());
     });
+
+    await knex.raw(
+        "ALTER TABLE requests ALTER COLUMN protocol SET DEFAULT 'SOL-' || to_char(CURRENT_DATE, 'YYYY') || '-' || lpad(nextval('requests_protocol_seq')::text, 6, '0')",
+    );
 }
 
 /**
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-export function down(knex) {
-    return knex.schema.dropTable("requests");
+export async function down(knex) {
+    await knex.schema.dropTable("requests");
+    await knex.raw("DROP SEQUENCE IF EXISTS requests_protocol_seq");
 }
