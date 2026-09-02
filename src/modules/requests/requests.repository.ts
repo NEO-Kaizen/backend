@@ -16,7 +16,7 @@ export async function findRequesterByEmail(email: RequesterBlock["corporateEmail
 }
 
 export async function saveRequester(requester: RequesterBlock) {
-    return await db("requester").insert({
+    return await db("requesters").insert({
         full_name: requester.fullName,
         corporate_email: requester.corporateEmail,
         requester_area: requester.area,
