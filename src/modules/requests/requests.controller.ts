@@ -3,7 +3,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { createRequestPayloadSchema } from "./requests.schema.ts";
-import { registerRequest } from "./requests.service.ts";
+import * as service from "./requests.service.ts";
 
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
   const payloadPart: unknown = req.body.payload;
@@ -28,7 +28,7 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
     multerFiles && !Array.isArray(multerFiles) ? (multerFiles.attachments ?? []) : [];
   const savedAttachments = await saveFiles(attachments);
 
-  const response = await registerRequest(parsed.data, savedAttachments);
+  const response = await service.registerRequest(parsed.data, savedAttachments);
 
   return res.status(201).json(response);
 };
