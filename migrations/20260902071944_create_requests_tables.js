@@ -46,6 +46,10 @@ export async function up(knex) {
         table.string("priority", 60);
         table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
         table.timestamp("updated_at").notNullable().defaultTo(knex.fn.now());
+
+        table.index(["requester_email"]);
+        table.index(["status"]);
+        table.index(["category"]);
     });
 
     await knex.schema.createTable("request_time_preferences", (table) => {
@@ -57,6 +61,8 @@ export async function up(knex) {
             .inTable("requests")
             .onDelete("CASCADE");
         table.string("slot", 5).notNullable();
+
+        table.index(["request_id"]);
     });
 
     await knex.raw(
