@@ -104,11 +104,17 @@ export interface ComplementaryBlock {
 export type SchedulePreferences = string[]; // ISO "yyyy-mm-ddThh:mm" — max 3
 
 
-export interface RequesterTable extends RequesterBlock {
-    id: number;
+export interface RequesterTable {
+    requester_id: number;
+    full_name: string;
+    corporate_email: string;
     role: RoleCell;
-    createdAt: Date;
-    updatedAt: Date;
+    area: string;
+    department: string | null;
+    manager_name: string;
+    additional_contact: string | null;
+    created_at: Date;
+    updated_at: Date;
 }
 
 

@@ -15,7 +15,7 @@ export async function registerRequest(
       return await repository.saveRequest(request, requesterId);
     }
 
-    return await repository.saveRequest(request, requester.id);
+    return await repository.saveRequest(request, requester.requester_id);
   } catch (err) {
     await removeFiles(attachments);
     throw err;
