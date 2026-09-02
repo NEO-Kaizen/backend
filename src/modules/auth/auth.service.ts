@@ -3,6 +3,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { comparePassword } from "../../shared/utils/passwordHandler.ts";
 import type { TokenPayload } from "../../shared/utils/jwtUtil.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
+import {  ROLES_MAP } from "../../shared/types/role.ts";
 
 export async function findUser(user: LoginRequestDTO) {
   const foundUser = await authRepository.findUserByEmail(user);
@@ -15,15 +16,10 @@ export async function findUser(user: LoginRequestDTO) {
 
   if (!isPasswordValid) throw new AppError("Credenciais inválidas", 401);
 console.log(foundUser)
-const roles: Record<number, string> = {
-  2: "Analista",
-  3: "Administrador",
-  4: "Gestor"
-}
   return {
     email: foundUser.email,
     id: foundUser.user_id,
     name: foundUser.full_name,
-    role: roles[foundUser.profile_id],
+    role: ROLES_MAP[foundUser.profile_id],
   } as TokenPayload;
 }
