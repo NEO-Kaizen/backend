@@ -48,6 +48,17 @@ export async function up(knex) {
         table.timestamp("updated_at").notNullable().defaultTo(knex.fn.now());
     });
 
+    await knex.schema.createTable("request_time_preferences", (table) => {
+        table.increments("request_time_preference_id");
+        table
+            .integer("request_id")
+            .notNullable()
+            .references("request_id")
+            .inTable("requests")
+            .onDelete("CASCADE");
+        table.string("slot", 5).notNullable();
+    });
+
     await knex.raw(
         "ALTER TABLE requests ALTER COLUMN protocol SET DEFAULT 'SOL-' || to_char(CURRENT_DATE, 'YYYY') || '-' || lpad(nextval('requests_protocol_seq')::text, 6, '0')",
     );
@@ -58,6 +69,7 @@ export async function up(knex) {
  * @returns { Promise<void> }
  */
 export async function down(knex) {
+    await knex.schema.dropTable("request_time_preferences");
     await knex.schema.dropTable("requests");
     await knex.raw("DROP SEQUENCE IF EXISTS requests_protocol_seq");
 }
