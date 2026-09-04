@@ -25,19 +25,23 @@ export async function up(knex) {
     table.text("expected_result");
     table.text("justification");
 
+    table.text("operational_description");
     table.text("operational_steps");
     table.string("systems", 255);
     table.string("frequency", 60);
     table.integer("volume");
     table.integer("people_involved");
     table.string("average_execution_time", 30);
+    table.text("monthly_estimated_effort");
     table.boolean("manual_controls");
     table.text("risks");
     table.text("client_impact");
+    table.text("operational_impact");
     table.date("desired_deadline");
     table.string("criticality", 30);
 
     table.boolean("has_documentation");
+    table.text("similar_solution_exists");
     table.string("dependency_other_areas", 255);
     table.boolean("restricted_handling");
     table.text("notes");
