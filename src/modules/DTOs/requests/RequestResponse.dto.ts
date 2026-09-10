@@ -15,7 +15,11 @@ export interface RequestDetail {
   mappingDate: string | null;   // derivado — parte-data de meeting.scheduledFor quando
                                 // houver reunião (conversão no fuso America/Sao_Paulo);
                                 // sem reunião, previsão informada pelo analista ou null
-                                // ("Previsão ou Data Confirmada" — consulta-de-solicitacao.md)
+  meeting: {                    // reunião de alinhamento (card da tela)
+    scheduledFor: string;       // ISO datetime
+    link: string | null;        // null → botão "Entrar na reunião" permanece visual
+  } | null;
+  pendingIssues: string[];      // ("Previsão ou Data Confirmada" — consulta-de-solicitacao.md)
                                 // fluxo consulta-de-solicitacao.md). Provisório:
                                 // issue futura de resposta exigirá shape com
                                 // identidade por item ({ id, question, answer });

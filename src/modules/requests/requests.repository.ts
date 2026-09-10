@@ -25,6 +25,8 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
 
   if (!response) return null;
 
+  const meeting = null;
+
   return {
     protocol: response.protocol,
     demandTitle: response.demandTitle ?? "",
@@ -34,6 +36,7 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
     openedAt: response.openedAt ?? new Date().toISOString(),
     estimatedCompletion: response.estimatedCompletion ?? null,
     mappingDate: response.mappingDate ?? null,
+    meeting,
     pendingIssues: [],
     nextStep: response.nextSteps ?? "Aguarde o contato do analista",
     lastTechnicalMessage: response.lastTechnicalMessage ?? null,
