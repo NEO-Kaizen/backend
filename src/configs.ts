@@ -8,7 +8,9 @@ const Config = {
   ],
   COOKIE_MAX_AGE: jwtExpiryToMs(process.env.JWT_EXPIRES_IN ?? "1d"),
   COOKIE_NAME: process.env.COOKIE_NAME ?? "session_id",
-  UPLOAD_DIR: process.env.UPLOAD_DIR ?? "uploads"
+  UPLOAD_DIR: process.env.UPLOAD_DIR ?? "uploads",
+  PROTOCOL_FPE_KEY:
+    process.env.PROTOCOL_FPE_KEY ?? process.env.JWT_SECRET ?? "neo-kaizen-dev-protocol-key",
 };
 
 function jwtExpiryToMs(value: string): number {

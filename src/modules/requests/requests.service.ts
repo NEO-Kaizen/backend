@@ -8,14 +8,7 @@ export async function registerRequest(
   attachments: SavedAttachment[],
 ) {
   try {
-    const requester = await repository.findRequesterByEmail(request.requester.corporateEmail);
-
-    if (!requester) {
-      const requesterId = await repository.saveRequester(request.requester);
-      return await repository.saveRequest(request, requesterId);
-    }
-
-    return await repository.saveRequest(request, requester.requester_id);
+    return await repository.createRequest(request, attachments);
   } catch (err) {
     await removeFiles(attachments);
     throw err;
