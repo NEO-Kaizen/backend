@@ -293,7 +293,7 @@ Os identificadores `profile_id` não são definidos manualmente e são gerados a
 
 Antes da inserção, a migration consulta quais perfis já existem e insere somente os registros ausentes.
 
-Essa estratégia reduz o risco de duplicidades sem utilizar `ON CONFLICT`, mantendo compatibilidade com o PostgreSQL 9.0 utilizado atualmente no ambiente de desenvolvimento.
+Essa estratégia reduz o risco de duplicidades sem utilizar `ON CONFLICT`, mantendo compatibilidade com o PostgreSQL 18 utilizado atualmente no ambiente de desenvolvimento (`postgres:18-alpine`, conforme o `README.md`).
 
 ### Migration `create_users`
 
@@ -346,7 +346,7 @@ npm run migrate:make -- migration-name
 
 A conectividade com o servidor PostgreSQL foi validada a partir do ambiente de desenvolvimento utilizando o driver `pg`.
 
-A versão do servidor foi confirmada como PostgreSQL 9.0.22.
+A versão do servidor foi confirmada como PostgreSQL 18.
 
 As migrations foram criadas e tiveram sua estrutura, formatação e importação validadas localmente.
 
@@ -362,7 +362,7 @@ Até o momento foram realizadas as seguintes validações:
 
 - carregamento do `knexfile.js` pelo Node.js;
 - conexão com o servidor PostgreSQL utilizando o driver `pg`;
-- confirmação da versão PostgreSQL 9.0.22;
+- confirmação da versão PostgreSQL 18;
 - importação da migration `create_profiles`;
 - importação da migration `insert_initial_profiles`;
 - importação da migration `create_users`;

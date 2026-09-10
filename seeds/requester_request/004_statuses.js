@@ -120,4 +120,8 @@ export async function seed(knex) {
       is_final: true,
     },
   ]);
+
+  await knex.raw(
+    "SELECT setval('statuses_status_id_seq', (SELECT COALESCE(MAX(status_id), 1) FROM statuses))",
+  );
 }

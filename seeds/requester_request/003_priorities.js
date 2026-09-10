@@ -2,7 +2,7 @@ export async function seed(knex) {
   await knex("priorities").insert([
     {
       priority_id: 1,
-      level: "baixa",
+      level: "Baixa",
       min_score: 0,
       max_score: 25,
       default_weight: 0.25,
@@ -11,7 +11,7 @@ export async function seed(knex) {
     },
     {
       priority_id: 2,
-      level: "média",
+      level: "Média",
       min_score: 26,
       max_score: 50,
       default_weight: 0.5,
@@ -20,7 +20,7 @@ export async function seed(knex) {
     },
     {
       priority_id: 3,
-      level: "alta",
+      level: "Alta",
       min_score: 51,
       max_score: 75,
       default_weight: 0.75,
@@ -29,7 +29,7 @@ export async function seed(knex) {
     },
     {
       priority_id: 4,
-      level: "crítica",
+      level: "Crítica",
       min_score: 76,
       max_score: 100,
       default_weight: 1.0,
@@ -37,4 +37,8 @@ export async function seed(knex) {
       description: "Crítica, impacto crítico no negócio",
     },
   ]);
+
+  await knex.raw(
+    "SELECT setval('priorities_priority_id_seq', (SELECT COALESCE(MAX(priority_id), 1) FROM priorities))",
+  );
 }

@@ -2,7 +2,7 @@ export async function up(knex) {
   await knex.schema.createTable("pending_items", (table) => {
     table.uuid("pending_item_id").primary().defaultTo(knex.raw("gen_random_uuid()"));
     table
-      .uuid("request_id")
+      .bigInteger("request_id")
       .notNullable()
       .references("request_id")
       .inTable("requests")
