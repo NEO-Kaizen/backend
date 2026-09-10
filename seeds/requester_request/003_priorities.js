@@ -37,4 +37,8 @@ export async function seed(knex) {
       description: "Crítica, impacto crítico no negócio",
     },
   ]);
+
+  await knex.raw(
+    "SELECT setval('priorities_priority_id_seq', (SELECT COALESCE(MAX(priority_id), 1) FROM priorities))",
+  );
 }

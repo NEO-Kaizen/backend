@@ -61,4 +61,8 @@ export async function seed(knex) {
       status: "active",
     },
   ]);
+
+  await knex.raw(
+    "SELECT setval('categories_category_id_seq', (SELECT COALESCE(MAX(category_id), 1) FROM categories))",
+  );
 }
