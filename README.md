@@ -199,6 +199,27 @@ Endpoint público (sem autenticação) que cadastra uma solicitação, gera o pr
 
 - Resposta `400 Bad Request`: payload ausente/JSON inválido, campo obrigatório ausente ou inválido, limite de caracteres excedido, resposta Sim/Não sem detalhamento, `schedulePreferences` com mais de 3 opções/duplicatas, anexo acima de 10MB ou formato não permitido, ou mais de 5 anexos. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
 
+#### GET /requests
+
+Endpoint público (sem autenticação) que lista as solicitações vinculadas ao e-mail de um solicitante, com dados resumidos. O e-mail informado é normalizado para minúsculas antes da consulta.
+
+- Query: `?email=maria.oliveira@instituicao.gov.br` (obrigatório)
+- Resposta `200 OK`: array ordenado da solicitação mais recente para a mais antiga; retorna array vazio quando não há solicitações para o e-mail (sem revelar se o e-mail existe no sistema).
+
+  ```json
+  [
+    {
+      "protocol": "MAAT-8K3P-9X2M",
+      "title": "Automatizar conferência de diárias",
+      "status": "Solicitação enviada",
+      "createdAt": "2026-08-25T14:03:11.000Z",
+      "updatedAt": null
+    }
+  ]
+  ```
+
+- Resposta `400 Bad Request`: query param `email` ausente ou com formato inválido. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
+
 ## Scripts
 
 | Comando                               | Descrição                                       |

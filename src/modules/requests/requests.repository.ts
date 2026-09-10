@@ -3,9 +3,17 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { generateProtocol } from "../../shared/protocol/generateProtocol.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
-import type { RequesterBlock, RequesterTable, YesNoDetail } from "../../shared/types/requests.ts";
+import type {
+  RequestStatus,
+  RequesterBlock,
+  RequesterTable,
+  YesNoDetail,
+} from "../../shared/types/requests.ts";
 import type { CreateRequestPayload } from "../DTOs/requests/RequestRequests.dto.ts";
-import type { CreateRequestResponse } from "../DTOs/requests/RequestResponse.dto.ts";
+import type {
+  CreateRequestResponse,
+  RequestSummaryResponse,
+} from "../DTOs/requests/RequestResponse.dto.ts";
 
 const INITIAL_STATUS = "Solicitação enviada";
 
@@ -235,4 +243,37 @@ export async function createRequest(
       createdAt: saved.created_at.toISOString(),
     } satisfies CreateRequestResponse;
   });
+}
+
+interface RequestSummaryRow {
+  protocol: string;
+  title: string;
+  status: RequestStatus;
+  created_at: Date;
+  updated_at: Date | null;
+}
+
+export async function findRequestsByRequesterEmail(
+  email: string,
+): Promise<RequestSummaryResponse[]> {
+  const rows = (await db("requests")
+    .join("requesters", "requesters.requester_id", "requests.requester_id")
+    .join("statuses", "statuses.status_id", "requests.status_id")
+    .where("requesters.corporate_email", email)
+    .orderBy("requests.created_at", "desc")
+    .select({
+      protocol: "requests.protocol",
+      title: "requests.title",
+      status: "statuses.name",
+      created_at: "requests.created_at",
+      updated_at: "requests.updated_at",
+    })) as RequestSummaryRow[];
+
+  return rows.map((row) => ({
+    protocol: row.protocol,
+    title: row.title,
+    status: row.status,
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at ? row.updated_at.toISOString() : null,
+  }));
 }
