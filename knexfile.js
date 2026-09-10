@@ -1,5 +1,5 @@
-import config from 'dotenv'
-config.config({override:true})
+import config from "dotenv";
+config.config({ override: true });
 
 export default {
   development: {
@@ -14,7 +14,12 @@ export default {
     },
 
     migrations: {
-      directory: "./migrations",
+      directory: ["./migrations", "./migrations/requester_request"],
+      extension: "js",
+    },
+
+    seeds: {
+      directory: "./seeds/requester_request",
       extension: "js",
     },
   },

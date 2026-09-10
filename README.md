@@ -81,9 +81,10 @@ O projeto utiliza PostgreSQL como banco de dados e Knex para gerenciamento das m
 
 As variáveis necessárias para conexão estão documentadas no arquivo `.env.example`.
 
-A documentação da persistência utilizada para autenticação está disponível em:
+A documentação da persistência utilizada para autenticação e para os pedidos está disponível em:
 
 - [Persistência para autenticação](docs/database/authentication-persistence.md)
+- [Persistência dos pedidos (solicitações)](docs/database/requests-persistence.md)
 
 As migrations podem ser executadas após a configuração das credenciais do banco:
 
@@ -142,6 +143,7 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 
 - Body: nenhum
 - Resposta `200 OK`:
+
   ```json
   { "message": "Sessão encerrada com sucesso" }
   ```
