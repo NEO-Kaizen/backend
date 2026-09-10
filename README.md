@@ -40,7 +40,7 @@ cp .env.example .env
 npm run docker:dev
 ```
 
-O `docker compose up` inicia o PostgreSQL (aguardando o health check) e a aplicação com hot-reload via `--watch`. As variáveis do `.env` são usadas pelos containers; dentro da rede do compose o `DB_HOST` é sobrescrito para o serviço `postgres`, enquanto o fluxo local usa o `localhost` do `.env`.
+O `docker compose up` inicia o PostgreSQL (aguardando o health check) e a aplicação com hot-reload via `--watch`. As variáveis do `.env` são usadas pelos containers; dentro da rede do compose o `DB_HOST` é sobrescrito para o serviço `postgres` e o `DB_PORT` para `5432`, enquanto o fluxo local usa o `localhost` e a `DB_PORT` do `.env`.
 
 Para rodar as migrations no container (com o ambiente no ar):
 
@@ -88,8 +88,7 @@ docker compose exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES
 
 Notas:
 
-- O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `POSTGRES_HOST_PORT` (padrão `5432`). Se essa porta já estiver ocupada no host, defina `POSTGRES_HOST_PORT` no `.env`.
-- Ao alterar `POSTGRES_HOST_PORT`, ajuste `DB_PORT` para o mesmo valor: os comandos npm executados no host (fora do container) usam `DB_PORT`, enquanto dentro da rede do compose o `DB_HOST` é sobrescrito para `postgres`.
+- O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `DB_PORT` (padrão `5432`). Se essa porta estiver ocupada no host, defina `DB_PORT` com outra porta: os comandos npm executados no host usam esse valor, enquanto dentro da rede do compose o `DB_HOST` é sobrescrito para `postgres` e `DB_PORT` para `5432`.
 - Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
 - As credenciais do banco (`POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`, derivadas do `.env`) só inicializam o banco quando o volume está vazio. Alterá-las depois da primeira inicialização não muda o usuário e o banco existentes: recrie o ambiente com `docker compose down -v` (apaga os dados) ou ajuste as credenciais diretamente no banco.
 - As imagens base estão fixadas por digest (`node:24-bookworm-slim` e `postgres:18-alpine`); atualize os digests periodicamente para receber correções de segurança.
