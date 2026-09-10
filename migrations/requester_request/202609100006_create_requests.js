@@ -1,6 +1,11 @@
 export async function up(knex) {
+  await knex.raw("CREATE SEQUENCE requests_request_seq START 1 INCREMENT 1");
+
   await knex.schema.createTable("requests", (table) => {
-    table.uuid("request_id").primary().defaultTo(knex.raw("gen_random_uuid()"));
+    table
+      .bigInteger("request_id")
+      .primary()
+      .defaultTo(knex.raw("nextval('requests_request_seq')"));
     table.string("protocol", 25).notNullable().unique({ indexName: "uk_requests_protocol" });
     table
       .uuid("requester_id")
@@ -9,34 +14,49 @@ export async function up(knex) {
       .inTable("requesters")
       .onDelete("RESTRICT");
 
-    table.string("process_name", 255);
-    table.string("title", 255).notNullable();
-    table.string("request_type", 100);
-    table.text("need_description").notNullable();
-    table.text("problem_opportunity");
-    table.text("expected_result");
-    table.text("justification");
+    table.string("title", 150).notNullable();
+    table.string("request_type", 80).notNullable();
+    table.string("process_name", 150).notNullable();
+    table.string("need_description", 4000).notNullable();
+    table.string("problem_opportunity", 4000).notNullable();
+    table.string("expected_result", 4000).notNullable();
+    table.string("justification", 4000).notNullable();
 
-    table.text("current_process_description");
-    table.text("process_steps");
-    table.text("systems_used");
-    table.string("execution_frequency", 100);
-    table.string("approximate_volume", 100);
-    table.integer("people_involved");
-    table.string("average_duration", 100);
-    table.string("estimated_monthly_effort", 100);
-    table.boolean("has_manual_controls");
-    table.text("main_risks");
-    table.text("operational_impact");
-    table.integer("client_impact");
-    table.date("desired_deadline");
-    table.string("perceived_criticality", 50);
+    table.string("process_description", 4000).notNullable();
+    table.string("process_steps", 4000).notNullable();
+    table.string("systems_used", 255).notNullable();
+    table.string("execution_frequency", 50).notNullable();
+    table.string("approximate_volume", 100).notNullable();
+    table.integer("people_involved").notNullable();
+    table.string("average_duration", 60).notNullable();
+    table.decimal("estimated_monthly_effort", 10, 2).notNullable();
+    table.boolean("has_manual_controls").notNullable();
+    table.string("manual_controls_detail", 1000);
+    table.string("main_risks", 2000).notNullable();
+    table.string("client_impact", 2000).notNullable();
+    table
+      .enu("operational_impact", ["Baixo", "Médio", "Alto", "Crítico"], {
+        useNative: true,
+        enumName: "operational_impact_level",
+      })
+      .notNullable();
+    table.date("desired_deadline").notNullable();
+    table
+      .enu("perceived_criticality", ["Baixa", "Média", "Alta", "Crítica"], {
+        useNative: true,
+        enumName: "request_priority",
+      })
+      .notNullable();
 
-    table.boolean("has_documentation");
-    table.text("similar_solution");
-    table.text("cross_area_dependencies");
-    table.boolean("has_restricted_info");
-    table.text("additional_notes");
+    table.boolean("has_process_documentation");
+    table.string("process_documentation_detail", 1000);
+    table.boolean("has_similar_solution");
+    table.string("similar_solution_detail", 1000);
+    table.boolean("depends_on_other_areas");
+    table.string("other_areas_detail", 1000);
+    table.boolean("handles_restricted_info");
+    table.string("restricted_info_detail", 1000);
+    table.string("additional_notes", 2000);
 
     table
       .integer("category_id")
@@ -77,11 +97,13 @@ export async function up(knex) {
     table.string("updated_by", 100);
     table.timestamp("updated_at", { useTz: true });
     table.timestamp("last_external_update_at", { useTz: true });
-    table.boolean("is_restricted_info").notNullable().defaultTo(false);
   });
 
   await knex.raw(
-    "ALTER TABLE requests ADD CONSTRAINT ck_requests_client_impact CHECK (client_impact IS NULL OR client_impact BETWEEN 1 AND 5)",
+    "ALTER TABLE requests ADD CONSTRAINT ck_requests_people_involved CHECK (people_involved > 0)",
+  );
+  await knex.raw(
+    "ALTER TABLE requests ADD CONSTRAINT ck_requests_estimated_monthly_effort CHECK (estimated_monthly_effort >= 0)",
   );
 
   await knex.schema.alterTable("requests", (table) => {
@@ -95,6 +117,8 @@ export async function up(knex) {
 }
 
 export async function down(knex) {
-  await knex.raw("ALTER TABLE requests DROP CONSTRAINT IF EXISTS ck_requests_client_impact");
   await knex.schema.dropTable("requests");
+  await knex.raw('DROP TYPE IF EXISTS "operational_impact_level"');
+  await knex.raw('DROP TYPE IF EXISTS "request_priority"');
+  await knex.raw("DROP SEQUENCE IF EXISTS requests_request_seq");
 }

@@ -6,10 +6,6 @@ export async function up(knex) {
     table.text("description");
     table.boolean("is_final").notNullable().defaultTo(false);
   });
-
-  await knex.schema.alterTable("statuses", (table) => {
-    table.index("order_number", "idx_statuses_order");
-  });
 }
 
 export async function down(knex) {

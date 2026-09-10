@@ -1,7 +1,7 @@
 export async function up(knex) {
   await knex.schema.createTable("categories", (table) => {
     table.increments("category_id").primary();
-    table.string("name", 100).notNullable().unique({ indexName: "uk_categories_name" });
+    table.string("name", 80).notNullable().unique({ indexName: "uk_categories_name" });
     table.text("description");
     table
       .enu("status", ["active", "inactive"], { useNative: true, enumName: "category_status" })
