@@ -7,7 +7,8 @@ export interface SavedAttachment {
   fileName: string; // nome original do arquivo
   mimeType: string; // MIME detectado no upload
   sizeBytes: number; // tamanho em bytes
-  storagePath: string; // caminho em disco — uso interno, nunca exposto na API
+  storageKey: string; // chave relativa persistida no banco (basename)
+  storagePath: string; // caminho absoluto em disco — uso interno, nunca exposto na API
 }
 
 export async function saveFiles(
@@ -30,6 +31,7 @@ export async function saveFiles(
         fileName: file.originalname,
         mimeType: file.mimetype,
         sizeBytes: file.size,
+        storageKey: filename,
         storagePath,
       });
     }

@@ -14,4 +14,5 @@ export const optionalString = (maxChars: number) =>
     .string()
     .trim()
     .max(maxChars, `Máximo de ${ptNumber(maxChars)} caracteres.`)
+    .transform((value) => (value === "" ? undefined : value))
     .optional();

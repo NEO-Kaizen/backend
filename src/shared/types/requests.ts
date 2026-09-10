@@ -65,7 +65,8 @@ export interface DemandBlock {
   title: string; // obrigatório — título resumido, máx. 150
   requestType: string; // obrigatório — Tipo de Solicitação (modalidade macro,
   // ex.: Automação, Manutenção, Nova Demanda), máx. 80
-  category: RequestCategory; // obrigatório — Categoria da Demanda (select funcional), máx. 80
+  category: string; // obrigatório — Categoria da Demanda (validada contra o
+  // cadastro ativo; nomes em RequestCategory são a referência base), máx. 80
   processName: string; // obrigatório — nome formal do processo atual, máx. 150
   description: string; // obrigatório — Descrição da Necessidade, máx. 4.000
   problem: string; // obrigatório — Problema ou Oportunidade Identificada, máx. 4.000

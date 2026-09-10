@@ -30,21 +30,7 @@ const requesterSchema = z.object({
 const demandSchema = z.object({
   title: requiredString(150),
   requestType: requiredString(80),
-  category: z.enum(
-    [
-      "Automação",
-      "Melhoria de processo",
-      "Indicador",
-      "Dashboard ou relatório",
-      "Análise de dados",
-      "Padronização",
-      "Revisão de processo",
-      "Apoio técnico",
-      "Estudo de viabilidade",
-      "Outros",
-    ],
-    { error: "Categoria inválida — selecione uma opção da lista." },
-  ),
+  category: requiredString(80),
   processName: requiredString(150),
   description: requiredString(4000),
   problem: requiredString(4000),
@@ -115,6 +101,10 @@ export const createRequestPayloadSchema = z.object(
       )
       .min(1, "Selecione pelo menos 1 opção de horário.")
       .max(3, "Máximo de 3 opções de horário.")
+      .refine(
+        (preferences) => new Set(preferences).size === preferences.length,
+        "Horários duplicados não são permitidos.",
+      )
       .optional(),
   },
   {

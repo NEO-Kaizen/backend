@@ -201,7 +201,7 @@ async function saveAttachments(
     attachments.map((attachment) => ({
       request_id: requestId,
       file_name: attachment.fileName,
-      file_path: attachment.storagePath,
+      file_path: attachment.storageKey,
       content_type: attachment.mimeType,
       size_bytes: attachment.sizeBytes,
       is_restricted: false,
