@@ -2,10 +2,7 @@ export async function up(knex) {
   await knex.raw("CREATE SEQUENCE requests_request_seq START 1 INCREMENT 1");
 
   await knex.schema.createTable("requests", (table) => {
-    table
-      .bigInteger("request_id")
-      .primary()
-      .defaultTo(knex.raw("nextval('requests_request_seq')"));
+    table.bigInteger("request_id").primary().defaultTo(knex.raw("nextval('requests_request_seq')"));
     table.string("protocol", 25).notNullable().unique({ indexName: "uk_requests_protocol" });
     table
       .uuid("requester_id")
