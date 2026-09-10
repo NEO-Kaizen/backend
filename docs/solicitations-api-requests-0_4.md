@@ -5,7 +5,7 @@ Formulário de Demanda, página Acompanhar Solicitações e página da solicita�
 (`/acompanhar/[protocolo]`).
 
 - Fonte de verdade: `contratos/fluxo-solicitante/# Especificação de Produto &
-  Engenharia — Sistema de Gestão de Demandas (Intake) 3.0.md` — as decisões
+Engenharia — Sistema de Gestão de Demandas (Intake) 3.0.md` — as decisões
   D-01 a D-07 consolidadas em sua seção 3 prevalecem sobre registros anteriores
   (`contratos/fluxo-solicitante/divergencias-analise-contrato.md`, mantido
   apenas como trilha histórica).
@@ -81,56 +81,56 @@ export type RequestCategory =
 // parte → mimeType, tamanho da parte → sizeBytes. Nunca declarado no
 // payload; referência para leitura futura (ex.: painel administrativo).
 export interface AttachmentMetadata {
-  fileName: string;      // nome original do arquivo — máx. 255
-  mimeType: string;      // PDF, DOCX, XLSX, PNG ou JPG
-  sizeBytes: number;     // máximo 10 * 1024 * 1024 (10MB)
+  fileName: string; // nome original do arquivo — máx. 255
+  mimeType: string; // PDF, DOCX, XLSX, PNG ou JPG
+  sizeBytes: number; // máximo 10 * 1024 * 1024 (10MB)
 }
 
 // Limite de caracteres (tabela §4): restrição espelhada entre UI (`maxLength`
 // + contador visual) e backend/banco. Violação → 400 com o campo indicado.
 export interface RequesterBlock {
-  fullName: string;            // obrigatório — máx. 150
-  corporateEmail: string;      // obrigatório — e-mail corporativo, máx. 254 (RFC 5321)
-  area: string;                // obrigatório — máx. 100
-  department?: string;         // opcional (padrão; Admin pode tornar obrigatório) — máx. 100
-                               // renderização híbrida: <Select> se houver departamentos
-                               // cadastrados; texto livre caso contrário (§1.1)
-  manager: string;             // obrigatório — gestor responsável, máx. 150
-  additionalContact?: string;  // opcional — telefone, ramal ou e-mail secundário, máx. 100
+  fullName: string; // obrigatório — máx. 150
+  corporateEmail: string; // obrigatório — e-mail corporativo, máx. 254 (RFC 5321)
+  area: string; // obrigatório — máx. 100
+  department?: string; // opcional (padrão; Admin pode tornar obrigatório) — máx. 100
+  // renderização híbrida: <Select> se houver departamentos
+  // cadastrados; texto livre caso contrário (§1.1)
+  manager: string; // obrigatório — gestor responsável, máx. 150
+  additionalContact?: string; // opcional — telefone, ramal ou e-mail secundário, máx. 100
 }
 
 // D-01 e D-02 resolvidas pela Especificação 3.0 §3: dois campos separados
 // (`justification` + `expectedResult`) e `problem` obrigatório. D-05:
 // `requestType` existe ao lado de `category` como entidades distintas.
 export interface DemandBlock {
-  title: string;               // obrigatório — título resumido, máx. 150
-  requestType: string;         // obrigatório — Tipo de Solicitação (modalidade macro,
-                               // ex.: Automação, Manutenção, Nova Demanda), máx. 80
-  category: RequestCategory;   // obrigatório — Categoria da Demanda (select funcional), máx. 80
-  processName: string;         // obrigatório — nome formal do processo atual, máx. 150
-  description: string;         // obrigatório — Descrição da Necessidade, máx. 4.000
-  problem: string;             // obrigatório — Problema ou Oportunidade Identificada, máx. 4.000
-  expectedResult: string;      // obrigatório — Resultado Esperado, máx. 4.000
-  justification: string;       // obrigatório — Justificativa da Solicitação, máx. 4.000
+  title: string; // obrigatório — título resumido, máx. 150
+  requestType: string; // obrigatório — Tipo de Solicitação (modalidade macro,
+  // ex.: Automação, Manutenção, Nova Demanda), máx. 80
+  category: RequestCategory; // obrigatório — Categoria da Demanda (select funcional), máx. 80
+  processName: string; // obrigatório — nome formal do processo atual, máx. 150
+  description: string; // obrigatório — Descrição da Necessidade, máx. 4.000
+  problem: string; // obrigatório — Problema ou Oportunidade Identificada, máx. 4.000
+  expectedResult: string; // obrigatório — Resultado Esperado, máx. 4.000
+  justification: string; // obrigatório — Justificativa da Solicitação, máx. 4.000
 }
 
 // Especificação 3.0 §1.4 — Bloco 3 completo: os 14 campos operacionais são
 // obrigatórios (D-03: protótipo condensado descartado).
 export interface OperationalBlock {
-  processDescription: string;            // 1 — descrição resumida do processo atual, máx. 4.000
-  processSteps: string;                  // 2 — principais etapas em tópicos/passo a passo, máx. 4.000
-  systemsUsed: string;                   // 3 — softwares, ERPs, planilhas envolvidos, máx. 255
-  executionFrequency: string;            // 4 — Diária, Semanal, Mensal, Por Demanda etc., máx. 50
-  volumetry: string;                     // 5 — ex.: "500 transações/mês", máx. 100
-  peopleInvolved: number;                // 6 — headcount alocado (INTEGER > 0)
-  averageExecutionTime: string;          // 7 — tempo médio por ciclo, ex.: "15 minutos", máx. 60
-  monthlyEffortHours: number;            // 8 — esforço mensal estimado em horas (DECIMAL(10,2))
-  hasManualControls: YesNoDetail;        // 9 — controles manuais: false ou texto do
-                                         //      detalhamento (obrigatório junto do "Sim")
-  mainRisks: string;                     // 10 — riscos de erro/compliance/operacionais, máx. 2.000
-  clientImpact: string;                  // 11 — reflexo no cliente interno/externo, máx. 2.000
-  operationalImpact: OperationalImpact;  // 12 — Baixo/Médio/Alto/Crítico
-  desiredDeadline: string;               // 13 — prazo desejado, data ISO "yyyy-mm-dd"
+  processDescription: string; // 1 — descrição resumida do processo atual, máx. 4.000
+  processSteps: string; // 2 — principais etapas em tópicos/passo a passo, máx. 4.000
+  systemsUsed: string; // 3 — softwares, ERPs, planilhas envolvidos, máx. 255
+  executionFrequency: string; // 4 — Diária, Semanal, Mensal, Por Demanda etc., máx. 50
+  volumetry: string; // 5 — ex.: "500 transações/mês", máx. 100
+  peopleInvolved: number; // 6 — headcount alocado (INTEGER > 0)
+  averageExecutionTime: string; // 7 — tempo médio por ciclo, ex.: "15 minutos", máx. 60
+  monthlyEffortHours: number; // 8 — esforço mensal estimado em horas (DECIMAL(10,2))
+  hasManualControls: YesNoDetail; // 9 — controles manuais: false ou texto do
+  //      detalhamento (obrigatório junto do "Sim")
+  mainRisks: string; // 10 — riscos de erro/compliance/operacionais, máx. 2.000
+  clientImpact: string; // 11 — reflexo no cliente interno/externo, máx. 2.000
+  operationalImpact: OperationalImpact; // 12 — Baixo/Médio/Alto/Crítico
+  desiredDeadline: string; // 13 — prazo desejado, data ISO "yyyy-mm-dd"
   perceivedCriticality: RequestPriority; // 14 — criticidade percebida pelo solicitante
 }
 
@@ -145,10 +145,10 @@ export type YesNoDetail = false | string;
 // sinalizar que o preenchimento é facultativo.
 export interface ComplementaryBlock {
   hasProcessDocumentation?: YesNoDetail; // existência de documentação do processo (+ links)
-  hasSimilarSolution?: YesNoDetail;      // existência de solução semelhante
-  dependsOnOtherAreas?: YesNoDetail;     // dependência de outras áreas (+ quais)
-  handlesRestrictedInfo?: YesNoDetail;   // tratamento de informações restritas (LGPD/sigilo)
-  additionalNotes?: string;              // observações adicionais, máx. 2.000
+  hasSimilarSolution?: YesNoDetail; // existência de solução semelhante
+  dependsOnOtherAreas?: YesNoDetail; // dependência de outras áreas (+ quais)
+  handlesRestrictedInfo?: YesNoDetail; // tratamento de informações restritas (LGPD/sigilo)
+  additionalNotes?: string; // observações adicionais, máx. 2.000
 }
 
 // Até 3 opções declarativas de data/hora para mapeamento — herança do
@@ -200,11 +200,11 @@ export interface CreateRequestPayload {
 
 ```ts
 export interface CreateRequestResponse {
-  protocol: string;        // "MAAT-8K3P-9X2M" — protocolo único de rastreio,
-                           // não enumerável (FPE/Feistel sobre o ID interno —
-                           // Especificação 3.0 §5.2)
-  status: RequestStatus;   // "Solicitação enviada"
-  createdAt: string;       // ISO datetime
+  protocol: string; // "MAAT-8K3P-9X2M" — protocolo único de rastreio,
+  // não enumerável (FPE/Feistel sobre o ID interno —
+  // Especificação 3.0 §5.2)
+  status: RequestStatus; // "Solicitação enviada"
+  createdAt: string; // ISO datetime
 }
 ```
 
@@ -299,15 +299,15 @@ HTTP/1.1 400 Bad Request
 
 **Erros:**
 
-| Status | Quando |
-|---|---|
-| 400 | Bloco/campo obrigatório ausente ou inválido (`message` indica os campos) |
-| 400 | Limite de caracteres excedido em qualquer campo limitado (espelhado UI/banco — Especificação 3.0 §4) |
-| 400 | Resposta Sim/Não com detalhamento obrigatório ausente ou vazio (`string` vazia/só espaços nos Blocos 3 e 4) |
-| 400 | `schedulePreferences` com mais de 3 opções |
-| 400 | Parte `payload` ausente ou com JSON inválido |
-| 400 | Anexo (parte `attachments`) > 10MB ou formato fora de PDF/DOCX/XLSX/PNG/JPG |
-| 400 | Mais de 5 partes `attachments` |
+| Status | Quando                                                                                                      |
+| ------ | ----------------------------------------------------------------------------------------------------------- |
+| 400    | Bloco/campo obrigatório ausente ou inválido (`message` indica os campos)                                    |
+| 400    | Limite de caracteres excedido em qualquer campo limitado (espelhado UI/banco — Especificação 3.0 §4)        |
+| 400    | Resposta Sim/Não com detalhamento obrigatório ausente ou vazio (`string` vazia/só espaços nos Blocos 3 e 4) |
+| 400    | `schedulePreferences` com mais de 3 opções                                                                  |
+| 400    | Parte `payload` ausente ou com JSON inválido                                                                |
+| 400    | Anexo (parte `attachments`) > 10MB ou formato fora de PDF/DOCX/XLSX/PNG/JPG                                 |
+| 400    | Mais de 5 partes `attachments`                                                                              |
 
 ---
 
@@ -324,23 +324,23 @@ não existe neste contrato e responde `400`.
 
 ```ts
 export interface ListRequestsQuery {
-  email: string;      // obrigatório — e-mail corporativo do solicitante
-                      // (ProtocolSearchCard). Match exato após trim +
-                      // case-insensitive; ausente ou malformado → 400.
-                      // Regra incondicional: a fila completa do analista
-                      // (RF03/RF11, RN-004) será contrato próprio, sem
-                      // reuso deste endpoint.
-  search?: string;    // termo da busca do header — match parcial em
-                      // processName, requesterName ou corporateEmail.
-                      // Protocolo não é buscável aqui: consulta direta pelo
-                      // código completo vai para GET /requests/:protocol.
-                      // Semântica da busca do header pendente de decisão;
-                      // revisar combinação com email quando resolvida.
+  email: string; // obrigatório — e-mail corporativo do solicitante
+  // (ProtocolSearchCard). Match exato após trim +
+  // case-insensitive; ausente ou malformado → 400.
+  // Regra incondicional: a fila completa do analista
+  // (RF03/RF11, RN-004) será contrato próprio, sem
+  // reuso deste endpoint.
+  search?: string; // termo da busca do header — match parcial em
+  // processName, requesterName ou corporateEmail.
+  // Protocolo não é buscável aqui: consulta direta pelo
+  // código completo vai para GET /requests/:protocol.
+  // Semântica da busca do header pendente de decisão;
+  // revisar combinação com email quando resolvida.
   status?: RequestStatus;
-  page?: number;      // default 1
-  pageSize?: number;  // default 10 — sem teto fixado neste contrato; teto
-                      // máximo é decisão de implementação do backend
-                      // (middleware/validação)
+  page?: number; // default 1
+  pageSize?: number; // default 10 — sem teto fixado neste contrato; teto
+  // máximo é decisão de implementação do backend
+  // (middleware/validação)
 }
 ```
 
@@ -350,14 +350,14 @@ export interface ListRequestsQuery {
 // Item da tabela de acompanhamento (colunas: Protocolo, Data, Processo,
 // Prioridade, Status, Responsável, Solicitante)
 export interface RequestSummary {
-  protocol: string;                 // "MAAT-8K3P-9X2M" — a UI renderiza o
-                                    // prefixo "#" e apresenta como link
-  createdAt: string;                // ISO datetime — coluna Data
-  processName: string;              // coluna Processo
+  protocol: string; // "MAAT-8K3P-9X2M" — a UI renderiza o
+  // prefixo "#" e apresenta como link
+  createdAt: string; // ISO datetime — coluna Data
+  processName: string; // coluna Processo
   priority: RequestPriority | null; // null até a triagem priorizar
   status: RequestStatus;
-  assignee: string | null;          // null até a atribuição ou quando oculto por configuração
-  requesterName: string;            // coluna Solicitante
+  assignee: string | null; // null até a atribuição ou quando oculto por configuração
+  requesterName: string; // coluna Solicitante
 }
 
 // Envelope de paginação server-side
@@ -449,11 +449,11 @@ HTTP/1.1 400 Bad Request
 
 **Erros:**
 
-| Status | Quando |
-|---|---|
-| 400 | `email` ausente (obrigatório no acesso público — D-07/§5.1) |
-| 400 | `email` malformado (formato inválido) |
-| 400 | `page`/`pageSize` não numéricos ou `status` fora da matriz |
+| Status | Quando                                                      |
+| ------ | ----------------------------------------------------------- |
+| 400    | `email` ausente (obrigatório no acesso público — D-07/§5.1) |
+| 400    | `email` malformado (formato inválido)                       |
+| 400    | `page`/`pageSize` não numéricos ou `status` fora da matriz  |
 
 ---
 
@@ -475,40 +475,42 @@ por e-mail — o código funciona como segredo de portador do solicitante
 
 ```ts
 export interface RequestDetail {
-  protocol: string;             // "MAAT-8K3P-9X2M" — protocolo único de rastreio
-                                // (FPE/Feistel — Especificação 3.0 §5.2)
-  demandTitle: string;          // título resumido / nome da demanda
+  protocol: string; // "MAAT-8K3P-9X2M" — protocolo único de rastreio
+  // (FPE/Feistel — Especificação 3.0 §5.2)
+  demandTitle: string; // título resumido / nome da demanda
   processName: string;
-  status: RequestStatus;        // status público atual
-  assigneeName: string | null;  // responsável técnico — null quando não atribuído
-                                // ou oculto pelo toggle de visibilidade do responsável
-                                // (configurações administrativas — Especificação 3.0 §7.4)
-  openedAt: string;             // data de abertura — ISO datetime
+  status: RequestStatus; // status público atual
+  assigneeName: string | null; // responsável técnico — null quando não atribuído
+  // ou oculto pelo toggle de visibilidade do responsável
+  // (configurações administrativas — Especificação 3.0 §7.4)
+  openedAt: string; // data de abertura — ISO datetime
   estimatedCompletion: string | null; // previsão de conclusão — ISO "yyyy-mm-dd"
-                                      // (fonte: protótipo/issue front — sem base direta na Espec 3.0)
-  mappingDate: string | null;   // derivado — parte-data de meeting.scheduledFor quando
-                                // houver reunião (conversão no fuso America/Sao_Paulo);
-                                // sem reunião, previsão informada pelo analista ou null
-                                // ("Previsão ou Data Confirmada" — consulta-de-solicitacao.md)
-  meeting: {                    // reunião de alinhamento (card da tela)
-    scheduledFor: string;       // ISO datetime
-    link: string | null;        // null → botão "Entrar na reunião" permanece visual
+  // (fonte: protótipo/issue front — sem base direta na Espec 3.0)
+  mappingDate: string | null; // derivado — parte-data de meeting.scheduledFor quando
+  // houver reunião (conversão no fuso America/Sao_Paulo);
+  // sem reunião, previsão informada pelo analista ou null
+  // ("Previsão ou Data Confirmada" — consulta-de-solicitacao.md)
+  meeting: {
+    // reunião de alinhamento (card da tela)
+    scheduledFor: string; // ISO datetime
+    link: string | null; // null → botão "Entrar na reunião" permanece visual
   } | null;
-  pendingIssues: string[];      // pendências destinadas ao solicitante (RF09/RF04;
-                                // fluxo consulta-de-solicitacao.md). Provisório:
-                                // issue futura de resposta exigirá shape com
-                                // identidade por item ({ id, question, answer });
-                                // a escrita tende a usar o par protocolo+email
-                                // como identidade do solicitante
-  nextStep: string;             // instrução orientativa — sempre presente no painel
-                                // (fonte: docs/produto/fluxos/consulta-de-solicitacao.md
-                                // — ex.: "Aguarde o contato do analista")
+  pendingIssues: string[]; // pendências destinadas ao solicitante (RF09/RF04;
+  // fluxo consulta-de-solicitacao.md). Provisório:
+  // issue futura de resposta exigirá shape com
+  // identidade por item ({ id, question, answer });
+  // a escrita tende a usar o par protocolo+email
+  // como identidade do solicitante
+  nextStep: string; // instrução orientativa — sempre presente no painel
+  // (fonte: docs/produto/fluxos/consulta-de-solicitacao.md
+  // — ex.: "Aguarde o contato do analista")
   lastTechnicalMessage: string | null; // última mensagem do responsável técnico
-                                // (fonte: protótipo/issue front — sem base direta na Espec 3.0)
-  lastUpdate: string;           // ISO datetime da última movimentação
-  conclusion: {                 // conclusão da análise, quando encerrada
-    result: TriageResult;       // veredito formal da triagem ("Resultado da Triagem")
-    justification: string;      // texto consolidado conclusaoAnalise — máx. 4.000 (§4)
+  // (fonte: protótipo/issue front — sem base direta na Espec 3.0)
+  lastUpdate: string; // ISO datetime da última movimentação
+  conclusion: {
+    // conclusão da análise, quando encerrada
+    result: TriageResult; // veredito formal da triagem ("Resultado da Triagem")
+    justification: string; // texto consolidado conclusaoAnalise — máx. 4.000 (§4)
   } | null;
 }
 ```
@@ -565,9 +567,9 @@ HTTP/1.1 404 Not Found
 
 **Erros:**
 
-| Status | Quando |
-|---|---|
-| 404 | Protocolo inexistente |
+| Status | Quando                |
+| ------ | --------------------- |
+| 404    | Protocolo inexistente |
 
 ---
 
