@@ -41,6 +41,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./migrations:/app/migrations
+      - ./seeds:/app/seeds
       - ./knexfile.js:/app/knexfile.js
       - ./tsconfig.json:/app/tsconfig.json
       - /app/node_modules
