@@ -2,10 +2,10 @@ export async function seed(knex) {
   await knex("attachments").insert([
     {
       attachment_id: "cc000000-0000-4000-8000-000000000001",
-      request_id: "aa000000-0000-4000-8000-000000000001",
+      request_id: 1,
       pending_item_id: "00000000-0000-4000-8000-000000000099",
       file_name: "modelo_conciliacao.xlsx",
-      file_path: "/uploads/maat-2026-000001/modelo_conciliacao.xlsx",
+      file_path: "/uploads/MAAT-8K3P-9X2M/modelo_conciliacao.xlsx",
       content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       size_bytes: 245760,
       is_restricted: true,
@@ -14,9 +14,9 @@ export async function seed(knex) {
     },
     {
       attachment_id: "cc000000-0000-4000-8000-000000000002",
-      request_id: "aa000000-0000-4000-8000-000000000001",
+      request_id: 1,
       file_name: "fluxo_atual.pdf",
-      file_path: "/uploads/maat-2026-000001/fluxo_atual.pdf",
+      file_path: "/uploads/MAAT-8K3P-9X2M/fluxo_atual.pdf",
       content_type: "application/pdf",
       size_bytes: 412000,
       is_restricted: false,

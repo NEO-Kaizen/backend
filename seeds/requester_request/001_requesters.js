@@ -1,9 +1,9 @@
 export async function seed(knex) {
   const tables = [
     "attachments",
+    "request_time_preferences",
     "pending_items",
     "requests",
-    "protocol_sequences",
     "professionals",
     "priorities",
     "categories",

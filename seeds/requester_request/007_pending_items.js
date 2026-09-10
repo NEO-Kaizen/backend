@@ -2,7 +2,7 @@ export async function seed(knex) {
   await knex("pending_items").insert([
     {
       pending_item_id: "00000000-0000-4000-8000-000000000099",
-      request_id: "aa000000-0000-4000-8000-000000000001",
+      request_id: 1,
       type: "attachment_upload",
       description: "Anexar planilha modelo usada na conciliação.",
       requested_fields: '["arquivo_modelo", "descricao_controle"]',
@@ -19,7 +19,7 @@ export async function seed(knex) {
     },
     {
       pending_item_id: "00000000-0000-4000-8000-000000000098",
-      request_id: "aa000000-0000-4000-8000-000000000001",
+      request_id: 1,
       type: "field_edit",
       description: "Confirmar quantidade de pessoas envolvidas na atividade.",
       requested_fields: '["quantidade_pessoas", "tempo_medio_execucao"]',
@@ -32,7 +32,7 @@ export async function seed(knex) {
     },
     {
       pending_item_id: "00000000-0000-4000-8000-000000000097",
-      request_id: "aa000000-0000-4000-8000-000000000002",
+      request_id: 2,
       type: "information",
       description: "Disponibilizar acesso de leitura ao CRM para o analista.",
       requires_attachment: false,
