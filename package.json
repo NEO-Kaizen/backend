@@ -4,10 +4,10 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node --env-file=.env src/server.ts",
-    "dev": "node --env-file=.env --watch src/server.ts",
+    "start": "node --env-file-if-exists=.env src/server.ts",
+    "dev": "node --env-file-if-exists=.env --watch src/server.ts",
     "build": "tsc",
-    "start:prod": "node --env-file=.env dist/server.js",
+    "start:prod": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "echo \"No tests configured yet\"",
@@ -17,7 +17,11 @@
     "format:check": "prettier --check .",
     "migrate:make": "knex migrate:make --env development",
     "migrate:latest": "knex migrate:latest --env development",
-    "migrate:rollback": "knex migrate:rollback --env development"
+    "migrate:rollback": "knex migrate:rollback --env development",
+    "docker:dev": "docker compose up --build",
+    "docker:migrate:latest": "docker compose exec app npm run migrate:latest",
+    "docker:migrate:rollback": "docker compose exec app npm run migrate:rollback",
+    "docker:migrate:make": "docker compose exec app npm run migrate:make --"
   },
   "repository": {
     "type": "git",
