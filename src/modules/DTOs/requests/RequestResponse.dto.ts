@@ -16,11 +16,6 @@ export interface RequestDetail {
                                 // houver reunião (conversão no fuso America/Sao_Paulo);
                                 // sem reunião, previsão informada pelo analista ou null
                                 // ("Previsão ou Data Confirmada" — consulta-de-solicitacao.md)
-  meeting: {                    // reunião de alinhamento (card da tela)
-    scheduledFor: string;       // ISO datetime
-    link: string | null;        // null → botão "Entrar na reunião" permanece visual
-  } | null;
-  pendingIssues: string[];      // pendências destinadas ao solicitante (RF09/RF04;
                                 // fluxo consulta-de-solicitacao.md). Provisório:
                                 // issue futura de resposta exigirá shape com
                                 // identidade por item ({ id, question, answer });

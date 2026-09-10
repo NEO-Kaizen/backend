@@ -2,37 +2,28 @@ import db from "../../database/conection.ts";
 import type { RequestDetail } from "../DTOs/requests/RequestResponse.dto.ts";
 
 export async function findRequestByProtocol(protocol: string): Promise<RequestDetail | null> {
-  const response = await db("solicitacao as s")
-    .leftJoin("solicitante as solicitante", "solicitante.id", "s.solicitante_id")
-    .leftJoin("solicitante as responsavel", "responsavel.id", "s.responsavel_id")
-    .leftJoin("analise_viabilidade as av", "av.solicitacao_id", "s.id")
+  const response = await db("requests as r")
+    .leftJoin("requesters as requester", "requester.requester_id", "r.requester_id")
+    .leftJoin("professionals as professional", "professional.professional_id", "r.professional_id")
+    .leftJoin("statuses as status", "status.status_id", "r.status_id")
     .select(
-      "s.protocolo as protocol",
-      "s.titulo_resumido as demandTitle",
-      "s.nome_processo_atual as processName",
-      "s.status as status",
-      "responsavel.nome_completo as assigneeName",
-      "s.data_abertura as openedAt",
-      "s.prazo_desejado as estimatedCompletion",
-      "av.agendar_mapeamento_na_data as mappingDate",
-      "av.link_reuniao as meetingLink",
-      "av.observacoes as lastTechnicalMessage", //Confirmar com o front e DB se lastTechnicalMessage são de fato as "observações"
-      "s.ultima_atualizacao as lastUpdate",
-      "solicitante.email_corporativo as requesterEmail",
+      "r.protocol as protocol",
+      "r.title as demandTitle",
+      "r.process_name as processName",
+      "status.name as status",
+      "professional.full_name as assigneeName",
+      "r.created_at as openedAt",
+      "r.desired_deadline as estimatedCompletion",
+      "r.desired_deadline as mappingDate",
+      "r.next_steps as nextSteps",
+      "r.internal_notes as lastTechnicalMessage",
+      "r.last_external_update_at as lastUpdate",
+      "requester.corporate_email as requesterEmail",
     )
-    .where("s.protocolo", protocol)
+    .where("r.protocol", protocol)
     .first();
 
-  if (!response) {
-    return null;
-  }
-
-  const meeting = response.meetingLink
-    ? {
-        scheduledFor: response.mappingDate ?? response.openedAt ?? new Date().toISOString(),
-        link: response.meetingLink,
-      }
-    : null;
+  if (!response) return null;
 
   return {
     protocol: response.protocol,
@@ -43,10 +34,9 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
     openedAt: response.openedAt ?? new Date().toISOString(),
     estimatedCompletion: response.estimatedCompletion ?? null,
     mappingDate: response.mappingDate ?? null,
-    meeting,
     pendingIssues: [],
-    nextStep: "Aguarde o contato do analista",
-    lastTechnicalMessage: response.lastTechnicalMessage ?? null, 
+    nextStep: response.nextSteps ?? "Aguarde o contato do analista",
+    lastTechnicalMessage: response.lastTechnicalMessage ?? null,
     lastUpdate: response.lastUpdate ?? response.openedAt ?? new Date().toISOString(),
     conclusion: null,
   } as RequestDetail;
