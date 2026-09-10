@@ -48,6 +48,24 @@ Para rodar as migrations no container (com o ambiente no ar):
 npm run docker:migrate:latest
 ```
 
+Para popular os dados de desenvolvimento:
+
+```bash
+npm run docker:seed:run
+```
+
+Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**):
+
+```bash
+npm run docker:db:setup
+```
+
+Para apenas remover os containers e o volume do banco:
+
+```bash
+npm run docker:db:reset
+```
+
 Para desfazer o último lote:
 
 ```bash
@@ -71,6 +89,7 @@ docker compose exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES
 Notas:
 
 - O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `POSTGRES_HOST_PORT` (padrão `5432`). Se essa porta já estiver ocupada no host, defina `POSTGRES_HOST_PORT` no `.env`.
+- Ao alterar `POSTGRES_HOST_PORT`, ajuste `DB_PORT` para o mesmo valor: os comandos npm executados no host (fora do container) usam `DB_PORT`, enquanto dentro da rede do compose o `DB_HOST` é sobrescrito para `postgres`.
 - Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
 - As credenciais do banco (`POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`, derivadas do `.env`) só inicializam o banco quando o volume está vazio. Alterá-las depois da primeira inicialização não muda o usuário e o banco existentes: recrie o ambiente com `docker compose down -v` (apaga os dados) ou ajuste as credenciais diretamente no banco.
 - As imagens base estão fixadas por digest (`node:24-bookworm-slim` e `postgres:18-alpine`); atualize os digests periodicamente para receber correções de segurança.
@@ -86,11 +105,20 @@ A documentação da persistência utilizada para autenticação e para os pedido
 - [Persistência para autenticação](docs/database/authentication-persistence.md)
 - [Persistência dos pedidos (solicitações)](docs/database/requests-persistence.md)
 
-As migrations podem ser executadas após a configuração das credenciais do banco:
+As migrations e os seeds podem ser executados após a configuração das credenciais do banco:
 
 ```bash
-npm run migrate:latest
+npm run migrate:latest   # aplica as migrations pendentes
+npm run seed:run         # popula os dados de desenvolvimento
 ```
+
+Para aplicar migrations e seeds em sequência:
+
+```bash
+npm run db:setup
+```
+
+> Se o histórico de migrations estiver inválido (por exemplo, após migrations renomeadas ou removidas), recrie o banco de desenvolvimento com `npm run docker:db:reset` (remove o volume) e depois `npm run docker:db:setup`.
 
 Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`.
 
@@ -158,6 +186,9 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 | `npm run docker:migrate:latest`       | Executa as migrations pendentes no container    |
 | `npm run docker:migrate:rollback`     | Desfaz o último lote de migrations no container |
 | `npm run docker:migrate:make -- nome` | Cria uma nova migration no container            |
+| `npm run docker:seed:run`             | Popula os dados de desenvolvimento no container |
+| `npm run docker:db:setup`             | Recria o volume e aplica migrations e seeds     |
+| `npm run docker:db:reset`             | Remove containers e o volume do banco           |
 | `npm run build`                       | Compila o TypeScript para `dist/`               |
 | `npm run start:prod`                  | Executa o build gerado                          |
 | `npm run typecheck`                   | Checa os tipos com `tsc --noEmit`               |
@@ -168,6 +199,8 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 | `npm run migrate:make -- nome`        | Cria uma nova migration                         |
 | `npm run migrate:latest`              | Executa as migrations pendentes                 |
 | `npm run migrate:rollback`            | Desfaz o último lote de migrations              |
+| `npm run seed:run`                    | Popula os dados de desenvolvimento              |
+| `npm run db:setup`                    | Aplica migrations e seeds em sequência          |
 | `npm test`                            | Executa os testes                               |
 
 ## Estrutura do Projeto
