@@ -22,14 +22,15 @@ Copie o arquivo de exemplo e ajuste as variáveis conforme necessário:
 cp .env.example .env
 ```
 
-| Variável         | Descrição                                                           | Exemplo / Padrão        |
-| ---------------- | ------------------------------------------------------------------- | ----------------------- |
-| `PORT`           | Porta do servidor HTTP                                              | `3000`                  |
-| `JWT_SECRET`     | Chave secreta usada para assinar e validar os tokens JWT            | `sua-chave-secreta`     |
-| `JWT_EXPIRES_IN` | Tempo de expiração dos tokens gerados                               | `1d`                    |
-| `NODE_ENV`       | Ambiente de execução (`development`, `production`)                  | `development`           |
-| `CORS_ORIGINS`   | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
-| `COOKIE_NAME`    | Nome do cookie de sessão de autenticação                            | `session_id`            |
+| Variável           | Descrição                                                           | Exemplo / Padrão        |
+| ------------------ | ------------------------------------------------------------------- | ----------------------- |
+| `PORT`             | Porta do servidor HTTP                                              | `3000`                  |
+| `JWT_SECRET`       | Chave secreta usada para assinar e validar os tokens JWT            | `sua-chave-secreta`     |
+| `JWT_EXPIRES_IN`   | Tempo de expiração dos tokens gerados                               | `1d`                    |
+| `NODE_ENV`         | Ambiente de execução (`development`, `production`)                  | `development`           |
+| `CORS_ORIGINS`     | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
+| `COOKIE_NAME`      | Nome do cookie de sessão de autenticação                            | `session_id`            |
+| `PROTOCOL_FPE_KEY` | Chave secreta do FPE/Feistel que gera o protocolo não enumerável    | `sua-chave-fpe`         |
 
 ## Rodando com Docker
 
