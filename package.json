@@ -26,7 +26,7 @@
     "docker:migrate:make": "docker compose exec app npm run migrate:make --",
     "docker:seed:run": "docker compose exec app npm run seed:run",
     "docker:db:reset": "docker compose down -v",
-    "docker:db:setup": "docker compose down -v && docker compose up -d --wait && npm run docker:migrate:latest && npm run docker:seed:run"
+    "docker:db:setup": "docker compose down -v && docker compose up -d --wait --build && npm run docker:migrate:latest && npm run docker:seed:run"
   },
   "repository": {
     "type": "git",

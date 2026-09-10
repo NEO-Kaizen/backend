@@ -56,7 +56,7 @@ Para popular os dados de desenvolvimento:
 npm run docker:seed:run
 ```
 
-Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**):
+Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**; reconstrói a imagem, então use também após alterar `package.json`/`package-lock.json`):
 
 ```bash
 npm run docker:db:setup
@@ -92,6 +92,7 @@ Notas:
 
 - O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `DB_PORT` (padrão `5432`). Se essa porta estiver ocupada no host, defina `DB_PORT` com outra porta: os comandos npm executados no host usam esse valor, enquanto dentro da rede do compose o `DB_HOST` é sobrescrito para `postgres` e `DB_PORT` para `5432`.
 - Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
+- O `node_modules` do container `app` fica em um volume anônimo (`/app/node_modules`) que sobrepõe o da imagem. Por isso, após alterar `package.json`/`package-lock.json`, rode `npm run docker:db:setup` (reconstrói a imagem e recria os volumes) para instalar as dependências novas — `npm run docker:dev` sozinho continua usando o `node_modules` antigo.
 - As credenciais do banco (`POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`, derivadas do `.env`) só inicializam o banco quando o volume está vazio. Alterá-las depois da primeira inicialização não muda o usuário e o banco existentes: recrie o ambiente com `docker compose down -v` (apaga os dados) ou ajuste as credenciais diretamente no banco.
 - As imagens base estão fixadas por digest (`node:24-bookworm-slim` e `postgres:18-alpine`); atualize os digests periodicamente para receber correções de segurança.
 
