@@ -22,15 +22,16 @@ Copie o arquivo de exemplo e ajuste as variáveis conforme necessário:
 cp .env.example .env
 ```
 
-| Variável           | Descrição                                                           | Exemplo / Padrão        |
-| ------------------ | ------------------------------------------------------------------- | ----------------------- |
-| `PORT`             | Porta do servidor HTTP                                              | `3000`                  |
-| `JWT_SECRET`       | Chave secreta usada para assinar e validar os tokens JWT            | `sua-chave-secreta`     |
-| `JWT_EXPIRES_IN`   | Tempo de expiração dos tokens gerados                               | `1d`                    |
-| `NODE_ENV`         | Ambiente de execução (`development`, `production`)                  | `development`           |
-| `CORS_ORIGINS`     | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
-| `COOKIE_NAME`      | Nome do cookie de sessão de autenticação                            | `session_id`            |
-| `PROTOCOL_FPE_KEY` | Chave secreta do FPE/Feistel que gera o protocolo não enumerável    | `sua-chave-fpe`         |
+| Variável           | Descrição                                                                                  | Exemplo / Padrão        |
+| ------------------ | ------------------------------------------------------------------------------------------ | ----------------------- |
+| `PORT`             | Porta do servidor HTTP                                                                     | `3000`                  |
+| `JWT_SECRET`       | Chave secreta usada para assinar e validar os tokens JWT                                   | `sua-chave-secreta`     |
+| `JWT_EXPIRES_IN`   | Tempo de expiração dos tokens gerados                                                      | `1d`                    |
+| `NODE_ENV`         | Ambiente de execução (`development`, `production`)                                         | `development`           |
+| `CORS_ORIGINS`     | Origens permitidas para requisições cross-origin, separadas por `,`                        | `http://localhost:5173` |
+| `COOKIE_NAME`      | Nome do cookie de sessão de autenticação                                                   | `session_id`            |
+| `PROTOCOL_FPE_KEY` | Chave secreta do FPE/Feistel que gera o protocolo não enumerável (obrigatória em produção) | `sua-chave-fpe`         |
+| `UPLOAD_DIR`       | Diretório onde os anexos das solicitações são gravados                                     | `uploads`               |
 
 ## Rodando com Docker
 
@@ -175,6 +176,28 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
   ```json
   { "message": "Sessão encerrada com sucesso" }
   ```
+
+### Solicitações
+
+#### POST /requests
+
+Endpoint público (sem autenticação) que cadastra uma solicitação, gera o protocolo e persiste os blocos do formulário, as preferências de horário e os anexos.
+
+- Content-Type: `multipart/form-data`
+- Parte `payload` (texto): `JSON.stringify` de `{ requester, demand, operational, complementary?, schedulePreferences? }`.
+- Partes `attachments` (0 a 5 arquivos): cada uma com até 10MB, nos formatos PDF, DOCX, XLSX, PNG ou JPG.
+- `schedulePreferences` é opcional; quando enviado, exige de 1 a 3 horários válidos (`AAAA-MM-DDTHH:MM`), sem duplicatas.
+- Resposta `201 Created`:
+
+  ```json
+  {
+    "protocol": "MAAT-8K3P-9X2M",
+    "status": "Solicitação enviada",
+    "createdAt": "2026-08-25T14:03:11.000Z"
+  }
+  ```
+
+- Resposta `400 Bad Request`: payload ausente/JSON inválido, campo obrigatório ausente ou inválido, limite de caracteres excedido, resposta Sim/Não sem detalhamento, `schedulePreferences` com mais de 3 opções/duplicatas, anexo acima de 10MB ou formato não permitido, ou mais de 5 anexos. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
 
 ## Scripts
 
