@@ -6,6 +6,7 @@ Esqueleto inicial do backend do projeto Neo Kaizen.
 
 - Node.js 24+ (recomendado: LTS mais recente)
 - npm 9+
+- Docker com o plugin Docker Compose (opcional: ambiente completo em containers)
 
 ## Instalação
 
@@ -30,21 +31,93 @@ cp .env.example .env
 | `CORS_ORIGINS`   | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
 | `COOKIE_NAME`    | Nome do cookie de sessão de autenticação                            | `session_id`            |
 
+## Rodando com Docker
+
+O ambiente completo (PostgreSQL + aplicação) sobe com um único comando, sem precisar instalar Node ou PostgreSQL na máquina:
+
+```bash
+cp .env.example .env
+npm run docker:dev
+```
+
+O `docker compose up` inicia o PostgreSQL (aguardando o health check) e a aplicação com hot-reload via `--watch`. As variáveis do `.env` são usadas pelos containers; dentro da rede do compose o `DB_HOST` é sobrescrito para o serviço `postgres` e o `DB_PORT` para `5432`, enquanto o fluxo local usa o `localhost` e a `DB_PORT` do `.env`.
+
+Para rodar as migrations no container (com o ambiente no ar):
+
+```bash
+npm run docker:migrate:latest
+```
+
+Para popular os dados de desenvolvimento:
+
+```bash
+npm run docker:seed:run
+```
+
+Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**):
+
+```bash
+npm run docker:db:setup
+```
+
+Para apenas remover os containers e o volume do banco:
+
+```bash
+npm run docker:db:reset
+```
+
+Para desfazer o último lote:
+
+```bash
+npm run docker:migrate:rollback
+```
+
+Para criar uma nova migration:
+
+```bash
+npm run docker:migrate:make -- nome-da-migration
+```
+
+Outros comandos úteis:
+
+```bash
+docker compose logs -f app
+docker compose exec app npx tsc --noEmit
+docker compose exec postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
+Notas:
+
+- O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `DB_PORT` (padrão `5432`). Se essa porta estiver ocupada no host, defina `DB_PORT` com outra porta: os comandos npm executados no host usam esse valor, enquanto dentro da rede do compose o `DB_HOST` é sobrescrito para `postgres` e `DB_PORT` para `5432`.
+- Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
+- As credenciais do banco (`POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`, derivadas do `.env`) só inicializam o banco quando o volume está vazio. Alterá-las depois da primeira inicialização não muda o usuário e o banco existentes: recrie o ambiente com `docker compose down -v` (apaga os dados) ou ajuste as credenciais diretamente no banco.
+- As imagens base estão fixadas por digest (`node:24-bookworm-slim` e `postgres:18-alpine`); atualize os digests periodicamente para receber correções de segurança.
+
 ## Banco de dados
 
 O projeto utiliza PostgreSQL como banco de dados e Knex para gerenciamento das migrations.
 
 As variáveis necessárias para conexão estão documentadas no arquivo `.env.example`.
 
-A documentação da persistência utilizada para autenticação está disponível em:
+A documentação da persistência utilizada para autenticação e para os pedidos está disponível em:
 
 - [Persistência para autenticação](docs/database/authentication-persistence.md)
+- [Persistência dos pedidos (solicitações)](docs/database/requests-persistence.md)
 
-As migrations podem ser executadas após a configuração das credenciais do banco:
+As migrations e os seeds podem ser executados após a configuração das credenciais do banco:
 
 ```bash
-npm run migrate:latest
+npm run migrate:latest   # aplica as migrations pendentes
+npm run seed:run         # popula os dados de desenvolvimento
 ```
+
+Para aplicar migrations e seeds em sequência:
+
+```bash
+npm run db:setup
+```
+
+> Se o histórico de migrations estiver inválido (por exemplo, após migrations renomeadas ou removidas), recrie o banco de desenvolvimento com `npm run docker:db:reset` (remove o volume) e depois `npm run docker:db:setup`.
 
 Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`.
 
@@ -84,7 +157,7 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
     "id": "1",
     "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
-    "role": "Solicitante"
+    "role": "Analista"
   }
   ```
 
@@ -97,6 +170,7 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 
 - Body: nenhum
 - Resposta `200 OK`:
+
   ```json
   { "message": "Sessão encerrada com sucesso" }
   ```
@@ -123,21 +197,30 @@ Consulta a solicitação pelo protocolo e e-mail do solicitante (acompanhamento 
 
 ## Scripts
 
-| Comando                        | Descrição                                      |
-| ------------------------------ | ---------------------------------------------- |
-| `npm start`                    | Executa o servidor                             |
-| `npm run dev`                  | Executa o servidor com reload automático       |
-| `npm run build`                | Compila o TypeScript para `dist/`              |
-| `npm run start:prod`           | Executa o build gerado                         |
-| `npm run typecheck`            | Checa os tipos com `tsc --noEmit`              |
-| `npm run lint`                 | Roda o ESLint                                  |
-| `npm run lint:fix`             | Corrige automaticamente os problemas do ESLint |
-| `npm run format`               | Formata o código com Prettier                  |
-| `npm run format:check`         | Verifica a formatação com Prettier             |
-| `npm run migrate:make -- nome` | Cria uma nova migration                        |
-| `npm run migrate:latest`       | Executa as migrations pendentes                |
-| `npm run migrate:rollback`     | Desfaz o último lote de migrations             |
-| `npm test`                     | Executa os testes                              |
+| Comando                               | Descrição                                       |
+| ------------------------------------- | ----------------------------------------------- |
+| `npm start`                           | Executa o servidor                              |
+| `npm run dev`                         | Executa o servidor com reload automático        |
+| `npm run docker:dev`                  | Sobe o ambiente Docker (PostgreSQL + app)       |
+| `npm run docker:migrate:latest`       | Executa as migrations pendentes no container    |
+| `npm run docker:migrate:rollback`     | Desfaz o último lote de migrations no container |
+| `npm run docker:migrate:make -- nome` | Cria uma nova migration no container            |
+| `npm run docker:seed:run`             | Popula os dados de desenvolvimento no container |
+| `npm run docker:db:setup`             | Recria o volume e aplica migrations e seeds     |
+| `npm run docker:db:reset`             | Remove containers e o volume do banco           |
+| `npm run build`                       | Compila o TypeScript para `dist/`               |
+| `npm run start:prod`                  | Executa o build gerado                          |
+| `npm run typecheck`                   | Checa os tipos com `tsc --noEmit`               |
+| `npm run lint`                        | Roda o ESLint                                   |
+| `npm run lint:fix`                    | Corrige automaticamente os problemas do ESLint  |
+| `npm run format`                      | Formata o código com Prettier                   |
+| `npm run format:check`                | Verifica a formatação com Prettier              |
+| `npm run migrate:make -- nome`        | Cria uma nova migration                         |
+| `npm run migrate:latest`              | Executa as migrations pendentes                 |
+| `npm run migrate:rollback`            | Desfaz o último lote de migrations              |
+| `npm run seed:run`                    | Popula os dados de desenvolvimento              |
+| `npm run db:setup`                    | Aplica migrations e seeds em sequência          |
+| `npm test`                            | Executa os testes                               |
 
 ## Estrutura do Projeto
 
@@ -154,7 +237,7 @@ src/
     │   └── errorHandler.ts # Middleware de captura e resposta global de erros
     ├── types/
     │   ├── express.d.ts    # Extensão da tipagem nativa do Express (ex: req.user)
-    │   └── role.ts         # Enum de perfis de usuário (Solicitante, Analista, Gestor, Administrador)
+    │   └── role.ts         # Enum de perfis de usuário (Analista, Gestor, Administrador)
     └── utils/
         └── jwtUtil.ts      # Geração e validação de tokens JWT assinados
 ```

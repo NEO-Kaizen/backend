@@ -1,0 +1,48 @@
+export async function seed(knex) {
+  await knex("professionals").insert([
+    {
+      professional_id: "650e8400-e29b-41d4-a716-446655440001",
+      full_name: "João Analyst",
+      email: "joao.analyst@empresa.com",
+      role: "Analista de Processos",
+      specialties: "Automação, Análise de dados, Melhoria",
+      attended_category_ids: "1,2,5",
+      status: "active",
+      capacity: 8,
+      created_at: "2026-01-05 08:00:00",
+    },
+    {
+      professional_id: "650e8400-e29b-41d4-a716-446655440002",
+      full_name: "Marina Developer",
+      email: "marina.dev@empresa.com",
+      role: "Desenvolvedora",
+      specialties: "RPA, Integrações, Dashboards",
+      attended_category_ids: "1,4",
+      status: "active",
+      capacity: 10,
+      created_at: "2026-01-05 08:00:00",
+    },
+    {
+      professional_id: "650e8400-e29b-41d4-a716-446655440003",
+      full_name: "Pedro Mapper",
+      email: "pedro.mapper@empresa.com",
+      role: "Mapeador de Processos",
+      specialties: "BPMN, Documentação de fluxos",
+      attended_category_ids: "2,6,7",
+      status: "active",
+      capacity: 6,
+      created_at: "2026-01-05 08:00:00",
+    },
+    {
+      professional_id: "650e8400-e29b-41d4-a716-446655440004",
+      full_name: "Lucia Consultant",
+      email: "lucia.consult@empresa.com",
+      role: "Consultora",
+      specialties: "Viabilidade, Indicadores",
+      attended_category_ids: "3,9",
+      status: "active",
+      capacity: 5,
+      created_at: "2026-01-05 08:00:00",
+    },
+  ]);
+}
