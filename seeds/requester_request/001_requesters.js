@@ -1,4 +1,6 @@
 export async function seed(knex) {
+  // `categories` e `statuses` são dados de referência e vêm das migrations
+  // (202609100013_insert_reference_data), por isso não são truncadas aqui.
   const tables = [
     "attachments",
     "request_time_preferences",
@@ -6,8 +8,6 @@ export async function seed(knex) {
     "requests",
     "professionals",
     "priorities",
-    "categories",
-    "statuses",
     "requesters",
   ];
 

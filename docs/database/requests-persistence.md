@@ -83,22 +83,23 @@ Armazena os dados do solicitante informados no bloco `requester` do formulário.
 
 ### Estrutura
 
-| Campo                | Tipo         | Obrigatório | Restrição / Default              | Finalidade                           |
-| -------------------- | ------------ | ----------- | -------------------------------- | ------------------------------------ |
-| `requester_id`       | UUID         | Sim         | Primary Key, `gen_random_uuid()` | Identificador interno do solicitante |
-| `full_name`          | VARCHAR(150) | Sim         | NOT NULL                         | Nome completo — limite 150           |
-| `corporate_email`    | VARCHAR(254) | Sim         | NOT NULL; indexado               | E-mail corporativo — limite 254      |
-| `area`               | VARCHAR(100) | Sim         | NOT NULL; indexado               | Área do solicitante — limite 100     |
-| `department`         | VARCHAR(100) | Não         | NULL permitido                   | Departamento — limite 100            |
-| `manager_name`       | VARCHAR(150) | Sim         | NOT NULL                         | Gestor responsável — limite 150      |
-| `additional_contact` | VARCHAR(100) | Não         | NULL permitido                   | Contato adicional — limite 100       |
-| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`      | Data e hora de criação do registro   |
+| Campo                | Tipo         | Obrigatório | Restrição / Default                      | Finalidade                           |
+| -------------------- | ------------ | ----------- | ---------------------------------------- | ------------------------------------ |
+| `requester_id`       | UUID         | Sim         | Primary Key, `gen_random_uuid()`         | Identificador interno do solicitante |
+| `full_name`          | VARCHAR(150) | Sim         | NOT NULL                                 | Nome completo — limite 150           |
+| `corporate_email`    | VARCHAR(254) | Sim         | NOT NULL; UNIQUE (`uk_requesters_email`) | E-mail corporativo — limite 254      |
+| `area`               | VARCHAR(100) | Sim         | NOT NULL; indexado                       | Área do solicitante — limite 100     |
+| `department`         | VARCHAR(100) | Não         | NULL permitido                           | Departamento — limite 100            |
+| `manager_name`       | VARCHAR(150) | Sim         | NOT NULL                                 | Gestor responsável — limite 150      |
+| `additional_contact` | VARCHAR(100) | Não         | NULL permitido                           | Contato adicional — limite 100       |
+| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`              | Data e hora de criação do registro   |
 
 ### Restrições
 
 - `full_name`, `corporate_email`, `area` e `manager_name` são obrigatórios;
 - `department` e `additional_contact` são opcionais;
-- índices em `corporate_email` (`idx_requesters_email`) e `area` (`idx_requesters_area`).
+- `corporate_email` é único (`uk_requesters_email`), permitindo deduplicar o
+  solicitante por e-mail; índice em `area` (`idx_requesters_area`).
 
 ## Tabela `categories`
 
@@ -245,9 +246,9 @@ identificador interno sequencial.
 | `professional_id`         | UUID         | Não         | Foreign Key, NULL permitido | Responsável técnico atribuído             |
 | `internal_notes`          | TEXT         | Não         | NULL permitido              | Notas internas                            |
 | `next_steps`              | TEXT         | Não         | NULL permitido              | Próximos passos                           |
-| `created_by`              | VARCHAR(100) | Sim         | NOT NULL                    | Usuário/e-mail de criação                 |
+| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                    | Usuário/e-mail de criação                 |
 | `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP` | Data e hora de criação                    |
-| `updated_by`              | VARCHAR(100) | Não         | NULL permitido              | Usuário/e-mail da última atualização      |
+| `updated_by`              | VARCHAR(254) | Não         | NULL permitido              | Usuário/e-mail da última atualização      |
 | `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido              | Data e hora da última atualização         |
 | `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido              | Última atualização visível ao solicitante |
 | `last_technical_message`  | TEXT         | Não         | NULL permitido              | Última mensagem pública do responsável    |
@@ -323,7 +324,7 @@ binárias do `POST /requests`.
 | `content_type`    | VARCHAR(100)  | Sim         | NOT NULL, CHECK de formato       | MIME do anexo                      |
 | `size_bytes`      | BIGINT        | Sim         | NOT NULL, CHECK de tamanho       | Tamanho em bytes                   |
 | `is_restricted`   | BOOLEAN       | Sim         | DEFAULT FALSE                    | Anexo restrito                     |
-| `uploaded_by`     | VARCHAR(100)  | Não         | NULL permitido                   | Usuário/e-mail do envio            |
+| `uploaded_by`     | VARCHAR(254)  | Não         | NULL permitido                   | Usuário/e-mail do envio            |
 | `uploaded_at`     | TIMESTAMPTZ   | Sim         | DEFAULT `CURRENT_TIMESTAMP`      | Data e hora do envio               |
 
 ### Restrições
@@ -377,6 +378,11 @@ observações).
 
 - **Solicitante em tabela própria:** `requesters` evita repetir dados do
   solicitante a cada pedido e permite o acompanhamento por e-mail.
+- **Solicitante único por e-mail:** `corporate_email` é `UNIQUE`
+  (`uk_requesters_email`), permitindo `upsert` do solicitante no cadastro.
+- **`created_by` com o e-mail do solicitante:** no `POST /requests` público não
+  há usuário autenticado; a coluna guarda o e-mail normalizado do solicitante
+  (por isso foi alargada para `VARCHAR(254)`).
 - **Categorias, status e prioridades como referência:** normalizam os domínios
   `category`, `status` e `priority` e viabilizam o CRUD de configurações.
 - **`request_id` sequencial + protocolo FPE:** o identificador interno é
@@ -428,7 +434,11 @@ autenticação, na seguinte ordem:
 7. `202609100007_create_pending_items.js`
 8. `202609100008_create_attachments.js`
 9. `202609100009_create_request_time_preferences.js`
-10. `202609100014_add_public_tracking_fields_to_requests.js`
+10. `202609100010_unique_requesters_email.js`
+11. `202609100011_requests_created_by_length.js`
+12. `202609100012_email_columns_length.js`
+13. `202609100013_insert_reference_data.js`
+14. `202609100014_add_public_tracking_fields_to_requests.js`
 
 A ordem respeita as dependências: as tabelas de referência e `requesters` são
 criadas antes de `requests`, e as tabelas filhas (`pending_items`, `attachments`,

@@ -1,8 +1,11 @@
 import express from "express";
-const publicTrackingRoutes = express.Router();
+import { uploadFields } from "../../shared/middleware/upload.ts";
+import { getRequestsByEmail, getRequestsByProtocol, postRequest } from "./requests.controller.ts";
 
-import { getRequestsByProtocol } from "./requests.controller.ts";
+const requestsRoutes = express.Router();
 
-publicTrackingRoutes.get("/:protocol", getRequestsByProtocol);
+requestsRoutes.get("/", getRequestsByEmail);
+requestsRoutes.get("/:protocol", getRequestsByProtocol);
+requestsRoutes.post("/", uploadFields, postRequest);
 
-export default publicTrackingRoutes;
+export default requestsRoutes;
