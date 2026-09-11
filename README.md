@@ -221,6 +221,36 @@ Endpoint público (sem autenticação) que lista as solicitações vinculadas ao
 
 - Resposta `400 Bad Request`: query param `email` ausente ou com formato inválido. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
 
+#### GET /requests/:protocol
+
+Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento sem autenticação).
+
+- Body: nenhum
+- Exemplo: `GET /requests/MAAT-8K3P-9X2M`
+- Resposta `200 OK`:
+  ```json
+  {
+    "protocol": "MAAT-8K3P-9X2M",
+    "demandTitle": "Automatizar conciliação bancária",
+    "processName": "Conciliação bancária mensal",
+    "status": "Em triagem",
+    "assigneeName": "Fernando Alves",
+    "openedAt": "2026-01-15T10:30:00.000Z",
+    "estimatedCompletion": "2026-10-18",
+    "mappingDate": "2026-10-15",
+    "meeting": {
+      "scheduledFor": "2026-10-15T13:30:00.000Z",
+      "link": null
+    },
+    "pendingIssues": [],
+    "nextStep": "Aguarde o contato do analista",
+    "lastTechnicalMessage": null,
+    "lastUpdate": "2026-01-16T14:20:00.000Z",
+    "conclusion": null
+  }
+  ```
+- Resposta `404 Not Found`: protocolo não encontrado.
+
 ## Scripts
 
 | Comando                               | Descrição                                       |

@@ -24,4 +24,5 @@ uploads/
 # Misc
 .opencode/
 opencode.json
+opencode.jsonc
 AGENTS.md

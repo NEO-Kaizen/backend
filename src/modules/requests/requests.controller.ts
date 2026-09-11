@@ -5,8 +5,20 @@ import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { createRequestPayloadSchema, listRequestsQuerySchema } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
 
+export const getRequestsByProtocol = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = req.params.protocol as string;
+
+  if (!protocol || typeof protocol !== "string" || protocol.trim() === "") {
+    throw new AppError("Protocolo é obrigatório", 400);
+  }
+
+  const foundRequest = await service.findRequest(protocol);
+
+  return res.status(200).json(foundRequest);
+};
+
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
-  const payloadPart: unknown = req.body.payload;
+  const payloadPart: unknown = req.body?.payload;
 
   if (typeof payloadPart !== "string" || payloadPart.trim() === "") {
     throw new AppError("Parte 'payload' ausente no corpo da requisição.", 400);
