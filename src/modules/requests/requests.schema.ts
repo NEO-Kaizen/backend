@@ -111,3 +111,7 @@ export const createRequestPayloadSchema = z.object(
     error: "O payload deve ser um objeto JSON com os blocos requester, demand e operational.",
   },
 ) satisfies z.ZodType<CreateRequestPayload>;
+
+export const listRequestsQuerySchema = z.object({
+  email: z.email("Informe um e-mail válido.").max(254, "Máximo de 254 caracteres."),
+});

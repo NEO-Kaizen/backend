@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
-import { createRequestPayloadSchema } from "./requests.schema.ts";
+import { createRequestPayloadSchema, listRequestsQuerySchema } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
 
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
@@ -31,4 +31,16 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
   const response = await service.registerRequest(parsed.data, savedAttachments);
 
   return res.status(201).json(response);
+};
+
+export const getRequestsByEmail = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = listRequestsQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const requests = await service.listRequestsByEmail(parsed.data.email);
+
+  return res.status(200).json(requests);
 };

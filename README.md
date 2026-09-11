@@ -56,7 +56,7 @@ Para popular os dados de desenvolvimento:
 npm run docker:seed:run
 ```
 
-Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**):
+Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**; reconstrói a imagem, então use também após alterar `package.json`/`package-lock.json`):
 
 ```bash
 npm run docker:db:setup
@@ -92,6 +92,7 @@ Notas:
 
 - O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `DB_PORT` (padrão `5432`). Se essa porta estiver ocupada no host, defina `DB_PORT` com outra porta: os comandos npm executados no host usam esse valor, enquanto dentro da rede do compose o `DB_HOST` é sobrescrito para `postgres` e `DB_PORT` para `5432`.
 - Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
+- O `node_modules` do container `app` fica em um volume anônimo (`/app/node_modules`) que sobrepõe o da imagem. Por isso, após alterar `package.json`/`package-lock.json`, rode `npm run docker:db:setup` (reconstrói a imagem e recria os volumes) para instalar as dependências novas — `npm run docker:dev` sozinho continua usando o `node_modules` antigo.
 - As credenciais do banco (`POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`, derivadas do `.env`) só inicializam o banco quando o volume está vazio. Alterá-las depois da primeira inicialização não muda o usuário e o banco existentes: recrie o ambiente com `docker compose down -v` (apaga os dados) ou ajuste as credenciais diretamente no banco.
 - As imagens base estão fixadas por digest (`node:24-bookworm-slim` e `postgres:18-alpine`); atualize os digests periodicamente para receber correções de segurança.
 
@@ -198,6 +199,27 @@ Endpoint público (sem autenticação) que cadastra uma solicitação, gera o pr
   ```
 
 - Resposta `400 Bad Request`: payload ausente/JSON inválido, campo obrigatório ausente ou inválido, limite de caracteres excedido, resposta Sim/Não sem detalhamento, `schedulePreferences` com mais de 3 opções/duplicatas, anexo acima de 10MB ou formato não permitido, ou mais de 5 anexos. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
+
+#### GET /requests
+
+Endpoint público (sem autenticação) que lista as solicitações vinculadas ao e-mail de um solicitante, com dados resumidos. O e-mail informado é normalizado para minúsculas antes da consulta.
+
+- Query: `?email=maria.oliveira@instituicao.gov.br` (obrigatório)
+- Resposta `200 OK`: array ordenado da solicitação mais recente para a mais antiga; retorna array vazio quando não há solicitações para o e-mail (sem revelar se o e-mail existe no sistema).
+
+  ```json
+  [
+    {
+      "protocol": "MAAT-8K3P-9X2M",
+      "title": "Automatizar conferência de diárias",
+      "status": "Solicitação enviada",
+      "createdAt": "2026-08-25T14:03:11.000Z",
+      "updatedAt": null
+    }
+  ]
+  ```
+
+- Resposta `400 Bad Request`: query param `email` ausente ou com formato inválido. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
 
 ## Scripts
 
