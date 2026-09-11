@@ -4,16 +4,21 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { generateProtocol } from "../../shared/protocol/generateProtocol.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
 import type {
+  RequestPriority,
   RequestStatus,
   RequesterBlock,
   RequesterTable,
   YesNoDetail,
 } from "../../shared/types/requests.ts";
-import type { CreateRequestPayload } from "../DTOs/requests/RequestRequests.dto.ts";
+import type {
+  CreateRequestPayload,
+  ListRequestsQuery,
+} from "../DTOs/requests/RequestRequests.dto.ts";
 import type { RequestDetail } from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
   CreateRequestResponse,
-  RequestSummaryResponse,
+  PaginatedResponse,
+  RequestSummary,
 } from "../DTOs/requests/RequestResponse.dto.ts";
 
 function normalizeIsoDate(value: unknown): string | null {
@@ -299,37 +304,73 @@ export async function createRequest(
   });
 }
 
+export async function findStatusByName(name: string): Promise<boolean> {
+  const row = await db("statuses").where({ name }).first("status_id");
+
+  return row !== undefined;
+}
+
 interface RequestSummaryRow {
   protocol: string;
-  title: string;
+  process_name: string;
+  priority: RequestPriority | null;
   status: RequestStatus;
+  assignee: string | null;
+  requester_name: string;
   created_at: Date;
-  updated_at: Date | null;
+}
+
+function baseSummaryQuery(query: ListRequestsQuery) {
+  return db("requests")
+    .join("requesters", "requesters.requester_id", "requests.requester_id")
+    .join("statuses", "statuses.status_id", "requests.status_id")
+    .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
+    .leftJoin("professionals", "professionals.professional_id", "requests.professional_id")
+    .where("requesters.corporate_email", query.email)
+    .modify((builder) => {
+      if (query.status) {
+        builder.where("statuses.name", query.status);
+      }
+    });
 }
 
 export async function findRequestsByRequesterEmail(
-  email: string,
-): Promise<RequestSummaryResponse[]> {
-  const rows = (await db("requests")
-    .join("requesters", "requesters.requester_id", "requests.requester_id")
-    .join("statuses", "statuses.status_id", "requests.status_id")
-    .where("requesters.corporate_email", email)
-    .orderBy("requests.created_at", "desc")
+  query: ListRequestsQuery,
+): Promise<PaginatedResponse<RequestSummary>> {
+  const countRows = (await baseSummaryQuery(query).count<{ count: string }[]>({
+    count: "*",
+  })) as { count: string }[];
+  const total = Number(countRows[0]?.count ?? 0);
+
+  const rows = (await baseSummaryQuery(query)
     .select({
       protocol: "requests.protocol",
-      title: "requests.title",
+      process_name: "requests.process_name",
+      priority: "priorities.level",
       status: "statuses.name",
+      assignee: "professionals.full_name",
+      requester_name: "requesters.full_name",
       created_at: "requests.created_at",
-      updated_at: "requests.updated_at",
-    })) as RequestSummaryRow[];
+    })
+    .orderBy("requests.created_at", "desc")
+    .limit(query.pageSize)
+    .offset((query.page - 1) * query.pageSize)) as RequestSummaryRow[];
 
-  return rows.map((row) => ({
-    protocol: row.protocol,
-    title: row.title,
-    status: row.status,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at ? row.updated_at.toISOString() : null,
-  }));
+  return {
+    data: rows.map((row) => ({
+      protocol: row.protocol,
+      createdAt: row.created_at.toISOString(),
+      processName: row.process_name,
+      priority: row.priority,
+      status: row.status,
+      assignee: row.assignee,
+      requesterName: row.requester_name,
+    })),
+    page: query.page,
+    pageSize: query.pageSize,
+    total,
+    totalPages: total === 0 ? 0 : Math.ceil(total / query.pageSize),
+  };
 }
 
 export async function findRequestByProtocol(protocol: string): Promise<RequestDetail | null> {

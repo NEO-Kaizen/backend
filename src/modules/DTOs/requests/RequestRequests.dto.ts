@@ -1,5 +1,10 @@
-import type { ComplementaryBlock, DemandBlock, OperationalBlock, RequesterBlock, SchedulePreferences } from "../../../shared/types/requests.ts";
-
+import type {
+  ComplementaryBlock,
+  DemandBlock,
+  OperationalBlock,
+  RequesterBlock,
+  SchedulePreferences,
+} from "../../../shared/types/requests.ts";
 
 export interface CreateRequestPayload {
   requester: RequesterBlock;
@@ -7,4 +12,11 @@ export interface CreateRequestPayload {
   operational: OperationalBlock;
   complementary?: ComplementaryBlock;
   schedulePreferences?: SchedulePreferences; // até 3 horários
+}
+
+export interface ListRequestsQuery {
+  email: string;
+  status?: string;
+  page: number;
+  pageSize: number;
 }

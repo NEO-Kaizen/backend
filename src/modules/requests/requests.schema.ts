@@ -114,4 +114,16 @@ export const createRequestPayloadSchema = z.object(
 
 export const listRequestsQuerySchema = z.object({
   email: z.email("Informe um e-mail válido.").max(254, "Máximo de 254 caracteres."),
+  status: optionalString(100),
+  page: z.coerce
+    .number()
+    .int("Deve ser um número inteiro.")
+    .positive("Deve ser maior que zero.")
+    .default(1),
+  pageSize: z.coerce
+    .number()
+    .int("Deve ser um número inteiro.")
+    .positive("Deve ser maior que zero.")
+    .max(10, "Máximo de 10 itens por página.")
+    .default(10),
 });
