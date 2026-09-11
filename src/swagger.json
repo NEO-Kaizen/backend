@@ -1,0 +1,145 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API de Administração",
+        "description": "API responsável pela autenticação e gestão de pedidos, fila, triagem, priorização, mapeamento, auditoria, indicadores, exportação, configurações e usuários.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:3000",
+            "description": "Servidor local de desenvolvimento"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Auth",
+            "description": "Operações de autenticação e sessão do usuário"
+        }
+    ],
+    "paths": {
+        "/auth/login": {
+            "post": {
+                "summary": "Realiza o login do usuário",
+                "description": "Autentica o usuário com e-mail e senha, retornando seus dados. O token de sessão é definido em um cookie httpOnly.",
+                "tags": ["Auth"],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            },
+                            "examples": {
+                                "user": {
+                                    "value": {
+                                        "email": "rogerio@email.com",
+                                        "password": "22"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login realizado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Usuario/senha não podem ser vazios"
+                    },
+                    "401": {
+                        "description": "Credenciais inválidas"
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "summary": "Encerra a sessão do usuário",
+                "description": "Limpa o cookie de sessão e encerra a sessão do usuário autenticado.",
+                "tags": ["Auth"],
+                "responses": {
+                    "200": {
+                        "description": "Sessão encerrada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Sessão encerrada com sucesso"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "LoginRequest": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "rogerio@email.com"
+                    },
+                    "password": {
+                        "type": "string",
+                        "format": "password",
+                        "example": "22"
+                    }
+                }
+            },
+            "User": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "3"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Rogério da Silva"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "rogerio@email.com"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": ["Solicitante", "Analista", "Gestor", "Administrador"],
+                        "example": "Analista"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ]
+}
