@@ -46,13 +46,17 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
 };
 
 export const getRequestsByEmail = async (req: Request, res: Response): Promise<Response> => {
+  if (req.query.email === undefined) {
+    throw new AppError("Parâmetro obrigatório ausente: email", 400);
+  }
+
   const parsed = listRequestsQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const requests = await service.listRequestsByEmail(parsed.data.email);
+  const requests = await service.listRequestsByEmail(parsed.data);
 
   return res.status(200).json(requests);
 };

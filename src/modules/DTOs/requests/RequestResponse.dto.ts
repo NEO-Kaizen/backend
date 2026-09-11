@@ -1,4 +1,8 @@
-import type { RequestStatus, TriageResult } from "../../../shared/types/requests.ts";
+import type {
+  RequestPriority,
+  RequestStatus,
+  TriageResult,
+} from "../../../shared/types/requests.ts";
 
 export interface RequestDetail {
   protocol: string;
@@ -31,10 +35,20 @@ export interface CreateRequestResponse {
   createdAt: string; // ISO datetime
 }
 
-export interface RequestSummaryResponse {
+export interface RequestSummary {
   protocol: string;
-  title: string;
-  status: RequestStatus;
   createdAt: string;
-  updatedAt: string | null;
+  processName: string;
+  priority: RequestPriority | null;
+  status: RequestStatus;
+  assignee: string | null;
+  requesterName: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
