@@ -13,6 +13,9 @@ dist/
 *.log
 npm-debug.log*
 
+# Runtime uploads
+uploads/
+
 # Editor / OS
 .vscode/
 .idea/
