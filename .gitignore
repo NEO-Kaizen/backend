@@ -21,4 +21,5 @@ npm-debug.log*
 # Misc
 .opencode/
 opencode.json
+opencode.jsonc
 AGENTS.md
