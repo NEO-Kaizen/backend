@@ -250,6 +250,10 @@ identificador interno sequencial.
 | `updated_by`              | VARCHAR(100) | Não         | NULL permitido              | Usuário/e-mail da última atualização      |
 | `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido              | Data e hora da última atualização         |
 | `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido              | Última atualização visível ao solicitante |
+| `last_technical_message`  | TEXT         | Não         | NULL permitido              | Última mensagem pública do responsável    |
+| `estimated_completion`    | DATE         | Não         | NULL permitido              | Previsão de conclusão (`yyyy-mm-dd`)      |
+| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido              | Data/hora da reunião de mapeamento        |
+| `meeting_link`            | TEXT         | Não         | NULL permitido              | Link de acesso à reunião                  |
 
 ### Restrições
 
@@ -401,7 +405,11 @@ Não fazem parte desta Issue:
 - geração do protocolo FPE/Feistel (issue própria);
 - validação de payload, limites e partes `multipart/form-data`;
 - endpoints de cadastro, listagem, consulta e edição de solicitações;
-- tabelas e regras de triagem, priorização, fila, mapeamento e auditoria;
+- tabelas e regras de triagem, priorização, fila, auditoria e a modelagem
+  completa do mapeamento (duração, modalidade, local, participantes,
+  confirmação); a migration `202609100014` adiciona apenas os campos mínimos
+  de reunião (`meeting_scheduled_for`, `meeting_link`) exigidos pelo painel
+  público de acompanhamento;
 - implementação automática de `updated_at`;
 - normalização de `attended_category_ids`;
 - padronização do vocabulário de `TriageResult` nos campos de triagem.
@@ -420,6 +428,7 @@ autenticação, na seguinte ordem:
 7. `202609100007_create_pending_items.js`
 8. `202609100008_create_attachments.js`
 9. `202609100009_create_request_time_preferences.js`
+10. `202609100014_add_public_tracking_fields_to_requests.js`
 
 A ordem respeita as dependências: as tabelas de referência e `requesters` são
 criadas antes de `requests`, e as tabelas filhas (`pending_items`, `attachments`,
@@ -431,7 +440,9 @@ Os seeds em `seeds/requester_request/` populam dados de desenvolvimento para
 `requesters`, `categories`, `priorities`, `statuses`, `professionals`, `requests`,
 `pending_items`, `attachments` e `request_time_preferences`. O seed de
 `requests` ajusta a sequence `requests_request_seq` após inserir IDs explícitos,
-evitando colisão com o próximo `nextval`.
+evitando colisão com o próximo `nextval`, e preenche os campos do painel público
+(`last_technical_message`, `estimated_completion`, `meeting_scheduled_for`,
+`meeting_link`).
 
 ### Execução
 

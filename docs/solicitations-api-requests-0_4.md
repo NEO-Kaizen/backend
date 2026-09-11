@@ -591,13 +591,16 @@ HTTP/1.1 404 Not Found
   §7.3) trafega apenas como veredito em `conclusion.result`, tipado por
   `TriageResult` — sem tradução entre matrizes.
 - Reunião de mapeamento: `meeting.scheduledFor` é a única fonte persistida do
-  evento (Especificação 3.0 §6.1); `mappingDate` é computado na leitura — os
-  dois campos nunca divergem.
+  evento (Especificação 3.0 §6.1) — colunas `meeting_scheduled_for`/`meeting_link`
+  em `requests`; `mappingDate` é computado na leitura (parte-data de
+  `scheduledFor` em America/Sao_Paulo) — os dois campos nunca divergem.
 - Campos do painel `RequestDetail` com lastro apenas no protótipo/issues do
   front (`estimatedCompletion`, `lastTechnicalMessage`) permanecem por decisão
-  de produto; `nextStep` tem base no fluxo oficial de consulta; detalhamentos
-  sem limite definido na §4 estão marcados no próprio tipo (anexos são
-  tratados como partes do POST — seção 1).
+  de produto e passam a ter colunas próprias em `requests`
+  (`estimated_completion`, `last_technical_message`), sem reuso de
+  `desired_deadline`/`internal_notes`; `nextStep` tem base no fluxo oficial de
+  consulta; detalhamentos sem limite definido na §4 estão marcados no próprio
+  tipo (anexos são tratados como partes do POST — seção 1).
 - Respostas "Sim/Não (+ detalhamento)" (item 9 do Bloco 3 e questionário do
   Bloco 4) trafegam como `false | string` — o detalhe é a própria resposta
   positiva e não existe "Sim" sem texto; `string` vazia → `400`. Na
