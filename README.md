@@ -177,23 +177,32 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 
 ### Solicitações
 
-#### Acompanhar solicitação publicamente
-Consulta a solicitação pelo protocolo e e-mail do solicitante (acompanhamento público sem autenticação).
+#### GET /requests/:protocol
 
-- Body: `{ "protoclo": "MAAT-2026-001", "email: "usuario@empresa.com" }`
+Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento sem autenticação).
+
+- Body: nenhum
+- Exemplo: `GET /requests/MAAT-2026-001`
 - Resposta `200 OK`:
   ```json
   {
     "protocol": "MAAT-2026-001",
-    "title": "Solicitação",
-    "status": "EM_ANDAMENTO",
-    "created_at": "2026-01-15T10:30:00Z",
-    "updated_at": "2026-01-16T14:20:00Z",
-    "requester_email": "usuario@empresa.com"
+    "demandTitle": "Solicitação",
+    "processName": "Pagamento de diárias",
+    "status": "Em triagem",
+    "assigneeName": "Fernando Alves",
+    "openedAt": "2026-01-15T10:30:00.000Z",
+    "estimatedCompletion": "2026-02-15",
+    "mappingDate": null,
+    "meeting": null,
+    "pendingIssues": [],
+    "nextStep": "Aguarde o contato do analista",
+    "lastTechnicalMessage": null,
+    "lastUpdate": "2026-01-16T14:20:00.000Z",
+    "conclusion": null
   }
   ```
-- Resposta `400 Bad Request`: e-mail ausente.
-- Resposta `402 Not Found`: informações inválidas (protocolo não encontrado ou email incorreto).
+- Resposta `404 Not Found`: protocolo não encontrado.
 
 ## Scripts
 
