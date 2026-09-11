@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import * as RequestService from "./requests.service.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 
-export const trackPublicRequest = async (req: Request, res: Response) => {
+export const getRequestsByProtocol = async (req: Request, res: Response) => {
   const protocol = req.params.protocol as string;
 
   if (!protocol || typeof protocol !== "string" || protocol.trim() === "") {

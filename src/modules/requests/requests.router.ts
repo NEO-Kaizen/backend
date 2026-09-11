@@ -1,8 +1,8 @@
 import express from "express";
 const publicTrackingRoutes = express.Router();
 
-import { trackPublicRequest } from "./requests.controller.ts";
+import { getRequestsByProtocol } from "./requests.controller.ts";
 
-publicTrackingRoutes.get("/:protocol", trackPublicRequest);
+publicTrackingRoutes.get("/:protocol", getRequestsByProtocol);
 
 export default publicTrackingRoutes;
