@@ -6,11 +6,14 @@ import Config from "../../configs.ts";
 
 const { sign, verify } = jwt;
 
+export type TokenScope = "session" | "change_password";
+
 export interface TokenPayload {
   id: string;
   name: string;
   email: string;
   role: Role;
+  scope?: TokenScope;
 }
 
 export function generateToken(payload: TokenPayload): string {
@@ -43,5 +46,7 @@ export function verifyToken(token: string): TokenPayload {
     throw new AppError("Token inválido", 401);
   }
 
-  return { id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role };
+  const scope = decoded.scope === "change_password" ? "change_password" : "session";
+
+  return { id: decoded.id, name: decoded.name, email: decoded.email, role: decoded.role, scope };
 }

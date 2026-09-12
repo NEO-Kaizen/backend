@@ -1,25 +1,95 @@
-import * as authRepository from "./auth.repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { comparePassword } from "../../shared/utils/passwordHandler.ts";
-import type { TokenPayload } from "../../shared/utils/jwtUtil.ts";
+import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import type { Role } from "../../shared/types/role.ts";
+import { profileRole } from "../../shared/utils/roleUtils.ts";
+import { comparePassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
+import type { ChangePasswordRequest } from "../DTOs/auth/ChangePasswordRequest.dto.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
-import { ROLES_MAP } from "../../shared/types/role.ts";
+import * as authRepository from "./auth.repository.ts";
 
-export async function findUser(user: LoginRequestDTO) {
-  const foundUser = await authRepository.findUserByEmail(user);
+export interface SessionUserResult {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  mustChangePassword: boolean;
+}
 
-  if (!foundUser) {
+/** Hash de senha inválida usado para equalizar o tempo do bcrypt quando o
+ *  usuário não existe ou está inativo — evita enumeração por timing. */
+const DUMMY_PASSWORD_HASH = "$2b$10$jY9m/Fb6ZOB727amwsLEL.lRF6P2piXjpIvtnjTDSehPqw0ytGPEC";
+
+export async function authenticate(credentials: LoginRequestDTO): Promise<SessionUserResult> {
+  const email = credentials.email.trim().toLowerCase();
+
+  const user = await authRepository.findUserByEmail(email);
+
+  if (!user) {
+    await comparePassword(credentials.password, DUMMY_PASSWORD_HASH);
     throw new AppError("Credenciais inválidas", 401);
   }
 
-  const isPasswordValid = await comparePassword(user.password, foundUser.password_hash);
+  if (!user.is_active) {
+    await comparePassword(credentials.password, DUMMY_PASSWORD_HASH);
+    throw new AppError("Usuário inativo", 401);
+  }
 
-  if (!isPasswordValid) throw new AppError("Credenciais inválidas", 401);
+  const isPasswordValid = await comparePassword(credentials.password, user.password_hash);
+
+  if (!isPasswordValid) {
+    throw new AppError("Credenciais inválidas", 401);
+  }
 
   return {
-    email: foundUser.email,
-    id: foundUser.user_id,
-    name: foundUser.full_name,
-    role: ROLES_MAP[foundUser.profile_id],
-  } as TokenPayload;
+    id: String(user.user_id),
+    name: user.full_name,
+    email: user.email,
+    role: profileRole(user.profile_id),
+    mustChangePassword: user.must_change_password,
+  };
+}
+
+export async function changePassword(
+  userId: number,
+  body: ChangePasswordRequest,
+  ipAddress: string | undefined,
+): Promise<SessionUserResult> {
+  const user = await authRepository.findUserById(userId);
+
+  if (!user) {
+    throw new AppError("Usuário não encontrado", 404);
+  }
+
+  const isCurrentPasswordValid = await comparePassword(body.currentPassword, user.password_hash);
+
+  if (!isCurrentPasswordValid) {
+    throw new AppError("Senha atual incorreta", 401);
+  }
+
+  const isSamePassword = await comparePassword(body.newPassword, user.password_hash);
+
+  if (isSamePassword) {
+    throw new AppError("A nova senha deve ser diferente da atual.", 400);
+  }
+
+  const newPasswordHash = await hashPassword(body.newPassword);
+
+  await authRepository.changePassword(user.user_id, newPasswordHash);
+
+  await recordAudit({
+    entityType: "user",
+    entityId: String(user.user_id),
+    actionType: "user.change_password",
+    userId: user.user_id,
+    note: ipAddress,
+    changeOrigin: "user",
+  });
+
+  return {
+    id: String(user.user_id),
+    name: user.full_name,
+    email: user.email,
+    role: profileRole(user.profile_id),
+    mustChangePassword: false,
+  };
 }

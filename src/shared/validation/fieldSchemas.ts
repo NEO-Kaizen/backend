@@ -16,3 +16,15 @@ export const optionalString = (maxChars: number) =>
     .max(maxChars, `Máximo de ${ptNumber(maxChars)} caracteres.`)
     .transform((value) => (value === "" ? undefined : value))
     .optional();
+
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Informe um e-mail válido.")
+  .max(254, "Máximo de 254 caracteres.");
+
+export const passwordSchema = z
+  .string()
+  .min(8, "Mínimo de 8 caracteres.")
+  .refine((value) => Buffer.byteLength(value, "utf8") <= 72, "Máximo de 72 bytes.");
