@@ -35,6 +35,20 @@ function parseUserId(rawId: string): number {
   return id;
 }
 
+/**
+ * Valida que a conta-alvo pode ser gerenciada pelo perfil atual.
+ *
+ * Hoje apenas Administrador gerencia contas (rotas protegidas por
+ * requireRole) e ninguém gerencia outra conta de Administrador — evita
+ * escalonamento vertical (um admin assumir o controle de outro admin).
+ * Evolui para uma hierarquia ordenada quando houver novos perfis gestores.
+ */
+function assertTargetIsManageable(user: UserRow): void {
+  if (profileRole(user.profile_id) === "Administrador") {
+    throw new AppError("Não é possível gerenciar contas de Administradores", 403);
+  }
+}
+
 export async function listUsers(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
   if (query.profile) {
     const profileId = await repository.findProfileIdByName(query.profile);
@@ -124,6 +138,8 @@ export async function changeUserStatus(
     throw new AppError("Usuário não encontrado", 404);
   }
 
+  assertTargetIsManageable(user);
+
   // Update e evento de auditoria na MESMA transação: se o evento falhar,
   // a mudança de status é desfeita (rollback).
   await db.transaction(async (trx) => {
@@ -159,6 +175,8 @@ export async function resetPassword(
   if (!user) {
     throw new AppError("Usuário não encontrado", 404);
   }
+
+  assertTargetIsManageable(user);
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
