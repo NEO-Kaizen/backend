@@ -1,7 +1,7 @@
-import type { Criterio, AvaliacaoResultado, NotasInput, ErroValidacaoCampo } from "../../shared/types/priorization.ts";
+import type { Criterio, AvaliacaoResultado, NotasInput, ErroValidacaoCampo, Classificacao } from "../../shared/types/priorization.ts";
 import * as repo from "./priorization.repository.ts";
+import { ValidacaoError } from "../priorization/priorization.error.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import type { Classificacao } from "../../shared/types/priorization.ts";
 
 export const listarCriterios = async () : Promise<Criterio[]> => {
     return await repo.getCriteriosAtivos();
@@ -17,7 +17,7 @@ export const avaliarPriorizacao = async (
 
     const erros = validarNotas(notas, criterios);
     if (erros.length > 0) {
-        throw new AppError("problema ao validar notas", 400);
+        throw new ValidacaoError(erros);
     }
 
     const score = calcularScore(notas, criterios);
@@ -83,7 +83,7 @@ const validarNotas = (notas: NotasInput, criterios: Criterio[]) : ErroValidacaoC
         if(!notaEhValida(nota)) {
             erros.push({
                 criterio: criterio.id,
-                problema: "Nota deve ser um numero inteiro entre 1 e 5";
+                problema: "Nota deve ser um numero inteiro entre 1 e 5",
             })
         }
 

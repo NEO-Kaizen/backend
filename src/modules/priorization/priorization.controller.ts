@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import type { Criterio, Classificacao } from "../../shared/types/priorization.js";
-import * as service from "./priorization.service.js";
+import type { Criterio } from "../../shared/types/priorization.ts";
+import * as service from "./priorization.service.ts";
 import { ValidacaoError } from "../priorization/priorization.error.ts";
 
 export const getCriterios = async (req: Request, res: Response) => {
@@ -11,17 +11,13 @@ export const getCriterios = async (req: Request, res: Response) => {
 export const putScorePriorization = async (req: Request, res: Response) => {
     const { protocol } = req.params;
     const { notas, motivo } = req.body;
-    const usuarioId = req.user?.id;
+    const usuarioId = req.user?.id || "teste";
 
     if (!protocol || typeof protocol !== "string") {
         return res.status(400).json({
             erro: "validacao",
             campos: [{ criterio: "protocol", problema: "protocolo inválido ou ausente na URL" }],
         });
-    }
-
-    if (!usuarioId) {
-        return res.status(401).json({ erro: "não autenticado" });
     }
 
     if (!notas || typeof notas !== "object" || Array.isArray(notas)) {
@@ -39,7 +35,6 @@ export const putScorePriorization = async (req: Request, res: Response) => {
             return res.status(422).json({ erro: "validacao", campos: err.campos });
         }
 
-        console.error("[putScorePriorization] erro inesperado:", err);
-        return res.status(500).json({ erro: "erro interno no servidor" });
+        return res.status(500).json({ erro: "erro interno no servidor", err});
     }
 };
