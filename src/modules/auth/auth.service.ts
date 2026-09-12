@@ -13,6 +13,8 @@ export interface SessionUserResult {
   email: string;
   role: Role;
   mustChangePassword: boolean;
+  /** Época (ms) de `users.password_changed_at` — vai no payload do JWT. */
+  passwordChangedAt: number;
 }
 
 /** Hash de senha inválida usado para equalizar o tempo do bcrypt quando o
@@ -46,6 +48,7 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
     email: user.email,
     role: profileRole(user.profile_id),
     mustChangePassword: user.must_change_password,
+    passwordChangedAt: new Date(user.password_changed_at).getTime(),
   };
 }
 
@@ -74,7 +77,10 @@ export async function changePassword(
 
   const newPasswordHash = await hashPassword(body.newPassword);
 
-  await authRepository.changePassword(user.user_id, newPasswordHash);
+  const { password_changed_at } = await authRepository.changePassword(
+    user.user_id,
+    newPasswordHash,
+  );
 
   await recordAudit({
     entityType: "user",
@@ -91,5 +97,6 @@ export async function changePassword(
     email: user.email,
     role: profileRole(user.profile_id),
     mustChangePassword: false,
+    passwordChangedAt: new Date(password_changed_at).getTime(),
   };
 }

@@ -49,6 +49,17 @@ export async function authMiddleware(
       return;
     }
 
+    // Revogação permanente: toda troca/redefinição de senha avança
+    // users.password_changed_at; tokens emitidos antes desse momento têm o
+    // valor antigo embutido e deixam de ser aceitos.
+    const tokenPasswordChangedAt = Number(payload.password_changed_at);
+    const currentPasswordChangedAt = userState.password_changed_at.getTime();
+
+    if (tokenPasswordChangedAt !== currentPasswordChangedAt) {
+      next(new AppError("Token inválido ou expirado", 401));
+      return;
+    }
+
     req.user = {
       id: payload.id,
       name: payload.name,

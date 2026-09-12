@@ -40,6 +40,7 @@ export const authenticate = async (req: Request, res: Response) => {
       name: foundUser.name,
       email: foundUser.email,
       role: foundUser.role,
+      password_changed_at: foundUser.passwordChangedAt,
       scope: "change_password",
     });
 
@@ -57,6 +58,7 @@ export const authenticate = async (req: Request, res: Response) => {
     name: foundUser.name,
     email: foundUser.email,
     role: foundUser.role,
+    password_changed_at: foundUser.passwordChangedAt,
     scope: "session",
   });
 
@@ -85,6 +87,7 @@ export const changePassword = async (req: Request, res: Response) => {
     name: updated.name,
     email: updated.email,
     role: updated.role,
+    password_changed_at: updated.passwordChangedAt,
     scope: "session",
   });
 

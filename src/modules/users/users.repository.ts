@@ -119,6 +119,7 @@ export async function setTemporaryPassword(id: number, passwordHash: string): Pr
   const updated = await db("users").where({ user_id: id }).update({
     password_hash: passwordHash,
     must_change_password: true,
+    password_changed_at: db.fn.now(),
     updated_at: db.fn.now(),
   });
 

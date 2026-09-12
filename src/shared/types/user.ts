@@ -20,6 +20,7 @@ export interface UserRow {
   profile_id: number;
   is_active: boolean;
   must_change_password: boolean;
+  password_changed_at: Date;
   created_at: Date;
   updated_at: Date;
 }
