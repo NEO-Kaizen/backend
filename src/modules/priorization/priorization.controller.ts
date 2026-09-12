@@ -1,14 +1,12 @@
 import type { Request, Response } from "express";
-import type { Criterio } from "../../shared/types/priorization.ts";
-import * as service from "./priorization.service.ts";
-import { ErroValidacaoCampo } from "../../shared/types/priorization.ts";
-import { error } from "node:console";
+import type { Criterio, Classificacao } from "../../shared/types/priorization.js";
+import * as service from "./priorization.service.js";
+import { ValidacaoError } from "../priorization/priorization.error.ts";
 
 export const getCriterios = async (req: Request, res: Response) => {
-    const criterios : Criterio[] = await service.listarCriterios();
+    const criterios: Criterio[] = await service.listarCriterios();
     return res.status(200).json(criterios);
-}
-
+};
 
 export const putScorePriorization = async (req: Request, res: Response) => {
     const { protocol } = req.params;
@@ -29,7 +27,7 @@ export const putScorePriorization = async (req: Request, res: Response) => {
     if (!notas || typeof notas !== "object" || Array.isArray(notas)) {
         return res.status(422).json({
             erro: "validacao",
-            campos: [{ criterio: "notas", problema: "campo 'notas' é obrigatório e deve ser um objeto" }],
+            campos: [{ criterio: "notas", problema: "campo 'notas' é obrigatório" }],
         });
     }
 

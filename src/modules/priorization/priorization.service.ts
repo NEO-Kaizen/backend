@@ -1,7 +1,7 @@
 import type { Criterio, AvaliacaoResultado, NotasInput, ErroValidacaoCampo } from "../../shared/types/priorization.ts";
 import * as repo from "./priorization.repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { Classificacao } from "../../shared/types/priorization.ts";
+import type { Classificacao } from "../../shared/types/priorization.ts";
 
 export const listarCriterios = async () : Promise<Criterio[]> => {
     return await repo.getCriteriosAtivos();
@@ -100,7 +100,7 @@ const validarNotas = (notas: NotasInput, criterios: Criterio[]) : ErroValidacaoC
     return erros;
 }
 
-function calcularScore(notas: NotasInput, criterios: Criterio[]): number {
+const calcularScore = (notas: NotasInput, criterios: Criterio[]): number => {
   if (!notas) {
     throw new AppError("notas vazias", 400);
   }
