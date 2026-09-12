@@ -31,6 +31,12 @@ export type QueueQuerySchema = {
   page: number;
   pageSize: number;
 };
+export interface QueueMetricsResponse {
+  totalRequests: number;
+  unassignedRequests: number;
+  inProgressRequests: number;
+  overdueRequests: number;
+}
 
 function isValidStatus(s: unknown): s is RequestStatus {
   return typeof s === 'string' && (statusValues as readonly string[]).includes(s);

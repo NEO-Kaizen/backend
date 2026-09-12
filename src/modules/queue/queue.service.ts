@@ -1,7 +1,10 @@
-import { findQueueRequests } from './queue.repository.ts';
+import { findQueueRequests, fetchQueueMetrics } from './queue.repository.ts';
 import type { PaginatedResponse } from '../DTOs/requests/RequestResponse.dto.ts';
-import type { QueueQuery, QueueResponse } from '../../shared/types/queue.types.ts';
+import type { QueueQuery, QueueResponse, QueueMetricsResponse } from '../../shared/types/queue.types.ts';
 
+export const getQueueMetricsService = async () : Promise<QueueMetricsResponse> => {
+  return await fetchQueueMetrics();
+}
 
 export const listQueueService = async (filters: QueueQuery): Promise<QueueResponse> => {
   const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;

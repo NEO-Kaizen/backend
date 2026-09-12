@@ -1,7 +1,38 @@
 import db from '../../database/conection.ts';
 import type { FindQueueParams } from '../DTOs/queue/queue.dto.ts';
-import type { QueueItem } from '../../shared/types/queue.types.ts';
+import type { QueueItem, QueueMetricsResponse } from '../../shared/types/queue.types.ts';
 
+const IN_PROGRESS_STATUSES = [
+  'Em triagem',
+  'Em mapeamento',
+  'Em análise de viabilidade',
+  'Em desenvolvimento',
+  'Em homologação',
+];
+
+export const fetchQueueMetrics = async() : Promise<QueueMetricsResponse> => {
+  const result = await db('requests')
+    .select(
+      db.raw('COUNT(*)::int as "totalRequests"'),
+      db.raw('COUNT(CASE WHEN assignee_id IS NULL THEN 1 END)::int as "unassignedRequests"'),
+      db.raw(
+        `COUNT(CASE WHEN status IN (${IN_PROGRESS_STATUSES.map((_) => '?').join(',')}) THEN 1 END)::int as "inProgressRequests"`,
+        IN_PROGRESS_STATUSES
+      ),
+      // Regra de atrasados: prazo expirado e não concluído/cancelado
+      db.raw(
+        `COUNT(CASE WHEN due_date < NOW() AND status NOT IN ('Concluído', 'Cancelado') THEN 1 END)::int as "overdueRequests"`
+      )
+    )
+    .first();
+
+  return {
+    totalRequests: result?.totalRequests || 0,
+    unassignedRequests: result?.unassignedRequests || 0,
+    inProgressRequests: result?.inProgressRequests || 0,
+    overdueRequests: result?.overdueRequests || 0,
+  };
+}
 
 export const findQueueRequests = async (params: FindQueueParams): Promise<{ items: QueueItem[]; total: number }> => {
   const { search, status, priority, assigneeId, unassigned, limit, offset } = params;
