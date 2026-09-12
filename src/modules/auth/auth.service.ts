@@ -32,8 +32,12 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
   }
 
   if (!user.is_active) {
+    // Mantém o timing uniforme e a resposta pública idêntica à de e-mail
+    // inexistente/senha errada — conta desativada não pode ser distinguida
+    // por enumeração. O branch permanece apenas para impedir o login de
+    // contas inativas, mesmo com a senha correta.
     await comparePassword(credentials.password, DUMMY_PASSWORD_HASH);
-    throw new AppError("Usuário inativo", 401);
+    throw new AppError("Credenciais inválidas", 401);
   }
 
   const isPasswordValid = await comparePassword(credentials.password, user.password_hash);
