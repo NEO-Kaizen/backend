@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserRow } from "../../shared/types/user.ts";
 import { profileRole } from "../../shared/utils/roleUtils.ts";
@@ -60,11 +61,29 @@ export async function createRequester(
 
   let user: UserRow | undefined;
   try {
-    user = await repository.createRequester(
-      { fullName: payload.fullName, email: payload.email },
-      passwordHash,
-      profileId,
-    );
+    // Inserção e evento de auditoria na MESMA transação: se o registro do
+    // evento falhar, a criação é desfeita (rollback) — nunca fica um usuário
+    // sem histórico.
+    user = await db.transaction(async (trx) => {
+      const created = await repository.createRequester(
+        trx,
+        { fullName: payload.fullName, email: payload.email },
+        passwordHash,
+        profileId,
+      );
+
+      await recordAudit(trx, {
+        entityType: "user",
+        entityId: String(created.user_id),
+        actionType: "user.create",
+        userId: actorUserId,
+        newValue: payload.email,
+        note: ipAddress,
+        changeOrigin: CHANGE_ORIGIN_ADMIN,
+      });
+
+      return created;
+    });
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new AppError("E-mail já cadastrado", 409);
@@ -75,16 +94,6 @@ export async function createRequester(
   if (!user) {
     throw new AppError("Falha ao criar o usuário", 500);
   }
-
-  await recordAudit({
-    entityType: "user",
-    entityId: String(user.user_id),
-    actionType: "user.create",
-    userId: actorUserId,
-    newValue: payload.email,
-    note: ipAddress,
-    changeOrigin: CHANGE_ORIGIN_ADMIN,
-  });
 
   return {
     id: String(user.user_id),
@@ -115,17 +124,21 @@ export async function changeUserStatus(
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  await repository.updateStatus(id, payload.isActive);
+  // Update e evento de auditoria na MESMA transação: se o evento falhar,
+  // a mudança de status é desfeita (rollback).
+  await db.transaction(async (trx) => {
+    await repository.updateStatus(trx, id, payload.isActive);
 
-  await recordAudit({
-    entityType: "user",
-    entityId: String(id),
-    actionType: payload.isActive ? "user.activate" : "user.deactivate",
-    userId: actorUserId,
-    previousValue: String(user.is_active),
-    newValue: String(payload.isActive),
-    note: ipAddress,
-    changeOrigin: CHANGE_ORIGIN_ADMIN,
+    await recordAudit(trx, {
+      entityType: "user",
+      entityId: String(id),
+      actionType: payload.isActive ? "user.activate" : "user.deactivate",
+      userId: actorUserId,
+      previousValue: String(user.is_active),
+      newValue: String(payload.isActive),
+      note: ipAddress,
+      changeOrigin: CHANGE_ORIGIN_ADMIN,
+    });
   });
 
   return { id: String(id), isActive: payload.isActive };
@@ -150,15 +163,19 @@ export async function resetPassword(
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
 
-  await repository.setTemporaryPassword(id, passwordHash);
+  // Update e evento de auditoria na MESMA transação: se o evento falhar,
+  // a redefinição é desfeita (rollback).
+  await db.transaction(async (trx) => {
+    await repository.setTemporaryPassword(trx, id, passwordHash);
 
-  await recordAudit({
-    entityType: "user",
-    entityId: String(id),
-    actionType: "user.reset_password",
-    userId: actorUserId,
-    note: ipAddress,
-    changeOrigin: CHANGE_ORIGIN_ADMIN,
+    await recordAudit(trx, {
+      entityType: "user",
+      entityId: String(id),
+      actionType: "user.reset_password",
+      userId: actorUserId,
+      note: ipAddress,
+      changeOrigin: CHANGE_ORIGIN_ADMIN,
+    });
   });
 
   return { id: String(id), temporaryPassword };

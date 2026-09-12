@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import db from "../../database/conection.ts";
 import type { Role } from "../../shared/types/role.ts";
 import { profileRole } from "../../shared/utils/roleUtils.ts";
 import { comparePassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
@@ -81,18 +82,21 @@ export async function changePassword(
 
   const newPasswordHash = await hashPassword(body.newPassword);
 
-  const { password_changed_at } = await authRepository.changePassword(
-    user.user_id,
-    newPasswordHash,
-  );
+  // Update e evento de auditoria na MESMA transação: se o evento falhar,
+  // a troca de senha é desfeita (rollback).
+  const { password_changed_at } = await db.transaction(async (trx) => {
+    const result = await authRepository.changePassword(trx, user.user_id, newPasswordHash);
 
-  await recordAudit({
-    entityType: "user",
-    entityId: String(user.user_id),
-    actionType: "user.change_password",
-    userId: user.user_id,
-    note: ipAddress,
-    changeOrigin: "user",
+    await recordAudit(trx, {
+      entityType: "user",
+      entityId: String(user.user_id),
+      actionType: "user.change_password",
+      userId: user.user_id,
+      note: ipAddress,
+      changeOrigin: "user",
+    });
+
+    return result;
   });
 
   return {

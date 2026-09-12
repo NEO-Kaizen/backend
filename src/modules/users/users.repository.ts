@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserRow } from "../../shared/types/user.ts";
@@ -26,12 +27,14 @@ export async function findUserById(id: number): Promise<UserRow | undefined> {
   return db("users").where({ user_id: id }).first();
 }
 
+/** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
 export async function createRequester(
+  trx: Knex.Transaction,
   payload: CreateRequesterRequest,
   passwordHash: string,
   profileId: number,
 ): Promise<UserRow> {
-  const inserted = (await db("users")
+  const inserted = (await trx("users")
     .insert({
       full_name: payload.fullName,
       email: payload.email,
@@ -105,22 +108,32 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   };
 }
 
-export async function updateStatus(id: number, isActive: boolean): Promise<void> {
-  const updated = await db("users")
+/** Atualiza o status dentro da transação fornecida (atômico com a auditoria). */
+export async function updateStatus(
+  trx: Knex.Transaction,
+  id: number,
+  isActive: boolean,
+): Promise<void> {
+  const updated = await trx("users")
     .where({ user_id: id })
-    .update({ is_active: isActive, updated_at: db.fn.now() });
+    .update({ is_active: isActive, updated_at: trx.fn.now() });
 
   if (updated === 0) {
     throw new AppError("Usuário não encontrado", 404);
   }
 }
 
-export async function setTemporaryPassword(id: number, passwordHash: string): Promise<void> {
-  const updated = await db("users").where({ user_id: id }).update({
+/** Define senha temporária dentro da transação fornecida (atômico com a auditoria). */
+export async function setTemporaryPassword(
+  trx: Knex.Transaction,
+  id: number,
+  passwordHash: string,
+): Promise<void> {
+  const updated = await trx("users").where({ user_id: id }).update({
     password_hash: passwordHash,
     must_change_password: true,
-    password_changed_at: db.fn.now(),
-    updated_at: db.fn.now(),
+    password_changed_at: trx.fn.now(),
+    updated_at: trx.fn.now(),
   });
 
   if (updated === 0) {

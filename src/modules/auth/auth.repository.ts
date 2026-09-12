@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import type { Knex } from "knex";
 import type { UserRow } from "../../shared/types/user.ts";
 import db from "../../database/conection.ts";
 
@@ -23,17 +24,19 @@ export async function getAuthState(id: number): Promise<AuthState | undefined> {
     .first("is_active", "must_change_password", "password_changed_at");
 }
 
+/** Altera a senha dentro da transação fornecida (atômico com a auditoria). */
 export async function changePassword(
+  trx: Knex.Transaction,
   id: number,
   newPasswordHash: string,
 ): Promise<{ password_changed_at: Date }> {
-  const updated = await db("users")
+  const updated = await trx("users")
     .where({ user_id: id })
     .update({
       password_hash: newPasswordHash,
       must_change_password: false,
-      password_changed_at: db.fn.now(),
-      updated_at: db.fn.now(),
+      password_changed_at: trx.fn.now(),
+      updated_at: trx.fn.now(),
     })
     .returning("password_changed_at");
 
