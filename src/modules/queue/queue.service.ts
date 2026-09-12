@@ -1,7 +1,9 @@
 import { findQueueRequests } from './queue.repository.ts';
-import type {GetQueueQuery} from '../DTOs/queue/queue.dto.ts';
+import type { PaginatedResponse } from '../DTOs/requests/RequestResponse.dto.ts';
+import type { QueueQuery, QueueResponse } from '../../shared/types/queue.types.ts';
 
-export const listQueueService = async (filters: GetQueueQuery) => {
+
+export const listQueueService = async (filters: QueueQuery): Promise<QueueResponse> => {
   const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
   const offset = (page - 1) * pageSize;
 
@@ -9,7 +11,7 @@ export const listQueueService = async (filters: GetQueueQuery) => {
     search,
     status,
     priority,
-    assigneeId,
+    assigneeId: assigneeId === 'unassigned' ? undefined : String(assigneeId ?? undefined),
     unassigned,
     limit: pageSize,
     offset,
@@ -19,21 +21,23 @@ export const listQueueService = async (filters: GetQueueQuery) => {
 
   const formattedData = items.map((item) => ({
     protocolo: item.protocol,
-    dataDeEntrada: item.createdAt,
+    dataDeEntrada: String(item.createdAt),
     processo: item.processName,
     prioridade: item.priority,
     status: item.status,
-    responsavel: item.assigneeName  ? item.assigneeName : null,
+    responsavel: item.assignee ? item.assignee : null,
     solicitanteEmail: item.requesterEmail,
   }));
 
-  return {
+  const effectivePage = page > totalPages ? 1 : page;
+
+  const response: PaginatedResponse<typeof formattedData[number]> = {
     data: formattedData,
-    pagination: {
-      page,
-      pageSize,
-      total,
-      totalPages,
-    },
+    page: effectivePage,
+    pageSize,
+    total,
+    totalPages,
   };
+
+  return response as unknown as QueueResponse;
 };
