@@ -48,6 +48,7 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
 export interface AuthState {
   is_active: boolean;
   profile_is_active: boolean;
+  profile_name: string;
   must_change_password: boolean;
   password_changed_at: Date;
 }
@@ -61,6 +62,7 @@ export async function getAuthState(id: number): Promise<AuthState | undefined> {
       "u.must_change_password",
       "u.password_changed_at",
       "p.is_active as profile_is_active",
+      "p.name as profile_name",
     );
 }
 
