@@ -1,5 +1,4 @@
-import { findQueueRequests, fetchQueueMetrics } from './queue.repository.ts';
-import type { PaginatedResponse } from '../DTOs/requests/RequestResponse.dto.ts';
+import { findQueueRequests, fetchQueueMetrics, fetchAllAssignees } from './queue.repository.ts';
 import type { QueueQuery, QueueResponse, QueueMetricsResponse } from '../../shared/types/queue.types.ts';
 
 export const getQueueMetricsService = async () : Promise<QueueMetricsResponse> => {
@@ -12,37 +11,43 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
 
   const repoAssigneeId = typeof assigneeId === 'number' ? String(assigneeId) : undefined;
 
-  const { items, total } = await findQueueRequests({
-    search,
-    status,
-    priority,
-    assigneeId: repoAssigneeId,
-    unassigned,
-    limit: pageSize,
-    offset,
-  });
+  const [{ items, total }, assignees] = await Promise.all([
+    findQueueRequests({
+      search,
+      status,
+      priority,
+      assigneeId: repoAssigneeId,
+      unassigned,
+      limit: pageSize,
+      offset,
+    }),
+    fetchAllAssignees(),
+  ]);
 
-  const totalPages = Math.ceil(total / pageSize);
+  const totalPages = Math.ceil(total / pageSize) || 0;
 
   const formattedData = items.map((item) => ({
-    protocolo: item.protocol,
-    dataDeEntrada: String(item.createdAt),
-    processo: item.processName,
-    prioridade: item.priority,
+    protocol: item.protocol,
+    createdAt: String(item.createdAt),
+    processName: item.processName,
+    priority: item.priority,
     status: item.status,
-    responsavel: item.assignee ? item.assignee : null,
-    solicitanteEmail: item.requesterEmail,
+    assignee: item.assignee ?? null,
+    requesterName: item.requesterName,
+    requesterEmail: item.requesterEmail,
+    assigneeId: item.assigneeId ?? null,
   }));
 
-  const effectivePage = page > totalPages ? 1 : page;
+  const effectivePage = page > totalPages && totalPages > 0 ? totalPages : page;
 
-  const response: PaginatedResponse<typeof formattedData[number]> = {
+  const response: QueueResponse = {
     data: formattedData,
     page: effectivePage,
     pageSize,
     total,
     totalPages,
+    assignees: assignees.map((a) => ({ id: Number(a.id), name: String(a.name) })),
   };
 
-  return response as unknown as QueueResponse;
+  return response;
 };

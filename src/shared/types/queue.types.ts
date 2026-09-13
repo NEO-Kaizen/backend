@@ -1,6 +1,6 @@
 import type { RequestPriority, RequestStatus } from './requests.ts';
-import type { RequestSummary, PaginatedResponse } from '../../modules/DTOs/requests/RequestResponse.dto.ts';
-
+import type { RequestSummary } from '../../modules/DTOs/requests/RequestResponse.dto.ts';
+import type {PaginatedResponse} from './pagination.ts';
 export interface QueueMetricsResponse {
   totalRequests: number;
   unassignedRequests: number;
@@ -23,8 +23,16 @@ export interface QueueFilterQuery {
 
 export type QueueQuery = PaginationQuery & QueueFilterQuery;
 
-export interface QueueItem extends RequestSummary {
-  requesterEmail: string;
+export interface QueueAssignee {
+  id: number;
+  name: string;
 }
 
-export type QueueResponse = PaginatedResponse<QueueItem>;
+export interface QueueItem extends RequestSummary {
+  requesterEmail: string;
+  assigneeId: number | null;
+}
+
+export interface QueueResponse extends PaginatedResponse<QueueItem> {
+  assignees: QueueAssignee[];
+}

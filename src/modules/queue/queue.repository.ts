@@ -85,3 +85,11 @@ export const findQueueRequests = async (params: FindQueueParams): Promise<{ item
 
   return { items, total };
 };
+
+export const fetchAllAssignees = async (): Promise<{ id: number; name: string }[]> => {
+  const rows = await db('professionals')
+    .select('professional_id as id', 'full_name as name')
+    .orderBy('full_name', 'asc');
+
+  return rows;
+};
