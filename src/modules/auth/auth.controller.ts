@@ -47,9 +47,11 @@ export const authenticate = async (req: Request, res: Response) => {
     res.cookie(Config.COOKIE_NAME, changeToken, COOKIE_OPTIONS);
 
     return res.status(200).json({
-      mustChangePassword: true,
       id: foundUser.id,
+      name: foundUser.name,
       email: foundUser.email,
+      role: foundUser.role,
+      mustChangePassword: true,
     });
   }
 
@@ -69,6 +71,20 @@ export const authenticate = async (req: Request, res: Response) => {
     name: foundUser.name,
     email: foundUser.email,
     role: foundUser.role,
+    mustChangePassword: false,
+  });
+};
+
+export const me = async (req: Request, res: Response) => {
+  const userId = authedUserId(req);
+  const sessionUser = await authService.getSessionUser(userId);
+
+  return res.status(200).json({
+    id: sessionUser.id,
+    name: sessionUser.name,
+    email: sessionUser.email,
+    role: sessionUser.role,
+    mustChangePassword: sessionUser.mustChangePassword,
   });
 };
 
