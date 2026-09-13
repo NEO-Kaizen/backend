@@ -17,9 +17,9 @@ import type {
 import type { RequestDetail } from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
   CreateRequestResponse,
-  PaginatedResponse,
   RequestSummary,
 } from "../DTOs/requests/RequestResponse.dto.ts";
+import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 
 function normalizeIsoDate(value: unknown): string | null {
   if (value === null || value === undefined || value === "") {

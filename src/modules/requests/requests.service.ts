@@ -5,11 +5,8 @@ import type {
   CreateRequestPayload,
   ListRequestsQuery,
 } from "../DTOs/requests/RequestRequests.dto.ts";
-import type {
-  PaginatedResponse,
-  RequestDetail,
-  RequestSummary,
-} from "../DTOs/requests/RequestResponse.dto.ts";
+import type { RequestDetail, RequestSummary } from "../DTOs/requests/RequestResponse.dto.ts";
+import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import * as repository from "./requests.repository.ts";
 
 export async function findRequest(protocol: string): Promise<RequestDetail> {
