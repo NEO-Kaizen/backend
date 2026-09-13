@@ -14,15 +14,16 @@ export async function findUser(user: LoginRequestDTO) {
   const isPasswordValid = await comparePassword(user.password, foundUser.password_hash);
 
   if (!isPasswordValid) throw new AppError("Credenciais inválidas", 401);
-console.log(foundUser)
-const roles: Record<number, string> = {
-  2: "Analista",
-  3: "Administrador",
-  4: "Gestor"
-}
+
+  const roles: Record<number, string> = {
+    2: "Analista",
+    3: "Administrador",
+    4: "Gestor",
+  };
+
   return {
     email: foundUser.email,
-    id: foundUser.user_id,
+    id: String(foundUser.user_id),
     name: foundUser.full_name,
     role: roles[foundUser.profile_id],
   } as TokenPayload;
