@@ -5,6 +5,8 @@ import Config from "../../configs.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { changePasswordSchema, loginSchema } from "./auth.schema.ts";
+import type { LoginResponseDTO } from "../DTOs/auth/LoginResponse.dto.ts";
+import type { MeResponseDTO } from "../DTOs/auth/MeResponse.dto.ts";
 
 const COOKIE_OPTIONS = {
   maxAge: Config.COOKIE_MAX_AGE,
@@ -46,13 +48,15 @@ export const authenticate = async (req: Request, res: Response) => {
 
     res.cookie(Config.COOKIE_NAME, changeToken, COOKIE_OPTIONS);
 
-    return res.status(200).json({
+    const response: LoginResponseDTO = {
       id: foundUser.id,
       name: foundUser.name,
       email: foundUser.email,
       role: foundUser.role,
       mustChangePassword: true,
-    });
+    };
+
+    return res.status(200).json(response);
   }
 
   const sessionToken = generateToken({
@@ -66,26 +70,30 @@ export const authenticate = async (req: Request, res: Response) => {
 
   res.cookie(Config.COOKIE_NAME, sessionToken, COOKIE_OPTIONS);
 
-  return res.status(200).json({
+  const response: LoginResponseDTO = {
     id: foundUser.id,
     name: foundUser.name,
     email: foundUser.email,
     role: foundUser.role,
     mustChangePassword: false,
-  });
+  };
+
+  return res.status(200).json(response);
 };
 
 export const me = async (req: Request, res: Response) => {
   const userId = authedUserId(req);
   const sessionUser = await authService.getSessionUser(userId);
 
-  return res.status(200).json({
+  const response: MeResponseDTO = {
     id: sessionUser.id,
     name: sessionUser.name,
     email: sessionUser.email,
     role: sessionUser.role,
     mustChangePassword: sessionUser.mustChangePassword,
-  });
+  };
+
+  return res.status(200).json(response);
 };
 
 export const changePassword = async (req: Request, res: Response) => {
