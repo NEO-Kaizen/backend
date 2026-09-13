@@ -22,14 +22,16 @@ Copie o arquivo de exemplo e ajuste as variáveis conforme necessário:
 cp .env.example .env
 ```
 
-| Variável         | Descrição                                                           | Exemplo / Padrão        |
-| ---------------- | ------------------------------------------------------------------- | ----------------------- |
-| `PORT`           | Porta do servidor HTTP                                              | `3000`                  |
-| `JWT_SECRET`     | Chave secreta usada para assinar e validar os tokens JWT            | `sua-chave-secreta`     |
-| `JWT_EXPIRES_IN` | Tempo de expiração dos tokens gerados                               | `1d`                    |
-| `NODE_ENV`       | Ambiente de execução (`development`, `production`)                  | `development`           |
-| `CORS_ORIGINS`   | Origens permitidas para requisições cross-origin, separadas por `,` | `http://localhost:5173` |
-| `COOKIE_NAME`    | Nome do cookie de sessão de autenticação                            | `session_id`            |
+| Variável           | Descrição                                                                                  | Exemplo / Padrão        |
+| ------------------ | ------------------------------------------------------------------------------------------ | ----------------------- |
+| `PORT`             | Porta do servidor HTTP                                                                     | `3000`                  |
+| `JWT_SECRET`       | Chave secreta usada para assinar e validar os tokens JWT                                   | `sua-chave-secreta`     |
+| `JWT_EXPIRES_IN`   | Tempo de expiração dos tokens gerados                                                      | `1d`                    |
+| `NODE_ENV`         | Ambiente de execução (`development`, `production`)                                         | `development`           |
+| `CORS_ORIGINS`     | Origens permitidas para requisições cross-origin, separadas por `,`                        | `http://localhost:5173` |
+| `COOKIE_NAME`      | Nome do cookie de sessão de autenticação                                                   | `session_id`            |
+| `PROTOCOL_FPE_KEY` | Chave secreta do FPE/Feistel que gera o protocolo não enumerável (obrigatória em produção) | `sua-chave-fpe`         |
+| `UPLOAD_DIR`       | Diretório onde os anexos das solicitações são gravados                                     | `uploads`               |
 
 ## Rodando com Docker
 
@@ -54,7 +56,7 @@ Para popular os dados de desenvolvimento:
 npm run docker:seed:run
 ```
 
-Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**):
+Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**; reconstrói a imagem, então use também após alterar `package.json`/`package-lock.json`):
 
 ```bash
 npm run docker:db:setup
@@ -90,6 +92,7 @@ Notas:
 
 - O PostgreSQL é publicado apenas em loopback (`127.0.0.1`), na porta definida por `DB_PORT` (padrão `5432`). Se essa porta estiver ocupada no host, defina `DB_PORT` com outra porta: os comandos npm executados no host usam esse valor, enquanto dentro da rede do compose o `DB_HOST` é sobrescrito para `postgres` e `DB_PORT` para `5432`.
 - Os dados do PostgreSQL persistem no volume `postgres_data` entre `docker compose down` e `up`; use `docker compose down -v` para apagá-los.
+- O `node_modules` do container `app` fica em um volume anônimo (`/app/node_modules`) que sobrepõe o da imagem. Por isso, após alterar `package.json`/`package-lock.json`, rode `npm run docker:db:setup` (reconstrói a imagem e recria os volumes) para instalar as dependências novas — `npm run docker:dev` sozinho continua usando o `node_modules` antigo.
 - As credenciais do banco (`POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`, derivadas do `.env`) só inicializam o banco quando o volume está vazio. Alterá-las depois da primeira inicialização não muda o usuário e o banco existentes: recrie o ambiente com `docker compose down -v` (apaga os dados) ou ajuste as credenciais diretamente no banco.
 - As imagens base estão fixadas por digest (`node:24-bookworm-slim` e `postgres:18-alpine`); atualize os digests periodicamente para receber correções de segurança.
 
@@ -177,6 +180,77 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
 
 ### Solicitações
 
+#### POST /requests
+
+Endpoint público (sem autenticação) que cadastra uma solicitação, gera o protocolo e persiste os blocos do formulário, as preferências de horário e os anexos.
+
+- Content-Type: `multipart/form-data`
+- Parte `payload` (texto): `JSON.stringify` de `{ requester, demand, operational, complementary?, schedulePreferences? }`.
+- Partes `attachments` (0 a 5 arquivos): cada uma com até 10MB, nos formatos PDF, DOCX, XLSX, PNG ou JPG.
+- `schedulePreferences` é opcional; quando enviado, exige de 1 a 3 horários válidos (`AAAA-MM-DDTHH:MM`), sem duplicatas.
+- Resposta `201 Created`:
+
+  ```json
+  {
+    "protocol": "MAAT-8K3P-9X2M",
+    "status": "Solicitação enviada",
+    "createdAt": "2026-08-25T14:03:11.000Z"
+  }
+  ```
+
+- Resposta `400 Bad Request`: payload ausente/JSON inválido, campo obrigatório ausente ou inválido, limite de caracteres excedido, resposta Sim/Não sem detalhamento, `schedulePreferences` com mais de 3 opções/duplicatas, anexo acima de 10MB ou formato não permitido, ou mais de 5 anexos. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
+
+#### GET /requests
+
+Endpoint público (sem autenticação) que lista as solicitações vinculadas ao e-mail de um solicitante, com dados resumidos. O e-mail informado é normalizado para minúsculas antes da consulta.
+
+- Query: `?email=maria.oliveira@instituicao.gov.br` (obrigatório)
+- Resposta `200 OK`: array ordenado da solicitação mais recente para a mais antiga; retorna array vazio quando não há solicitações para o e-mail (sem revelar se o e-mail existe no sistema).
+
+  ```json
+  [
+    {
+      "protocol": "MAAT-8K3P-9X2M",
+      "title": "Automatizar conferência de diárias",
+      "status": "Solicitação enviada",
+      "createdAt": "2026-08-25T14:03:11.000Z",
+      "updatedAt": null
+    }
+  ]
+  ```
+
+- Resposta `400 Bad Request`: query param `email` ausente ou com formato inválido. Envelope: `{ "status": "error", "statusCode": 400, "message": "..." }`.
+
+#### GET /requests/:protocol
+
+Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento sem autenticação).
+
+- Body: nenhum
+- Exemplo: `GET /requests/MAAT-8K3P-9X2M`
+- Resposta `200 OK`:
+  ```json
+  {
+    "protocol": "MAAT-8K3P-9X2M",
+    "demandTitle": "Automatizar conciliação bancária",
+    "processName": "Conciliação bancária mensal",
+    "status": "Em triagem",
+    "assigneeName": "Fernando Alves",
+    "openedAt": "2026-01-15T10:30:00.000Z",
+    "estimatedCompletion": "2026-10-18",
+    "mappingDate": "2026-10-15",
+    "meeting": {
+      "scheduledFor": "2026-10-15T13:30:00.000Z",
+      "link": null
+    },
+    "pendingIssues": [],
+    "nextStep": "Aguarde o contato do analista",
+    "lastTechnicalMessage": null,
+    "lastUpdate": "2026-01-16T14:20:00.000Z",
+    "conclusion": null
+  }
+  ```
+- Resposta `404 Not Found`: protocolo não encontrado.
+
 #### GET /requests/:protocol/internal
 
 Consulta administrativa/interna de uma solicitação pelo protocolo — exige
@@ -184,7 +258,7 @@ autenticação (cookie de sessão). Retorna os 4 blocos completos do cadastro
 (`requester`, `demand`, `operational`, `complementary`), status, prioridade
 (`prioritization.score`/`maxScore`/`label`), responsável, anexos, preferências
 de horário e `internalObservations`. Contrato completo e comparação com a
-consulta pública em
+consulta pública (`GET /requests/:protocol`, acima) em
 [`docs/requests-internal-query-contract.md`](docs/requests-internal-query-contract.md).
 
 - Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.

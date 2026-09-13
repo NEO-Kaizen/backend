@@ -13,6 +13,9 @@ dist/
 *.log
 npm-debug.log*
 
+# Runtime uploads
+uploads/
+
 # Editor / OS
 .vscode/
 .idea/
@@ -21,4 +24,5 @@ npm-debug.log*
 # Misc
 .opencode/
 opencode.json
+opencode.jsonc
 AGENTS.md

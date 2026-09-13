@@ -1,10 +1,63 @@
-import * as requestsRepository from "./requests.repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
+import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
+import { removeFiles } from "../../shared/storage/fileStorage.ts";
+import type {
+  CreateRequestPayload,
+  ListRequestsQuery,
+} from "../DTOs/requests/RequestRequests.dto.ts";
+import type { RequestDetail, RequestSummary } from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
   ComplementaryBlock,
   RequestInternalDetailDTO,
   YesNoDetail,
 } from "../DTOs/requests/RequestInternalDetail.dto.ts";
+import type { PaginatedResponse } from "../../shared/types/pagination.ts";
+import * as repository from "./requests.repository.ts";
+
+export async function findRequest(protocol: string): Promise<RequestDetail> {
+  const normalizedProtocol = protocol.trim();
+
+  const response = await repository.findRequestByProtocol(normalizedProtocol);
+
+  if (!response) {
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  return response;
+}
+
+export async function registerRequest(
+  request: CreateRequestPayload,
+  attachments: SavedAttachment[],
+) {
+  try {
+    return await repository.createRequest(request, attachments);
+  } catch (err) {
+    await removeFiles(attachments);
+    throw err;
+  }
+}
+
+export async function listRequestsByEmail(
+  query: ListRequestsQuery,
+): Promise<PaginatedResponse<RequestSummary>> {
+  const normalizedEmail = query.email.trim().toLowerCase();
+
+  if (query.status && !(await repository.findStatusByName(query.status))) {
+    throw new AppError("Status inválido.", 400);
+  }
+
+  return repository.findRequestsByRequesterEmail({
+    email: normalizedEmail,
+    status: query.status,
+    page: query.page,
+    pageSize: query.pageSize,
+  });
+}
+
+// --- Consulta administrativa/interna (issue #48) ---------------------------
+// Difere de findRequest (pública, issue #34): retorna o DTO interno completo,
+// nunca o público. Ver docs/requests-internal-query-contract.md.
 
 // Resposta "Sim/Não (+ detalhamento)": undefined quando o campo não foi
 // respondido (Bloco 4 é opcional — o contrato espera a chave ausente, não
@@ -48,17 +101,24 @@ function hasComplementaryData(block: ComplementaryBlock): boolean {
   return Object.values(block).some((value) => value !== undefined);
 }
 
-export async function findByProtocol(protocol: string): Promise<RequestInternalDetailDTO> {
-  const request = await requestsRepository.findByProtocol(protocol);
+export async function findInternalByProtocol(protocol: string): Promise<RequestInternalDetailDTO> {
+  const request = await repository.findInternalRequestByProtocol(protocol);
 
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
   }
 
   const [attachments, schedulePreferences] = await Promise.all([
-    requestsRepository.findAttachmentsByRequestId(request.request_id),
-    requestsRepository.findSchedulePreferencesByRequestId(request.request_id),
+    repository.findAttachmentsByRequestId(request.request_id),
+    repository.findSchedulePreferencesByRequestId(request.request_id),
   ]);
+
+  const meetingScheduledFor: string | null = request.meeting_scheduled_for
+    ? new Date(request.meeting_scheduled_for).toISOString()
+    : null;
+  const meeting = meetingScheduledFor
+    ? { scheduledFor: meetingScheduledFor, link: request.meeting_link ?? null }
+    : null;
 
   const complementary: ComplementaryBlock = {
     hasProcessDocumentation: toYesNoDetail(
@@ -137,10 +197,10 @@ export async function findByProtocol(protocol: string): Promise<RequestInternalD
       schedulePreferences.length > 0
         ? schedulePreferences.map((row) => toDateTimeMinutes(row.scheduled_for))
         : null,
-    // Sem tabela de reunião de mapeamento no schema atual — sempre null até
-    // uma issue futura modelar o agendamento.
-    mappingDate: null,
-    meeting: null,
+    // Mesma fonte da consulta pública: requests.meeting_scheduled_for
+    // (America/Sao_Paulo) — os dois nunca divergem (Especificação 3.0 §6.1).
+    mappingDate: meetingScheduledFor ? repository.toSaoPauloDateOnly(meetingScheduledFor) : null,
+    meeting,
     attachments: attachments.map((attachment) => ({
       fileName: attachment.file_name,
       mimeType: attachment.content_type,
