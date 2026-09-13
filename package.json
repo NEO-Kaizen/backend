@@ -18,10 +18,15 @@
     "migrate:make": "knex migrate:make --env development",
     "migrate:latest": "knex migrate:latest --env development",
     "migrate:rollback": "knex migrate:rollback --env development",
+    "seed:run": "knex seed:run --env development",
+    "db:setup": "npm run migrate:latest && npm run seed:run",
     "docker:dev": "docker compose up --build",
     "docker:migrate:latest": "docker compose exec app npm run migrate:latest",
     "docker:migrate:rollback": "docker compose exec app npm run migrate:rollback",
-    "docker:migrate:make": "docker compose exec app npm run migrate:make --"
+    "docker:migrate:make": "docker compose exec app npm run migrate:make --",
+    "docker:seed:run": "docker compose exec app npm run seed:run",
+    "docker:db:reset": "docker compose down -v",
+    "docker:db:setup": "docker compose down -v && docker compose up -d --wait --build && npm run docker:migrate:latest && npm run docker:seed:run"
   },
   "repository": {
     "type": "git",
@@ -44,6 +49,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
     "eslint": "^10.8.1",
     "globals": "^17.9.0",
@@ -60,7 +66,9 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.3.0",
-    "pg": "^8.23.0"
+    "multer": "^2.3.0",
+    "pg": "^8.23.0",
+    "zod": "^4.5.4"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true
