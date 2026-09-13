@@ -10,11 +10,13 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
   const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
   const offset = (page - 1) * pageSize;
 
+  const repoAssigneeId = typeof assigneeId === 'number' ? String(assigneeId) : undefined;
+
   const { items, total } = await findQueueRequests({
     search,
     status,
     priority,
-    assigneeId: assigneeId === 'unassigned' ? undefined : String(assigneeId ?? undefined),
+    assigneeId: repoAssigneeId,
     unassigned,
     limit: pageSize,
     offset,

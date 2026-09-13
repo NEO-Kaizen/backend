@@ -31,12 +31,7 @@ export type QueueQuerySchema = {
   page: number;
   pageSize: number;
 };
-export interface QueueMetricsResponse {
-  totalRequests: number;
-  unassignedRequests: number;
-  inProgressRequests: number;
-  overdueRequests: number;
-}
+// `QueueMetricsResponse` is defined in `shared/types/queue.types.ts` — avoid duplicate definition here.
 
 function isValidStatus(s: unknown): s is RequestStatus {
   return typeof s === 'string' && (statusValues as readonly string[]).includes(s);

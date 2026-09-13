@@ -10,18 +10,19 @@ const IN_PROGRESS_STATUSES = [
   'Em homologação',
 ];
 
-export const fetchQueueMetrics = async() : Promise<QueueMetricsResponse> => {
+export const fetchQueueMetrics = async(): Promise<QueueMetricsResponse> => {
   const result = await db('requests')
+    .leftJoin('statuses as s', 's.status_id', 'requests.status_id')
     .select(
-      db.raw('COUNT(*)::int as "totalRequests"'),
-      db.raw('COUNT(CASE WHEN assignee_id IS NULL THEN 1 END)::int as "unassignedRequests"'),
+      db.raw('COUNT(requests.*)::int as "totalRequests"'),
+      db.raw('COUNT(CASE WHEN requests.professional_id IS NULL THEN 1 END)::int as "unassignedRequests"'),
       db.raw(
-        `COUNT(CASE WHEN status IN (${IN_PROGRESS_STATUSES.map((_) => '?').join(',')}) THEN 1 END)::int as "inProgressRequests"`,
+        `COUNT(CASE WHEN s.name IN (${IN_PROGRESS_STATUSES.map(() => '?').join(',')}) THEN 1 END)::int as "inProgressRequests"`,
         IN_PROGRESS_STATUSES
       ),
-      // Regra de atrasados: prazo expirado e não concluído/cancelado
+      // Regra de atrasados: desired_deadline expirado e status não final
       db.raw(
-        `COUNT(CASE WHEN due_date < NOW() AND status NOT IN ('Concluído', 'Cancelado') THEN 1 END)::int as "overdueRequests"`
+        `COUNT(CASE WHEN requests.desired_deadline < NOW() AND s.name NOT IN ('Concluído', 'Cancelado') THEN 1 END)::int as "overdueRequests"`
       )
     )
     .first();
@@ -32,7 +33,7 @@ export const fetchQueueMetrics = async() : Promise<QueueMetricsResponse> => {
     inProgressRequests: result?.inProgressRequests || 0,
     overdueRequests: result?.overdueRequests || 0,
   };
-}
+};
 
 export const findQueueRequests = async (params: FindQueueParams): Promise<{ items: QueueItem[]; total: number }> => {
   const { search, status, priority, assigneeId, unassigned, limit, offset } = params;
