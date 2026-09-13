@@ -3,7 +3,7 @@ import { authMiddleware } from "../../shared/middleware/auth.ts";
 import { requireRole } from "../../shared/middleware/requireRole.ts";
 import {
   changeUserStatus,
-  createRequester,
+  createUser,
   listUsers,
   resetUserPassword,
 } from "./users.controller.ts";
@@ -14,7 +14,7 @@ usersRoutes.use(authMiddleware);
 usersRoutes.use(requireRole("Administrador"));
 
 usersRoutes.get("/", listUsers);
-usersRoutes.post("/requesters", createRequester);
+usersRoutes.post("/", createUser);
 usersRoutes.patch("/:id/status", changeUserStatus);
 usersRoutes.post("/:id/reset-password", resetUserPassword);
 

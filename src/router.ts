@@ -2,10 +2,10 @@ import { Router } from "express";
 import authRoutes from "./modules/auth/auth.router.ts";
 import requestsRoutes from "./modules/requests/requests.router.ts";
 import usersRoutes from "./modules/users/users.router.ts";
-import priorizationRoutes from "./modules/priorization/priorization.routes.ts";
+import prioritizationRoutes from "./modules/prioritization/prioritization.routes.ts";
 const router = Router();
 
-router.use("/priorization", priorizationRoutes)
+router.use("/prioritization", prioritizationRoutes)
 
 router.use("/auth", authRoutes);
 router.use("/requests", requestsRoutes);
