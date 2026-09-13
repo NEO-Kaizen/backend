@@ -4,21 +4,21 @@ import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserRow } from "../../shared/types/user.ts";
 import { profileRole } from "../../shared/utils/roleUtils.ts";
+import type { Role } from "../../shared/types/role.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type {
   ChangeUserStatusRequest,
-  CreateRequesterRequest,
+  CreateUserRequest,
   ListUsersQuery,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type {
   ChangeUserStatusResponse,
-  CreateRequesterResponse,
+  CreateUserResponse,
   ResetPasswordResponse,
   UserSummary,
 } from "../DTOs/users/UserResponse.dto.ts";
 import * as repository from "./users.repository.ts";
 
-const SOLICITANTE_PROFILE = "solicitante";
 const CHANGE_ORIGIN_ADMIN = "admin";
 
 function isUniqueViolation(error: unknown): boolean {
@@ -36,15 +36,15 @@ function parseUserId(rawId: string): number {
 }
 
 /**
- * Valida que a conta-alvo pode ser gerenciada pelo perfil atual.
+ * Valida que o perfil-alvo pode ser gerenciado pelo perfil atual.
  *
  * Hoje apenas Administrador gerencia contas (rotas protegidas por
- * requireRole) e ninguém gerencia outra conta de Administrador — evita
+ * requireRole) e ninguém gerencia contas de **Administrador** — evita
  * escalonamento vertical (um admin assumir o controle de outro admin).
  * Evolui para uma hierarquia ordenada quando houver novos perfis gestores.
  */
-function assertTargetIsManageable(user: UserRow): void {
-  if (profileRole(user.profile_id) === "Administrador") {
+function assertRoleIsManageable(role: Role): void {
+  if (role === "Administrador") {
     throw new AppError("Não é possível gerenciar contas de Administradores", 403);
   }
 }
@@ -60,15 +60,21 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   return repository.listUsers(query);
 }
 
-export async function createRequester(
-  payload: CreateRequesterRequest,
+export async function createUser(
+  payload: CreateUserRequest,
   actorUserId: number,
   ipAddress: string | undefined,
-): Promise<CreateRequesterResponse> {
-  const profileId = await repository.findProfileIdByName(SOLICITANTE_PROFILE);
+): Promise<CreateUserResponse> {
+  // Perfil é algo do banco (fonte de verdade), não um enum do código: perfis
+  // futuros entram via `profiles` sem mudança de rota/schema — a validação
+  // fica em aberto até cruzar a tabela (mesma regra do filtro da listagem).
+  const profileId = await repository.findProfileIdByName(payload.role);
   if (profileId === null) {
-    throw new AppError("Perfil 'solicitante' não configurado no sistema.", 500);
+    throw new AppError("Perfil inválido.", 400);
   }
+
+  // Hierarquia ANTES de criar: nenhum perfil cria contas de Administrador.
+  assertRoleIsManageable(profileRole(profileId));
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -79,7 +85,7 @@ export async function createRequester(
     // evento falhar, a criação é desfeita (rollback) — nunca fica um usuário
     // sem histórico.
     user = await db.transaction(async (trx) => {
-      const created = await repository.createRequester(
+      const created = await repository.createUser(
         trx,
         { fullName: payload.fullName, email: payload.email },
         passwordHash,
@@ -113,12 +119,12 @@ export async function createRequester(
     id: String(user.user_id),
     fullName: user.full_name,
     email: user.email,
-    profile: profileRole(user.profile_id),
+    role: profileRole(user.profile_id),
     isActive: user.is_active,
     mustChangePassword: user.must_change_password,
     createdAt: user.created_at.toISOString(),
     temporaryPassword,
-  } satisfies CreateRequesterResponse;
+  } satisfies CreateUserResponse;
 }
 
 export async function changeUserStatus(
@@ -138,7 +144,7 @@ export async function changeUserStatus(
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  assertTargetIsManageable(user);
+  assertRoleIsManageable(profileRole(user.profile_id));
 
   // Update e evento de auditoria na MESMA transação: se o evento falhar,
   // a mudança de status é desfeita (rollback).
@@ -176,7 +182,7 @@ export async function resetPassword(
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  assertTargetIsManageable(user);
+  assertRoleIsManageable(profileRole(user.profile_id));
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);

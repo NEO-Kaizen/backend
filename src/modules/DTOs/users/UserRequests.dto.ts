@@ -1,6 +1,7 @@
-export interface CreateRequesterRequest {
+export interface CreateUserRequest {
   fullName: string;
   email: string;
+  role: string;
 }
 
 export interface ListUsersQuery {
