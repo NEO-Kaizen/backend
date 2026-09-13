@@ -3,7 +3,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   changeUserStatusSchema,
-  createRequesterSchema,
+  createUserSchema,
   listUsersQuerySchema,
 } from "./users.schema.ts";
 import * as service from "./users.service.ts";
@@ -27,14 +27,14 @@ export const listUsers = async (req: Request, res: Response): Promise<Response> 
   return res.status(200).json(users);
 };
 
-export const createRequester = async (req: Request, res: Response): Promise<Response> => {
-  const parsed = createRequesterSchema.safeParse(req.body);
+export const createUser = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = createUserSchema.safeParse(req.body);
 
   if (!parsed.success) {
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const created = await service.createRequester(parsed.data, actorUserId(req), req.ip);
+  const created = await service.createUser(parsed.data, actorUserId(req), req.ip);
 
   return res.status(201).json(created);
 };

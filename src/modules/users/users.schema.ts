@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { emailSchema, requiredString } from "../../shared/validation/fieldSchemas.ts";
 
-export const createRequesterSchema = z.object({
+export const createUserSchema = z.object({
   fullName: requiredString(150),
   email: emailSchema,
+  role: z.string().trim().min(1, "Campo obrigatório.").max(60, "Máximo de 60 caracteres."),
 });
 
 export const listUsersQuerySchema = z.object({
