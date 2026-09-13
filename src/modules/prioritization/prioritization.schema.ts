@@ -9,11 +9,11 @@ const noteSchema = z
   .max(5, "Máximo de 5.");
 
 export const evaluateScoreSchema = z.object({
-  notas: z
+  notes: z
     .record(z.string(), noteSchema)
-    .refine((notas) => Object.keys(notas).length > 0, {
+    .refine((notes) => Object.keys(notes).length > 0, {
       message: "Informe ao menos uma nota.",
-      path: ["notas"],
+      path: ["notes"],
     }),
-  justificativa: optionalString(500),
+  justification: optionalString(500),
 });

@@ -40,13 +40,13 @@ export async function evaluateScore(
   }
 
   const criteria = await repository.listActiveCriteria();
-  assertCompleteNotes(payload.notas, criteria);
+  assertCompleteNotes(payload.notes, criteria);
 
-  const score = calculateScore(payload.notas, criteria);
+  const score = calculateScore(payload.notes, criteria);
   const classification = await classify(score);
 
   const snapshot: EvaluationSnapshot = {
-    notas: payload.notas,
+    notes: payload.notes,
     score,
     classification,
   };
@@ -54,7 +54,7 @@ export async function evaluateScore(
   const previous = await repository.findCurrentEvaluation(protocol);
   const previousSnapshot: EvaluationSnapshot | null = previous
     ? {
-        notas: previous.notes,
+        notes: previous.notes,
         score: Number(previous.score),
         classification: previous.classification,
       }
@@ -63,7 +63,7 @@ export async function evaluateScore(
   const evaluation = await db.transaction(async (trx) => {
     const row = await repository.upsertEvaluation(trx, {
       protocol,
-      notes: payload.notas,
+      notes: payload.notes,
       score,
       classification,
       calculatedBy: actorUserId,
@@ -76,7 +76,7 @@ export async function evaluateScore(
       userId: actorUserId,
       previousValue: previousSnapshot ? JSON.stringify(previousSnapshot) : null,
       newValue: JSON.stringify(snapshot),
-      note: payload.justificativa ?? null,
+      note: payload.justification ?? null,
       changeOrigin: "manual",
     });
 
@@ -94,18 +94,18 @@ export async function evaluateScore(
 
 /** Garante que as notas cobrem exatamente os critérios ativos. */
 function assertCompleteNotes(
-  notas: Record<string, number>,
+  notes: Record<string, number>,
   criteria: CriterionRow[],
 ): void {
   const validIds = new Set(criteria.map((row) => row.criterion_id));
 
-  const missing = criteria.filter((row) => notas[row.criterion_id] === undefined);
+  const missing = criteria.filter((row) => notes[row.criterion_id] === undefined);
   if (missing.length > 0) {
     const list = missing.map((row) => row.criterion_id).join(", ");
     throw new AppError(`Notas obrigatórias ausentes: ${list}`, 400);
   }
 
-  const unknown = Object.keys(notas).filter((key) => !validIds.has(key));
+  const unknown = Object.keys(notes).filter((key) => !validIds.has(key));
   if (unknown.length > 0) {
     throw new AppError(`Critérios inválidos: ${unknown.join(", ")}`, 400);
   }
@@ -113,11 +113,11 @@ function assertCompleteNotes(
 
 /** Média ponderada normalizada ×10 — RN-007 (issue-51). Resultado em 10..50. */
 export function calculateScore(
-  notas: Record<string, number>,
+  notes: Record<string, number>,
   criteria: CriterionRow[],
 ): number {
   const somaPonderada = criteria.reduce(
-    (acc, row) => acc + (notas[row.criterion_id] ?? 0) * row.weight,
+    (acc, row) => acc + (notes[row.criterion_id] ?? 0) * row.weight,
     0,
   );
   const somaPesos = criteria.reduce((acc, row) => acc + row.weight, 0);
