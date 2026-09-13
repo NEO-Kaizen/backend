@@ -4,7 +4,7 @@ import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
-import type { CreateRequesterRequest, ListUsersQuery } from "../DTOs/users/UserRequests.dto.ts";
+import type { CreateUserRequest, ListUsersQuery } from "../DTOs/users/UserRequests.dto.ts";
 import type { UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 
 interface UserSummaryRow {
@@ -44,9 +44,9 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
 }
 
 /** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
-export async function createRequester(
+export async function createUser(
   trx: Knex.Transaction,
-  payload: CreateRequesterRequest,
+  payload: Pick<CreateUserRequest, "fullName" | "email">,
   passwordHash: string,
   profileId: number,
 ): Promise<UserRow> {
