@@ -17,20 +17,20 @@ export interface QueueFilterQuery {
   search?: string;
   status?: RequestStatus;
   priority?: RequestPriority;
-  assigneeId?: number | 'unassigned';
+  assigneeId?: string | 'unassigned';
   unassigned?: boolean;
 }
 
 export type QueueQuery = PaginationQuery & QueueFilterQuery;
 
 export interface QueueAssignee {
-  id: number;
+  id: string;
   name: string;
 }
 
 export interface QueueItem extends RequestSummary {
   requesterEmail: string;
-  assigneeId: number | null;
+  assigneeId: string | null;
 }
 
 export interface QueueResponse extends PaginatedResponse<QueueItem> {

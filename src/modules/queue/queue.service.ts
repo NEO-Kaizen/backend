@@ -9,7 +9,8 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
   const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
   const offset = (page - 1) * pageSize;
 
-  const repoAssigneeId = typeof assigneeId === 'number' ? String(assigneeId) : undefined;
+  const repoUnassigned = unassigned || assigneeId === 'unassigned';
+  const repoAssigneeId = typeof assigneeId === 'string' && assigneeId !== 'unassigned' ? assigneeId : undefined;
 
   const [{ items, total }, assignees] = await Promise.all([
     findQueueRequests({
@@ -17,7 +18,7 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
       status,
       priority,
       assigneeId: repoAssigneeId,
-      unassigned,
+      unassigned: repoUnassigned,
       limit: pageSize,
       offset,
     }),
@@ -46,7 +47,7 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
     pageSize,
     total,
     totalPages,
-    assignees: assignees.map((a) => ({ id: Number(a.id), name: String(a.name) })),
+    assignees: assignees.map((a) => ({ id: String(a.id), name: String(a.name) })),
   };
 
   return response;

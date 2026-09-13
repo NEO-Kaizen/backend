@@ -26,7 +26,7 @@ export type QueueQuerySchema = {
   search?: string;
   status?: RequestStatus;
   priority?: RequestPriority;
-  assigneeId?: number | 'unassigned';
+  assigneeId?: string | 'unassigned';
   unassigned?: boolean;
   page: number;
   pageSize: number;
@@ -65,14 +65,18 @@ export function validateQueueQuery(query: unknown): { success: true; data: Queue
   const priority = priorityRaw && isValidPriority(priorityRaw) ? priorityRaw : undefined;
   if (priorityRaw !== undefined && priority === undefined) errors.push('Invalid "priority"');
 
-  let assigneeId: number | 'unassigned' | undefined = undefined;
+  let assigneeId: string | 'unassigned' | undefined = undefined;
   if (q.assigneeId !== undefined && q.assigneeId !== null) {
-    const s = String(q.assigneeId);
+    const s = String(q.assigneeId).trim();
     if (s === 'unassigned') assigneeId = 'unassigned';
     else {
-      const n = Number(s);
-      if (!Number.isNaN(n) && Number.isInteger(n) && n > 0) assigneeId = n;
-      else errors.push('Invalid "assigneeId"');
+      const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+      const numericRegex = /^\d+$/;
+      if (uuidRegex.test(s) || numericRegex.test(s)) {
+        assigneeId = s;
+      } else {
+        errors.push('Invalid "assigneeId"');
+      }
     }
   }
 

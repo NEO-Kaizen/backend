@@ -4,7 +4,7 @@ export interface GetQueueQuery {
   search?: string;
   status?: RequestStatus;
   priority?: RequestPriority;
-  assigneeId?: number | 'unassigned';
+  assigneeId?: string | 'unassigned';
   unassigned?: boolean;
   page: number;
   pageSize: number;
