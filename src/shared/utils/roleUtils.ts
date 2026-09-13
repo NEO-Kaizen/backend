@@ -1,9 +1,18 @@
 import { AppError } from "../errors/AppError.ts";
-import { ROLES_MAP, type Role } from "../types/role.ts";
+import type { Role } from "../types/role.ts";
 
-/** Converte `profile_id` do banco na `Role` do sistema, validando o valor. */
-export function profileRole(profileId: number): Role {
-  const role = ROLES_MAP[profileId];
+/** Mapa canônico `profiles.name` (lowercase no banco) -> `Role` de exibição. */
+const PROFILE_NAME_TO_ROLE: Record<string, Role> = {
+  solicitante: "Solicitante",
+  analista: "Analista",
+  gestor: "Gestor",
+  administrador: "Administrador",
+};
+
+/** Converte `profiles.name` do banco na `Role` do sistema, validando o valor.
+ *  Nunca interpreta `profile_id` por posição fixa. */
+export function resolveRole(profileName: string): Role {
+  const role = PROFILE_NAME_TO_ROLE[profileName.trim().toLowerCase()];
 
   if (role === undefined) {
     throw new AppError("Perfil inválido", 500);

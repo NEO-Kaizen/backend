@@ -2,8 +2,8 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
-import type { UserRow } from "../../shared/types/user.ts";
-import { profileRole } from "../../shared/utils/roleUtils.ts";
+import type { AuthUserRow, UserRow } from "../../shared/types/user.ts";
+import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type {
   ChangeUserStatusRequest,
@@ -43,8 +43,11 @@ function parseUserId(rawId: string): number {
  * escalonamento vertical (um admin assumir o controle de outro admin).
  * Evolui para uma hierarquia ordenada quando houver novos perfis gestores.
  */
-function assertTargetIsManageable(user: UserRow): void {
-  if (profileRole(user.profile_id) === "Administrador") {
+function assertTargetIsManageable(user: AuthUserRow | (UserRow & { profile_name?: string })): void {
+  const profileName =
+    "profile_name" in user && typeof user.profile_name === "string" ? user.profile_name : null;
+
+  if (profileName !== null && resolveRole(profileName) === "Administrador") {
     throw new AppError("Não é possível gerenciar contas de Administradores", 403);
   }
 }
@@ -113,7 +116,7 @@ export async function createRequester(
     id: String(user.user_id),
     fullName: user.full_name,
     email: user.email,
-    profile: profileRole(user.profile_id),
+    profile: resolveRole(SOLICITANTE_PROFILE),
     isActive: user.is_active,
     mustChangePassword: user.must_change_password,
     createdAt: user.created_at.toISOString(),

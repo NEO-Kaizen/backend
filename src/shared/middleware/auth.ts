@@ -11,9 +11,10 @@ const COOKIE_NAME = Config.COOKIE_NAME;
 /**
  * Autenticação por cookie JWT (HttpOnly).
  *
- * Além de validar o token, consulta o estado do usuário no banco a cada
- * request para que desativação (`is_active`) e redefinição de senha
- * (`must_change_password`) tenham efeito imediato sobre sessões já emitidas.
+ * Além de validar o token, consulta o estado do usuário e do perfil no banco
+ * a cada request para que desativação (`users.is_active`, `profiles.is_active`)
+ * e redefinição de senha (`must_change_password`) tenham efeito imediato sobre
+ * sessões já emitidas — sem distinguir o motivo (anti-enumeração).
  */
 export async function authMiddleware(
   req: Request,
@@ -37,8 +38,8 @@ export async function authMiddleware(
       return;
     }
 
-    if (!userState.is_active) {
-      next(new AppError("Usuário inativo", 401));
+    if (!userState.is_active || !userState.profile_is_active) {
+      next(new AppError("Token inválido ou expirado", 401));
       return;
     }
 
