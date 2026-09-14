@@ -197,6 +197,10 @@ Retorna a sessão atual a partir do cookie de sessão HttpOnly. Valida o JWT e r
   }
   ```
 
+- O endpoint também responde `200` quando a senha está pendente de troca
+  (`mustChangePassword: true`), permitindo que o frontend restaure a sessão e
+  exiba a tela de troca de senha — é a única rota liberada nesse estado,
+  junto de `PUT /auth/change-password`.
 - Resposta `401 Unauthorized`: sem cookie (`Token não fornecido`) ou sessão inválida, expirada ou inativa (`Token inválido ou expirado` — resposta genérica).
 
 ### Solicitações

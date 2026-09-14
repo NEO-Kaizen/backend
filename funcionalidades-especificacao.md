@@ -288,6 +288,7 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
 Retorna a sessão atual a partir do cookie HttpOnly, sem expor dados sensíveis.
 
 - `GET /auth/me`
+
   ```json
   {
     "id": "1",
@@ -297,6 +298,10 @@ Retorna a sessão atual a partir do cookie HttpOnly, sem expor dados sensíveis.
     "mustChangePassword": false
   }
   ```
+
+  O endpoint também responde `200` com `mustChangePassword: true` quando a
+  senha está pendente de troca — é a única rota liberada nesse estado, junto
+  de `PUT /auth/change-password`.
 
 ### Criar usuário
 
