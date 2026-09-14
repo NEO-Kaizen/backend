@@ -26,3 +26,12 @@ uploads/
 opencode.json
 opencode.jsonc
 AGENTS.md
+
+# Documentation for external use (not published to GitHub)
+docs/issue-51.md
+docs/plano-implementacao-issue-51.md
+docs/prioritization-api.md
+docs/review-issue-51.md
+docs/contrato-api-frontend.md
+docs/documentacao-bd-atualizada.md
+docs/plano-correcoes-revisao-prioritization.md
