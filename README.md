@@ -251,6 +251,19 @@ Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento se
   ```
 - Resposta `404 Not Found`: protocolo não encontrado.
 
+#### GET /requests/:protocol/internal
+
+Consulta administrativa/interna de uma solicitação pelo protocolo — exige
+autenticação (cookie de sessão). Retorna os 4 blocos completos do cadastro
+(`requester`, `demand`, `operational`, `complementary`), status, prioridade
+(`prioritization.score`/`maxScore`/`label`), responsável, anexos, preferências
+de horário e `internalObservations`. Contrato completo e comparação com a
+consulta pública (`GET /requests/:protocol`, acima) em
+[`docs/requests-internal-query-contract.md`](docs/requests-internal-query-contract.md).
+
+- Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
+- Resposta `404 Not Found`: protocolo inexistente.
+
 ## Scripts
 
 | Comando                               | Descrição                                       |
