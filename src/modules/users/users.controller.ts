@@ -3,12 +3,6 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { changeUserStatusSchema, createUserSchema, listUsersQuerySchema } from "./users.schema.ts";
 
-import {
-  changeUserStatusSchema,
-  createUserSchema,
-  listUsersQuerySchema,
-} from "./users.schema.ts";
-
 import * as service from "./users.service.ts";
 
 function actorUserId(req: Request): number {
