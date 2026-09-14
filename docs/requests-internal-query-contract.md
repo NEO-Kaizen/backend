@@ -16,16 +16,16 @@ Este contrato é **explicitamente diferente** do contrato público
 (`docs/solicitations-api-requests-0_4.md` §3, `RequestDetail`, issue #34),
 usado na tela de acompanhamento do solicitante (`/acompanhar/[protocolo]`):
 
-|                         | Consulta interna (`RequestInternalDetailDTO`, este contrato)                              | Consulta pública (`RequestDetail`)                                                                     |
-| ----------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Rota                    | `GET /requests/:protocol/internal`                                                        | `GET /requests/:protocol`                                                                              |
-| Autenticação            | **Obrigatória** (cookie de sessão válido)                                                 | Pública, sem autenticação                                                                              |
-| Blocos do cadastro      | Retorna os **4 blocos completos** (`requester`, `demand`, `operational`, `complementary`) | Não expõe os blocos brutos — apenas campos derivados para exibição (`demandTitle`, `processName` etc.) |
-| Campos internos         | Retorna `internalObservations`                                                            | **Nunca** retorna comentários internos, notas dos critérios ou scores (RN-005)                         |
-| Score de priorização    | Retorna `prioritization.score`/`maxScore`/`label`                                         | Não existe no contrato público                                                                         |
-| Anexos                  | Retorna `attachments[]` (metadados)                                                       | Não expõe anexos                                                                                       |
-| Preferências de horário | Retorna `schedulePreferences[]`                                                           | Não expõe                                                                                              |
-| Protocolo inexistente   | `404`                                                                                     | `404`                                                                                                  |
+|                         | Consulta interna (`RequestInternalDetailDTO`, este contrato)                               | Consulta pública (`RequestDetail`)                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Rota                    | `GET /requests/:protocol/internal`                                                         | `GET /requests/:protocol`                                                                              |
+| Autenticação            | **Obrigatória** (cookie de sessão válido)                                                  | Pública, sem autenticação                                                                              |
+| Blocos do cadastro      | Retorna os **4 blocos completos** (`requester`, `demand`, `operational`, `complementary`)  | Não expõe os blocos brutos — apenas campos derivados para exibição (`demandTitle`, `processName` etc.) |
+| Campos internos         | Retorna `internalObservations`                                                             | **Nunca** retorna comentários internos, notas dos critérios ou scores (RN-005)                         |
+| Score de priorização    | Retorna `prioritization.score`/`maxScore`/`label` (10–50, de `prioritization_evaluations`) | Não existe no contrato público                                                                         |
+| Anexos                  | Retorna `attachments[]` (metadados)                                                        | Não expõe anexos                                                                                       |
+| Preferências de horário | Retorna `schedulePreferences[]`                                                            | Não expõe                                                                                              |
+| Protocolo inexistente   | `404`                                                                                      | `404`                                                                                                  |
 
 Como o painel administrativo dá acesso a dados sensíveis (justificativas
 internas, dados do solicitante, anexos), a rota exige sessão autenticada —
@@ -97,9 +97,9 @@ export interface Assignee {
 }
 
 export interface Prioritization {
-  score: number | null; // 0-25; null até ser calculado
-  maxScore: 25;
-  label: string | null;
+  score: number | null; // 10–50 (RN-007/RN-008, issue #51); null até ser avaliado
+  maxScore: 50; // escala normalizada fixa — fonte: prioritization_evaluations
+  label: string | null; // classificação RN-008 (ex.: "Alta"); null sem avaliação
 }
 
 export interface Meeting {
@@ -157,7 +157,7 @@ HTTP/1.1 200 OK
   "protocol": "MAAT-8K3P-9X2M",
   "status": "Aguardando mapeamento",
   "priority": "Alta",
-  "prioritization": { "score": null, "maxScore": 25, "label": "Alta" },
+  "prioritization": { "score": null, "maxScore": 50, "label": null },
   "assignee": { "name": "João Analyst", "email": "joao.analyst@empresa.com" },
   "correctionAlert": null,
   "requester": {
@@ -221,15 +221,22 @@ HTTP/1.1 200 OK
 
 **Erros:**
 
-| Status | Quando                                           |
-| ------ | ------------------------------------------------ |
-| 401    | Sem cookie de sessão, ou token inválido/expirado |
-| 404    | Protocolo inexistente                            |
+| Status | Quando                                                                                         |
+| ------ | ---------------------------------------------------------------------------------------------- |
+| 401    | Sem cookie de sessão, ou token inválido/expirado                                               |
+| 403    | Autenticado sem perfil interno (Solicitante) — acesso restrito a Analista/Gestor/Administrador |
+| 404    | Protocolo inexistente                                                                          |
 
 ```json
 HTTP/1.1 401 Unauthorized
 
 { "status": "error", "statusCode": 401, "message": "Token não fornecido" }
+```
+
+```json
+HTTP/1.1 403 Forbidden
+
+{ "status": "error", "statusCode": 403, "message": "Acesso restrito ao perfil Analista ou Gestor ou Administrador" }
 ```
 
 ```json
@@ -240,11 +247,9 @@ HTTP/1.1 404 Not Found
 
 ## Limitações conhecidas desta implementação
 
-- **`403` documentado, não implementado.** O contrato prevê `403` para
-  "sem permissão para acesso interno", mas o sistema atual não distingue
-  níveis de permissão entre usuários autenticados (qualquer um dos 3 perfis
-  internos — Analista/Gestor/Administrador — passa). Não há regra de negócio
-  definida ainda para quem, especificamente, não teria acesso.
+- **`403` implementado.** Acesso restrito aos perfis internos
+  `Analista`, `Gestor` e `Administrador` (decisão P2). O perfil `Solicitante`
+  autenticado recebe `403` e deve usar a consulta pública.
 - **`meeting` e `mappingDate` sempre `null`.** Não existe tabela de reunião
   de mapeamento agendada no schema atual (`request_time_preferences` só
   guarda as preferências de horário do solicitante, não a reunião
@@ -254,6 +259,6 @@ HTTP/1.1 404 Not Found
 - **`attachments[].downloadUrl` sempre `null` e `canDownload` sempre
   `false`.** Não existe endpoint de download de anexos implementado ainda —
   a rota nunca oferece um link que não funcione.
-- **`prioritization.score`** vem da coluna `requests.priority_score`
-  (0-25, `CHECK` no banco), mas nenhuma feature ainda escreve nela — fica
-  `null` até a issue de priorização ser implementada.
+- **`prioritization.score`/`label`** vêm de `prioritization_evaluations`
+  (escala 10–50, RN-007/RN-008), gravados pela issue #51 (`POST` de
+  avaliação de priorização). Sem avaliação → `score: null` e `label: null`.

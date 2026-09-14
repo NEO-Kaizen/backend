@@ -12,6 +12,12 @@ import type {
   YesNoDetail,
 } from "../DTOs/requests/RequestInternalDetail.dto.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
+import {
+  normalizeIsoDate,
+  toDateOnly,
+  toDateTimeMinutes,
+  toSaoPauloDateOnly,
+} from "../../shared/utils/date.ts";
 import * as repository from "./requests.repository.ts";
 
 export async function findRequest(protocol: string): Promise<RequestDetail> {
@@ -69,32 +75,11 @@ function toYesNoDetail(hasFlag: boolean | null, detail: string | null): YesNoDet
   return detail ?? "";
 }
 
-// `desired_deadline` é DATE (sem timezone); o driver pg devolve um Date em
-// componentes locais. Extraímos ano/mês/dia diretamente (sem passar por
-// toISOString/UTC) para não arriscar deslocar o dia conforme o fuso do
-// processo, e formatamos como "yyyy-mm-dd" (contrato documentado).
-function toDateOnly(value: Date | string): string {
-  if (value instanceof Date) {
-    const year = value.getFullYear();
-    const month = String(value.getMonth() + 1).padStart(2, "0");
-    const day = String(value.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-  return value.slice(0, 10);
-}
-
-// `scheduled_for` (request_time_preferences) é TIMESTAMP sem timezone —
-// mesmo raciocínio de toDateOnly, mas preservando hora:minuto.
-function toDateTimeMinutes(value: Date | string): string {
-  if (value instanceof Date) {
-    const year = value.getFullYear();
-    const month = String(value.getMonth() + 1).padStart(2, "0");
-    const day = String(value.getDate()).padStart(2, "0");
-    const hours = String(value.getHours()).padStart(2, "0");
-    const minutes = String(value.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  }
-  return value.slice(0, 16);
+// Variante para o Bloco 3, cujo campo é obrigatório (NOT NULL no schema):
+// a flag nunca é null e o retorno nunca é undefined — dispensa o `as`.
+function toRequiredYesNoDetail(flag: boolean, detail: string | null): YesNoDetail {
+  if (flag === false) return false;
+  return detail ?? "";
 }
 
 function hasComplementaryData(block: ComplementaryBlock): boolean {
@@ -108,9 +93,12 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  const [attachments, schedulePreferences] = await Promise.all([
+  const [attachments, schedulePreferences, evaluation] = await Promise.all([
     repository.findAttachmentsByRequestId(request.request_id),
     repository.findSchedulePreferencesByRequestId(request.request_id),
+    // Score/classificação da priorização (RN-007/RN-008, issue #51) —
+    // fonte única, escala 10–50; null até existir avaliação.
+    repository.findEvaluationByProtocol(protocol),
   ]);
 
   const meetingScheduledFor: string | null = request.meeting_scheduled_for
@@ -137,14 +125,22 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
     additionalNotes: request.additional_notes ?? undefined,
   };
 
+  // Timestamps normalizados no formato ISO do contrato (fallback defensivo
+  // caso a leitura venha nula — mesmo padrão da consulta pública).
+  const openedAt = normalizeIsoDate(request.created_at) ?? new Date().toISOString();
+  const lastUpdate = normalizeIsoDate(request.updated_at) ?? openedAt;
+
   return {
     protocol: request.protocol,
     status: request.status,
     priority: request.priority,
     prioritization: {
-      score: request.priority_score,
-      maxScore: 25,
-      label: request.priority,
+      // Escala 10–50 (RN-007/RN-008 — issue #51). `score` e `label` (a
+      // classificação da avaliação) vêm de prioritization_evaluations; ambos
+      // null enquanto a solicitação não for avaliada.
+      score: evaluation ? evaluation.score : null,
+      maxScore: 50,
+      label: evaluation ? evaluation.classification : null,
     },
     assignee: request.professional_name
       ? { name: request.professional_name, email: request.professional_email }
@@ -179,10 +175,10 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
       peopleInvolved: request.people_involved,
       averageExecutionTime: request.average_duration,
       monthlyEffortHours: Number(request.estimated_monthly_effort),
-      hasManualControls: toYesNoDetail(
+      hasManualControls: toRequiredYesNoDetail(
         request.has_manual_controls,
         request.manual_controls_detail,
-      ) as YesNoDetail,
+      ),
       mainRisks: request.main_risks,
       clientImpact: request.client_impact,
       operationalImpact: request.operational_impact,
@@ -199,7 +195,7 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
         : null,
     // Mesma fonte da consulta pública: requests.meeting_scheduled_for
     // (America/Sao_Paulo) — os dois nunca divergem (Especificação 3.0 §6.1).
-    mappingDate: meetingScheduledFor ? repository.toSaoPauloDateOnly(meetingScheduledFor) : null,
+    mappingDate: meetingScheduledFor ? toSaoPauloDateOnly(meetingScheduledFor) : null,
     meeting,
     attachments: attachments.map((attachment) => ({
       fileName: attachment.file_name,
@@ -213,8 +209,8 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
       downloadUrl: null,
       canDownload: false,
     })),
-    openedAt: request.created_at,
-    lastUpdate: request.updated_at ?? request.created_at,
+    openedAt,
+    lastUpdate,
     internalObservations: request.internal_notes,
   };
 }

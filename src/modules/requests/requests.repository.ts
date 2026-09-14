@@ -3,6 +3,11 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { generateProtocol } from "../../shared/protocol/generateProtocol.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
+import {
+  normalizeIsoDate,
+  normalizeIsoDateOnly,
+  toSaoPauloDateOnly,
+} from "../../shared/utils/date.ts";
 import type {
   RequestPriority,
   RequestStatus,
@@ -20,59 +25,6 @@ import type {
   RequestSummary,
 } from "../DTOs/requests/RequestResponse.dto.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
-
-function normalizeIsoDate(value: unknown): string | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const date = value instanceof Date ? value : new Date(String(value));
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toISOString();
-}
-
-function normalizeIsoDateOnly(value: unknown): string | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
-  }
-
-  const date = value instanceof Date ? value : new Date(String(value));
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  const pad = (part: number) => String(part).padStart(2, "0");
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-export function toSaoPauloDateOnly(value: unknown): string | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const date = value instanceof Date ? value : new Date(String(value));
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
 
 const INITIAL_STATUS = "Solicitação enviada";
 
@@ -465,7 +417,6 @@ export async function findInternalRequestByProtocol(protocol: string) {
       "requests.handles_restricted_info",
       "requests.restricted_info_detail",
       "requests.additional_notes",
-      "requests.priority_score",
       "requests.internal_notes",
       "requests.meeting_scheduled_for",
       "requests.meeting_link",
@@ -489,9 +440,14 @@ export async function findInternalRequestByProtocol(protocol: string) {
 }
 
 export async function findAttachmentsByRequestId(requestId: string | number) {
+  // Acesso já é restrito aos perfis internos (Analista/Gestor/Administrador,
+  // ver requests.router.ts — decisão P2), então anexos marcados como restritos
+  // permanecem visíveis aqui por design; quem não tem acesso não chega à rota.
+  // `is_restricted` não é selecionado porque o contrato (InternalAttachment)
+  // não o expõe hoje.
   return db("attachments")
     .where({ request_id: requestId })
-    .select("file_name", "content_type", "size_bytes", "is_restricted")
+    .select("file_name", "content_type", "size_bytes")
     .orderBy("uploaded_at", "asc");
 }
 
@@ -500,4 +456,21 @@ export async function findSchedulePreferencesByRequestId(requestId: string | num
     .where({ request_id: requestId })
     .select("scheduled_for")
     .orderBy("scheduled_for", "asc");
+}
+
+// Avaliação de priorização (issue #51 / RN-007) — fonte única do score
+// (escala 10–50) e da classificação exibidos no detalhe interno. A tabela
+// `prioritization_evaluations` tem PK = protocol, então no máximo 1 linha.
+export async function findEvaluationByProtocol(
+  protocol: string,
+): Promise<{ score: number; classification: string } | undefined> {
+  const row = await db("prioritization_evaluations")
+    .where({ protocol })
+    .first("score", "classification");
+
+  if (!row) return undefined;
+
+  // score é DECIMAL — o driver pg devolve string; normaliza aqui (mesmo
+  // cuidado do prioritization.repository.ts da issue #51).
+  return { score: Number(row.score), classification: row.classification };
 }

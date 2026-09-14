@@ -3,53 +3,18 @@
 // Difere explicitamente do DTO público (GET /requests/:protocol, issue #34):
 // nunca retorna dados internos de triagem além de `internalObservations`.
 
-// Resposta "Sim/Não (+ detalhamento)": false = "Não"; string = "Sim" + detalhe.
-export type YesNoDetail = false | string;
+// Tipos do cadastro (blocos) e YesNoDetail vêm do domínio
+// (src/shared/types/requests.ts) — fonte única, evitando drift de contrato.
+import type {
+  ComplementaryBlock,
+  DemandBlock,
+  OperationalBlock,
+  RequesterBlock,
+  YesNoDetail,
+} from "../../../shared/types/requests.ts";
 
-export interface RequesterBlock {
-  fullName: string;
-  corporateEmail: string;
-  area: string;
-  department?: string;
-  manager: string;
-  additionalContact?: string;
-}
-
-export interface DemandBlock {
-  title: string;
-  requestType: string;
-  category: string;
-  processName: string;
-  description: string;
-  problem: string;
-  expectedResult: string;
-  justification: string;
-}
-
-export interface OperationalBlock {
-  processDescription: string;
-  processSteps: string;
-  systemsUsed: string;
-  executionFrequency: string;
-  volumetry: string;
-  peopleInvolved: number;
-  averageExecutionTime: string;
-  monthlyEffortHours: number;
-  hasManualControls: YesNoDetail;
-  mainRisks: string;
-  clientImpact: string;
-  operationalImpact: string;
-  desiredDeadline: string; // ISO "yyyy-mm-dd"
-  perceivedCriticality: string;
-}
-
-export interface ComplementaryBlock {
-  hasProcessDocumentation?: YesNoDetail;
-  hasSimilarSolution?: YesNoDetail;
-  dependsOnOtherAreas?: YesNoDetail;
-  handlesRestrictedInfo?: YesNoDetail;
-  additionalNotes?: string;
-}
+// Re-export para quem consome este arquivo como "contrato interno".
+export type { ComplementaryBlock, DemandBlock, OperationalBlock, RequesterBlock, YesNoDetail };
 
 export interface Assignee {
   name: string;
@@ -57,9 +22,9 @@ export interface Assignee {
 }
 
 export interface Prioritization {
-  score: number | null;
-  maxScore: 25;
-  label: string | null;
+  score: number | null; // 10–50 (RN-007/RN-008, issue #51); null até ser avaliado
+  maxScore: 50; // escala normalizada fixa — fonte: prioritization_evaluations
+  label: string | null; // classificação RN-008 (ex.: "Alta"); null sem avaliação
 }
 
 export interface Meeting {
