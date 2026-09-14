@@ -7,11 +7,14 @@ export interface CriterionRow {
   display_order: number;
 }
 
+import type { RequestPriority } from "./requests.ts";
+
 /**
- * Classificação RN-008 — vocabulário do produto e da tabela `requests`
- * (enum nativo `request_priority`).
+ * Classificação RN-008 — mesmo vocabulário do produto que trafega em
+ * `requests.priority` (enum nativo `request_priority`). Reutiliza
+ * `RequestPriority` para evitar drift entre os tipos (M5).
  */
-export type Classification = "Baixa" | "Média" | "Alta" | "Crítica";
+export type Classification = RequestPriority;
 
 /** Faixa de prioridade lida da tabela `priorities`. */
 export interface PriorityRangeRow {

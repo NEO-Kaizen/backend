@@ -7,9 +7,15 @@ const DEFAULT_TYPE_MESSAGES: Record<string, string> = {
   array: "Informe uma lista.",
 };
 
-export function formatZodIssues(error: ZodError, rootLabel = "payload"): string {
-  const pathOf = (issue: ZodError["issues"][number]): string => issue.path.map(String).join(".");
+/** Limita o path ecoado na mensagem de erro (defesa contra chaves gigantes). */
+const MAX_PATH_LENGTH = 50;
 
+function renderPath(issue: ZodError["issues"][number]): string {
+  const full = issue.path.map(String).join(".");
+  return full.length > MAX_PATH_LENGTH ? `${full.slice(0, MAX_PATH_LENGTH)}…` : full;
+}
+
+export function formatZodIssues(error: ZodError, rootLabel = "payload"): string {
   const isMissing = (issue: ZodError["issues"][number]): boolean =>
     issue.code === "invalid_type" &&
     /^Invalid input: expected \w+, received undefined$/.test(issue.message) &&
@@ -21,7 +27,7 @@ export function formatZodIssues(error: ZodError, rootLabel = "payload"): string 
     return translated ?? issue.message;
   };
 
-  const missingFields = error.issues.filter(isMissing).map(pathOf);
+  const missingFields = error.issues.filter(isMissing).map(renderPath);
   const invalidFields = error.issues.filter((issue) => !isMissing(issue));
 
   // Uma mesma linha pode falhar em mais de um check (ex.: regex + refine);
@@ -33,7 +39,10 @@ export function formatZodIssues(error: ZodError, rootLabel = "payload"): string 
   }
   if (invalidFields.length > 0) {
     const details = invalidFields
-      .map((issue) => ({ path: pathOf(issue) || rootLabel, message: renderMessage(issue) }))
+      .map((issue) => ({
+        path: renderPath(issue) || rootLabel,
+        message: renderMessage(issue),
+      }))
       .filter((detail) => {
         if (seen.has(detail.path)) return false;
         seen.add(detail.path);

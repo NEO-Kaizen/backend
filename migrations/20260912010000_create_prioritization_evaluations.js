@@ -6,7 +6,7 @@
  * classificação (RN-008, lida das faixas da tabela `priorities`).
  *
  * O histórico de reavaliações NÃO tem tabela própria: é gravado no
- * `audit_history` (via `recordAudit`, entity_type = 'priorization'),
+ * `audit_history` (via `recordAudit`, entity_type = 'prioritization'),
  * seguindo o princípio "estado atual na entidade, trilha imutável na auditoria".
  *
  * Colunas em inglês (padrão do projeto).
