@@ -3,7 +3,7 @@ import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserRow } from "../../shared/types/user.ts";
-import { profileRole } from "../../shared/utils/roleUtils.ts";
+import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type { Role } from "../../shared/types/role.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type {
@@ -74,7 +74,7 @@ export async function createUser(
   }
 
   // Hierarquia ANTES de criar: nenhum perfil cria contas de Administrador.
-  assertRoleIsManageable(profileRole(profileId));
+  assertRoleIsManageable(resolveRole(payload.role));
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -119,7 +119,7 @@ export async function createUser(
     id: String(user.user_id),
     fullName: user.full_name,
     email: user.email,
-    role: profileRole(user.profile_id),
+    role: resolveRole(payload.role),
     isActive: user.is_active,
     mustChangePassword: user.must_change_password,
     createdAt: user.created_at.toISOString(),
@@ -144,7 +144,7 @@ export async function changeUserStatus(
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  assertRoleIsManageable(profileRole(user.profile_id));
+  assertRoleIsManageable(resolveRole(user.profile_name));
 
   // Update e evento de auditoria na MESMA transação: se o evento falhar,
   // a mudança de status é desfeita (rollback).
@@ -182,7 +182,7 @@ export async function resetPassword(
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  assertRoleIsManageable(profileRole(user.profile_id));
+  assertRoleIsManageable(resolveRole(user.profile_name));
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);

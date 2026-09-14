@@ -160,12 +160,15 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
     "id": "1",
     "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
-    "role": "Analista"
+    "role": "Analista",
+    "mustChangePassword": false
   }
   ```
 
+  `role` pode ser `Solicitante`, `Analista`, `Gestor` ou `Administrador`. Quando `mustChangePassword` é `true`, o cookie de sessão é emitido com escopo de troca de senha e o usuário deve concluir a troca antes de continuar.
+
 - Resposta `400 Bad Request`: e-mail ou senha ausentes.
-- Resposta `401 Unauthorized`: credenciais inválidas (e-mail não encontrado ou senha incorreta).
+- Resposta `401 Unauthorized`: credenciais inválidas (e-mail não encontrado, senha incorreta, usuário ou perfil inativo — a resposta é genérica para não revelar o motivo).
 
 #### POST /auth/logout
 
@@ -177,6 +180,28 @@ Encerra a sessão do usuário autenticado, removendo o cookie de sessão do nave
   ```json
   { "message": "Sessão encerrada com sucesso" }
   ```
+
+#### GET /auth/me
+
+Retorna a sessão atual a partir do cookie de sessão HttpOnly. Valida o JWT e revalida usuário e perfil no banco a cada chamada, sem expor dados sensíveis.
+
+- Resposta `200 OK`:
+
+  ```json
+  {
+    "id": "1",
+    "email": "maria@instituicao.gov.br",
+    "name": "Maria Oliveira",
+    "role": "Analista",
+    "mustChangePassword": false
+  }
+  ```
+
+- O endpoint também responde `200` quando a senha está pendente de troca
+  (`mustChangePassword: true`), permitindo que o frontend restaure a sessão e
+  exiba a tela de troca de senha — é a única rota liberada nesse estado,
+  junto de `PUT /auth/change-password`.
+- Resposta `401 Unauthorized`: sem cookie (`Token não fornecido`) ou sessão inválida, expirada ou inativa (`Token inválido ou expirado` — resposta genérica).
 
 ### Solicitações
 

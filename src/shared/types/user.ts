@@ -24,3 +24,9 @@ export interface UserRow {
   created_at: Date;
   updated_at: Date;
 }
+
+/** Linha de autenticação com JOIN em `profiles` — fonte da verdade para papel e status. */
+export interface AuthUserRow extends UserRow {
+  profile_name: string;
+  profile_is_active: boolean;
+}

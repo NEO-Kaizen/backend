@@ -266,17 +266,42 @@ Cria uma conta de usuário e retorna o token de autenticação.
 Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do usuário (sem a senha) e define um cookie de sessão HttpOnly com o token JWT.
 
 - `POST /auth/login`
+
   ```json
   { "email": "maria@instituicao.gov.br", "password": "123456" }
   ```
+
   ```json
   {
     "id": "1",
     "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
-    "role": "Analista"
+    "role": "Analista",
+    "mustChangePassword": false
   }
   ```
+
+  `role` pode ser `Solicitante`, `Analista`, `Gestor` ou `Administrador`. A resposta de erro é genérica (`Credenciais inválidas`) para usuário inexistente, senha incorreta, usuário ou perfil inativo.
+
+### Consultar sessão atual
+
+Retorna a sessão atual a partir do cookie HttpOnly, sem expor dados sensíveis.
+
+- `GET /auth/me`
+
+  ```json
+  {
+    "id": "1",
+    "email": "maria@instituicao.gov.br",
+    "name": "Maria Oliveira",
+    "role": "Analista",
+    "mustChangePassword": false
+  }
+  ```
+
+  O endpoint também responde `200` com `mustChangePassword: true` quando a
+  senha está pendente de troca — é a única rota liberada nesse estado, junto
+  de `PUT /auth/change-password`.
 
 ### Criar usuário
 

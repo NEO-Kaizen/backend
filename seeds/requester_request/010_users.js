@@ -1,6 +1,15 @@
 import { hashPassword } from "../../src/shared/utils/passwordHandler.ts";
 
 export async function seed(knex) {
+  const profiles = await knex("profiles").select("profile_id", "name");
+  const profileIdByName = new Map(profiles.map((p) => [p.name, p.profile_id]));
+
+  const requireProfile = (name) => {
+    const id = profileIdByName.get(name);
+    if (!id) throw new Error(`Perfil '${name}' não encontrado. Rode as migrations primeiro.`);
+    return id;
+  };
+
   await knex("users")
     .insert([
       {
@@ -8,7 +17,7 @@ export async function seed(knex) {
         full_name: "Analista Teste",
         email: "analista_teste@email.com",
         password_hash: await hashPassword("steste123"),
-        profile_id: 2,
+        profile_id: requireProfile("analista"),
         is_active: true,
         created_at: new Date(),
         updated_at: new Date(),
@@ -18,7 +27,7 @@ export async function seed(knex) {
         full_name: "Administrador Teste",
         email: "administrador_teste@email.com",
         password_hash: await hashPassword("steste123"),
-        profile_id: 3,
+        profile_id: requireProfile("administrador"),
         is_active: true,
         created_at: new Date(),
         updated_at: new Date(),
@@ -28,8 +37,28 @@ export async function seed(knex) {
         full_name: "Gestor Teste",
         email: "gestor_teste@email.com",
         password_hash: await hashPassword("steste123"),
-        profile_id: 4,
+        profile_id: requireProfile("gestor"),
         is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        user_id: 104,
+        full_name: "Solicitante Teste",
+        email: "solicitante_teste@email.com",
+        password_hash: await hashPassword("steste123"),
+        profile_id: requireProfile("solicitante"),
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        user_id: 105,
+        full_name: "Solicitante Inativo",
+        email: "solicitante_inativo@email.com",
+        password_hash: await hashPassword("steste123"),
+        profile_id: requireProfile("solicitante"),
+        is_active: false,
         created_at: new Date(),
         updated_at: new Date(),
       },

@@ -2,7 +2,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type { Role } from "../../shared/types/role.ts";
-import { profileRole } from "../../shared/utils/roleUtils.ts";
+import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import { comparePassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { ChangePasswordRequest } from "../DTOs/auth/ChangePasswordRequest.dto.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
@@ -32,11 +32,11 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
     throw new AppError("Credenciais inválidas", 401);
   }
 
-  if (!user.is_active) {
+  if (!user.is_active || !user.profile_is_active) {
     // Mantém o timing uniforme e a resposta pública idêntica à de e-mail
-    // inexistente/senha errada — conta desativada não pode ser distinguida
-    // por enumeração. O branch permanece apenas para impedir o login de
-    // contas inativas, mesmo com a senha correta.
+    // inexistente/senha errada — conta ou perfil desativado não pode ser
+    // distinguido por enumeração. O branch permanece apenas para impedir o
+    // login de contas inativas, mesmo com a senha correta.
     await comparePassword(credentials.password, DUMMY_PASSWORD_HASH);
     throw new AppError("Credenciais inválidas", 401);
   }
@@ -51,7 +51,25 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
     id: String(user.user_id),
     name: user.full_name,
     email: user.email,
-    role: profileRole(user.profile_id),
+    role: resolveRole(user.profile_name),
+    mustChangePassword: user.must_change_password,
+    passwordChangedAt: new Date(user.password_changed_at).getTime(),
+  };
+}
+
+/** Sessão confiável para `GET /auth/me` — releitura no banco, sem segredos. */
+export async function getSessionUser(userId: number): Promise<SessionUserResult> {
+  const user = await authRepository.findUserById(userId);
+
+  if (!user || !user.is_active || !user.profile_is_active) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+
+  return {
+    id: String(user.user_id),
+    name: user.full_name,
+    email: user.email,
+    role: resolveRole(user.profile_name),
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
   };
@@ -66,6 +84,10 @@ export async function changePassword(
 
   if (!user) {
     throw new AppError("Usuário não encontrado", 404);
+  }
+
+  if (!user.is_active || !user.profile_is_active) {
+    throw new AppError("Token inválido ou expirado", 401);
   }
 
   const isCurrentPasswordValid = await comparePassword(body.currentPassword, user.password_hash);
@@ -103,7 +125,7 @@ export async function changePassword(
     id: String(user.user_id),
     name: user.full_name,
     email: user.email,
-    role: profileRole(user.profile_id),
+    role: resolveRole(user.profile_name),
     mustChangePassword: false,
     passwordChangedAt: new Date(password_changed_at).getTime(),
   };

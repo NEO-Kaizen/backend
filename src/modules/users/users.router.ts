@@ -1,12 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
 import { requireRole } from "../../shared/middleware/requireRole.ts";
-import {
-  changeUserStatus,
-  createUser,
-  listUsers,
-  resetUserPassword,
-} from "./users.controller.ts";
+import { changeUserStatus, createUser, listUsers, resetUserPassword } from "./users.controller.ts";
 
 const usersRoutes = express.Router();
 

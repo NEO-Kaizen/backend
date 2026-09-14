@@ -4,6 +4,7 @@ import { AppError } from "../errors/AppError.ts";
 import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
 import Config from "../../configs.ts";
 import { getAuthState } from "../../modules/auth/auth.repository.ts";
+import { resolveRole } from "../utils/roleUtils.ts";
 
 const { JsonWebTokenError, NotBeforeError, TokenExpiredError } = jwt;
 const COOKIE_NAME = Config.COOKIE_NAME;
@@ -11,9 +12,10 @@ const COOKIE_NAME = Config.COOKIE_NAME;
 /**
  * Autenticação por cookie JWT (HttpOnly).
  *
- * Além de validar o token, consulta o estado do usuário no banco a cada
- * request para que desativação (`is_active`) e redefinição de senha
- * (`must_change_password`) tenham efeito imediato sobre sessões já emitidas.
+ * Além de validar o token, consulta o estado do usuário e do perfil no banco
+ * a cada request para que desativação (`users.is_active`, `profiles.is_active`)
+ * e redefinição de senha (`must_change_password`) tenham efeito imediato sobre
+ * sessões já emitidas — sem distinguir o motivo (anti-enumeração).
  */
 export async function authMiddleware(
   req: Request,
@@ -37,21 +39,23 @@ export async function authMiddleware(
       return;
     }
 
-    if (!userState.is_active) {
-      next(new AppError("Usuário inativo", 401));
+    if (!userState.is_active || !userState.profile_is_active) {
+      next(new AppError("Token inválido ou expirado", 401));
       return;
     }
 
     const scope = payload.scope ?? "session";
 
     // Quem está com a senha pendente de troca só pode acessar a PRÓPRIA
-    // rota de troca (`PUT /auth/change-password`). Qualquer outra rota —
-    // inclusive administrativas — é bloqueada até que a troca seja
-    // concluída.
-    const isPasswordChangeRoute =
-      req.originalUrl.split("?")[0] === "/auth/change-password";
+    // rota de troca (`PUT /auth/change-password`) e a de consulta de sessão
+    // (`GET /auth/me`, que expõe `mustChangePassword` para o frontend exibir
+    // a tela de troca). Qualquer outra rota — inclusive administrativas — é
+    // bloqueada até que a troca seja concluída.
+    const isPendingChangeAllowedRoute =
+      req.originalUrl.split("?")[0] === "/auth/change-password" ||
+      req.originalUrl.split("?")[0] === "/auth/me";
 
-    if (userState.must_change_password && !isPasswordChangeRoute) {
+    if (userState.must_change_password && !isPendingChangeAllowedRoute) {
       next(new AppError("Troca de senha obrigatória antes de continuar", 403));
       return;
     }
@@ -67,11 +71,14 @@ export async function authMiddleware(
       return;
     }
 
+    // O papel vem do banco a cada request — nunca do JWT. Assim, uma troca
+    // de perfil passa a valer imediatamente em todas as rotas protegidas por
+    // `requireRole`, mesmo com o cookie antigo ainda válido.
     req.user = {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      role: payload.role,
+      role: resolveRole(userState.profile_name),
     };
 
     req.authScope = scope;

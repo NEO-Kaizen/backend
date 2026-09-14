@@ -2,8 +2,8 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
-import type { UserRow } from "../../shared/types/user.ts";
-import { profileRole } from "../../shared/utils/roleUtils.ts";
+import type { AuthUserRow, UserRow } from "../../shared/types/user.ts";
+import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type { CreateUserRequest, ListUsersQuery } from "../DTOs/users/UserRequests.dto.ts";
 import type { UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 
@@ -11,7 +11,7 @@ interface UserSummaryRow {
   user_id: number;
   full_name: string;
   email: string;
-  profile_id: number;
+  profile_name: string;
   is_active: boolean;
   must_change_password: boolean;
   created_at: Date;
@@ -23,8 +23,24 @@ export async function findProfileIdByName(name: string): Promise<number | null> 
   return row?.profile_id ?? null;
 }
 
-export async function findUserById(id: number): Promise<UserRow | undefined> {
-  return db("users").where({ user_id: id }).first();
+export async function findUserById(id: number): Promise<AuthUserRow | undefined> {
+  return db("users as u")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .where("u.user_id", id)
+    .first(
+      "u.user_id",
+      "u.full_name",
+      "u.email",
+      "u.password_hash",
+      "u.profile_id",
+      "u.is_active",
+      "u.must_change_password",
+      "u.password_changed_at",
+      "u.created_at",
+      "u.updated_at",
+      "p.name as profile_name",
+      "p.is_active as profile_is_active",
+    );
 }
 
 /** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
@@ -81,7 +97,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       user_id: "u.user_id",
       full_name: "u.full_name",
       email: "u.email",
-      profile_id: "u.profile_id",
+      profile_name: "p.name",
       is_active: "u.is_active",
       must_change_password: "u.must_change_password",
       created_at: "u.created_at",
@@ -96,7 +112,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       id: String(row.user_id),
       fullName: row.full_name,
       email: row.email,
-      profile: profileRole(row.profile_id),
+      profile: resolveRole(row.profile_name),
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,
       createdAt: row.created_at.toISOString(),
