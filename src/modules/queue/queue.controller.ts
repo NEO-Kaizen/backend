@@ -1,29 +1,23 @@
-import type { Request, Response, NextFunction } from 'express';
-import { listQueueService, getQueueMetricsService } from './queue.service.ts';
-import validateQueueQuery from './queue.schemas.ts';
-import type { QueueQuery } from '../../shared/types/queue.types.ts';
+import type { Request, Response } from "express";
+import { AppError } from "../../shared/errors/AppError.ts";
+import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { getQueueMetricsService, listQueueService } from "./queue.service.ts";
+import { queueQuerySchema } from "./queue.schemas.ts";
 
-export const getMetricsController = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const metrics = await getQueueMetricsService();
-    res.status(200).json(metrics);
-  } catch (error) {
-    next(error);
+export const getMetricsController = async (_req: Request, res: Response): Promise<Response> => {
+  const metrics = await getQueueMetricsService();
+
+  return res.status(200).json(metrics);
+};
+
+export const centralizedQueue = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = queueQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error, "query"), 400);
   }
-}
 
-export const centralizedQueue = async (req: Request, res: Response, next: NextFunction)  => {
-  try {
-    const parseResult = validateQueueQuery(req.query);
-    if (!parseResult.success) {
-      return res.status(400).json({ error: 'Parâmetros inválidos', details: parseResult.errors });
-    }
+  const result = await listQueueService(parsed.data);
 
-    const filters = parseResult.data as QueueQuery;
-
-    const result = await listQueueService(filters);
-    return res.status(200).json(result);
-  } catch (error) {
-    return next(error);
-  }
+  return res.status(200).json(result);
 };
