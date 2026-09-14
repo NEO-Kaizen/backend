@@ -1,23 +1,46 @@
-export type RequestStatus =
-  | "Solicitação enviada"
-  | "Aguardando triagem"
-  | "Em triagem"
-  | "Pendente de informações"
-  | "Aguardando mapeamento"
-  | "Mapeamento agendado"
-  | "Em mapeamento"
-  | "Em análise de viabilidade"
-  | "Elegível"
-  | "Não elegível"
-  | "Priorizado"
-  | "Backlog"
-  | "Direcionado para outra área"
-  | "Em desenvolvimento"
-  | "Em homologação"
-  | "Concluído"
-  | "Cancelado";
+/**
+ * Fonte única dos status de solicitação — alimenta a union `RequestStatus`, a
+ * validação (Zod) e as métricas da fila. Mantenha os nomes alinhados à tabela
+ * `statuses` (migration `202609100013_insert_reference_data`).
+ */
+export const REQUEST_STATUSES = [
+  "Solicitação enviada",
+  "Aguardando triagem",
+  "Em triagem",
+  "Pendente de informações",
+  "Aguardando mapeamento",
+  "Mapeamento agendado",
+  "Em mapeamento",
+  "Em análise de viabilidade",
+  "Elegível",
+  "Não elegível",
+  "Priorizado",
+  "Backlog",
+  "Direcionado para outra área",
+  "Em desenvolvimento",
+  "Em homologação",
+  "Concluído",
+  "Cancelado",
+] as const;
 
-export type RequestPriority = "Baixa" | "Média" | "Alta" | "Crítica";
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+
+/** Fonte única das prioridades — alimenta a union e a validação (Zod). */
+export const REQUEST_PRIORITIES = ["Baixa", "Média", "Alta", "Crítica"] as const;
+
+export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
+
+/** Status considerados "em andamento" para as métricas da fila (Home/Fila). */
+export const IN_PROGRESS_STATUSES = [
+  "Em triagem",
+  "Em mapeamento",
+  "Em análise de viabilidade",
+  "Em desenvolvimento",
+  "Em homologação",
+] as const;
+
+/** Status terminais sem entrega — excluídos das métricas de atraso da fila. */
+export const TERMINAL_STATUSES = ["Concluído", "Cancelado"] as const;
 
 export type TriageResult =
   | "Elegível para avaliação"
