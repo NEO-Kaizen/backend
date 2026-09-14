@@ -10,7 +10,9 @@ export interface UserSummary {
   createdAt: string;
 }
 
-export interface CreateRequesterResponse extends UserSummary {
+export interface CreateUserResponse extends Omit<UserSummary, "profile"> {
+  /** Vocabulário de exibição — capitalizado (ex.: "Analista"). */
+  role: Role;
   /** Exibida uma única vez — não recuperável depois. */
   temporaryPassword: string;
 }

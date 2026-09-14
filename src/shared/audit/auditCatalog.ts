@@ -15,6 +15,10 @@ export const auditCatalog = {
     label: "Usuários",
     actions: ["create", "activate", "deactivate", "reset_password", "change_password"],
   },
+  prioritization: {
+    label: "Priorização",
+    actions: ["evaluate"],
+  },
   // Futuras entidades entram aqui:
   // request: {
   //   label: "Solicitações",
