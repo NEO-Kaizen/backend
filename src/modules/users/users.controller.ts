@@ -1,18 +1,18 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
-import {
-  changeUserStatusSchema,
-  createUserSchema,
-  listUsersQuerySchema,
-} from "./users.schema.ts";
+import { changeUserStatusSchema, createUserSchema, listUsersQuerySchema } from "./users.schema.ts";
 import * as service from "./users.service.ts";
 
 function actorUserId(req: Request): number {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return Number(req.user.id);
+  const id = Number(req.user.id);
+  if (!Number.isInteger(id)) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+  return id;
 }
 
 export const listUsers = async (req: Request, res: Response): Promise<Response> => {

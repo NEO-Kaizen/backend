@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { z } from "zod";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { evaluateScoreSchema } from "./prioritization.schema.ts";
@@ -8,14 +9,17 @@ function actorUserId(req: Request): number {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return Number(req.user.id);
+  const id = Number(req.user.id);
+  if (!Number.isInteger(id)) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+  return id;
 }
 
-function assertProtocol(protocol: string): void {
-  if (!protocol || protocol.trim() === "") {
-    throw new AppError("Protocolo é obrigatório", 400);
-  }
-}
+/** Valida `:protocol` no controller (substitui o cast — S2). */
+const protocolParamsSchema = z.object({
+  protocol: z.string().trim().min(1, "Protocolo é obrigatório."),
+});
 
 export const listCriteria = async (_req: Request, res: Response): Promise<Response> => {
   const response = await service.listActiveCriteria();
@@ -24,7 +28,10 @@ export const listCriteria = async (_req: Request, res: Response): Promise<Respon
 };
 
 export const evaluateScore = async (req: Request, res: Response): Promise<Response> => {
-  assertProtocol(req.params.protocol as string);
+  const parsedParams = protocolParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    throw new AppError(formatZodIssues(parsedParams.error, "params"), 400);
+  }
 
   const parsed = evaluateScoreSchema.safeParse(req.body);
 
@@ -33,7 +40,7 @@ export const evaluateScore = async (req: Request, res: Response): Promise<Respon
   }
 
   const response = await service.evaluateScore(
-    req.params.protocol as string,
+    parsedParams.data.protocol,
     parsed.data,
     actorUserId(req),
   );
