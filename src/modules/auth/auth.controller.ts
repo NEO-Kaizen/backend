@@ -7,6 +7,7 @@ import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { changePasswordSchema, loginSchema } from "./auth.schema.ts";
 import type { LoginResponseDTO } from "../DTOs/auth/LoginResponse.dto.ts";
 import type { MeResponseDTO } from "../DTOs/auth/MeResponse.dto.ts";
+import type { ChangePasswordResponseDTO } from "../DTOs/auth/ChangePasswordResponse.dto.ts";
 
 const COOKIE_OPTIONS = {
   maxAge: Config.COOKIE_MAX_AGE,
@@ -117,5 +118,13 @@ export const changePassword = async (req: Request, res: Response) => {
 
   res.cookie(Config.COOKIE_NAME, sessionToken, COOKIE_OPTIONS);
 
-  return res.status(200).json(updated);
+  const response: ChangePasswordResponseDTO = {
+    id: updated.id,
+    name: updated.name,
+    email: updated.email,
+    role: updated.role,
+    mustChangePassword: false,
+  };
+
+  return res.status(200).json(response);
 };
