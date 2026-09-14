@@ -6,16 +6,37 @@ import { createRequestPayloadSchema, listRequestsQuerySchema } from "./requests.
 import * as service from "./requests.service.ts";
 
 export const getRequestsByProtocol = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const foundRequest = await service.findRequest(protocol);
+
+  return res.status(200).json(foundRequest);
+};
+
+// Consulta administrativa/interna (issue #48) — difere de getRequestsByProtocol
+// (pública, issue #34): exige autenticação e perfil interno (ver
+// requests.router.ts) e retorna o DTO interno completo (RequestInternalDetailDTO).
+export const getInternalRequestByProtocol = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const request = await service.findInternalByProtocol(protocol);
+
+  return res.status(200).json(request);
+};
+
+/** Valida e devolve `req.params.protocol` — comum aos dois handlers da rota. */
+function assertProtocolParam(req: Request): string {
   const protocol = req.params.protocol as string;
 
   if (!protocol || typeof protocol !== "string" || protocol.trim() === "") {
     throw new AppError("Protocolo é obrigatório", 400);
   }
 
-  const foundRequest = await service.findRequest(protocol);
-
-  return res.status(200).json(foundRequest);
-};
+  return protocol.trim();
+}
 
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
   const payloadPart: unknown = req.body?.payload;
