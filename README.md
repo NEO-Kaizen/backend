@@ -251,6 +251,7 @@ Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento se
   ```
 - Resposta `404 Not Found`: protocolo não encontrado.
 
+
 ### Fila de atendimento
 
 #### GET /queue/metrics
@@ -325,6 +326,20 @@ Resposta `200 OK`:
 - Os valores válidos para `status` incluem: `Solicitação enviada`, `Aguardando triagem`, `Em triagem`, `Pendente de informações`, `Aguardando mapeamento`, `Mapeamento agendado`, `Em mapeamento`, `Em análise de viabilidade`, `Elegível`, `Não elegível`, `Priorizado`, `Backlog`, `Direcionado para outra área`, `Em desenvolvimento`, `Em homologação`, `Concluído` e `Cancelado`.
 - Os valores válidos para `priority` incluem: `Baixa`, `Média`, `Alta` e `Crítica`.
 - Se `page` ou `pageSize` estiverem ausentes ou inválidos, a API retorna `400 Bad Request` com detalhes dos parâmetros inválidos.
+
+#### GET /requests/:protocol/internal
+
+Consulta administrativa/interna de uma solicitação pelo protocolo — exige
+autenticação (cookie de sessão). Retorna os 4 blocos completos do cadastro
+(`requester`, `demand`, `operational`, `complementary`), status, prioridade
+(`prioritization.score`/`maxScore`/`label`), responsável, anexos, preferências
+de horário e `internalObservations`. Contrato completo e comparação com a
+consulta pública (`GET /requests/:protocol`, acima) em
+[`docs/requests-internal-query-contract.md`](docs/requests-internal-query-contract.md).
+
+- Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
+- Resposta `404 Not Found`: protocolo inexistente.
+
 
 ## Scripts
 

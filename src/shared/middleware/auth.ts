@@ -44,7 +44,14 @@ export async function authMiddleware(
 
     const scope = payload.scope ?? "session";
 
-    if (userState.must_change_password && scope !== "change_password") {
+    // Quem está com a senha pendente de troca só pode acessar a PRÓPRIA
+    // rota de troca (`PUT /auth/change-password`). Qualquer outra rota —
+    // inclusive administrativas — é bloqueada até que a troca seja
+    // concluída.
+    const isPasswordChangeRoute =
+      req.originalUrl.split("?")[0] === "/auth/change-password";
+
+    if (userState.must_change_password && !isPasswordChangeRoute) {
       next(new AppError("Troca de senha obrigatória antes de continuar", 403));
       return;
     }
@@ -56,7 +63,7 @@ export async function authMiddleware(
     const currentPasswordChangedAt = userState.password_changed_at.getTime();
 
     if (tokenPasswordChangedAt !== currentPasswordChangedAt) {
-      next(new AppError("Token inválido ou expirado", 401));
+      next(new AppError("Sua sessão foi revogada. Faça login novamente.", 401));
       return;
     }
 
