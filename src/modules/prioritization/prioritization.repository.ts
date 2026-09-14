@@ -1,11 +1,17 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import { canonicalJson } from "../../shared/utils/json.ts";
 import type {
   Classification,
   CriterionRow,
   EvaluationRow,
   PriorityRangeRow,
 } from "../../shared/types/prioritization.ts";
+
+/** Coluna DECIMAL do pg retorna string — normaliza para number uma vez (M1). */
+function normalizeRow(row: EvaluationRow): EvaluationRow {
+  return { ...row, score: Number(row.score) };
+}
 
 export async function findRequestByProtocol(protocol: string): Promise<boolean> {
   const row = await db("requests").where({ protocol }).first("protocol");
@@ -22,14 +28,23 @@ export async function findRangeByScore(score: number): Promise<PriorityRangeRow 
   return db("priorities")
     .where("min_score", "<=", scoreRounded)
     .andWhere("max_score", ">=", scoreRounded)
+    .orderBy("min_score", "asc")
     .first();
 }
 
-/** Última avaliação (estado atual) de um protocolo — nulo na 1ª avaliação. */
-export async function findCurrentEvaluation(
+/**
+ * Última avaliação (estado atual) de um protocolo — nulo na 1ª avaliação.
+ *
+ * `FOR SHARE` na mesma transação do upsert: sob `READ COMMITTED`, a leitura é
+ * reavaliada após o wait do lock e enxerga o valor commitado pela transação
+ * concorrente — evita trilha de auditoria falsa em avaliações simultâneas.
+ */
+export async function findCurrentEvaluationForShare(
+  trx: Knex.Transaction,
   protocol: string,
 ): Promise<EvaluationRow | undefined> {
-  return db("prioritization_evaluations").where({ protocol }).first();
+  const row = await trx("prioritization_evaluations").where({ protocol }).forShare().first();
+  return row ? normalizeRow(row) : undefined;
 }
 
 /** Upsert do estado atual, dentro da transação fornecida. */
@@ -45,7 +60,7 @@ export async function upsertEvaluation(
 ): Promise<EvaluationRow> {
   const data = {
     protocol: evaluation.protocol,
-    notes: JSON.stringify(evaluation.notes),
+    notes: canonicalJson(evaluation.notes),
     score: evaluation.score,
     classification: evaluation.classification,
     calculated_by: evaluation.calculatedBy,
@@ -63,5 +78,5 @@ export async function upsertEvaluation(
   if (!row) {
     throw new Error("Falha ao salvar a avaliação.");
   }
-  return row;
+  return normalizeRow(row);
 }
