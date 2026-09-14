@@ -47,12 +47,15 @@ export async function authMiddleware(
     const scope = payload.scope ?? "session";
 
     // Quem está com a senha pendente de troca só pode acessar a PRÓPRIA
-    // rota de troca (`PUT /auth/change-password`). Qualquer outra rota —
-    // inclusive administrativas — é bloqueada até que a troca seja
-    // concluída.
-    const isPasswordChangeRoute = req.originalUrl.split("?")[0] === "/auth/change-password";
+    // rota de troca (`PUT /auth/change-password`) e a de consulta de sessão
+    // (`GET /auth/me`, que expõe `mustChangePassword` para o frontend exibir
+    // a tela de troca). Qualquer outra rota — inclusive administrativas — é
+    // bloqueada até que a troca seja concluída.
+    const isPendingChangeAllowedRoute =
+      req.originalUrl.split("?")[0] === "/auth/change-password" ||
+      req.originalUrl.split("?")[0] === "/auth/me";
 
-    if (userState.must_change_password && !isPasswordChangeRoute) {
+    if (userState.must_change_password && !isPendingChangeAllowedRoute) {
       next(new AppError("Troca de senha obrigatória antes de continuar", 403));
       return;
     }
