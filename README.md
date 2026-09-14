@@ -251,6 +251,81 @@ Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento se
   ```
 - Resposta `404 Not Found`: protocolo não encontrado.
 
+### Fila de atendimento
+
+#### GET /queue/metrics
+
+Endpoint protegido por autenticação que retorna as métricas consolidadas da fila de atendimento.
+
+- Requer autenticação via JWT (`authMiddleware`)
+- Resposta `200 OK`:
+
+  ```json
+  {
+    "totalRequests": 128,
+    "unassignedRequests": 31,
+    "inProgressRequests": 54,
+    "overdueRequests": 9
+  }
+  ```
+
+- `totalRequests`: total de solicitações no sistema.
+- `unassignedRequests`: solicitações sem profissional atribuído.
+- `inProgressRequests`: solicitações nos status em andamento (`Em triagem`, `Em mapeamento`, `Em análise de viabilidade`, `Em desenvolvimento`, `Em homologação`).
+- `overdueRequests`: solicitações com `desired_deadline` vencido e status diferente de `Concluído`/`Cancelado`.
+
+#### GET /queue
+
+Endpoint protegido por autenticação que centraliza a listagem da fila com paginação, busca e filtros.
+
+Query params aceitos:
+
+- `page` (obrigatório, inteiro >= 1)
+- `pageSize` (obrigatório, inteiro entre 1 e 100)
+- `search` (opcional): busca por protocolo, e-mail corporativo ou nome do solicitante
+- `status` (opcional): valor exato de um status válido, como `Em triagem`, `Em desenvolvimento` ou `Concluído`
+- `priority` (opcional): valor exato de prioridade, como `Baixa`, `Média`, `Alta` ou `Crítica`
+- `assigneeId` (opcional): identificador do profissional ou `unassigned`
+- `unassigned` (opcional): `true` para listar apenas solicitações sem responsável
+
+Exemplo:
+
+```http
+GET /queue?page=1&pageSize=10&status=Em%20triagem&priority=Alta&assigneeId=unassigned
+```
+
+Resposta `200 OK`:
+
+```json
+{
+  "data": [
+    {
+      "protocol": "MAAT-8K3P-9X2M",
+      "createdAt": "2026-08-25T14:03:11.000Z",
+      "processName": "Conciliação bancária mensal",
+      "priority": "Alta",
+      "status": "Em triagem",
+      "assignee": "Fernando Alves",
+      "requesterName": "Maria Oliveira",
+      "requesterEmail": "maria.oliveira@instituicao.gov.br",
+      "assigneeId": "45"
+    }
+  ],
+  "page": 1,
+  "pageSize": 10,
+  "total": 42,
+  "totalPages": 5,
+  "assignees": [
+    { "id": "12", "name": "Fernando Alves" },
+    { "id": "27", "name": "Patrícia Gomes" }
+  ]
+}
+```
+
+- Os valores válidos para `status` incluem: `Solicitação enviada`, `Aguardando triagem`, `Em triagem`, `Pendente de informações`, `Aguardando mapeamento`, `Mapeamento agendado`, `Em mapeamento`, `Em análise de viabilidade`, `Elegível`, `Não elegível`, `Priorizado`, `Backlog`, `Direcionado para outra área`, `Em desenvolvimento`, `Em homologação`, `Concluído` e `Cancelado`.
+- Os valores válidos para `priority` incluem: `Baixa`, `Média`, `Alta` e `Crítica`.
+- Se `page` ou `pageSize` estiverem ausentes ou inválidos, a API retorna `400 Bad Request` com detalhes dos parâmetros inválidos.
+
 ## Scripts
 
 | Comando                               | Descrição                                       |
