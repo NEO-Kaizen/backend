@@ -1,16 +1,26 @@
-import { findQueueRequests, fetchQueueMetrics, fetchAllAssignees } from './queue.repository.ts';
-import type { QueueQuery, QueueResponse, QueueMetricsResponse } from '../../shared/types/queue.types.ts';
+import { findQueueRequests, fetchQueueMetrics, fetchAllAssignees } from "./queue.repository.ts";
+import type {
+  QueueQuery,
+  QueueResponse,
+  QueueMetricsResponse,
+} from "../../shared/types/queue.types.ts";
 
-export const getQueueMetricsService = async () : Promise<QueueMetricsResponse> => {
+export const getQueueMetricsService = async (): Promise<QueueMetricsResponse> => {
   return await fetchQueueMetrics();
+};
+
+/** Serializa `created_at` (vem como `Date` do pg ou string) em ISO para o contrato. */
+function toIso(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
 export const listQueueService = async (filters: QueueQuery): Promise<QueueResponse> => {
   const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
   const offset = (page - 1) * pageSize;
 
-  const repoUnassigned = unassigned || assigneeId === 'unassigned';
-  const repoAssigneeId = typeof assigneeId === 'string' && assigneeId !== 'unassigned' ? assigneeId : undefined;
+  const repoUnassigned = Boolean(unassigned || assigneeId === "unassigned");
+  const repoAssigneeId =
+    typeof assigneeId === "string" && assigneeId !== "unassigned" ? assigneeId : undefined;
 
   const [{ items, total }, assignees] = await Promise.all([
     findQueueRequests({
@@ -25,11 +35,14 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
     fetchAllAssignees(),
   ]);
 
-  const totalPages = Math.ceil(total / pageSize) || 0;
+  const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
+  // Contrato de paginação (documentado no README): página além do limite é
+  // ajustada para a última página válida; sem resultados, a página é 1.
+  const effectivePage = totalPages === 0 ? 1 : Math.min(page, totalPages);
 
   const formattedData = items.map((item) => ({
     protocol: item.protocol,
-    createdAt: String(item.createdAt),
+    createdAt: toIso(item.createdAt),
     processName: item.processName,
     priority: item.priority,
     status: item.status,
@@ -39,16 +52,12 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
     assigneeId: item.assigneeId ?? null,
   }));
 
-  const effectivePage = page > totalPages && totalPages > 0 ? totalPages : page;
-
-  const response: QueueResponse = {
+  return {
     data: formattedData,
     page: effectivePage,
     pageSize,
     total,
     totalPages,
-    assignees: assignees.map((a) => ({ id: String(a.id), name: String(a.name) })),
+    assignees,
   };
-
-  return response;
 };
