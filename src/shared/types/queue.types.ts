@@ -1,6 +1,7 @@
-import type { RequestPriority, RequestStatus } from './requests.ts';
-import type { RequestSummary } from '../../modules/DTOs/requests/RequestResponse.dto.ts';
-import type {PaginatedResponse} from './pagination.ts';
+import type { RequestPriority, RequestStatus } from "./requests.ts";
+import type { RequestSummary } from "../../modules/DTOs/requests/RequestResponse.dto.ts";
+import type { PaginatedResponse } from "./pagination.ts";
+
 export interface QueueMetricsResponse {
   totalRequests: number;
   unassignedRequests: number;
@@ -8,20 +9,16 @@ export interface QueueMetricsResponse {
   overdueRequests: number;
 }
 
-export interface PaginationQuery {
-  page: number;
-  pageSize: number;
-}
-
-export interface QueueFilterQuery {
+/** Query completa aceita por `GET /queue` — validada por `queueQuerySchema`. */
+export interface QueueQuery {
   search?: string;
   status?: RequestStatus;
   priority?: RequestPriority;
-  assigneeId?: string | 'unassigned';
+  assigneeId?: string | "unassigned";
   unassigned?: boolean;
+  page: number;
+  pageSize: number;
 }
-
-export type QueueQuery = PaginationQuery & QueueFilterQuery;
 
 export interface QueueAssignee {
   id: string;
