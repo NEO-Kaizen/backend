@@ -276,6 +276,30 @@ Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento se
   ```
 - Resposta `404 Not Found`: protocolo não encontrado.
 
+#### GET /users/metrics
+
+Endpoint protegido por autenticação e restrito ao perfil `Administrador` que
+retorna as métricas consolidadas da base de usuários.
+
+- Requer cookie/JWT válido e perfil `Administrador`
+- Resposta `401 Unauthorized` sem sessão; `403 Forbidden` para perfil sem acesso
+- Resposta `200 OK`:
+
+  ```json
+  {
+    "totalUsers": 15,
+    "activeUsers": 13,
+    "pendingUsers": 3,
+    "adminUsers": 3
+  }
+  ```
+
+- `totalUsers`: total de usuários cadastrados.
+- `activeUsers`: usuários com conta ativa (`is_active = true`).
+- `pendingUsers`: usuários com troca de senha pendente
+  (`must_change_password = true` — senha temporária / primeiro acesso).
+- `adminUsers`: usuários vinculados ao perfil `administrador`.
+
 ### Fila de atendimento
 
 #### GET /queue/metrics

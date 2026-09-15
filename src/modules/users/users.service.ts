@@ -2,7 +2,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
-import type { UserRow } from "../../shared/types/user.ts";
+import type { UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type { Role } from "../../shared/types/role.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
@@ -59,6 +59,10 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
 
   return repository.listUsers(query);
 }
+
+export const getUserMetrics = async (): Promise<UserMetricsResponse> => {
+  return repository.fetchUserMetrics();
+};
 
 export async function createUser(
   payload: CreateUserRequest,

@@ -16,6 +16,12 @@ function actorUserId(req: Request): number {
   return id;
 }
 
+export const getUserMetrics = async (_req: Request, res: Response): Promise<Response> => {
+  const metrics = await service.getUserMetrics();
+
+  return res.status(200).json(metrics);
+};
+
 export const listUsers = async (req: Request, res: Response): Promise<Response> => {
   const parsed = listUsersQuerySchema.safeParse(req.query);
 
