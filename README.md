@@ -102,10 +102,11 @@ O projeto utiliza PostgreSQL como banco de dados e Knex para gerenciamento das m
 
 As variáveis necessárias para conexão estão documentadas no arquivo `.env.example`.
 
-A documentação da persistência utilizada para autenticação e para os pedidos está disponível em:
+A documentação da persistência (autenticação, pedidos e configuração global) está disponível em:
 
 - [Persistência para autenticação](docs/database/authentication-persistence.md)
 - [Persistência dos pedidos (solicitações)](docs/database/requests-persistence.md)
+- [Persistência da configuração global](docs/database/system-settings-persistence.md)
 
 As migrations e os seeds podem ser executados após a configuração das credenciais do banco:
 
