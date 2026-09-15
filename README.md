@@ -300,6 +300,9 @@ retorna as métricas consolidadas da base de usuários.
   (`must_change_password = true` — senha temporária / primeiro acesso).
 - `adminUsers`: usuários vinculados ao perfil `administrador`.
 
+Contrato completo (tipos, exemplos de erro e regras de contagem) em
+[`docs/users-api-metrics-0_1.md`](docs/users-api-metrics-0_1.md).
+
 ### Fila de atendimento
 
 #### GET /queue/metrics
