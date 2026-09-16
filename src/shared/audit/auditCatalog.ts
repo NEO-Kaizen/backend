@@ -19,6 +19,10 @@ export const auditCatalog = {
     label: "Priorização",
     actions: ["evaluate"],
   },
+  settings: {
+    label: "Configuração do portal",
+    actions: ["update"],
+  },
   // Futuras entidades entram aqui:
   // request: {
   //   label: "Solicitações",
