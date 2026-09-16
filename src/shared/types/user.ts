@@ -30,3 +30,11 @@ export interface AuthUserRow extends UserRow {
   profile_name: string;
   profile_is_active: boolean;
 }
+
+/** Métricas consolidadas da base de usuários — retorno de `GET /users/metrics`. */
+export interface UserMetricsResponse {
+  totalUsers: number;
+  activeUsers: number;
+  pendingUsers: number;
+  adminUsers: number;
+}

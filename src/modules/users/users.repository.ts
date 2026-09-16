@@ -2,7 +2,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
-import type { AuthUserRow, UserRow } from "../../shared/types/user.ts";
+import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type { CreateUserRequest, ListUsersQuery } from "../DTOs/users/UserRequests.dto.ts";
 import type { UserSummary } from "../DTOs/users/UserResponse.dto.ts";
@@ -156,3 +156,23 @@ export async function setTemporaryPassword(
     throw new AppError("Usuário não encontrado", 404);
   }
 }
+
+/** Métricas consolidadas da base de usuários — leitura simples, sem transação. */
+export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
+  const result = await db("users as u")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .select(
+      db.raw('COUNT(u.*)::int as "totalUsers"'),
+      db.raw('COUNT(CASE WHEN u.is_active THEN 1 END)::int as "activeUsers"'),
+      db.raw('COUNT(CASE WHEN u.must_change_password THEN 1 END)::int as "pendingUsers"'),
+      db.raw("COUNT(CASE WHEN p.name = 'administrador' THEN 1 END)::int as \"adminUsers\""),
+    )
+    .first();
+
+  return {
+    totalUsers: result?.totalUsers ?? 0,
+    activeUsers: result?.activeUsers ?? 0,
+    pendingUsers: result?.pendingUsers ?? 0,
+    adminUsers: result?.adminUsers ?? 0,
+  };
+};
