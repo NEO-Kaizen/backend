@@ -59,10 +59,15 @@ erDiagram
         portal_solicitation_mode solicitation_mode
         varchar protocol_mask
         smallint theme_id FK
-        varchar logo_url
-        varchar avatar_url
-        varchar favicon_url
-        varchar login_image_url
+        varchar logo_light_url
+        varchar logo_dark_url
+        boolean logo_use_primary_color
+        varchar avatar_light_url
+        varchar avatar_dark_url
+        varchar login_image_light_url
+        varchar login_image_dark_url
+        varchar favicon_light_url
+        varchar favicon_dark_url
         integer updated_by FK
         timestamptz created_at
         timestamptz updated_at
@@ -103,20 +108,25 @@ Possui exatamente uma linha (singleton via `PRIMARY KEY` + `CHECK
 
 ### Estrutura
 
-| Campo               | Tipo                            | Obrigatório | Restrição / Default                        | Finalidade                              |
-| ------------------- | ------------------------------- | ----------- | ------------------------------------------ | --------------------------------------- |
-| `settings_id`       | SMALLINT                        | Sim         | PK; `DEFAULT 1`; CHECK `= 1`               | Chave do singleton                      |
-| `platform_name`     | VARCHAR(80)                     | Sim         | Default `'MAAT'`                           | Nome exibido da plataforma              |
-| `solicitation_mode` | ENUM `portal_solicitation_mode` | Sim         | `PUBLIC`/`AUTHENTICATED`; default `PUBLIC` | Modo de abertura do portal              |
-| `protocol_mask`     | VARCHAR(10)                     | Sim         | Default `'MAAT'`                           | Máscara dos protocolos                  |
-| `theme_id`          | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Tema vigente (tabela própria)           |
-| `logo_url`          | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho relativo do logo vigente    |
-| `avatar_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho relativo do avatar vigente  |
-| `favicon_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho relativo do favicon         |
-| `login_image_url`   | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho relativo da imagem de login |
-| `updated_by`        | INTEGER                         | Não         | FK → `users.user_id`, `ON DELETE SET NULL` | Usuário/admin que alterou               |
-| `created_at`        | TIMESTAMPTZ                     | Sim         | DEFAULT `CURRENT_TIMESTAMP`                | Criação do registro                     |
-| `updated_at`        | TIMESTAMPTZ                     | Não         | NULL até a primeira atualização            | Última atualização                      |
+| Campo                    | Tipo                            | Obrigatório | Restrição / Default                        | Finalidade                                     |
+| ------------------------ | ------------------------------- | ----------- | ------------------------------------------ | ---------------------------------------------- |
+| `settings_id`            | SMALLINT                        | Sim         | PK; `DEFAULT 1`; CHECK `= 1`               | Chave do singleton                             |
+| `platform_name`          | VARCHAR(80)                     | Sim         | Default `'MAAT'`                           | Nome exibido da plataforma                     |
+| `solicitation_mode`      | ENUM `portal_solicitation_mode` | Sim         | `PUBLIC`/`AUTHENTICATED`; default `PUBLIC` | Modo de abertura do portal                     |
+| `protocol_mask`          | VARCHAR(10)                     | Sim         | Default `'MAAT'`                           | Máscara dos protocolos                         |
+| `theme_id`               | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Tema vigente (tabela própria)                  |
+| `logo_light_url`         | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema claro)               |
+| `logo_dark_url`          | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema escuro)              |
+| `logo_use_primary_color` | BOOLEAN                         | Sim         | Default `false`                            | Logo renderizado monocromático na cor primária |
+| `avatar_light_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema claro)             |
+| `avatar_dark_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema escuro)            |
+| `login_image_light_url`  | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (claro)         |
+| `login_image_dark_url`   | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (escuro)        |
+| `favicon_light_url`      | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema claro)            |
+| `favicon_dark_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema escuro)           |
+| `updated_by`             | INTEGER                         | Não         | FK → `users.user_id`, `ON DELETE SET NULL` | Usuário/admin que alterou                      |
+| `created_at`             | TIMESTAMPTZ                     | Sim         | DEFAULT `CURRENT_TIMESTAMP`                | Criação do registro                            |
+| `updated_at`             | TIMESTAMPTZ                     | Não         | NULL até a primeira atualização            | Última atualização                             |
 
 ## Tabela `system_themes`
 
@@ -237,8 +247,54 @@ WHERE theme_id = 1;
 
 -- resto do config (system_settings)
 UPDATE system_settings SET
-  favicon_url = '/assets/favicon.svg',
+  logo_dark_url = '/assets/MAAT-logo-dark.svg',
+  logo_use_primary_color = true,
   updated_by = 102,
   updated_at = now()
 WHERE settings_id = 1;
 ```
+
+## Fluxo dos PATCH (`/portal-config/*`)
+
+Implementação: `src/modules/portalConfig/*` (issue #59). Cada `PATCH` por seção
+opera em transação própria com lock do singleton:
+
+- **`access` / `identity` / `assets`** → `UPDATE system_settings`
+  (`solicitation_mode`, `platform_name`/`protocol_mask`, ou as 8 variantes de
+  asset + `logo_use_primary_color`)
+  - bloco `system_settings` com `FOR UPDATE`.
+- **`theme`** → `themeToColumns(light/dark)` transforma o `PortalTheme` do
+  contrato nas colunas planas de `system_themes` (~66 colunas) e faz `UPDATE`
+  atômico, com `FOR UPDATE` também em `system_themes`; `themeFromRow` faz o
+  caminho inverso no `GET` (aplica defaults do contrato quando a coluna é NULL).
+  O mapeamento bidirecional vive em `portalConfig.mappers.ts`
+  (`TOKEN_TO_COLUMN`/`statusColumns`).
+- **`categories`** → upsert por `category_id` (aceita id novo gerado pelo
+  cliente), `display_order` = índice do array; itens ausentes tornam-se
+  `status = 'inactive'` (sem hard delete — FK RESTRICT em `requests`).
+  Seguido de `setval` para não colidir com a sequence.
+- **`statuses`** → upsert por `status_id`, `order_number` = índice,
+  `visibility`/`closes_request`/`tone`; ausentes viram `is_active = false`;
+  `is_final` é sincronizado com `closes_request` (decisão §8.5). Nomes
+  protegidos (referenciados no código) não podem ser renomeados/removidos.
+- **`prioritization-weights`** → mapeia as 10 chaves do contrato (EN) para
+  `criteria.criterion_id` (pt snake) via `src/shared/types/criteria.ts`
+  (`CRITERION_KEY_TO_ID`) e grava `criteria.weight` (inteiro 0–10, decisão
+  §8.3; CHECK `ck_criteria_weight_range`).
+
+Todos os PATCH registram auditoria (`audit_history`, entidade `settings`,
+ação `settings.update`) na MESMA transação da alteração, com `FOR UPDATE` no
+singleton para serializar escritas administrativas concorrentes.
+
+### Assets binários (multipart)
+
+`PATCH /portal-config/assets` é `multipart/form-data`: binários nomeados por
+chave de variante (`logoLightUrl`, `logoDarkUrl`, `avatarLightUrl`,
+`avatarDarkUrl`, `loginImageLightUrl`, `loginImageDarkUrl`, `faviconLightUrl`,
+`faviconDarkUrl`) são gravados em `uploads/portal/` via `fileStorage.saveFiles`
+e a URL relativa (`/uploads/portal/{variant}-{uuid}.{ext}`) persiste em
+`system_settings`; chaves presentes no JSON `assets` definem a URL diretamente
+e o flag `logoUsePrimaryColor` atualiza a coluna `logo_use_primary_color`.
+Validação por chave (MIME/extensão/tamanho) em
+`src/shared/middleware/uploadAssets.ts` (413/415). Em falha após gravar
+binários, `removeFiles` limpa o disco.
