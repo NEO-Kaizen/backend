@@ -11,7 +11,7 @@ export type PortalSolicitationMode = "PUBLIC" | "AUTHENTICATED";
  * Mantém APENAS o que não vive em tabela própria:
  * - identity (`platform_name`/`protocol_mask`) e access (`solicitation_mode`);
  * - temas: FK `theme_id` → `system_themes` (ver `SystemThemeRow`);
- * - assets (`logo_url`, `avatar_url`, `favicon_url`, `login_image_url`);
+ * - assets (8 variantes claro/escuro + flag `logo_use_primary_color`);
  * - `categories`, `statuses` e `prioritizationWeights` ficam nas tabelas
  *   próprias (`categories`, `statuses`, `criteria`).
  */
@@ -21,10 +21,15 @@ export interface SystemSettingsRow {
   solicitation_mode: PortalSolicitationMode;
   protocol_mask: string;
   theme_id: number | null;
-  logo_url: string | null;
-  avatar_url: string | null;
-  favicon_url: string | null;
-  login_image_url: string | null;
+  logo_light_url: string | null;
+  logo_dark_url: string | null;
+  logo_use_primary_color: boolean;
+  avatar_light_url: string | null;
+  avatar_dark_url: string | null;
+  login_image_light_url: string | null;
+  login_image_dark_url: string | null;
+  favicon_light_url: string | null;
+  favicon_dark_url: string | null;
   updated_by: number | null;
   created_at: Date;
   updated_at: Date | null;
