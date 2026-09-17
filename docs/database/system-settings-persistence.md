@@ -108,25 +108,25 @@ Possui exatamente uma linha (singleton via `PRIMARY KEY` + `CHECK
 
 ### Estrutura
 
-| Campo                    | Tipo                            | Obrigatório | Restrição / Default                        | Finalidade                                     |
-| ------------------------ | ------------------------------- | ----------- | ------------------------------------------ | ---------------------------------------------- |
-| `settings_id`            | SMALLINT                        | Sim         | PK; `DEFAULT 1`; CHECK `= 1`               | Chave do singleton                             |
-| `platform_name`          | VARCHAR(80)                     | Sim         | Default `'MAAT'`                           | Nome exibido da plataforma                     |
-| `solicitation_mode`      | ENUM `portal_solicitation_mode` | Sim         | `PUBLIC`/`AUTHENTICATED`; default `PUBLIC` | Modo de abertura do portal                     |
-| `protocol_mask`          | VARCHAR(10)                     | Sim         | Default `'MAAT'`                           | Máscara dos protocolos                         |
-| `theme_id`               | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Tema vigente (tabela própria)                  |
-| `logo_light_url`         | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema claro)               |
-| `logo_dark_url`          | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema escuro)              |
-| `logo_use_primary_color` | BOOLEAN                         | Sim         | Default `false`                            | Logo renderizado monocromático na cor primária |
-| `avatar_light_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema claro)             |
-| `avatar_dark_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema escuro)            |
-| `login_image_light_url`  | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (claro)         |
-| `login_image_dark_url`   | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (escuro)        |
-| `favicon_light_url`      | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema claro)            |
-| `favicon_dark_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema escuro)           |
-| `updated_by`             | INTEGER                         | Não         | FK → `users.user_id`, `ON DELETE SET NULL` | Usuário/admin que alterou                      |
-| `created_at`             | TIMESTAMPTZ                     | Sim         | DEFAULT `CURRENT_TIMESTAMP`                | Criação do registro                            |
-| `updated_at`             | TIMESTAMPTZ                     | Não         | NULL até a primeira atualização            | Última atualização                             |
+| Campo                    | Tipo                            | Obrigatório | Restrição / Default                        | Finalidade                                                                          |
+| ------------------------ | ------------------------------- | ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `settings_id`            | SMALLINT                        | Sim         | PK; `DEFAULT 1`; CHECK `= 1`               | Chave do singleton                                                                  |
+| `platform_name`          | VARCHAR(80)                     | Sim         | Default `'MAAT'`                           | Nome exibido da plataforma                                                          |
+| `solicitation_mode`      | ENUM `portal_solicitation_mode` | Sim         | `PUBLIC`/`AUTHENTICATED`; default `PUBLIC` | Modo de abertura do portal (efetivo nas rotas de solicitação — `requireAccessMode`) |
+| `protocol_mask`          | VARCHAR(10)                     | Sim         | Default `'MAAT'`                           | Máscara dos protocolos                                                              |
+| `theme_id`               | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Tema vigente (tabela própria)                                                       |
+| `logo_light_url`         | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema claro)                                                    |
+| `logo_dark_url`          | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema escuro)                                                   |
+| `logo_use_primary_color` | BOOLEAN                         | Sim         | Default `false`                            | Logo renderizado monocromático na cor primária                                      |
+| `avatar_light_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema claro)                                                  |
+| `avatar_dark_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema escuro)                                                 |
+| `login_image_light_url`  | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (claro)                                              |
+| `login_image_dark_url`   | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (escuro)                                             |
+| `favicon_light_url`      | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema claro)                                                 |
+| `favicon_dark_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema escuro)                                                |
+| `updated_by`             | INTEGER                         | Não         | FK → `users.user_id`, `ON DELETE SET NULL` | Usuário/admin que alterou                                                           |
+| `created_at`             | TIMESTAMPTZ                     | Sim         | DEFAULT `CURRENT_TIMESTAMP`                | Criação do registro                                                                 |
+| `updated_at`             | TIMESTAMPTZ                     | Não         | NULL até a primeira atualização            | Última atualização                                                                  |
 
 ## Tabela `system_themes`
 
@@ -285,6 +285,12 @@ opera em transação própria com lock do singleton:
 Todos os PATCH registram auditoria (`audit_history`, entidade `settings`,
 ação `settings.update`) na MESMA transação da alteração, com `FOR UPDATE` no
 singleton para serializar escritas administrativas concorrentes.
+
+> `solicitation_mode` é lido a cada request pelo guard `requireAccessMode()`
+> (`src/shared/middleware/accessMode.ts`), então a alteração via `PATCH access`
+> passa a valer imediatamente para `POST /requests`, `GET /requests` e
+> `GET /requests/:protocol` — sem cache/restart. Comportamento por modo em
+> `docs/solicitations-api-requests-0_4.md` (seção 0).
 
 ### Assets binários (multipart)
 

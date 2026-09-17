@@ -206,9 +206,32 @@ Retorna a sessão atual a partir do cookie de sessão HttpOnly. Valida o JWT e r
 
 ### Solicitações
 
+As rotas de solicitação (`POST /requests`, `GET /requests` e
+`GET /requests/:protocol`) respeitam o **modo de abertura do portal**
+(`system_settings.solicitation_mode`, definido em
+`PATCH /portal-config/access`):
+
+- **`PUBLIC`** (default): comportamento público — sem autenticação, como
+  descrito abaixo.
+- **`AUTHENTICATED`**: exige cookie de sessão válido nas três rotas (`401`
+  sem sessão). Além disso, o acesso passa a ser escopado à identidade da
+  sessão:
+  - `POST /requests` sobrescreve `requester.fullName`/`requester.corporateEmail`
+    com o cadastro do usuário logado (evita spoofing). Os campos seguem
+    obrigatórios no payload (validação), mas não definem a identidade gravada;
+    o vínculo é registrado em `requests.requester_user_id`.
+  - `GET /requests` lista somente as solicitações do e-mail da sessão e
+    **recusa** o parâmetro `?email=` com `400`.
+  - `GET /requests/:protocol` retorna `404` para protocolos que não
+    pertencem ao usuário logado (não revela a existência de terceiros).
+
 #### POST /requests
 
-Endpoint público (sem autenticação) que cadastra uma solicitação, gera o protocolo e persiste os blocos do formulário, as preferências de horário e os anexos.
+Endpoint de cadastro de solicitação (gera o protocolo e persiste os blocos do
+formulário, as preferências de horário e os anexos). Público no modo `PUBLIC`;
+no modo `AUTHENTICATED` exige sessão e a identidade é resolvida pelo cadastro do
+usuário logado (campos de identidade do payload são validados, porém
+sobrescritos).
 
 - Content-Type: `multipart/form-data`
 - Parte `payload` (texto): `JSON.stringify` de `{ requester, demand, operational, complementary?, schedulePreferences? }`.
@@ -228,9 +251,12 @@ Endpoint público (sem autenticação) que cadastra uma solicitação, gera o pr
 
 #### GET /requests
 
-Endpoint público (sem autenticação) que lista as solicitações vinculadas ao e-mail de um solicitante, com dados resumidos. O e-mail informado é normalizado para minúsculas antes da consulta.
+Lista as solicitações vinculadas a um e-mail de solicitante, com dados
+resumidos. Público no modo `PUBLIC` (o e-mail vem da query); no modo
+`AUTHENTICATED` exige sessão, lista apenas o e-mail da sessão e recusa `?email=`
+com `400`. O e-mail é normalizado para minúsculas antes da consulta.
 
-- Query: `?email=maria.oliveira@instituicao.gov.br` (obrigatório)
+- Query (somente no modo `PUBLIC`): `?email=maria.oliveira@instituicao.gov.br` (obrigatório)
 - Resposta `200 OK`: array ordenado da solicitação mais recente para a mais antiga; retorna array vazio quando não há solicitações para o e-mail (sem revelar se o e-mail existe no sistema).
 
   ```json
@@ -249,7 +275,9 @@ Endpoint público (sem autenticação) que lista as solicitações vinculadas ao
 
 #### GET /requests/:protocol
 
-Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento sem autenticação).
+Consulta da solicitação pelo protocolo de rastreio. Público no modo `PUBLIC`
+(acompanhamento sem autenticação); no modo `AUTHENTICATED` exige sessão e
+retorna `404` quando o protocolo não pertence ao usuário logado.
 
 - Body: nenhum
 - Exemplo: `GET /requests/MAAT-8K3P-9X2M`
@@ -408,6 +436,8 @@ exigem Administrador. Contrato e scripts de teste em
 
 - `GET /portal-config` — config consolidada (público)
 - `PATCH /portal-config/access` — modo de acesso (`PUBLIC`/`AUTHENTICATED`)
+  — passa a valer imediatamente nas rotas de solicitação (ver
+  [Solicitações](#solicitações))
 - `PATCH /portal-config/identity` — nome da plataforma + máscara do protocolo
 - `PATCH /portal-config/theme` — tema light/dark completos (atômico)
 - `PATCH /portal-config/assets` — assets (multipart; URL direta ou binário)
