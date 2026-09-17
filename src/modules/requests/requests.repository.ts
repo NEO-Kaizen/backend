@@ -114,6 +114,7 @@ async function insertRequest(
   requesterId: string,
   categoryId: number,
   statusId: number,
+  requesterUserId: number | null,
   trx: Knex.Transaction,
 ): Promise<RequestInsertReturning> {
   const email = request.requester.corporateEmail.trim().toLowerCase();
@@ -130,6 +131,9 @@ async function insertRequest(
       request_id: requestId,
       protocol: generateProtocol(requestId),
       requester_id: requesterId,
+      // Vínculo com o usuário autenticado (issue #53). Nulo em `PUBLIC` ou em
+      // solicitações anônimas — a coluna é nullable por design.
+      requester_user_id: requesterUserId,
       category_id: categoryId,
       status_id: statusId,
       priority_id: null,
@@ -233,6 +237,7 @@ async function saveAttachments(
 export async function createRequest(
   request: CreateRequestPayload,
   attachments: SavedAttachment[],
+  requesterUserId?: number,
 ): Promise<CreateRequestResponse> {
   return db.transaction(async (trx) => {
     const categoryId = await findActiveCategoryId(request.demand.category, trx);
@@ -242,7 +247,14 @@ export async function createRequest(
 
     const statusId = await findStatusId(INITIAL_STATUS, trx);
     const requesterId = await upsertRequester(request.requester, trx);
-    const saved = await insertRequest(request, requesterId, categoryId, statusId, trx);
+    const saved = await insertRequest(
+      request,
+      requesterId,
+      categoryId,
+      statusId,
+      requesterUserId ?? null,
+      trx,
+    );
     const email = request.requester.corporateEmail.trim().toLowerCase();
 
     await saveTimePreferences(saved.request_id, request.schedulePreferences, trx);
@@ -325,7 +337,15 @@ export async function findRequestsByRequesterEmail(
   };
 }
 
-export async function findRequestByProtocol(protocol: string): Promise<RequestDetail | null> {
+/** Detalhe público + e-mail do dono, para o owner-check da consulta. */
+export interface RequestWithOwner {
+  detail: RequestDetail;
+  requesterEmail: string;
+}
+
+export async function findRequestByProtocolWithOwner(
+  protocol: string,
+): Promise<RequestWithOwner | null> {
   const response = await db("requests as r")
     .leftJoin("requesters as requester", "requester.requester_id", "r.requester_id")
     .leftJoin("professionals as professional", "professional.professional_id", "r.professional_id")
@@ -343,6 +363,7 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
       "r.meeting_scheduled_for as meetingScheduledFor",
       "r.meeting_link as meetingLink",
       "r.last_external_update_at as lastUpdate",
+      "requester.corporate_email as requesterEmail",
     )
     .where("r.protocol", protocol)
     .first();
@@ -356,21 +377,24 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
   const openedAt = normalizeIsoDate(response.openedAt) ?? new Date().toISOString();
 
   return {
-    protocol: response.protocol,
-    demandTitle: response.demandTitle ?? "",
-    processName: response.processName ?? "",
-    status: response.status,
-    assigneeName: response.assigneeName ?? null,
-    openedAt,
-    estimatedCompletion: normalizeIsoDateOnly(response.estimatedCompletion),
-    mappingDate: meetingScheduledFor ? toSaoPauloDateOnly(meetingScheduledFor) : null,
-    meeting,
-    pendingIssues: [],
-    nextStep: response.nextSteps ?? "Aguarde o contato do analista",
-    lastTechnicalMessage: response.lastTechnicalMessage ?? null,
-    lastUpdate: normalizeIsoDate(response.lastUpdate) ?? openedAt,
-    conclusion: null,
-  } satisfies RequestDetail;
+    detail: {
+      protocol: response.protocol,
+      demandTitle: response.demandTitle ?? "",
+      processName: response.processName ?? "",
+      status: response.status,
+      assigneeName: response.assigneeName ?? null,
+      openedAt,
+      estimatedCompletion: normalizeIsoDateOnly(response.estimatedCompletion),
+      mappingDate: meetingScheduledFor ? toSaoPauloDateOnly(meetingScheduledFor) : null,
+      meeting,
+      pendingIssues: [],
+      nextStep: response.nextSteps ?? "Aguarde o contato do analista",
+      lastTechnicalMessage: response.lastTechnicalMessage ?? null,
+      lastUpdate: normalizeIsoDate(response.lastUpdate) ?? openedAt,
+      conclusion: null,
+    } satisfies RequestDetail,
+    requesterEmail: response.requesterEmail ?? "",
+  };
 }
 
 // --- Consulta administrativa/interna (issue #48) ---------------------------

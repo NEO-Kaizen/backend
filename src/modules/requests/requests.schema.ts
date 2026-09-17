@@ -127,3 +127,10 @@ export const listRequestsQuerySchema = z.object({
     .max(10, "Máximo de 10 itens por página.")
     .default(10),
 });
+
+/**
+ * `GET /requests` no modo `AUTHENTICATED`: o e-mail é resolvido pela sessão, então
+ * a query não aceita `email`. Qualquer `?email=` é recusado no controller com
+ * `400` — evitamos divergência silenciosa entre o filtro pedido e o aplicado.
+ */
+export const listAuthenticatedRequestsQuerySchema = listRequestsQuerySchema.omit({ email: true });
