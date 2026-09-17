@@ -127,3 +127,9 @@ export const listRequestsQuerySchema = z.object({
     .max(10, "Máximo de 10 itens por página.")
     .default(10),
 });
+
+export const assignRequestSchema = z.object({
+  professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable(),
+});
+
+export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;

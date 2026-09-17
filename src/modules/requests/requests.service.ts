@@ -5,7 +5,12 @@ import type {
   CreateRequestPayload,
   ListRequestsQuery,
 } from "../DTOs/requests/RequestRequests.dto.ts";
-import type { RequestDetail, RequestSummary } from "../DTOs/requests/RequestResponse.dto.ts";
+import type {
+  AssignRequestResponse,
+  AssigneeSummary,
+  RequestDetail,
+  RequestSummary,
+} from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
   ComplementaryBlock,
   RequestInternalDetailDTO,
@@ -19,6 +24,7 @@ import {
   toSaoPauloDateOnly,
 } from "../../shared/utils/date.ts";
 import * as repository from "./requests.repository.ts";
+import type { AssignRequestPayload } from "./requests.schema.ts";
 
 export async function findRequest(protocol: string): Promise<RequestDetail> {
   const normalizedProtocol = protocol.trim();
@@ -213,4 +219,31 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
     lastUpdate,
     internalObservations: request.internal_notes,
   };
+}
+
+export async function listAssignees(): Promise<AssigneeSummary[]> {
+  return repository.findActiveAssignees();
+}
+
+export async function assignResponsible(
+  protocol: string,
+  payload: AssignRequestPayload,
+  actorEmail: string,
+): Promise<AssignRequestResponse> {
+  const request = await repository.findRequestIdAndAssigneeByProtocol(protocol.trim());
+  if (!request) {
+    throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  let assignee: { id: string; name: string; email: string } | null = null;
+  if (payload.professionalId !== null) {
+    assignee = (await repository.findActiveProfessionalById(payload.professionalId)) ?? null;
+    if (!assignee) {
+      throw new AppError("Responsável inválido ou inativo.", 400);
+    }
+  }
+
+  await repository.updateAssignee(request.request_id, payload.professionalId, actorEmail);
+
+  return { protocol: request.protocol, assignee };
 }

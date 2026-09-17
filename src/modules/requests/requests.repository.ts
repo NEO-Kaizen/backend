@@ -21,6 +21,7 @@ import type {
 } from "../DTOs/requests/RequestRequests.dto.ts";
 import type { RequestDetail } from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
+  AssigneeSummary,
   CreateRequestResponse,
   RequestSummary,
 } from "../DTOs/requests/RequestResponse.dto.ts";
@@ -488,4 +489,41 @@ export async function findEvaluationByProtocol(
   // score é DECIMAL — o driver pg devolve string; normaliza aqui (mesmo
   // cuidado do prioritization.repository.ts da issue #51).
   return { score: Number(row.score), classification: row.classification };
+}
+
+export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
+  return db("details_professional as dp")
+    .join("users as u", "u.user_id", "dp.user_id")
+    .where("dp.status", "active")
+    .select({
+      id: "dp.professional_id",
+      name: "u.full_name",
+      email: "u.email",
+      jobTitle: "dp.job_title",
+      capacity: "dp.capacity",
+    })
+    .orderBy("u.full_name", "asc");
+}
+
+export async function findActiveProfessionalById(professionalId: string) {
+  return db("details_professional as dp")
+    .join("users as u", "u.user_id", "dp.user_id")
+    .where("dp.professional_id", professionalId)
+    .andWhere("dp.status", "active")
+    .first({ id: "dp.professional_id", name: "u.full_name", email: "u.email" });
+}
+
+export async function findRequestIdAndAssigneeByProtocol(protocol: string) {
+  return db("requests").where({ protocol }).first("request_id", "protocol", "professional_id");
+}
+
+/** Atualiza o responsável dentro da transação (atômico com a auditoria). */
+export async function updateAssignee(
+  requestId: string,
+  professionalId: string | null,
+  updatedBy: string,
+): Promise<void> {
+  await db("requests")
+    .where({ request_id: requestId })
+    .update({ professional_id: professionalId, updated_by: updatedBy, updated_at: db.fn.now() });
 }

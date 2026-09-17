@@ -7,11 +7,27 @@ import {
   getRequestsByEmail,
   getRequestsByProtocol,
   postRequest,
+  getAssignees,
+  patchAssignee,
 } from "./requests.controller.ts";
 
 const requestsRoutes = express.Router();
 
 requestsRoutes.get("/", getRequestsByEmail);
+requestsRoutes.get(
+  "/assignees",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  getAssignees,
+);
+
+requestsRoutes.patch(
+  "/:protocol/assignee",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  patchAssignee,
+);
+
 requestsRoutes.get("/:protocol", getRequestsByProtocol);
 requestsRoutes.get(
   "/:protocol/internal",
