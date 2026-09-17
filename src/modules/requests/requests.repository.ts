@@ -277,7 +277,12 @@ function baseSummaryQuery(query: ListRequestsQuery) {
     .join("requesters", "requesters.requester_id", "requests.requester_id")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
-    .leftJoin("professionals", "professionals.professional_id", "requests.professional_id")
+    .leftJoin(
+      "details_professional",
+      "details_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
     .where("requesters.corporate_email", query.email)
     .modify((builder) => {
       if (query.status) {
@@ -300,7 +305,7 @@ export async function findRequestsByRequesterEmail(
       process_name: "requests.process_name",
       priority: "priorities.level",
       status: "statuses.name",
-      assignee: "professionals.full_name",
+      assignee: "assignee_user.full_name",
       requester_name: "requesters.full_name",
       created_at: "requests.created_at",
     })
@@ -328,14 +333,19 @@ export async function findRequestsByRequesterEmail(
 export async function findRequestByProtocol(protocol: string): Promise<RequestDetail | null> {
   const response = await db("requests as r")
     .leftJoin("requesters as requester", "requester.requester_id", "r.requester_id")
-    .leftJoin("professionals as professional", "professional.professional_id", "r.professional_id")
+    .leftJoin(
+      "details_professional as professional",
+      "professional.professional_id",
+      "r.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "professional.user_id")
     .leftJoin("statuses as status", "status.status_id", "r.status_id")
     .select(
       "r.protocol as protocol",
       "r.title as demandTitle",
       "r.process_name as processName",
       "status.name as status",
-      "professional.full_name as assigneeName",
+      "assignee_user.full_name as assigneeName",
       "r.created_at as openedAt",
       "r.estimated_completion as estimatedCompletion",
       "r.next_steps as nextSteps",
@@ -382,7 +392,12 @@ export async function findInternalRequestByProtocol(protocol: string) {
     .leftJoin("categories", "categories.category_id", "requests.category_id")
     .leftJoin("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
-    .leftJoin("professionals", "professionals.professional_id", "requests.professional_id")
+    .leftJoin(
+      "details_professional",
+      "details_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
     .select(
       "requests.request_id",
       "requests.protocol",
@@ -425,8 +440,8 @@ export async function findInternalRequestByProtocol(protocol: string) {
       "categories.name as category",
       "statuses.name as status",
       "priorities.level as priority",
-      "professionals.full_name as professional_name",
-      "professionals.email as professional_email",
+      "assignee_user.full_name as professional_name",
+      "assignee_user.email as professional_email",
       "requesters.full_name as requester_name",
       "requesters.corporate_email as requester_email",
       "requesters.area as requester_area",
