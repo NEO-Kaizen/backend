@@ -406,6 +406,10 @@ export async function assignAnalyst(
       const auditPrev = previous
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
         : null;
+      const previousMapping = request.mapping_professional_id;
+      const auditPrevMapping = previousMapping
+        ? ((await repository.findAssignmentCandidateById(previousMapping))?.user_id ?? null)
+        : null;
       const action = auditPrev === null ? "assign" : "reassign";
       const shouldAdvance =
         request.status === RN010_FROM_STATUS &&
@@ -427,6 +431,22 @@ export async function assignAnalyst(
           note: ipAddress,
           changeOrigin: "admin",
         });
+        // Exclusividade: atribuir triagem desatribui mapeamento
+        if (previousMapping) {
+          await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
+          await recordAudit(trx, {
+            entityType: "request",
+            entityId: request.protocol,
+            actionType: "request.unassign",
+            userId: actor.id,
+            previousValue: auditPrevMapping ? String(auditPrevMapping) : null,
+            newValue: null,
+            note: ipAddress,
+            changeOrigin: "admin",
+          });
+        } else {
+          await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
+        }
         if (shouldAdvance) {
           await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
           await recordAudit(trx, {
@@ -471,6 +491,10 @@ export async function assignAnalyst(
       const auditPrev = previous
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
         : null;
+      const previousAssignee = request.professional_id;
+      const auditPrevAssignee = previousAssignee
+        ? ((await repository.findAssignmentCandidateById(previousAssignee))?.user_id ?? null)
+        : null;
       const action = auditPrev === null ? "assign" : "reassign";
       await db.transaction(async (trx) => {
         await repository.updateMappingAssignee(
@@ -489,6 +513,22 @@ export async function assignAnalyst(
           note: ipAddress,
           changeOrigin: "admin",
         });
+        // Exclusividade: atribuir mapeamento desatribui triagem
+        if (previousAssignee) {
+          await repository.updateAssignee(trx, request.request_id, null, actor.email);
+          await recordAudit(trx, {
+            entityType: "request",
+            entityId: request.protocol,
+            actionType: "request.unassign",
+            userId: actor.id,
+            previousValue: auditPrevAssignee ? String(auditPrevAssignee) : null,
+            newValue: null,
+            note: ipAddress,
+            changeOrigin: "admin",
+          });
+        } else {
+          await repository.updateAssignee(trx, request.request_id, null, actor.email);
+        }
       });
     }
   }
