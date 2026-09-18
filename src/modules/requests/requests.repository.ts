@@ -21,6 +21,10 @@ import type {
   CreateRequestPayload,
   ListRequestsQuery,
 } from "../DTOs/requests/RequestRequests.dto.ts";
+import type {
+  UpdateInternalRequestPayload,
+  UpdateRequesterBlock,
+} from "../DTOs/requests/RequestRequests.dto.ts";
 import type { RequestDetail } from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
   AssigneeSummary,
@@ -403,6 +407,10 @@ export async function findInternalRequestByProtocol(protocol: string) {
     .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
     .select(
       "requests.request_id",
+      // `requester_id` e `professional_id` são necessários pelo PATCH interno
+      // (issue #88): atualização do solicitante e autorização por perfil.
+      "requests.requester_id",
+      "requests.professional_id",
       "requests.protocol",
       "requests.title",
       "requests.request_type",
@@ -568,4 +576,89 @@ export async function updateStatus(
   await trx("requests")
     .where({ request_id: requestId })
     .update({ status_id: statusId, updated_by: updatedBy, updated_at: trx.fn.now() });
+}
+
+// --- Atualização interna dos blocos (issue #88) -----------------------------
+// PATCH /requests/:protocol/internal — semântica de SUBSTITUIÇÃO COMPLETA dos
+// blocos editáveis: chave ausente no payload = campo limpo (NULL), inclusive
+// `complementary` omitido por inteiro. `last_external_update_at` NÃO é tocado
+// (edição administrativa não altera a percepção pública de atualização).
+
+/** Retorna o `details_professional` de um usuário (1:1 com `users`) — base da autorização #121. */
+export async function findProfessionalByUserId(
+  userId: number,
+): Promise<{ professional_id: string } | undefined> {
+  return db("details_professional").where({ user_id: userId }).first("professional_id");
+}
+
+export async function updateRequestBlocks(
+  trx: Knex.Transaction,
+  requestId: string,
+  payload: UpdateInternalRequestPayload,
+  updatedBy: string,
+): Promise<void> {
+  const manualControls = yesNoDetail(payload.operational.hasManualControls);
+  const processDocumentation = yesNoDetail(payload.complementary?.hasProcessDocumentation);
+  const similarSolution = yesNoDetail(payload.complementary?.hasSimilarSolution);
+  const otherAreas = yesNoDetail(payload.complementary?.dependsOnOtherAreas);
+  const restrictedInfo = yesNoDetail(payload.complementary?.handlesRestrictedInfo);
+
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({
+      // Demand block
+      title: payload.demand.title,
+      request_type: payload.demand.requestType,
+      process_name: payload.demand.processName,
+      need_description: payload.demand.description,
+      problem_opportunity: payload.demand.problem,
+      expected_result: payload.demand.expectedResult,
+      justification: payload.demand.justification,
+
+      // Operational block
+      process_description: payload.operational.processDescription,
+      process_steps: payload.operational.processSteps,
+      systems_used: payload.operational.systemsUsed,
+      execution_frequency: payload.operational.executionFrequency,
+      approximate_volume: payload.operational.volumetry,
+      people_involved: payload.operational.peopleInvolved,
+      average_duration: payload.operational.averageExecutionTime,
+      estimated_monthly_effort: payload.operational.monthlyEffortHours,
+      has_manual_controls: manualControls.flag,
+      manual_controls_detail: manualControls.detail,
+      main_risks: payload.operational.mainRisks,
+      client_impact: payload.operational.clientImpact,
+      operational_impact: payload.operational.operationalImpact,
+      desired_deadline: payload.operational.desiredDeadline,
+      perceived_criticality: payload.operational.perceivedCriticality,
+
+      // Complementary block (substituição completa: ausente = limpo)
+      has_process_documentation: processDocumentation.flag,
+      process_documentation_detail: processDocumentation.detail,
+      has_similar_solution: similarSolution.flag,
+      similar_solution_detail: similarSolution.detail,
+      depends_on_other_areas: otherAreas.flag,
+      other_areas_detail: otherAreas.detail,
+      handles_restricted_info: restrictedInfo.flag,
+      restricted_info_detail: restrictedInfo.detail,
+      additional_notes: payload.complementary?.additionalNotes ?? null,
+
+      updated_by: updatedBy,
+      updated_at: trx.fn.now(),
+    });
+}
+
+export async function updateRequesterEditable(
+  trx: Knex.Transaction,
+  requesterId: string,
+  requester: UpdateRequesterBlock,
+): Promise<void> {
+  await trx("requesters")
+    .where({ requester_id: requesterId })
+    .update({
+      area: requester.area,
+      department: requester.department ?? null,
+      manager_name: requester.manager,
+      additional_contact: requester.additionalContact ?? null,
+    });
 }
