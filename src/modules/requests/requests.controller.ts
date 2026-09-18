@@ -1,11 +1,14 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
+import { ValidationError } from "../../shared/errors/ValidationError.ts";
+import type { Role } from "../../shared/types/role.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   createRequestPayloadSchema,
   listRequestsQuerySchema,
   assignRequestSchema,
+  updateRequestPayloadSchema,
 } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
 
@@ -42,8 +45,8 @@ function assertProtocolParam(req: Request): string {
   return protocol.trim();
 }
 
-/** Ator autenticado (id numérico + e-mail) — `req.user` vem do authMiddleware. */
-function actorFromRequest(req: Request): { id: number; email: string } {
+/** Ator autenticado (id numérico + e-mail + papel) — `req.user` vem do authMiddleware. */
+function actorFromRequest(req: Request): { id: number; email: string; role: Role } {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -51,8 +54,33 @@ function actorFromRequest(req: Request): { id: number; email: string } {
   if (!Number.isInteger(id)) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return { id, email: req.user.email };
+  return { id, email: req.user.email, role: req.user.role };
 }
+
+// Atualização interna dos blocos editáveis (issue #88) — modo de edição inline
+// da tela `/(admin)/fila/[protocolo]`. Autenticação e perfil no router;
+// autorização por atribuição (issue #121) no service.
+export const patchInternalRequestByProtocol = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const parsed = updateRequestPayloadSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const { message, fields } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
+  }
+
+  const updated = await service.updateInternalRequest(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
+
+  return res.status(200).json(updated);
+};
 
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
   const payloadPart: unknown = req.body?.payload;
