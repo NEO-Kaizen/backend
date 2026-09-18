@@ -371,7 +371,7 @@ Query params aceitos:
 - `search` (opcional): busca por protocolo, e-mail corporativo ou nome do solicitante
 - `status` (opcional): valor exato de um status válido, como `Em triagem`, `Em desenvolvimento` ou `Concluído`
 - `priority` (opcional): valor exato de prioridade, como `Baixa`, `Média`, `Alta` ou `Crítica`
-- `assigneeId` (opcional): UUID do profissional (`professionals.professional_id`) ou o literal `unassigned`
+- `assigneeId` (opcional): UUID do profissional (`details_professional.professional_id`) ou o literal `unassigned`
 - `unassigned` (opcional): `true`/`1` para listar apenas solicitações sem responsável (`false`/`0` desliga) — não pode ser combinado com `assigneeId` (exceto com o próprio `unassigned`)
 
 Exemplo:

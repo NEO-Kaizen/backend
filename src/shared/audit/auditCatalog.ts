@@ -19,15 +19,14 @@ export const auditCatalog = {
     label: "Priorização",
     actions: ["evaluate"],
   },
+  request: {
+    label: "Solicitações",
+    actions: ["assign", "reassign", "unassign", "status_change"],
+  },
   settings: {
     label: "Configuração do portal",
     actions: ["update"],
   },
-  // Futuras entidades entram aqui:
-  // request: {
-  //   label: "Solicitações",
-  //   actions: ["create", "triage", "close"],
-  // },
 } as const;
 
 /** Nome de entidade auditável — ex.: "user". */

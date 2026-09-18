@@ -44,3 +44,18 @@ export interface RequestSummary {
   assignee: string | null;
   requesterName: string;
 }
+
+export interface AssigneeSummary {
+  id: string; // professional_id
+  name: string; // users.full_name
+  email: string; // users.email
+  jobTitle: string | null;
+  capacity: number;
+}
+
+export interface AssignRequestResponse {
+  protocol: string;
+  assignee: { id: string; name: string; email: string } | null;
+  /** Status após a operação — muda para "Aguardando mapeamento" quando a RN-010 dispara. */
+  status: RequestStatus;
+}

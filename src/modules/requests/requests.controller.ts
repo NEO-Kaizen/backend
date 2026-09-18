@@ -3,6 +3,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
+  assignRequestSchema,
   createRequestPayloadSchema,
   listAuthenticatedRequestsQuerySchema,
   listRequestsQuerySchema,
@@ -58,6 +59,18 @@ function assertProtocolParam(req: Request): string {
   }
 
   return protocol.trim();
+}
+
+/** Ator autenticado (id numérico + e-mail) — `req.user` vem do authMiddleware. */
+function actorFromRequest(req: Request): { id: number; email: string } {
+  if (!req.user) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+  const id = Number(req.user.id);
+  if (!Number.isInteger(id)) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+  return { id, email: req.user.email };
 }
 
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
@@ -126,4 +139,26 @@ export const getRequestsByEmail = async (req: Request, res: Response): Promise<R
   const requests = await service.listRequestsByEmail(parsed.data);
 
   return res.status(200).json(requests);
+};
+
+export const getAssignees = async (_req: Request, res: Response): Promise<Response> => {
+  return res.status(200).json(await service.listAssignees());
+};
+
+export const patchAssignee = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const parsed = assignRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const response = await service.assignResponsible(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
+
+  return res.status(200).json(response);
 };

@@ -7,7 +7,7 @@ export async function seed(knex) {
     "pending_items",
     "prioritization_evaluations",
     "requests",
-    "professionals",
+    "details_professional",
     "priorities",
     "requesters",
   ];

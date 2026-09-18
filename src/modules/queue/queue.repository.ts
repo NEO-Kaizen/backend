@@ -41,7 +41,12 @@ export const findQueueRequests = async (
     .join("requesters as requester", "requester.requester_id", "requests.requester_id")
     .join("statuses as status", "status.status_id", "requests.status_id")
     .leftJoin("priorities as priority_tbl", "priority_tbl.priority_id", "requests.priority_id")
-    .leftJoin("professionals as assignee", "assignee.professional_id", "requests.professional_id");
+    .leftJoin(
+      "details_professional as assignee",
+      "assignee.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id");
 
   if (search) {
     baseQuery.andWhere((builder) => {
@@ -71,7 +76,7 @@ export const findQueueRequests = async (
       "priority_tbl.level as priority",
       "status.name as status",
       "assignee.professional_id as assigneeId",
-      "assignee.full_name as assignee",
+      "assignee_user.full_name as assignee",
       "requester.full_name as requesterName",
       "requester.corporate_email as requesterEmail",
     )
@@ -86,10 +91,11 @@ export const findQueueRequests = async (
 };
 
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {
-  const rows = await db("professionals")
-    .where("status", "active")
-    .select("professional_id as id", "full_name as name")
-    .orderBy("full_name", "asc");
+  const rows = await db("details_professional as dp")
+    .join("users as u", "u.user_id", "dp.user_id")
+    .where("dp.status", "active")
+    .select("dp.professional_id as id", "u.full_name as name")
+    .orderBy("u.full_name", "asc");
 
   return rows;
 };

@@ -135,3 +135,20 @@ export interface RequesterTable {
   additional_contact: string | null;
   created_at: Date;
 }
+
+export interface AssignmentContextRow {
+  request_id: string;
+  protocol: string;
+  professional_id: string | null;
+  status: RequestStatus;
+  screening_result: string | null;
+}
+
+export interface AssignmentCandidateRow {
+  id: string;
+  name: string;
+  email: string;
+  professional_status: "active" | "inactive";
+  user_is_active: boolean;
+  profile_name: string;
+}

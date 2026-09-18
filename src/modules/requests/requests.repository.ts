@@ -14,6 +14,8 @@ import type {
   RequesterBlock,
   RequesterTable,
   YesNoDetail,
+  AssignmentCandidateRow,
+  AssignmentContextRow,
 } from "../../shared/types/requests.ts";
 import type {
   CreateRequestPayload,
@@ -21,6 +23,7 @@ import type {
 } from "../DTOs/requests/RequestRequests.dto.ts";
 import type { RequestDetail } from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
+  AssigneeSummary,
   CreateRequestResponse,
   RequestSummary,
 } from "../DTOs/requests/RequestResponse.dto.ts";
@@ -289,7 +292,12 @@ function baseSummaryQuery(query: ListRequestsQuery) {
     .join("requesters", "requesters.requester_id", "requests.requester_id")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
-    .leftJoin("professionals", "professionals.professional_id", "requests.professional_id")
+    .leftJoin(
+      "details_professional",
+      "details_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
     .where("requesters.corporate_email", query.email)
     .modify((builder) => {
       if (query.status) {
@@ -312,7 +320,7 @@ export async function findRequestsByRequesterEmail(
       process_name: "requests.process_name",
       priority: "priorities.level",
       status: "statuses.name",
-      assignee: "professionals.full_name",
+      assignee: "assignee_user.full_name",
       requester_name: "requesters.full_name",
       created_at: "requests.created_at",
     })
@@ -348,14 +356,19 @@ export async function findRequestByProtocolWithOwner(
 ): Promise<RequestWithOwner | null> {
   const response = await db("requests as r")
     .leftJoin("requesters as requester", "requester.requester_id", "r.requester_id")
-    .leftJoin("professionals as professional", "professional.professional_id", "r.professional_id")
+    .leftJoin(
+      "details_professional as professional",
+      "professional.professional_id",
+      "r.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "professional.user_id")
     .leftJoin("statuses as status", "status.status_id", "r.status_id")
     .select(
       "r.protocol as protocol",
       "r.title as demandTitle",
       "r.process_name as processName",
       "status.name as status",
-      "professional.full_name as assigneeName",
+      "assignee_user.full_name as assigneeName",
       "r.created_at as openedAt",
       "r.estimated_completion as estimatedCompletion",
       "r.next_steps as nextSteps",
@@ -406,7 +419,12 @@ export async function findInternalRequestByProtocol(protocol: string) {
     .leftJoin("categories", "categories.category_id", "requests.category_id")
     .leftJoin("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
-    .leftJoin("professionals", "professionals.professional_id", "requests.professional_id")
+    .leftJoin(
+      "details_professional",
+      "details_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
     .select(
       "requests.request_id",
       "requests.protocol",
@@ -449,8 +467,8 @@ export async function findInternalRequestByProtocol(protocol: string) {
       "categories.name as category",
       "statuses.name as status",
       "priorities.level as priority",
-      "professionals.full_name as professional_name",
-      "professionals.email as professional_email",
+      "assignee_user.full_name as professional_name",
+      "assignee_user.email as professional_email",
       "requesters.full_name as requester_name",
       "requesters.corporate_email as requester_email",
       "requesters.area as requester_area",
@@ -497,4 +515,81 @@ export async function findEvaluationByProtocol(
   // score é DECIMAL — o driver pg devolve string; normaliza aqui (mesmo
   // cuidado do prioritization.repository.ts da issue #51).
   return { score: Number(row.score), classification: row.classification };
+}
+
+/** Perfis de acesso que podem ser responsáveis técnicos (nomes da tabela `profiles`). */
+export const ASSIGNABLE_PROFILES = ["analista", "gestor"] as const;
+
+export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
+  return db("details_professional as dp")
+    .join("users as u", "u.user_id", "dp.user_id")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .where("dp.status", "active")
+    .andWhere("u.is_active", true)
+    .whereIn("p.name", ASSIGNABLE_PROFILES)
+    .select({
+      id: "dp.professional_id",
+      name: "u.full_name",
+      email: "u.email",
+      jobTitle: "dp.job_title",
+      capacity: "dp.capacity",
+    })
+    .orderBy("u.full_name", "asc");
+}
+
+/** Candidato a responsável sem filtro de elegibilidade — o service decide o motivo da rejeição. */
+export async function findAssignmentCandidateById(
+  professionalId: string,
+): Promise<AssignmentCandidateRow | undefined> {
+  return db("details_professional as dp")
+    .join("users as u", "u.user_id", "dp.user_id")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .where("dp.professional_id", professionalId)
+    .first({
+      id: "dp.professional_id",
+      name: "u.full_name",
+      email: "u.email",
+      professional_status: "dp.status",
+      user_is_active: "u.is_active",
+      profile_name: "p.name",
+    });
+}
+
+export async function findAssignmentContextByProtocol(
+  protocol: string,
+): Promise<AssignmentContextRow | undefined> {
+  return db("requests")
+    .join("statuses", "statuses.status_id", "requests.status_id")
+    .where("requests.protocol", protocol)
+    .first({
+      request_id: "requests.request_id",
+      protocol: "requests.protocol",
+      professional_id: "requests.professional_id",
+      status: "statuses.name",
+      screening_result: "requests.screening_result",
+    });
+}
+
+export async function updateAssignee(
+  trx: Knex.Transaction,
+  requestId: string,
+  professionalId: string | null,
+  updatedBy: string,
+): Promise<void> {
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({ professional_id: professionalId, updated_by: updatedBy, updated_at: trx.fn.now() });
+}
+
+export async function updateStatus(
+  trx: Knex.Transaction,
+  requestId: string,
+  statusName: RequestStatus,
+  updatedBy: string,
+): Promise<void> {
+  const statusId = await findStatusId(statusName, trx);
+
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({ status_id: statusId, updated_by: updatedBy, updated_at: trx.fn.now() });
 }

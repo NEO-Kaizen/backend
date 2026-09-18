@@ -23,7 +23,7 @@ A persistência das solicitações é composta por nove tabelas:
 - `categories`: categorias da demanda (dados de referência);
 - `statuses`: matriz pública de status (dados de referência);
 - `priorities`: faixas de priorização (dados de referência);
-- `professionals`: responsáveis técnicos que podem ser atribuídos;
+- `details_professional`: responsáveis técnicos que podem ser atribuídos (1:1 com `users`);
 - `requests`: a solicitação e seus blocos de formulário e fluxo;
 - `pending_items`: pendências abertas por analistas;
 - `attachments`: anexos vinculados ao pedido e, opcionalmente, a uma pendência;
@@ -170,29 +170,38 @@ Armazena as faixas de priorização e o peso usado no cálculo do score.
 - `level` é único e usa o mesmo vocabulário de `RequestPriority` do contrato
   (`Baixa`, `Média`, `Alta`, `Crítica`).
 
-## Tabela `professionals`
+## Tabela `details_professional`
 
-Armazena os responsáveis técnicos que podem ser atribuídos às solicitações.
+Dados de rotação dos responsáveis técnicos que podem ser atribuídos às
+solicitações. Cada registro é vinculado 1:1 a um usuário do sistema (`users`)
+— nome e e-mail vêm de lá, nunca daqui. Criada como `professionals` e
+renomeada/ajustada pela migration
+`20260917013250_rename_professionals_to_details_professional.js` (issue #50).
 
 ### Estrutura
 
-| Campo                   | Tipo         | Obrigatório | Restrição / Default                     | Finalidade                   |
-| ----------------------- | ------------ | ----------- | --------------------------------------- | ---------------------------- |
-| `professional_id`       | UUID         | Sim         | Primary Key, `gen_random_uuid()`        | Identificador do responsável |
-| `full_name`             | VARCHAR(255) | Sim         | NOT NULL                                | Nome completo                |
-| `email`                 | VARCHAR(255) | Sim         | NOT NULL; indexado                      | E-mail do responsável        |
-| `role`                  | VARCHAR(100) | Não         | NULL permitido                          | Papel/função                 |
-| `specialties`           | TEXT         | Não         | NULL permitido                          | Especialidades               |
-| `attended_category_ids` | TEXT         | Não         | NULL permitido                          | Categorias atendidas         |
-| `status`                | ENUM         | Sim         | `active` / `inactive`; DEFAULT `active` | Situação do responsável      |
-| `capacity`              | INTEGER      | Sim         | DEFAULT 5                               | Capacidade de atendimento    |
-| `notes`                 | TEXT         | Não         | NULL permitido                          | Observações internas         |
-| `created_at`            | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`             | Data e hora de criação       |
+| Campo                   | Tipo         | Obrigatório | Restrição / Default                     | Finalidade                        |
+| ----------------------- | ------------ | ----------- | --------------------------------------- | --------------------------------- |
+| `professional_id`       | UUID         | Sim         | Primary Key, `gen_random_uuid()`        | Identificador do responsável      |
+| `user_id`               | INTEGER      | Sim         | NOT NULL; UNIQUE; FK `users.user_id`    | Usuário do sistema correspondente |
+| `job_title`             | VARCHAR(100) | Não         | NULL permitido                          | Cargo/função (não é o perfil)     |
+| `specialties`           | TEXT         | Não         | NULL permitido                          | Especialidades                    |
+| `attended_category_ids` | TEXT         | Não         | NULL permitido                          | Categorias atendidas              |
+| `status`                | ENUM         | Sim         | `active` / `inactive`; DEFAULT `active` | Está na rotação de atribuição     |
+| `capacity`              | INTEGER      | Sim         | DEFAULT 5                               | Capacidade de atendimento         |
+| `notes`                 | TEXT         | Não         | NULL permitido                          | Observações internas              |
 
 ### Restrições
 
-- `status` usa o tipo nativo `professional_status` com valor padrão `active`;
-- índices em `status` (`idx_professionals_status`) e `email` (`idx_professionals_email`).
+- `user_id` referencia `users.user_id` com `ON DELETE RESTRICT` e é `UNIQUE`
+  (`uk_details_professional_user`) — garante o 1:1;
+- `status` usa o tipo nativo `professional_status` com valor padrão `active`.
+  É independente de `users.is_active`: um analista em licença fica `inactive`
+  aqui e continua logando;
+- índice em `status` (`idx_details_professional_status`).
+
+Elegibilidade para atribuição (ver `docs/requests-assignment-contract.md`):
+`status = 'active'` **e** `users.is_active` **e** perfil `analista`/`gestor`.
 
 ## Tabela `requests`
 
@@ -272,7 +281,7 @@ identificador interno sequencial.
 - `category_id` referencia `categories.category_id` com `ON DELETE RESTRICT`;
 - `status_id` referencia `statuses.status_id` com `ON DELETE RESTRICT`;
 - `priority_id` referencia `priorities.priority_id` com `ON DELETE RESTRICT`;
-- `professional_id` referencia `professionals.professional_id` com `ON DELETE SET NULL`;
+- `professional_id` referencia `details_professional.professional_id` com `ON DELETE SET NULL`;
 - `people_involved > 0` (`ck_requests_people_involved`);
 - `estimated_monthly_effort >= 0` (`ck_requests_estimated_monthly_effort`);
 - índices: `idx_requests_created_at`, `idx_requests_status`, `idx_requests_category`,
@@ -465,6 +474,7 @@ seguinte ordem:
 16. `20260912003734_create_criteria.js`
 17. `20260914000000_add_priorities_score_checks.js`
 18. `20260916120000_add_requester_user_fk_to_requests.js` (issue #53)
+19. `20260917013250_rename_professionals_to_details_professional.js` (depende de `users`)
 
 A ordem respeita as dependências: as tabelas de referência e `requesters` são
 criadas antes de `requests`, e as tabelas filhas (`pending_items`, `attachments`,
@@ -480,11 +490,10 @@ remove o índice e a coluna — não altera nenhuma migration já integrada.
 ### Dados de referência
 
 Os seeds em `seeds/requester_request/` populam dados de desenvolvimento para
-`requesters`, `criteria`, `priorities`, `professionals`, `users`, `requests`,
+`requesters`, `criteria`, `priorities`, `statuses`, `users`, `details_professional`, `requests`,
 `pending_items`, `attachments`, `request_time_preferences` e
-`prioritization_evaluations`. O seed de `requests` ajusta a sequence
-`requests_request_seq` após inserir IDs explícitos, evitando colisão com o
-próximo `nextval`, e preenche os campos do painel público
+`prioritization_evaluations`. O seed de `requests` ajusta a sequence `requests_request_seq` após inserir IDs explícitos,
+evitando colisão com o próximo `nextval`, e preenche os campos do painel público
 (`last_technical_message`, `estimated_completion`, `meeting_scheduled_for`,
 `meeting_link`). O seed de `users` (`004_users.js`) roda antes de `requests`
 para satisfazer a FK da issue #53. A partir dessa issue, o seed de `requests`

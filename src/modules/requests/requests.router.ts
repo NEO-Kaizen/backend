@@ -8,6 +8,8 @@ import {
   getRequestsByEmail,
   getRequestsByProtocol,
   postRequest,
+  getAssignees,
+  patchAssignee,
 } from "./requests.controller.ts";
 
 const requestsRoutes = express.Router();
@@ -15,6 +17,23 @@ const requestsRoutes = express.Router();
 // Rotas de solicitação respeitam o modo de abertura do portal: em `PUBLIC`
 // permanecem públicas; em `AUTHENTICATED` o `requireAccessMode` exige sessão.
 requestsRoutes.get("/", requireAccessMode(), getRequestsByEmail);
+
+// Responsáveis pela triagem — lista de profissionais (issue #50).
+requestsRoutes.get(
+  "/assignees",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  getAssignees,
+);
+
+// Apenas Administrador define/substitui o responsável (issue #50).
+requestsRoutes.patch(
+  "/:protocol/assignee",
+  authMiddleware,
+  requireRole("Administrador"),
+  patchAssignee,
+);
+
 requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
 requestsRoutes.get(
   "/:protocol/internal",

@@ -134,3 +134,9 @@ export const listRequestsQuerySchema = z.object({
  * `400` — evitamos divergência silenciosa entre o filtro pedido e o aplicado.
  */
 export const listAuthenticatedRequestsQuerySchema = listRequestsQuerySchema.omit({ email: true });
+
+export const assignRequestSchema = z.object({
+  professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable(),
+});
+
+export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;
