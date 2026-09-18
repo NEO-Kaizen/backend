@@ -56,6 +56,21 @@ Para popular os dados de desenvolvimento:
 npm run docker:seed:run
 ```
 
+Para acrescentar cenários de demonstração/teste sem misturá-los às seeds-base:
+
+```bash
+npm run docker:seed:scenarios:run
+```
+
+As seeds de cenário ficam em `seeds/scenarios`, são executadas somente por esse
+comando e pressupõem que as migrations e as seeds-base já tenham sido aplicadas.
+Elas devem ser idempotentes para permitir novas execuções no mesmo banco. Para
+executar apenas um cenário, informe seu arquivo com `--specific`:
+
+```bash
+npm run docker:seed:scenarios:run -- --specific=001_dashboard_demo.js
+```
+
 Para recriar o volume do banco e subir o ambiente do zero, aplicando migrations e seeds (recria o volume — **apaga os dados**; reconstrói a imagem, então use também após alterar `package.json`/`package-lock.json`):
 
 ```bash
@@ -113,6 +128,7 @@ As migrations e os seeds podem ser executados após a configuração das credenc
 ```bash
 npm run migrate:latest   # aplica as migrations pendentes
 npm run seed:run         # popula os dados de desenvolvimento
+npm run seed:scenarios:run # acrescenta cenários opcionais de demonstração/teste
 ```
 
 Para aplicar migrations e seeds em sequência:
@@ -428,6 +444,7 @@ Toda alteração registrada em `audit_history` (entidade `settings`).
 | `npm run docker:migrate:rollback`     | Desfaz o último lote de migrations no container |
 | `npm run docker:migrate:make -- nome` | Cria uma nova migration no container            |
 | `npm run docker:seed:run`             | Popula os dados de desenvolvimento no container |
+| `npm run docker:seed:scenarios:run`   | Acrescenta cenários opcionais no container      |
 | `npm run docker:db:setup`             | Recria o volume e aplica migrations e seeds     |
 | `npm run docker:db:reset`             | Remove containers e o volume do banco           |
 | `npm run build`                       | Compila o TypeScript para `dist/`               |
@@ -441,6 +458,7 @@ Toda alteração registrada em `audit_history` (entidade `settings`).
 | `npm run migrate:latest`              | Executa as migrations pendentes                 |
 | `npm run migrate:rollback`            | Desfaz o último lote de migrations              |
 | `npm run seed:run`                    | Popula os dados de desenvolvimento              |
+| `npm run seed:scenarios:run`          | Acrescenta cenários opcionais de teste/demo     |
 | `npm run db:setup`                    | Aplica migrations e seeds em sequência          |
 | `npm test`                            | Executa os testes                               |
 
