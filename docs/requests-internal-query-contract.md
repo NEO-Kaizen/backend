@@ -92,6 +92,9 @@ export interface ComplementaryBlock {
 }
 
 export interface Assignee {
+  id: string | null; // details_professional.user_id do responsável (id de users,
+  // serializado como string) — comparação de permissão de edição do Mapeamento
+  // (mappingAssigneeId === currentUser.id; contrato-mapeamento.md §9, issue #86)
   name: string;
   email: string | null;
 }
@@ -158,7 +161,7 @@ HTTP/1.1 200 OK
   "status": "Aguardando mapeamento",
   "priority": "Alta",
   "prioritization": { "score": null, "maxScore": 50, "label": null },
-  "assignee": { "name": "João Analyst", "email": "joao.analyst@empresa.com" },
+  "assignee": { "id": "104", "name": "João Analyst", "email": "joao.analyst@empresa.com" },
   "correctionAlert": null,
   "requester": {
     "fullName": "Maria Silva",
