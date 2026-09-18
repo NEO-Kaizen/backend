@@ -5,6 +5,7 @@ import usersRoutes from "./modules/users/users.router.ts";
 import queueRoutes from "./modules/queue/queue.router.ts";
 import prioritizationRoutes from "./modules/prioritization/prioritization.router.ts";
 import portalConfigRoutes from "./modules/portalConfig/portalConfig.router.ts";
+import reportsRoutes from "./modules/reports/reports.router.ts";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/users", usersRoutes);
 
 router.use("/queue", queueRoutes);
 router.use("/portal-config", portalConfigRoutes);
+router.use("/reports", reportsRoutes);
 
 export default router;
