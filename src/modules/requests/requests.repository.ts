@@ -445,6 +445,7 @@ export async function findInternalRequestByProtocol(protocol: string) {
       "priorities.level as priority",
       "assignee_user.full_name as professional_name",
       "assignee_user.email as professional_email",
+      "assignee_user.user_id as assignee_user_id",
       "requesters.full_name as requester_name",
       "requesters.corporate_email as requester_email",
       "requesters.area as requester_area",

@@ -152,7 +152,14 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
       label: evaluation ? evaluation.classification : null,
     },
     assignee: request.professional_name
-      ? { name: request.professional_name, email: request.professional_email }
+      ? {
+          // `assignee.id` = details_professional.user_id (id de `users`,
+          // serializado como string) para o frontend comparar com o usuário
+          // logado (`mappingAssigneeId === currentUser.id`, contrato §9).
+          id: request.assignee_user_id != null ? String(request.assignee_user_id) : null,
+          name: request.professional_name,
+          email: request.professional_email,
+        }
       : null,
     // Sem fonte de dados no schema atual (nenhuma tabela de correção
     // pendente equivalente) — sempre null até uma issue futura modelar isso.
