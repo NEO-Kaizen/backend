@@ -14,6 +14,8 @@ import type {
   RequesterBlock,
   RequesterTable,
   YesNoDetail,
+  AssignmentCandidateRow,
+  AssignmentContextRow,
 } from "../../shared/types/requests.ts";
 import type {
   CreateRequestPayload,
@@ -491,10 +493,16 @@ export async function findEvaluationByProtocol(
   return { score: Number(row.score), classification: row.classification };
 }
 
+/** Perfis de acesso que podem ser responsáveis técnicos (nomes da tabela `profiles`). */
+export const ASSIGNABLE_PROFILES = ["analista", "gestor"] as const;
+
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
   return db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.status", "active")
+    .andWhere("u.is_active", true)
+    .whereIn("p.name", ASSIGNABLE_PROFILES)
     .select({
       id: "dp.professional_id",
       name: "u.full_name",
@@ -505,25 +513,59 @@ export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
     .orderBy("u.full_name", "asc");
 }
 
-export async function findActiveProfessionalById(professionalId: string) {
+/** Candidato a responsável sem filtro de elegibilidade — o service decide o motivo da rejeição. */
+export async function findAssignmentCandidateById(
+  professionalId: string,
+): Promise<AssignmentCandidateRow | undefined> {
   return db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.professional_id", professionalId)
-    .andWhere("dp.status", "active")
-    .first({ id: "dp.professional_id", name: "u.full_name", email: "u.email" });
+    .first({
+      id: "dp.professional_id",
+      name: "u.full_name",
+      email: "u.email",
+      professional_status: "dp.status",
+      user_is_active: "u.is_active",
+      profile_name: "p.name",
+    });
 }
 
-export async function findRequestIdAndAssigneeByProtocol(protocol: string) {
-  return db("requests").where({ protocol }).first("request_id", "protocol", "professional_id");
+export async function findAssignmentContextByProtocol(
+  protocol: string,
+): Promise<AssignmentContextRow | undefined> {
+  return db("requests")
+    .join("statuses", "statuses.status_id", "requests.status_id")
+    .where("requests.protocol", protocol)
+    .first({
+      request_id: "requests.request_id",
+      protocol: "requests.protocol",
+      professional_id: "requests.professional_id",
+      status: "statuses.name",
+      screening_result: "requests.screening_result",
+    });
 }
 
-/** Atualiza o responsável dentro da transação (atômico com a auditoria). */
 export async function updateAssignee(
+  trx: Knex.Transaction,
   requestId: string,
   professionalId: string | null,
   updatedBy: string,
 ): Promise<void> {
-  await db("requests")
+  await trx("requests")
     .where({ request_id: requestId })
-    .update({ professional_id: professionalId, updated_by: updatedBy, updated_at: db.fn.now() });
+    .update({ professional_id: professionalId, updated_by: updatedBy, updated_at: trx.fn.now() });
+}
+
+export async function updateStatus(
+  trx: Knex.Transaction,
+  requestId: string,
+  statusName: RequestStatus,
+  updatedBy: string,
+): Promise<void> {
+  const statusId = await findStatusId(statusName, trx);
+
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({ status_id: statusId, updated_by: updatedBy, updated_at: trx.fn.now() });
 }

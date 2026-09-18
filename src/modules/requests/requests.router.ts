@@ -21,10 +21,11 @@ requestsRoutes.get(
   getAssignees,
 );
 
+// Apenas Administrador define/substitui o responsável (issue #50).
 requestsRoutes.patch(
   "/:protocol/assignee",
   authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
+  requireRole("Administrador"),
   patchAssignee,
 );
 

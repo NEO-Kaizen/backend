@@ -56,4 +56,6 @@ export interface AssigneeSummary {
 export interface AssignRequestResponse {
   protocol: string;
   assignee: { id: string; name: string; email: string } | null;
+  /** Status após a operação — muda para "Aguardando mapeamento" quando a RN-010 dispara. */
+  status: RequestStatus;
 }

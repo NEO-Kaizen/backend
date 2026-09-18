@@ -113,7 +113,8 @@ export const patchAssignee = async (req: Request, res: Response): Promise<Respon
   const response = await service.assignResponsible(
     protocol,
     parsed.data,
-    actorFromRequest(req).email,
+    actorFromRequest(req),
+    req.ip,
   );
 
   return res.status(200).json(response);
