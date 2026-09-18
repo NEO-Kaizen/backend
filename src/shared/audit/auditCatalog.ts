@@ -23,6 +23,10 @@ export const auditCatalog = {
     label: "Solicitações",
     actions: ["assign", "reassign", "unassign", "status_change"],
   },
+  mapping: {
+    label: "Mapeamento",
+    actions: ["assign", "save", "complete"],
+  },
   settings: {
     label: "Configuração do portal",
     actions: ["update"],
