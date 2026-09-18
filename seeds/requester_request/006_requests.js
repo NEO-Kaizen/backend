@@ -1,9 +1,18 @@
+// `requester_user_id` (issue #53) — vínculo opcional com a conta `users`:
+// - `null` = solicitação pública (modo `PUBLIC`), dados vindos do formulário;
+// - preenchido = solicitação criada por usuário autenticado (qualquer perfil).
+// A coincidência de e-mail entre `requesters.corporate_email` e `users.email`
+// é invariante da camada de aplicação, não do banco — os exemplos abaixo
+// vinculam contas de perfis distintos sem alterar os e-mails dos seeds.
+// Proposital: `created_by` e o snapshot em `requesters` mantêm os dados
+// originais do formulário, mesmo quando divergem da conta vinculada.
 export async function seed(knex) {
   await knex("requests").insert([
     {
       request_id: 1,
       protocol: "MAAT-8K3P-9X2M",
       requester_id: "550e8400-e29b-41d4-a716-446655440001",
+      requester_user_id: 112, // Fabio Solicitante (perfil solicitante)
       title: "Automatizar conciliação bancária",
       request_type: "Automação",
       process_name: "Conciliação bancária mensal",
@@ -93,6 +102,7 @@ export async function seed(knex) {
       request_id: 3,
       protocol: "MAAT-2R7Q-4M1C",
       requester_id: "550e8400-e29b-41d4-a716-446655440003",
+      requester_user_id: 104, // Solicitante Teste (perfil solicitante)
       title: "Analisar inadimplência por região",
       request_type: "Análise de dados",
       process_name: "Análise de inadimplência mensal",
@@ -199,6 +209,7 @@ export async function seed(knex) {
       request_id: 6,
       protocol: "MAAT-1W9V-8J4K",
       requester_id: "550e8400-e29b-41d4-a716-446655440006",
+      requester_user_id: 101, // Analista Teste (perfil interno também pode solicitar)
       title: "Padronizar contratos de TI",
       request_type: "Padronização",
       process_name: "Contratação de fornecedores de TI",

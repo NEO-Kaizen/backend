@@ -30,8 +30,9 @@ A persistência das solicitações é composta por nove tabelas:
 - `request_time_preferences`: até três horários de preferência para mapeamento.
 
 O relacionamento central é a `requests`: cada solicitação referencia exatamente um
-`requester`, uma `category` e um `status`, opcionalmente uma `priority` e um
-`professional`, e possui zero ou muitos `pending_items`, `attachments` e
+`requester`, uma `category` e um `status`, opcionalmente uma `priority`, um
+`professional`, e — quando criada por usuário autenticado (issue #53) — uma conta
+(`user`); além de possuir zero ou muitos `pending_items`, `attachments` e
 `request_time_preferences`.
 
 ### Diagrama de relacionamento
@@ -43,6 +44,7 @@ erDiagram
     STATUSES ||--o{ REQUESTS : has
     PRIORITIES ||--o{ REQUESTS : ranks
     PROFESSIONALS ||--o{ REQUESTS : assigned_to
+    USERS ||--o{ REQUESTS : "verified owner (optional)"
     REQUESTS ||--o{ PENDING_ITEMS : has
     REQUESTS ||--o{ ATTACHMENTS : has
     REQUESTS ||--o{ REQUEST_TIME_PREFERENCES : has
@@ -62,10 +64,15 @@ erDiagram
         bigint request_id PK
         varchar protocol UK
         uuid requester_id FK
+        integer requester_user_id FK
         integer category_id FK
         integer status_id FK
         integer priority_id FK
         uuid professional_id FK
+    }
+
+    USERS {
+        integer user_id PK
     }
 
     REQUEST_TIME_PREFERENCES {
@@ -243,31 +250,34 @@ identificador interno sequencial.
 
 ### Colunas de fluxo e triagem
 
-| Campo                     | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                |
-| ------------------------- | ------------ | ----------- | --------------------------- | ----------------------------------------- |
-| `category_id`             | INTEGER      | Sim         | Foreign Key, NOT NULL       | Categoria da demanda                      |
-| `status_id`               | INTEGER      | Sim         | Foreign Key, NOT NULL       | Status atual do pedido                    |
-| `priority_id`             | INTEGER      | Não         | Foreign Key, NULL permitido | Prioridade, preenchida após a triagem     |
-| `preliminary_complexity`  | VARCHAR(50)  | Não         | NULL permitido              | Complexidade preliminar                   |
-| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido              | Resultado da triagem                      |
-| `screening_justification` | TEXT         | Não         | NULL permitido              | Justificativa da triagem                  |
-| `identified_risks`        | TEXT         | Não         | NULL permitido              | Riscos identificados                      |
-| `professional_id`         | UUID         | Não         | Foreign Key, NULL permitido | Responsável técnico atribuído             |
-| `internal_notes`          | TEXT         | Não         | NULL permitido              | Notas internas                            |
-| `next_steps`              | TEXT         | Não         | NULL permitido              | Próximos passos                           |
-| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                    | Usuário/e-mail de criação                 |
-| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP` | Data e hora de criação                    |
-| `updated_by`              | VARCHAR(254) | Não         | NULL permitido              | Usuário/e-mail da última atualização      |
-| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido              | Data e hora da última atualização         |
-| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido              | Última atualização visível ao solicitante |
-| `last_technical_message`  | TEXT         | Não         | NULL permitido              | Última mensagem pública do responsável    |
-| `estimated_completion`    | DATE         | Não         | NULL permitido              | Previsão de conclusão (`yyyy-mm-dd`)      |
-| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido              | Data/hora da reunião de mapeamento        |
-| `meeting_link`            | TEXT         | Não         | NULL permitido              | Link de acesso à reunião                  |
+| Campo                     | Tipo         | Obrigatório | Restrição / Default                                                          | Finalidade                                                                           |
+| ------------------------- | ------------ | ----------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `category_id`             | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Categoria da demanda                                                                 |
+| `status_id`               | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Status atual do pedido                                                               |
+| `priority_id`             | INTEGER      | Não         | Foreign Key, NULL permitido                                                  | Prioridade, preenchida após a triagem                                                |
+| `preliminary_complexity`  | VARCHAR(50)  | Não         | NULL permitido                                                               | Complexidade preliminar                                                              |
+| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido                                                               | Resultado da triagem                                                                 |
+| `screening_justification` | TEXT         | Não         | NULL permitido                                                               | Justificativa da triagem                                                             |
+| `identified_risks`        | TEXT         | Não         | NULL permitido                                                               | Riscos identificados                                                                 |
+| `professional_id`         | UUID         | Não         | Foreign Key, NULL permitido                                                  | Responsável técnico atribuído                                                        |
+| `requester_user_id`       | INTEGER      | Não         | Foreign Key NULL permitido → `users.user_id`, `ON DELETE SET NULL`, indexada | Conta autenticada que criou a solicitação (modo autenticado); `NULL` no modo público |
+| `internal_notes`          | TEXT         | Não         | NULL permitido                                                               | Notas internas                                                                       |
+| `next_steps`              | TEXT         | Não         | NULL permitido                                                               | Próximos passos                                                                      |
+| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                                                                     | Usuário/e-mail de criação                                                            |
+| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                                                  | Data e hora de criação                                                               |
+| `updated_by`              | VARCHAR(254) | Não         | NULL permitido                                                               | Usuário/e-mail da última atualização                                                 |
+| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                                               | Data e hora da última atualização                                                    |
+| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido                                                               | Última atualização visível ao solicitante                                            |
+| `last_technical_message`  | TEXT         | Não         | NULL permitido                                                               | Última mensagem pública do responsável                                               |
+| `estimated_completion`    | DATE         | Não         | NULL permitido                                                               | Previsão de conclusão (`yyyy-mm-dd`)                                                 |
+| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido                                                               | Data/hora da reunião de mapeamento                                                   |
+| `meeting_link`            | TEXT         | Não         | NULL permitido                                                               | Link de acesso à reunião                                                             |
 
 ### Restrições
 
 - `requester_id` referencia `requesters.requester_id` com `ON DELETE RESTRICT`;
+- `requester_user_id` referencia `users.user_id` com `ON DELETE SET NULL`
+  (anulável — solicitações públicas não vinculam conta);
 - `category_id` referencia `categories.category_id` com `ON DELETE RESTRICT`;
 - `status_id` referencia `statuses.status_id` com `ON DELETE RESTRICT`;
 - `priority_id` referencia `priorities.priority_id` com `ON DELETE RESTRICT`;
@@ -275,7 +285,8 @@ identificador interno sequencial.
 - `people_involved > 0` (`ck_requests_people_involved`);
 - `estimated_monthly_effort >= 0` (`ck_requests_estimated_monthly_effort`);
 - índices: `idx_requests_created_at`, `idx_requests_status`, `idx_requests_category`,
-  `idx_requests_priority`, `idx_requests_professional`, `idx_requests_requester`.
+  `idx_requests_priority`, `idx_requests_professional`, `idx_requests_requester`,
+  `idx_requests_requester_user`.
 
 ### Respostas "Sim/Não (+ detalhamento)"
 
@@ -392,6 +403,16 @@ observações).
 - **`created_by` com o e-mail do solicitante:** no `POST /requests` público não
   há usuário autenticado; a coluna guarda o e-mail normalizado do solicitante
   (por isso foi alargada para `VARCHAR(254)`).
+- **Vínculo com a conta autenticada (`requester_user_id`):** a solicitação criada
+  por usuário autenticado referencia `users.user_id` (coluna anulável, issue #53).
+  O snapshot público dos dados continua em `requesters`; a conta é a propriedade
+  verificável. Qualquer perfil pode solicitar (`solicitante`, `analista`,
+  `gestor`, `administrador`) — não há restrição de perfil no banco. A
+  coincidência de e-mail entre conta e snapshot é invariante da aplicação, não do
+  banco. Não há `UNIQUE`: um usuário pode possuir múltiplas solicitações.
+- **Exclusão de usuário:** `requester_user_id` usa `ON DELETE SET NULL` — apagar
+  a conta preserva a solicitação e a rastreabilidade (`requesters` + `created_by`
+  continuam), mesmo padrão de `professional_id` e `system_settings.updated_by`.
 - **Categorias, status e prioridades como referência:** normalizam os domínios
   `category`, `status` e `priority` e viabilizam o CRUD de configurações.
 - **`request_id` sequencial + protocolo FPE:** o identificador interno é
@@ -432,7 +453,8 @@ Não fazem parte desta Issue:
 ## Migrations
 
 A estrutura é controlada por migrations do Knex, executadas após as migrations de
-autenticação, na seguinte ordem:
+autenticação (diretório `migrations/` na raiz, fora do escopo desta seção), na
+seguinte ordem:
 
 1. `202609100001_create_requesters.js`
 2. `202609100002_create_categories.js`
@@ -448,21 +470,36 @@ autenticação, na seguinte ordem:
 12. `202609100012_email_columns_length.js`
 13. `202609100013_insert_reference_data.js`
 14. `202609100014_add_public_tracking_fields_to_requests.js`
-15. `20260917013250_rename_professionals_to_details_professional.js` (depende de `users`)
+15. `20260911015500_alter_priorities_score_columns.js`
+16. `20260912003734_create_criteria.js`
+17. `20260914000000_add_priorities_score_checks.js`
+18. `20260916120000_add_requester_user_fk_to_requests.js` (issue #53)
+19. `20260917013250_rename_professionals_to_details_professional.js` (depende de `users`)
 
 A ordem respeita as dependências: as tabelas de referência e `requesters` são
 criadas antes de `requests`, e as tabelas filhas (`pending_items`, `attachments`,
 `request_time_preferences`) depois de `requests`.
 
+### Migração da issue #53 — vínculo com `users`
+
+`20260916120000_add_requester_user_fk_to_requests.js` adiciona à `requests` a
+coluna `requester_user_id` (`INTEGER`, anulável, FK → `users.user_id` com
+`ON DELETE SET NULL`) e o índice `idx_requests_requester_user`. O `down`
+remove o índice e a coluna — não altera nenhuma migration já integrada.
+
 ### Dados de referência
 
 Os seeds em `seeds/requester_request/` populam dados de desenvolvimento para
-`requesters`, `categories`, `priorities`, `statuses`, `users`, `details_professional`, `requests`,
-`pending_items`, `attachments` e `request_time_preferences`. O seed de
-`requests` ajusta a sequence `requests_request_seq` após inserir IDs explícitos,
+`requesters`, `criteria`, `priorities`, `statuses`, `users`, `details_professional`, `requests`,
+`pending_items`, `attachments`, `request_time_preferences` e
+`prioritization_evaluations`. O seed de `requests` ajusta a sequence `requests_request_seq` após inserir IDs explícitos,
 evitando colisão com o próximo `nextval`, e preenche os campos do painel público
 (`last_technical_message`, `estimated_completion`, `meeting_scheduled_for`,
-`meeting_link`).
+`meeting_link`). O seed de `users` (`004_users.js`) roda antes de `requests`
+para satisfazer a FK da issue #53. A partir dessa issue, o seed de `requests`
+também demonstra os dois modos de origem: solicitações públicas
+(`requester_user_id = NULL`) e autenticadas (`requester_user_id`
+preenchido, incluindo perfil interno solicitando).
 
 ### Execução
 
@@ -478,20 +515,23 @@ npm run migrate:make -- migration-name
 
 - `npm run typecheck` e `npm run lint` sem erros;
 - migrations e seeds validados com Prettier;
-- nomes técnicos em inglês, conforme o padrão do projeto.
+- nomes técnicos em inglês, conforme o padrão do projeto;
+- `npm run migrate:latest` executado (banco novo: `28 migrations` em batch 1) e
+  estrutura conferida no banco;
+- `migrate:down` da migration da issue #53 executado (coluna, índice e FK
+  removidos sem resíduos) e reaplicado;
+- `npm run seed:run` executado (`10 seeds`), demonstrando os dois modos de origem;
+- revisão da modelagem por outro integrante (backend) concluída.
 
 ### Pendentes
 
-- executar `npm run migrate:latest` e conferir a estrutura resultante no banco;
-- executar `npm run migrate:rollback` e confirmar a remoção sem resíduos
-  (inclusive das sequences e dos tipos enum);
 - registrar a evidência da geração do protocolo FPE/Feistel na issue do gerador;
-- validar o contrato de persistência com o Backend;
-- solicitar revisão da modelagem por outro integrante.
+- integração de aplicação: gravar `requester_user_id` no fluxo autenticado
+  (fora do escopo da issue #53).
 
 ## Status da Issue
 
 A estrutura de persistência, as migrations de schema, os seeds de
-desenvolvimento e a documentação estão preparadas. A Issue permanece em
-validação até a execução das migrations no banco e a revisão conjunta com o
-Backend.
+desenvolvimento, a documentação e as evidências de migrate/rollback estão
+concluídas para a issue #53 (vínculo `requests.requester_user_id` → `users`),
+incluindo a revisão do relacionamento.

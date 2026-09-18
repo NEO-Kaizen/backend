@@ -23,6 +23,10 @@ export const auditCatalog = {
     label: "Solicitações",
     actions: ["assign", "reassign", "unassign", "status_change"],
   },
+  settings: {
+    label: "Configuração do portal",
+    actions: ["update"],
+  },
 } as const;
 
 /** Nome de entidade auditável — ex.: "user". */

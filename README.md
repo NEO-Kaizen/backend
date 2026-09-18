@@ -399,6 +399,24 @@ consulta pública (`GET /requests/:protocol`, acima) em
 - Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
 - Resposta `404 Not Found`: protocolo inexistente.
 
+### Configuração do portal
+
+Rotas de configuração global (`/portal-config`) — `GET` público consolida
+identity/access/theme/assets/categories/statuses/pesos; os `PATCH` por seção
+exigem Administrador. Contrato e scripts de teste em
+[`docs/portal-config-endpoints.md`](docs/portal-config-endpoints.md).
+
+- `GET /portal-config` — config consolidada (público)
+- `PATCH /portal-config/access` — modo de acesso (`PUBLIC`/`AUTHENTICATED`)
+- `PATCH /portal-config/identity` — nome da plataforma + máscara do protocolo
+- `PATCH /portal-config/theme` — tema light/dark completos (atômico)
+- `PATCH /portal-config/assets` — assets (multipart; URL direta ou binário)
+- `PATCH /portal-config/categories` — categorias (lista atômica)
+- `PATCH /portal-config/statuses` — status do ciclo (lista atômica)
+- `PATCH /portal-config/prioritization-weights` — pesos 0–10 dos critérios
+
+Toda alteração registrada em `audit_history` (entidade `settings`).
+
 ## Scripts
 
 | Comando                               | Descrição                                       |
