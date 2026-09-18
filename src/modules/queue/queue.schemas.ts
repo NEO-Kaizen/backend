@@ -9,7 +9,7 @@ import type { QueueQuery } from "../../shared/types/queue.types.ts";
  * - `page`/`pageSize` são obrigatórios e inteiros (`page >= 1`, `1 <= pageSize <= 100`);
  * - `unassigned` aceita apenas `true`/`false`/`1`/`0` (qualquer outro valor => 400);
  * - `assigneeId` aceita UUID ou o literal `unassigned` — valores numéricos são
- *   rejeitados porque `professional_id` é UUID (migration create_professionals);
+ *   rejeitados porque `professional_id` é UUID (tabela details_professional);
  * - `unassigned=true` é incompatível com `assigneeId=<uuid>` (combinação => 400).
  */
 export const queueQuerySchema = z

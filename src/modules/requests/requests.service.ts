@@ -1,11 +1,19 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import db from "../../database/conection.ts";
+import type { RequestStatus } from "../../shared/types/requests.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
 import { removeFiles } from "../../shared/storage/fileStorage.ts";
 import type {
   CreateRequestPayload,
   ListRequestsQuery,
 } from "../DTOs/requests/RequestRequests.dto.ts";
-import type { RequestDetail, RequestSummary } from "../DTOs/requests/RequestResponse.dto.ts";
+import type {
+  AssignRequestResponse,
+  AssigneeSummary,
+  RequestDetail,
+  RequestSummary,
+} from "../DTOs/requests/RequestResponse.dto.ts";
 import type {
   ComplementaryBlock,
   RequestInternalDetailDTO,
@@ -19,6 +27,7 @@ import {
   toSaoPauloDateOnly,
 } from "../../shared/utils/date.ts";
 import * as repository from "./requests.repository.ts";
+import type { AssignRequestPayload } from "./requests.schema.ts";
 
 export async function findRequest(protocol: string): Promise<RequestDetail> {
   const normalizedProtocol = protocol.trim();
@@ -213,4 +222,91 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
     lastUpdate,
     internalObservations: request.internal_notes,
   };
+}
+
+export async function listAssignees(): Promise<AssigneeSummary[]> {
+  return repository.findActiveAssignees();
+}
+
+// RN-010 — ao salvar o responsável de uma demanda em triagem já aprovada como
+// elegível, o status avança automaticamente para "Aguardando mapeamento".
+const RN010_FROM_STATUS: RequestStatus = "Em triagem";
+const RN010_TO_STATUS: RequestStatus = "Aguardando mapeamento";
+const RN010_ELIGIBLE_SCREENING = "elegivel";
+
+async function resolveAssignee(
+  professionalId: string,
+): Promise<{ id: string; name: string; email: string }> {
+  const candidate = await repository.findAssignmentCandidateById(professionalId);
+
+  if (!candidate) {
+    throw new AppError("Responsável não encontrado.", 400);
+  }
+  if (candidate.professional_status !== "active" || !candidate.user_is_active) {
+    throw new AppError("Responsável inativo.", 400);
+  }
+  if (!(repository.ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
+    throw new AppError("Perfil do responsável não permite atribuição.", 400);
+  }
+
+  return { id: candidate.id, name: candidate.name, email: candidate.email };
+}
+
+export async function assignResponsible(
+  protocol: string,
+  payload: AssignRequestPayload,
+  actor: { id: number; email: string },
+  ipAddress: string | undefined,
+): Promise<AssignRequestResponse> {
+  const request = await repository.findAssignmentContextByProtocol(protocol.trim());
+  if (!request) {
+    throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  const assignee =
+    payload.professionalId === null ? null : await resolveAssignee(payload.professionalId);
+
+  const previousId = request.professional_id;
+  const nextId = assignee?.id ?? null;
+  const action = nextId === null ? "unassign" : previousId === null ? "assign" : "reassign";
+
+  const shouldAdvanceStatus =
+    nextId !== null &&
+    request.status === RN010_FROM_STATUS &&
+    request.screening_result === RN010_ELIGIBLE_SCREENING;
+  const finalStatus = shouldAdvanceStatus ? RN010_TO_STATUS : request.status;
+
+  // Atribuição, gatilho RN-010 e auditoria na MESMA transação: nada fica
+  // parcialmente aplicado nem sem histórico.
+  await db.transaction(async (trx) => {
+    await repository.updateAssignee(trx, request.request_id, nextId, actor.email);
+
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: request.protocol,
+      actionType: `request.${action}`,
+      userId: actor.id,
+      previousValue: previousId,
+      newValue: nextId,
+      note: ipAddress,
+      changeOrigin: "admin",
+    });
+
+    if (shouldAdvanceStatus) {
+      await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
+
+      await recordAudit(trx, {
+        entityType: "request",
+        entityId: request.protocol,
+        actionType: "request.status_change",
+        userId: actor.id,
+        previousValue: RN010_FROM_STATUS,
+        newValue: RN010_TO_STATUS,
+        note: "RN-010",
+        changeOrigin: "system",
+      });
+    }
+  });
+
+  return { protocol: request.protocol, assignee, status: finalStatus };
 }
