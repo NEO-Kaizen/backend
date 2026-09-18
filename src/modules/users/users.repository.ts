@@ -5,7 +5,8 @@ import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type { CreateUserRequest, ListUsersQuery } from "../DTOs/users/UserRequests.dto.ts";
-import type { UserSummary } from "../DTOs/users/UserResponse.dto.ts";
+import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
+import type { RequestCategory } from "../../shared/types/requests.ts";
 
 interface UserSummaryRow {
   user_id: number;
@@ -155,6 +156,83 @@ export async function setTemporaryPassword(
   if (updated === 0) {
     throw new AppError("Usuário não encontrado", 404);
   }
+}
+
+interface AnalystRow {
+  user_id: number;
+  full_name: string;
+  email: string;
+  job_title: string | null;
+  attended_category_ids: string | null;
+  notes: string | null;
+  professional_id: string;
+}
+
+export async function listAnalysts(): Promise<AssignAnalyst[]> {
+  const rows = (await db("users as u")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .join("details_professional as dp", "dp.user_id", "u.user_id")
+    .where("p.name", "analista")
+    .andWhere("p.is_active", true)
+    .andWhere("u.is_active", true)
+    .andWhere("dp.status", "active")
+    .select({
+      user_id: "u.user_id",
+      full_name: "u.full_name",
+      email: "u.email",
+      job_title: "dp.job_title",
+      attended_category_ids: "dp.attended_category_ids",
+      notes: "dp.notes",
+      professional_id: "dp.professional_id",
+    })
+    .orderBy("u.full_name", "asc")) as AnalystRow[];
+
+  if (rows.length === 0) return [];
+
+  const categoryMap = new Map<number, string>();
+  const categories = (await db("categories")
+    .where({ status: "active" })
+    .select("category_id", "name")) as Array<{ category_id: number; name: string }>;
+  for (const cat of categories) {
+    categoryMap.set(cat.category_id, cat.name);
+  }
+
+  // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
+  // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
+  // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
+  const professionalIds = rows.map((r) => r.professional_id);
+  const counts = (await db("requests")
+    .whereIn("professional_id", professionalIds)
+    .select("professional_id")
+    .count<{ professional_id: string; count: string }>("* as count")
+    .groupBy("professional_id")) as Array<{ professional_id: string; count: string }>;
+  const countByProfessional = new Map<string, number>();
+  for (const c of counts) {
+    countByProfessional.set(c.professional_id, Number(c.count));
+  }
+
+  return rows.map((row) => {
+    const categoriesForAnalyst: RequestCategory[] = [];
+    if (row.attended_category_ids) {
+      for (const part of row.attended_category_ids.split(",")) {
+        const id = Number(part.trim());
+        if (!Number.isNaN(id)) {
+          const name = categoryMap.get(id);
+          if (name) categoriesForAnalyst.push(name as RequestCategory);
+        }
+      }
+    }
+
+    return {
+      id: String(row.user_id),
+      fullName: row.full_name,
+      email: row.email,
+      specialty: row.job_title ?? "",
+      categories: categoriesForAnalyst,
+      notes: row.notes ?? null,
+      requestLoad: countByProfessional.get(row.professional_id) ?? 0,
+    } satisfies AssignAnalyst;
+  });
 }
 
 /** Métricas consolidadas da base de usuários — leitura simples, sem transação. */

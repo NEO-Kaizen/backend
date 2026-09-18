@@ -5,11 +5,17 @@ import {
   changeUserStatus,
   createUser,
   getUserMetrics,
+  listAnalysts,
   listUsers,
   resetUserPassword,
 } from "./users.controller.ts";
 
 const usersRoutes = express.Router();
+
+// Lista para modal de atribuição — contrato contract-assign-action.md
+// Sem query, sem paginação, todos com profile === "Analista", isActive=true.
+// Autenticado, qualquer perfil interno logado pode listar (modal triagem).
+usersRoutes.get("/analysts", authMiddleware, listAnalysts);
 
 usersRoutes.use(authMiddleware);
 usersRoutes.use(requireRole("Administrador"));
