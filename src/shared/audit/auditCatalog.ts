@@ -21,7 +21,7 @@ export const auditCatalog = {
   },
   request: {
     label: "Solicitações",
-    actions: ["assign", "reassign", "unassign", "status_change"],
+    actions: ["assign", "reassign", "unassign", "status_change", "update"],
   },
   settings: {
     label: "Configuração do portal",
