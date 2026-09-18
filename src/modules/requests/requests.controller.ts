@@ -3,9 +3,10 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
+  assignAnalystSchema,
+  assignRequestSchema,
   createRequestPayloadSchema,
   listRequestsQuerySchema,
-  assignRequestSchema,
 } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
 
@@ -111,6 +112,24 @@ export const patchAssignee = async (req: Request, res: Response): Promise<Respon
   }
 
   const response = await service.assignResponsible(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
+
+  return res.status(200).json(response);
+};
+
+export const patchInternalAssignee = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const parsed = assignAnalystSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const response = await service.assignAnalyst(
     protocol,
     parsed.data,
     actorFromRequest(req),

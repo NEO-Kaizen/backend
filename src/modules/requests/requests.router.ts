@@ -6,6 +6,7 @@ import {
   getInternalRequestByProtocol,
   getRequestsByEmail,
   getRequestsByProtocol,
+  patchInternalAssignee,
   postRequest,
   getAssignees,
   patchAssignee,
@@ -21,7 +22,15 @@ requestsRoutes.get(
   getAssignees,
 );
 
-// Apenas Administrador define/substitui o responsável (issue #50).
+// Contrato contract-assign-action.md: PATCH /requests/:protocol/internal/assignee com body {assigneeId} | {mappingAssigneeId} (user_id string, XOR, null para remover)
+// Apenas Administrador atribui (Q3). Mantida rota legada /:protocol/assignee para compat até remoção.
+requestsRoutes.patch(
+  "/:protocol/internal/assignee",
+  authMiddleware,
+  requireRole("Administrador"),
+  patchInternalAssignee,
+);
+
 requestsRoutes.patch(
   "/:protocol/assignee",
   authMiddleware,
