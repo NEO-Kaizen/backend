@@ -133,17 +133,18 @@ export const updateAssets = async (req: Request, res: Response): Promise<Respons
 
     if (assetEntries.length > 0) {
       const targetDir = path.resolve(Config.UPLOAD_DIR, "portal");
+      // Save directly with variant prefix so filename matches persisted URL.
       const saved = await saveFiles(
         assetEntries.map(([, file]) => file),
         targetDir,
+        assetEntries.map(([fieldName]) => ASSET_KEY_TO_URL_PATH[fieldName as AssetKey]),
       );
       savedAttachments.push(...saved);
 
       saved.forEach((attachment, index) => {
         const fieldName = assetEntries[index]?.[0];
         if (!fieldName) return;
-        const urlPath = ASSET_KEY_TO_URL_PATH[fieldName as AssetKey];
-        binaryUrls[fieldName] = `/uploads/portal/${urlPath}-${attachment.storageKey}`;
+        binaryUrls[fieldName] = `/uploads/portal/${attachment.storageKey}`;
       });
     }
 

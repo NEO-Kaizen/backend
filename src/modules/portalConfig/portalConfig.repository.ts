@@ -39,9 +39,9 @@ export async function listCategories(trx?: Knex.Transaction): Promise<CategoryRo
 
 export async function listStatuses(trx?: Knex.Transaction): Promise<StatusRow[]> {
   const source = trx ?? db;
-  return source("statuses").where({ is_active: true }).orderBy("order_number", "asc") as Promise<
-    StatusRow[]
-  >;
+  // Retorna também os inativos (`isActive: false`): o contrato mantém o status
+  // na lista (sem exclusão) e apenas o exclui de novos fluxos.
+  return source("statuses").orderBy("order_number", "asc") as Promise<StatusRow[]>;
 }
 
 interface CriteriaRow {
@@ -214,7 +214,7 @@ export async function upsertStatuses(
         visibility: status.visibility,
         closes_request: status.closesRequest,
         tone: status.tone,
-        is_active: true,
+        is_active: status.isActive,
         is_final: status.closesRequest,
       })
       .onConflict("status_id")
@@ -224,11 +224,12 @@ export async function upsertStatuses(
         visibility: status.visibility,
         closes_request: status.closesRequest,
         tone: status.tone,
-        is_active: true,
+        is_active: status.isActive,
         is_final: status.closesRequest,
       });
   }
 
+  // Status ausentes da lista enviada são inativados (não há exclusão).
   const keepIds = statuses.map((s) => s.id);
   if (keepIds.length > 0) {
     await trx("statuses")
