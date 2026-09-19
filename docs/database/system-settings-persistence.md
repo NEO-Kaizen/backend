@@ -276,10 +276,13 @@ opera em transação própria com lock do singleton:
   Seguido de `setval` para não colidir com a sequence.
 - **`statuses`** → upsert por `status_id`, `order_number` = índice,
   `visibility`/`closes_request`/`tone`/`is_active` (por item do payload);
-  ausentes viram `is_active = false`; `is_final` é sincronizado com
-  `closes_request` (decisão §8.5). Nomes protegidos (referenciados no código)
-  não podem ser renomeados/removidos. O `GET` retorna também os inativos
-  (`isActive: false`), já que não há exclusão de status.
+  ausentes viram `is_active = false` e são renumerados para depois dos enviados;
+  `is_final` é sincronizado com `closes_request` (decisão §8.5). A unicidade de
+  `order_number` (`uk_statuses_order`) é `DEFERRABLE INITIALLY DEFERRED`
+  (migration `20260919140000`), validada no commit após a renumeração. Nomes
+  protegidos (referenciados no código) não podem ser renomeados/removidos. O
+  `GET` retorna também os inativos (`isActive: false`), já que não há exclusão
+  de status.
 - **`prioritization-weights`** → mapeia as 10 chaves do contrato (EN) para
   `criteria.criterion_id` (pt snake) via `src/shared/types/criteria.ts`
   (`CRITERION_KEY_TO_ID`) e grava `criteria.weight` (inteiro 0–10, decisão

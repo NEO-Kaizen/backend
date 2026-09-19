@@ -205,12 +205,16 @@ export async function upsertStatuses(
   trx: Knex.Transaction,
   statuses: PortalStatus[],
 ): Promise<void> {
+  // Ordem final = posição no array enviado (o array é a ordem de exibição).
+  const orderById = new Map(statuses.map((status, index) => [status.id, index]));
+
   for (const status of statuses) {
+    const orderNumber = orderById.get(status.id) as number;
     await trx("statuses")
       .insert({
         status_id: status.id,
         name: status.name,
-        order_number: statuses.indexOf(status),
+        order_number: orderNumber,
         visibility: status.visibility,
         closes_request: status.closesRequest,
         tone: status.tone,
@@ -220,7 +224,7 @@ export async function upsertStatuses(
       .onConflict("status_id")
       .merge({
         name: status.name,
-        order_number: statuses.indexOf(status),
+        order_number: orderNumber,
         visibility: status.visibility,
         closes_request: status.closesRequest,
         tone: status.tone,
@@ -229,9 +233,24 @@ export async function upsertStatuses(
       });
   }
 
-  // Status ausentes da lista enviada são inativados (não há exclusão).
-  const keepIds = statuses.map((s) => s.id);
+  // Status ausentes da lista enviada são inativados (não há exclusão) e
+  // renumerados para depois dos enviados, preservando a ordem relativa. Isso
+  // evita colisão em `uk_statuses_order` no commit — necessário porque a
+  // constraint de `order_number` é diferida (`DEFERRABLE INITIALLY DEFERRED`),
+  // mas o estado final ainda precisa ser sem duplicados.
+  const keepIds = statuses.map((status) => status.id);
   if (keepIds.length > 0) {
+    const omitted = await trx("statuses")
+      .whereNotIn("status_id", keepIds)
+      .orderBy("order_number", "asc")
+      .select("status_id");
+
+    let nextOrder = statuses.length;
+    for (const row of omitted) {
+      await trx("statuses").where({ status_id: row.status_id }).update({ order_number: nextOrder });
+      nextOrder += 1;
+    }
+
     await trx("statuses")
       .whereNotIn("status_id", keepIds)
       .andWhere({ is_active: true })
