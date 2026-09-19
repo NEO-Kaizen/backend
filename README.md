@@ -399,6 +399,28 @@ consulta pública (`GET /requests/:protocol`, acima) em
 - Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
 - Resposta `404 Not Found`: protocolo inexistente.
 
+#### PATCH /requests/:protocol/internal
+
+Atualização interna dos blocos editáveis da solicitação pelo protocolo — exige
+autenticação (cookie de sessão) e perfil `Analista`, `Gestor` ou
+`Administrador`. Corpo: os blocos `requester`, `demand`, `operational` e o
+bloco opcional `complementary` (mesmo formato do `GET /requests/:protocol/internal`).
+Semântica de **substituição completa**: chave ausente = campo limpo (NULL),
+inclusive quando `complementary` é omitido por inteiro.
+
+- Autorização por perfil (issue #121): `Administrador`/`Gestor` editam qualquer
+  solicitação; `Analista` apenas as atribuídas a ele (`403` caso contrário).
+- `fullName`/`corporateEmail` enviados no `requester` são **ignorados**
+  (identidade do solicitante imutável via PATCH interno).
+- `last_external_update_at` **não** é alterado; `updated_by` = e-mail do ator
+  e `updated_at` renovado. Auditoria `request.update` gravada na mesma
+  transação (`audit_history`, `previous_value`/`new_value` = JSON dos blocos).
+- Resposta `200 OK`: `RequestInternalDetailDTO` atualizado (mesmo formato do GET
+  interno). `desiredDeadline` deve ser hoje ou data futura (`422` caso contrário).
+- Erros: `401` sem cookie; `403` perfil não autorizado; `404` protocolo
+  inexistente; `422` validação (+ campo `fields` com mensagens por chave, ex.:
+  `demand.title`, `operational.hasManualControlsDetail`).
+
 ### Configuração do portal
 
 Rotas de configuração global (`/portal-config`) — `GET` público consolida
