@@ -147,6 +147,7 @@ export const portalStatusSchema = z
     tone: z.enum(STATUS_TONES, {
       error: "Tom inválido — opções: error, success, info, warning ou neutral.",
     }),
+    isActive: z.boolean(),
   })
   .strict();
 
@@ -169,19 +170,26 @@ export const updateStatusesSchema = z
           }
           seen.add(key);
         });
+        if (!statuses.some((status) => status.isActive)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["statuses"],
+            message: "Ao menos um status deve estar ativo.",
+          });
+        }
       }),
   })
   .strict();
 
 /**
- * Pesos da priorização — objeto atômico completa, sempre com todas as chaves.
- * Escala **inteira 0–10** (decisão de produto issue-59 §8.3, divergente do
- * contrato que valida 1.0–5.0 passo 0.5).
+ * Pesos da priorização — objeto atômico completo, sempre com todas as chaves.
+ * Escala **inteira 1–10** (contrato `portal-config-api-0_4.md`, alinhada ao
+ * `criteria.weight`).
  */
 const prioritizationWeightSchema = z
   .number()
   .int("Peso deve ser inteiro.")
-  .min(0, "Peso mínimo de 0.")
+  .min(1, "Peso mínimo de 1.")
   .max(10, "Peso máximo de 10.");
 
 export const updatePrioritizationWeightsSchema = z
@@ -205,12 +213,21 @@ export const updatePrioritizationWeightsSchema = z
     }
   });
 
-/** Parte JSON `assets` do multipart (chaves com URL definida diretamente). */
+/**
+ * Parte JSON `assets` do multipart (chaves com URL definida diretamente).
+ * Aceita URL relativa do app (`/...`) ou `http(s)://`; rejeita esquemas como
+ * `blob:`/`javascript:` (contrato `portal-config-api-0_4.md` §5 — `blob:` é
+ * permitido apenas no preview local do frontend em dev).
+ */
 const assetUrlSchema = z
   .string()
   .trim()
   .min(1, "Campo obrigatório.")
-  .max(500, "Máximo de 500 caracteres.");
+  .max(500, "Máximo de 500 caracteres.")
+  .refine(
+    (url) => url.startsWith("/") || /^https?:\/\//i.test(url),
+    "URL de asset deve ser relativa do app ou http(s).",
+  );
 
 export const portalAssetsPatchSchema = z
   .object({
