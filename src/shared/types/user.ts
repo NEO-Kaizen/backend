@@ -33,8 +33,8 @@ export interface AuthUserRow extends UserRow {
 
 /** Métricas consolidadas da base de usuários — retorno de `GET /users/metrics`. */
 export interface UserMetricsResponse {
-  totalUsers: number;
-  activeUsers: number;
-  pendingUsers: number;
-  adminUsers: number;
+  total: number;
+  active: number;
+  pending: number;
+  admins: number;
 }
