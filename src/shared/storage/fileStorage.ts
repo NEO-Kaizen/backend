@@ -15,6 +15,7 @@ export async function saveFiles(
   // Ponto de melhoria: criptografar os arquivos
   files: Express.Multer.File[],
   targetDir: string = Config.UPLOAD_DIR,
+  filenamePrefixes: Array<string | undefined> = [],
 ): Promise<SavedAttachment[]> {
   if (files.length === 0) return [];
 
@@ -23,8 +24,11 @@ export async function saveFiles(
 
   const saved: SavedAttachment[] = [];
   try {
-    for (const file of files) {
-      const filename = `${randomUUID()}${path.extname(file.originalname)}`;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file) continue;
+      const prefix = filenamePrefixes[i];
+      const filename = `${prefix ? `${prefix}-` : ""}${randomUUID()}${path.extname(file.originalname)}`;
       const storagePath = path.join(dir, filename);
       await fs.promises.writeFile(storagePath, file.buffer);
       saved.push({

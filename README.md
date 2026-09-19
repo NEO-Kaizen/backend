@@ -304,18 +304,18 @@ retorna as métricas consolidadas da base de usuários.
 
   ```json
   {
-    "totalUsers": 15,
-    "activeUsers": 13,
-    "pendingUsers": 3,
-    "adminUsers": 3
+    "total": 15,
+    "active": 13,
+    "pending": 3,
+    "admins": 3
   }
   ```
 
-- `totalUsers`: total de usuários cadastrados.
-- `activeUsers`: usuários com conta ativa (`is_active = true`).
-- `pendingUsers`: usuários com troca de senha pendente
+- `total`: total de usuários cadastrados.
+- `active`: usuários com conta ativa (`is_active = true`).
+- `pending`: usuários com troca de senha pendente
   (`must_change_password = true` — senha temporária / primeiro acesso).
-- `adminUsers`: usuários vinculados ao perfil `administrador`.
+- `admins`: usuários vinculados ao perfil `administrador`.
 
 Contrato completo (tipos, exemplos de erro e regras de contagem) em
 [`docs/users-api-metrics-0_1.md`](docs/users-api-metrics-0_1.md).
