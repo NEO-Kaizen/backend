@@ -10,6 +10,12 @@ export interface FindQueueParams {
   priority?: RequestPriority;
   assigneeId?: string;
   unassigned?: boolean;
+  /**
+   * Escopo de visibilidade por usuário (issue #102). Quando definido, restringe
+   * o resultado às solicitações em que o usuário é responsável — de triagem ou
+   * de mapeamento. `undefined` = sem restrição (perfis Gestor/Administrador).
+   */
+  scopedUserId?: number;
   limit: number;
   offset: number;
 }
