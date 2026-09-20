@@ -12,6 +12,7 @@ import type {
   ListUsersQuery,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type {
+  AssignAnalyst,
   ChangeUserStatusResponse,
   CreateUserResponse,
   ResetPasswordResponse,
@@ -58,6 +59,10 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   }
 
   return repository.listUsers(query);
+}
+
+export async function listAnalysts(): Promise<AssignAnalyst[]> {
+  return repository.listAnalysts();
 }
 
 export const getUserMetrics = async (): Promise<UserMetricsResponse> => {

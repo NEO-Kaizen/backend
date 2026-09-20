@@ -17,8 +17,9 @@ import type {
 export type { ComplementaryBlock, DemandBlock, OperationalBlock, RequesterBlock, YesNoDetail };
 
 export interface Assignee {
-  name: string;
-  email: string | null;
+  id: string | null;
+  name: string | null;
+  email?: string | null;
 }
 
 export interface Prioritization {
@@ -51,6 +52,7 @@ export interface RequestInternalDetailDTO {
   priority: string | null;
   prioritization: Prioritization;
   assignee: Assignee | null;
+  mappingAssignee?: Assignee | null;
   correctionAlert: CorrectionAlert | null;
 
   requester: RequesterBlock;

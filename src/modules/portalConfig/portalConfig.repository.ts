@@ -55,9 +55,9 @@ export async function listCategories(trx?: Knex.Transaction): Promise<CategoryRo
 
 export async function listStatuses(trx?: Knex.Transaction): Promise<StatusRow[]> {
   const source = trx ?? db;
-  return source("statuses").where({ is_active: true }).orderBy("order_number", "asc") as Promise<
-    StatusRow[]
-  >;
+  // Retorna também os inativos (`isActive: false`): o contrato mantém o status
+  // na lista (sem exclusão) e apenas o exclui de novos fluxos.
+  return source("statuses").orderBy("order_number", "asc") as Promise<StatusRow[]>;
 }
 
 interface CriteriaRow {
@@ -221,32 +221,52 @@ export async function upsertStatuses(
   trx: Knex.Transaction,
   statuses: PortalStatus[],
 ): Promise<void> {
+  // Ordem final = posição no array enviado (o array é a ordem de exibição).
+  const orderById = new Map(statuses.map((status, index) => [status.id, index]));
+
   for (const status of statuses) {
+    const orderNumber = orderById.get(status.id) as number;
     await trx("statuses")
       .insert({
         status_id: status.id,
         name: status.name,
-        order_number: statuses.indexOf(status),
+        order_number: orderNumber,
         visibility: status.visibility,
         closes_request: status.closesRequest,
         tone: status.tone,
-        is_active: true,
+        is_active: status.isActive,
         is_final: status.closesRequest,
       })
       .onConflict("status_id")
       .merge({
         name: status.name,
-        order_number: statuses.indexOf(status),
+        order_number: orderNumber,
         visibility: status.visibility,
         closes_request: status.closesRequest,
         tone: status.tone,
-        is_active: true,
+        is_active: status.isActive,
         is_final: status.closesRequest,
       });
   }
 
-  const keepIds = statuses.map((s) => s.id);
+  // Status ausentes da lista enviada são inativados (não há exclusão) e
+  // renumerados para depois dos enviados, preservando a ordem relativa. Isso
+  // evita colisão em `uk_statuses_order` no commit — necessário porque a
+  // constraint de `order_number` é diferida (`DEFERRABLE INITIALLY DEFERRED`),
+  // mas o estado final ainda precisa ser sem duplicados.
+  const keepIds = statuses.map((status) => status.id);
   if (keepIds.length > 0) {
+    const omitted = await trx("statuses")
+      .whereNotIn("status_id", keepIds)
+      .orderBy("order_number", "asc")
+      .select("status_id");
+
+    let nextOrder = statuses.length;
+    for (const row of omitted) {
+      await trx("statuses").where({ status_id: row.status_id }).update({ order_number: nextOrder });
+      nextOrder += 1;
+    }
+
     await trx("statuses")
       .whereNotIn("status_id", keepIds)
       .andWhere({ is_active: true })
