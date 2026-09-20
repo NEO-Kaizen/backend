@@ -3,9 +3,33 @@ import { IN_PROGRESS_STATUSES, TERMINAL_STATUSES } from "../../shared/types/requ
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
 
-export const fetchQueueMetrics = async (): Promise<QueueMetricsResponse> => {
-  const result = await db("requests")
-    .leftJoin("statuses as s", "s.status_id", "requests.status_id")
+export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMetricsResponse> => {
+  const query = db("requests").leftJoin("statuses as s", "s.status_id", "requests.status_id");
+
+  // Escopo por Analista (issue #102): conta apenas as solicitações em que o
+  // usuário é responsável de triagem OU de mapeamento. Os joins são 1:1
+  // (`professional_id`/`mapping_professional_id` são únicos), então não inflam
+  // as contagens.
+  if (scopedUserId !== undefined) {
+    query
+      .leftJoin(
+        "details_professional as assignee",
+        "assignee.professional_id",
+        "requests.professional_id",
+      )
+      .leftJoin(
+        "details_professional as mapping_assignee",
+        "mapping_assignee.professional_id",
+        "requests.mapping_professional_id",
+      )
+      .andWhere((builder) => {
+        builder
+          .where("assignee.user_id", scopedUserId)
+          .orWhere("mapping_assignee.user_id", scopedUserId);
+      });
+  }
+
+  const result = await query
     .select(
       db.raw('COUNT(requests.*)::int as "totalRequests"'),
       db.raw(
@@ -35,7 +59,7 @@ export const fetchQueueMetrics = async (): Promise<QueueMetricsResponse> => {
 export const findQueueRequests = async (
   params: FindQueueParams,
 ): Promise<{ items: QueueItem[]; total: number }> => {
-  const { search, status, priority, assigneeId, unassigned, limit, offset } = params;
+  const { search, status, priority, assigneeId, unassigned, scopedUserId, limit, offset } = params;
 
   const baseQuery = db("requests")
     .join("requesters as requester", "requester.requester_id", "requests.requester_id")
@@ -46,7 +70,13 @@ export const findQueueRequests = async (
       "assignee.professional_id",
       "requests.professional_id",
     )
-    .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id");
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id")
+    // Eixo de mapeamento, usado apenas pelo escopo do Analista (#102).
+    .leftJoin(
+      "details_professional as mapping_assignee",
+      "mapping_assignee.professional_id",
+      "requests.mapping_professional_id",
+    );
 
   if (search) {
     baseQuery.andWhere((builder) => {
@@ -63,7 +93,23 @@ export const findQueueRequests = async (
   if (unassigned) {
     baseQuery.whereNull("requests.professional_id");
   } else if (assigneeId) {
-    baseQuery.andWhere("requests.professional_id", assigneeId);
+    const isNumericId = /^\d+$/.test(assigneeId);
+    if (isNumericId) {
+      baseQuery.andWhere("assignee_user.user_id", Number(assigneeId));
+    } else {
+      baseQuery.andWhere("requests.professional_id", assigneeId);
+    }
+  }
+
+  // Escopo por Analista (#102): AND sobre os filtros do cliente, então
+  // `assigneeId`/`unassigned` de terceiros resultam em conjunto vazio — nunca
+  // ampliam a visibilidade. Sem responsável não casa (ambos os eixos nulos).
+  if (scopedUserId !== undefined) {
+    baseQuery.andWhere((builder) => {
+      builder
+        .where("assignee_user.user_id", scopedUserId)
+        .orWhere("mapping_assignee.user_id", scopedUserId);
+    });
   }
 
   const countQuery = baseQuery.clone().count("* as total").first();
@@ -75,7 +121,8 @@ export const findQueueRequests = async (
       "requests.process_name as processName",
       "priority_tbl.level as priority",
       "status.name as status",
-      "assignee.professional_id as assigneeId",
+      // Expor user_id como assigneeId para contract-assign-action.md (frontend usa user_id)
+      db.raw('assignee_user.user_id::text as "assigneeId"'),
       "assignee_user.full_name as assignee",
       "requester.full_name as requesterName",
       "requester.corporate_email as requesterEmail",
@@ -93,8 +140,12 @@ export const findQueueRequests = async (
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {
   const rows = await db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.status", "active")
-    .select("dp.professional_id as id", "u.full_name as name")
+    .andWhere("u.is_active", true)
+    .andWhere("p.is_active", true)
+    .where("p.name", "analista")
+    .select(db.raw("u.user_id::text as id"), "u.full_name as name")
     .orderBy("u.full_name", "asc");
 
   return rows;

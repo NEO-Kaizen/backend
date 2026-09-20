@@ -58,6 +58,9 @@ export const THEME_TOKEN_KEYS = [
   "border",
   "textPrimary",
   "textSecondary",
+  // Cor dos títulos (h1–h6). Default = `primary` da paleta, mas configurável
+  // para permitir títulos neutros com a marca reservada a CTAs/links.
+  "heading",
   "richBlack",
   "primary",
   "secondary",
@@ -84,10 +87,12 @@ export interface ThemeGradient {
   angle?: number; // graus 0..360 (default 143 quando ausente)
 }
 
-// Combina os 12 tokens + `statuses` + `gradient` da paleta.
+// Combina os 13 tokens + `gradient` + `statuses` da paleta. A ordem de
+// serialização é relevante para a comparação de rascunho no cliente: `gradient`
+// é emitido antes de `statuses` (contrato `portal-config-api-0_4.md`).
 export interface ThemeTokens extends Record<ThemeTokenKey, string> {
-  statuses: Record<StatusTone, StatusToneTokens>;
   gradient: ThemeGradient;
+  statuses: Record<StatusTone, StatusToneTokens>;
 }
 
 // Paletas do portal — claro e escuro.
@@ -110,13 +115,16 @@ export interface PortalCategory {
 // restrito à equipe.
 export type StatusVisibility = "PUBLIC" | "INTERNAL";
 
-// Status do ciclo de vida. `closesRequest` encerra a solicitação.
+// Status do ciclo de vida. `closesRequest` encerra a solicitação; `isActive` é a
+// ativação/inativação (não há exclusão — status inativos permanecem na lista,
+// mas não entram em novos fluxos).
 export interface PortalStatus {
   id: number;
   name: string;
   visibility: StatusVisibility;
   closesRequest: boolean;
   tone: StatusTone;
+  isActive: boolean;
 }
 
 // Critérios fixos de priorização (allowlist das chaves aceitas).
@@ -136,8 +144,8 @@ export const PRIORITIZATION_CRITERIA = [
 export type PrioritizationCriterion = (typeof PRIORITIZATION_CRITERIA)[number];
 
 // Pesos da priorização — objeto completo, sempre com todas as chaves. Escala
-// **inteira 0–10** (decisão de produto, divergente do contrato que pede 1.0–5.0
-// — ver plano issue-59 §8.3).
+// **inteira 1–10** (alinhada ao contrato `portal-config-api-0_4.md` e ao
+// `criteria.weight`).
 export type PrioritizationWeights = Record<PrioritizationCriterion, number>;
 
 // Config completa (GET) e recortes de cada seção editável.

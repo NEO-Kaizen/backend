@@ -1,4 +1,5 @@
 import { AppError } from "../../../shared/errors/AppError.ts";
+import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import * as repository from "./triage.repository.ts";
 
@@ -47,49 +48,56 @@ export async function createTriage(
   }
 
   if (payload.adherentToScope === "Não" && payload.adherentJustification.trim() === "") {
-    throw new AppError("Validação falhou", 422, {
-      adherentJustification: "Informe a justificativa quando não aderente ao escopo",
-    });
+    throw new ValidationError(
+      { adherentJustification: "Informe a justificativa quando não aderente ao escopo" },
+      "Validação falhou",
+    );
   }
 
   if (payload.adherentToScope === "Sim" && payload.preliminaryComplexity.trim() === "") {
-    throw new AppError("Validação falhou", 422, {
-      preliminaryComplexity: "Descreva a complexidade preliminar",
-    });
+    throw new ValidationError(
+      { preliminaryComplexity: "Descreva a complexidade preliminar" },
+      "Validação falhou",
+    );
   }
 
   if (payload.adherentToScope === "Sim" && payload.perceivedRisks.trim() === "") {
-    throw new AppError("Validação falhou", 422, {
-      perceivedRisks: "Descreva os riscos percebidos",
-    });
+    throw new ValidationError(
+      { perceivedRisks: "Descreva os riscos percebidos" },
+      "Validação falhou",
+    );
   }
 
   if (payload.changeCategory === "Sim" && payload.newCategory.trim() === "") {
-    throw new AppError("Validação falhou", 422, {
-      newCategory: "Selecione a categoria de destino",
-    });
+    throw new ValidationError(
+      { newCategory: "Selecione a categoria de destino" },
+      "Validação falhou",
+    );
   }
 
   if (payload.exitStatus.trim() === "") {
-    throw new AppError("Validação falhou", 422, {
-      exitStatus: "Selecione o status de saída",
-    });
+    throw new ValidationError(
+      { exitStatus: "Selecione o status de saída" },
+      "Validação falhou",
+    );
   }
 
   const exitStatus = await repository.resolveExitStatus(payload.exitStatus);
   if (!exitStatus) {
-    throw new AppError("Validação falhou", 422, {
-      exitStatus: "Status de saída deve ser um status ativo elegível para triagem",
-    });
+    throw new ValidationError(
+      { exitStatus: "Status de saída deve ser um status ativo elegível para triagem" },
+      "Validação falhou",
+    );
   }
 
   let categoryId: number | null = null;
   if (payload.changeCategory === "Sim") {
     const newCategory = await repository.resolveCategoryId(payload.newCategory);
     if (!newCategory) {
-      throw new AppError("Validação falhou", 422, {
-        newCategory: "Categoria de destino inválida",
-      });
+      throw new ValidationError(
+        { newCategory: "Categoria de destino inválida" },
+        "Validação falhou",
+      );
     }
     categoryId = newCategory.category_id;
   }

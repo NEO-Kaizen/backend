@@ -206,9 +206,32 @@ Retorna a sessão atual a partir do cookie de sessão HttpOnly. Valida o JWT e r
 
 ### Solicitações
 
+As rotas de solicitação (`POST /requests`, `GET /requests` e
+`GET /requests/:protocol`) respeitam o **modo de abertura do portal**
+(`system_settings.solicitation_mode`, definido em
+`PATCH /portal-config/access`):
+
+- **`PUBLIC`** (default): comportamento público — sem autenticação, como
+  descrito abaixo.
+- **`AUTHENTICATED`**: exige cookie de sessão válido nas três rotas (`401`
+  sem sessão). Além disso, o acesso passa a ser escopado à identidade da
+  sessão:
+  - `POST /requests` sobrescreve `requester.fullName`/`requester.corporateEmail`
+    com o cadastro do usuário logado (evita spoofing). Os campos seguem
+    obrigatórios no payload (validação), mas não definem a identidade gravada;
+    o vínculo é registrado em `requests.requester_user_id`.
+  - `GET /requests` lista somente as solicitações do e-mail da sessão e
+    **recusa** o parâmetro `?email=` com `400`.
+  - `GET /requests/:protocol` retorna `404` para protocolos que não
+    pertencem ao usuário logado (não revela a existência de terceiros).
+
 #### POST /requests
 
-Endpoint público (sem autenticação) que cadastra uma solicitação, gera o protocolo e persiste os blocos do formulário, as preferências de horário e os anexos.
+Endpoint de cadastro de solicitação (gera o protocolo e persiste os blocos do
+formulário, as preferências de horário e os anexos). Público no modo `PUBLIC`;
+no modo `AUTHENTICATED` exige sessão e a identidade é resolvida pelo cadastro do
+usuário logado (campos de identidade do payload são validados, porém
+sobrescritos).
 
 - Content-Type: `multipart/form-data`
 - Parte `payload` (texto): `JSON.stringify` de `{ requester, demand, operational, complementary?, schedulePreferences? }`.
@@ -228,9 +251,12 @@ Endpoint público (sem autenticação) que cadastra uma solicitação, gera o pr
 
 #### GET /requests
 
-Endpoint público (sem autenticação) que lista as solicitações vinculadas ao e-mail de um solicitante, com dados resumidos. O e-mail informado é normalizado para minúsculas antes da consulta.
+Lista as solicitações vinculadas a um e-mail de solicitante, com dados
+resumidos. Público no modo `PUBLIC` (o e-mail vem da query); no modo
+`AUTHENTICATED` exige sessão, lista apenas o e-mail da sessão e recusa `?email=`
+com `400`. O e-mail é normalizado para minúsculas antes da consulta.
 
-- Query: `?email=maria.oliveira@instituicao.gov.br` (obrigatório)
+- Query (somente no modo `PUBLIC`): `?email=maria.oliveira@instituicao.gov.br` (obrigatório)
 - Resposta `200 OK`: array ordenado da solicitação mais recente para a mais antiga; retorna array vazio quando não há solicitações para o e-mail (sem revelar se o e-mail existe no sistema).
 
   ```json
@@ -249,7 +275,9 @@ Endpoint público (sem autenticação) que lista as solicitações vinculadas ao
 
 #### GET /requests/:protocol
 
-Consulta pública da solicitação pelo protocolo de rastreio (acompanhamento sem autenticação).
+Consulta da solicitação pelo protocolo de rastreio. Público no modo `PUBLIC`
+(acompanhamento sem autenticação); no modo `AUTHENTICATED` exige sessão e
+retorna `404` quando o protocolo não pertence ao usuário logado.
 
 - Body: nenhum
 - Exemplo: `GET /requests/MAAT-8K3P-9X2M`
@@ -386,6 +414,70 @@ Resposta `200 OK`:
 - Quando `page` ultrapassa o total de páginas, a API ajusta a resposta para a última página válida (`page` = `totalPages`); com zero resultados, a `page` devolvida é `1`.
 - A lista `assignees` contém apenas profissionais com `status = active`, ordenados por nome.
 
+#### GET /queue/requests/:protocol/mapping
+
+Subfluxo de Mapeamento do fluxo da fila (issue #86). Consulta o mapeamento **mais
+recente** de uma solicitação (agendamento), incluindo o `id` do registro. Sem
+mapeamento ainda, retorna `200` com o **estado vazio**: `id` e campos opcionais
+`null` e `participants: []`.
+
+- Requer cookie/JWT válido e perfil interno de triagem (`Analista`, `Gestor`,
+  `Administrador`) — mesmo guard das rotas da fila.
+- Resposta `401 Unauthorized` sem sessão; `403` para perfil sem acesso; `404`
+  para protocolo inexistente; `200 OK`:
+
+  ```json
+  {
+    "protocol": "MAAT-8K3P-9X2M",
+    "id": "a6e8923e-7661-4827-9a6d-4898d9c70739",
+    "scheduledFor": "2026-10-15T13:30:00Z",
+    "durationMinutes": 60,
+    "modality": "REMOTE",
+    "meetingLink": "https://meet.exemplo.com/mapeamento",
+    "location": null,
+    "participants": [
+      { "id": "103", "name": "Gestor Teste", "email": "gestor_teste@email.com" },
+      { "id": null, "name": "João Silva", "email": "joao.silva@externo.com.br" }
+    ],
+    "notes": "Levantamento inicial da demanda."
+  }
+  ```
+
+#### PUT /queue/requests/:protocol/mapping
+
+Cria ou atualiza o mapeamento. Semântica do payload: campo **ausente mantém** o
+valor atual; `null` **limpa**; `participants` presente **substitui** a lista. O
+alvo é o mapeamento do `id` (quando informado e **aberto**; encerrado → `422`)
+ou o mapeamento atual (mais recente não concluído); sem nenhum aberto, **cria**
+um novo registro.
+
+- Autorização (dois vínculos distintos, contrato §9): **campos do mapeamento**
+  — o **designado do mapeamento** (`mappingAssignee.userId`) ou `Administrador`;
+  **designação** (`mappingAssigneeId` no payload) — o **responsável pela
+  solicitação**, o designado atual ou `Administrador`.
+- Ao criar um mapeamento sem `mappingAssigneeId`, o designado **herda** o
+  responsável da solicitação (delegação posterior via `mappingAssigneeId`;
+  `null` remove; ausente mantém). Elegibilidade do designado: profissional
+  ativo com perfil `analista`/`gestor`.
+- `completeMapping: true` valida os dados mesclados, marca o mapeamento como
+  concluído e altera o status da solicitação para **`Mapeamento agendado`**
+  (auditado na mesma transação); `false` apenas persiste (`mapping.save`).
+- Auditoria: `mapping.assign` registra cada definição/substituição/remoção do
+  designado; `mapping.save`/`mapping.complete` registram o designado vigente no
+  diff.
+- Limites: `durationMinutes` 15–480; até **20 participantes**; `notes` ≤ 2.000;
+  `meetingLink`/`location` ≤ 500; `scheduledFor` ISO-8601 **com offset**
+  (persistido em UTC; resposta com sufixo `Z`); `REMOTE` exige `meetingLink` e
+  `IN_PERSON` exige `location`.
+- Status: `200` mapeamento atualizado; `400` payload malformado; `403` sem
+  permissão; `404` protocolo/mapeamento inexistente; `422` validação de campos
+  ou estado (inclusive solicitação em `Concluído`/`Cancelado` — "solicitação
+  encerrada").
+
+- `participants[].id` é o `users.user_id` serializado como string quando o
+  participante é usuário cadastrado; `null` para participante externo (sem
+  identidade cadastrada — case ideal para ecoar de volta ao `PUT`).
+
 #### GET /requests/:protocol/internal
 
 Consulta administrativa/interna de uma solicitação pelo protocolo — exige
@@ -398,6 +490,28 @@ consulta pública (`GET /requests/:protocol`, acima) em
 
 - Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
 - Resposta `404 Not Found`: protocolo inexistente.
+
+#### PATCH /requests/:protocol/internal
+
+Atualização interna dos blocos editáveis da solicitação pelo protocolo — exige
+autenticação (cookie de sessão) e perfil `Analista`, `Gestor` ou
+`Administrador`. Corpo: os blocos `requester`, `demand`, `operational` e o
+bloco opcional `complementary` (mesmo formato do `GET /requests/:protocol/internal`).
+Semântica de **substituição completa**: chave ausente = campo limpo (NULL),
+inclusive quando `complementary` é omitido por inteiro.
+
+- Autorização por perfil (issue #121): `Administrador`/`Gestor` editam qualquer
+  solicitação; `Analista` apenas as atribuídas a ele (`403` caso contrário).
+- `fullName`/`corporateEmail` enviados no `requester` são **ignorados**
+  (identidade do solicitante imutável via PATCH interno).
+- `last_external_update_at` **não** é alterado; `updated_by` = e-mail do ator
+  e `updated_at` renovado. Auditoria `request.update` gravada na mesma
+  transação (`audit_history`, `previous_value`/`new_value` = JSON dos blocos).
+- Resposta `200 OK`: `RequestInternalDetailDTO` atualizado (mesmo formato do GET
+  interno). `desiredDeadline` deve ser hoje ou data futura (`422` caso contrário).
+- Erros: `401` sem cookie; `403` perfil não autorizado; `404` protocolo
+  inexistente; `422` validação (+ campo `fields` com mensagens por chave, ex.:
+  `demand.title`, `operational.hasManualControlsDetail`).
 
 ### Triagem de solicitações
 
@@ -491,7 +605,7 @@ Resposta `201 Created`:
 - Resposta `401 Unauthorized`: sem sessão ou token inválido.
 - Resposta `403 Forbidden`: usuário não autorizado para a solicitação.
 - Resposta `404 Not Found`: protocolo inexistente.
-- Resposta `422 Unprocessable Entity`: erro de validação da triagem, com campos detalhados em `details`.
+- Resposta `422 Unprocessable Entity`: erro de validação da triagem, com campos detalhados em `fields`.
 
 ### Configuração do portal
 
@@ -502,6 +616,8 @@ exigem Administrador. Contrato e scripts de teste em
 
 - `GET /portal-config` — config consolidada (público)
 - `PATCH /portal-config/access` — modo de acesso (`PUBLIC`/`AUTHENTICATED`)
+  — passa a valer imediatamente nas rotas de solicitação (ver
+  [Solicitações](#solicitações))
 - `PATCH /portal-config/identity` — nome da plataforma + máscara do protocolo
 - `PATCH /portal-config/theme` — tema light/dark completos (atômico)
 - `PATCH /portal-config/assets` — assets (multipart; URL direta ou binário)

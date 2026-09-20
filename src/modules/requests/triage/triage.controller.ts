@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { AppError } from "../../../shared/errors/AppError.ts";
-import { formatZodIssues } from "../../../shared/validation/zodErrors.ts";
+import { ValidationError } from "../../../shared/errors/ValidationError.ts";
+import { buildZodFieldErrors, formatZodIssues } from "../../../shared/validation/zodErrors.ts";
 import { createTriagePayloadSchema } from "./triage.schema.ts";
 import * as service from "./triage.service.ts";
 
@@ -35,19 +36,6 @@ function assertProtocol(req: Request): string {
   return parsed.data.protocol;
 }
 
-function triageFieldErrors(error: z.ZodError): Record<string, string> {
-  const fields: Record<string, string> = {};
-
-  for (const issue of error.issues) {
-    const path = issue.path.length > 0 ? String(issue.path[0]) : "payload";
-    if (!fields[path]) {
-      fields[path] = issue.message;
-    }
-  }
-
-  return fields;
-}
-
 export const getTriage = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocol(req);
   const actor = actorFromRequest(req);
@@ -63,7 +51,8 @@ export const saveTriage = async (req: Request, res: Response): Promise<Response>
 
   const parsed = createTriagePayloadSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError("Validação falhou", 422, triageFieldErrors(parsed.error));
+    const { message, fields } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
   }
 
   const triage = await service.createTriage(protocol, parsed.data, actor);

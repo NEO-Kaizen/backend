@@ -21,6 +21,7 @@ export const queueQuerySchema = z
       assigneeId: z
         .union([
           z.string().trim().uuid("Identificador do responsável inválido."),
+          z.string().trim().regex(/^\d+$/, "Identificador do responsável inválido."),
           z.literal("unassigned"),
         ])
         .optional(),

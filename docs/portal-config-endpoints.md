@@ -1,6 +1,6 @@
 # Endpoints de Configuração do Portal (`/portal-config`)
 
-Contrato completo: `portal-config-api2.md` (issue #90).
+Contrato completo: `portal-config-api-0_4.md` (issue #90).
 
 ## Resumo dos endpoints
 
@@ -17,14 +17,20 @@ Contrato completo: `portal-config-api2.md` (issue #90).
 
 ## Decisões de produto (divergentes do contrato)
 
-- **Pesos**: inteiros 0–10 (contrato: 1.0–5.0 passo 0.5). `criteria.weight` INT
-  com CHECK `0..10` (migration `20260916170010`).
+- **Pesos**: inteiros 1–10 (contrato 0_4, alinhado ao `criteria.weight`).
+  `criteria.weight` INT com CHECK `0..10` (migration `20260916170010`).
 - **Reset**: descartado — defaults restaurados por `PATCH` explícito por seção.
 - **Tema ausente (NULL)**: `GET` retorna defaults documentados no contrato §1.
 - **Status protegidos**: 8 nomes hardcoded (`Solicitação enviada`, `Em triagem`,
   etc.) não podem ser renomeados ou removidos no `PATCH statuses` (risco §6.1).
 - **Storage de assets**: binários em `uploads/portal/`, URLs relativas
   `/uploads/portal/{variant}-{uuid}.{ext}` (ex: `logo-light`, `avatar-dark`).
+- **`solicitation_mode` efetivo**: o valor definido em `PATCH access` é lido a
+  cada request pelo guard `requireAccessMode()` e incide sobre `POST /requests`,
+  `GET /requests` e `GET /requests/:protocol` (ver
+  [`solicitations-api-requests-0_4.md`](solicitations-api-requests-0_4.md),
+  seção 0). Em `AUTHENTICATED` as rotas exigem sessão e escopam o acesso à
+  identidade do usuário logado.
 
 ## Scripts de teste (curl)
 
@@ -66,6 +72,7 @@ curl -s -X PATCH http://localhost:3000/portal-config/theme \
         "border": "#e5e7eb",
         "textPrimary": "#3c3e47",
         "textSecondary": "#757682",
+        "heading": "#00236f",
         "richBlack": "#0f1a2a",
         "primary": "#00236f",
         "secondary": "#0058be",
@@ -88,6 +95,7 @@ curl -s -X PATCH http://localhost:3000/portal-config/theme \
         "border": "#2a3346",
         "textPrimary": "#e5e7eb",
         "textSecondary": "#9aa3b2",
+        "heading": "#4c7dff",
         "richBlack": "#0f1a2a",
         "primary": "#4c7dff",
         "secondary": "#5b9bff",
@@ -138,11 +146,11 @@ curl -s -X PATCH http://localhost:3000/portal-config/statuses \
   -b "session_id=$SESSION_ID" \
   -d '{
     "statuses": [
-      {"id": 1,  "name": "Solicitação enviada",       "visibility": "PUBLIC",    "closesRequest": false, "tone": "info"},
-      {"id": 2,  "name": "Aguardando triagem",        "visibility": "PUBLIC",    "closesRequest": false, "tone": "info"},
-      {"id": 3,  "name": "Em triagem",                "visibility": "INTERNAL",  "closesRequest": false, "tone": "info"},
-      {"id": 16, "name": "Concluído",                 "visibility": "PUBLIC",    "closesRequest": true,  "tone": "success"},
-      {"id": 17, "name": "Cancelado",                 "visibility": "PUBLIC",    "closesRequest": true,  "tone": "neutral"}
+      {"id": 1,  "name": "Solicitação enviada",       "visibility": "PUBLIC",    "closesRequest": false, "tone": "info",    "isActive": true},
+      {"id": 2,  "name": "Aguardando triagem",        "visibility": "PUBLIC",    "closesRequest": false, "tone": "info",    "isActive": true},
+      {"id": 3,  "name": "Em triagem",                "visibility": "INTERNAL",  "closesRequest": false, "tone": "info",    "isActive": true},
+      {"id": 16, "name": "Concluído",                 "visibility": "PUBLIC",    "closesRequest": true,  "tone": "success", "isActive": true},
+      {"id": 17, "name": "Cancelado",                 "visibility": "PUBLIC",    "closesRequest": true,  "tone": "neutral", "isActive": true}
     ]
   }' | jq .
 ```
