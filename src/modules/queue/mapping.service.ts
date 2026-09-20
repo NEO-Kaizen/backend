@@ -317,7 +317,7 @@ export const upsertMappingService = async (
     // Autorização — dois vínculos distintos (contrato §9):
     // - Designação (`mappingAssigneeId` presente): responsável da solicitação
     //   (dono pode delegar) ou Admin; o designado atual também pode (re)designar.
-    // - Campos do mapeamento (sem designação): o designado ATUAL ou Admin.
+    // - Campos do mapeamento (com ou sem designação): o designado ATUAL ou Admin.
     //   Criação sem designação herda o responsável — o próprio responsável pode
     //   criar (ele será o designado efetivo).
     // - `mappingAssigneeId: null` em CRIAÇÃO não tem o que remover: equivale a
@@ -335,18 +335,31 @@ export const upsertMappingService = async (
       priorDesigneeUserId !== null && Number(priorDesigneeUserId) === actor.id;
     // Decisão: o designado ATUAL edita mesmo com `details_professional.status`
     // inativo — o ator está logado e ativo (authMiddleware revalida por request).
-    const canDesignate = isAdmin || isRequestAssignee || isPriorMappingAssignee;
     const canCreateByInheritance =
       !mapping && isRequestAssignee && (payload.mappingAssigneeId === undefined || isNullOnCreate);
+    const canDesignate = isAdmin || isRequestAssignee || isPriorMappingAssignee;
+    const canEditContent = isAdmin || isPriorMappingAssignee || canCreateByInheritance;
 
-    if (designationAction) {
-      if (!canDesignate) {
-        throw new AppError(
-          "Você não tem permissão para designar o mapeamento: apenas o responsável pela solicitação ou Administrador.",
-          403,
-        );
-      }
-    } else if (!isAdmin && !isPriorMappingAssignee && !canCreateByInheritance) {
+    // Autorização em DOIS eixos INDEPENDENTES: a presença de `mappingAssigneeId`
+    // não isenta a checagem de edição. `contentAction` = tentativa de alterar
+    // campos ou concluir o mapeamento (designado atual e Admin passam em ambos).
+    const contentAction =
+      payload.scheduledFor !== undefined ||
+      payload.durationMinutes !== undefined ||
+      payload.modality !== undefined ||
+      payload.meetingLink !== undefined ||
+      payload.location !== undefined ||
+      payload.notes !== undefined ||
+      payload.participants !== undefined ||
+      payload.completeMapping === true;
+
+    if (designationAction && !canDesignate) {
+      throw new AppError(
+        "Você não tem permissão para designar o mapeamento: apenas o responsável pela solicitação ou Administrador.",
+        403,
+      );
+    }
+    if (contentAction && !canEditContent) {
       throw new AppError("Você não tem permissão para editar este mapeamento.", 403);
     }
 
