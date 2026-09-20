@@ -399,6 +399,100 @@ consulta pública (`GET /requests/:protocol`, acima) em
 - Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
 - Resposta `404 Not Found`: protocolo inexistente.
 
+### Triagem de solicitações
+
+#### GET /requests/:protocol/triage
+
+Consulta a avaliação de triagem persistida para uma solicitação. Requer autenticação e acesso interno.
+
+- Requer cookie/JWT válido.
+- Acesso permitido para `Analista`, `Gestor` e `Administrador` pela rota.
+- O service também reforça que o analista só pode consultar a triagem quando for o responsável associado à solicitação, e administradores têm acesso geral.
+- Resposta `200 OK`: objeto JSON com a avaliação salva, ou `null` quando ainda não existir triagem registrada.
+
+Exemplo de resposta:
+
+```json
+{
+  "id": "triagem-001",
+  "adherentToScope": "Sim",
+  "adherentJustification": "",
+  "changeCategory": "Não",
+  "newCategory": "",
+  "preliminaryComplexity": "Baixa complexidade, com integração simples",
+  "perceivedRisks": "Risco operacional baixo",
+  "suggestedResponsible": "João da Silva",
+  "suggestedResponsibleJustification": "Experiência com integrações de ERP",
+  "exitStatus": "3",
+  "result": "Solicitação elegível para desenvolvimento",
+  "conclusionJustification": "O escopo está bem definido e há capacidade operacional para execução."
+}
+```
+
+- Resposta `401 Unauthorized`: sem sessão ou token inválido.
+- Resposta `403 Forbidden`: usuário sem acesso à solicitação.
+- Resposta `404 Not Found`: protocolo inexistente.
+
+#### POST /requests/:protocol/triage
+
+Cria ou atualiza a triagem da solicitação. A rota salva a avaliação em `requests.internal_notes` e também atualiza `status_id` e, quando aplicável, `category_id` da demanda.
+
+- Requer cookie/JWT válido.
+- Perfil permitido pela rota: `Administrador` ou `Analista`.
+- Regra de negócio adicional: somente o analista associado à solicitação ou um administrador podem executar o registro; gestores não têm acesso ao POST.
+- Body: JSON com os campos da avaliação de triagem.
+
+Campos aceitos:
+
+```json
+{
+  "adherentToScope": "Sim",
+  "adherentJustification": "",
+  "changeCategory": "Sim",
+  "newCategory": "4",
+  "preliminaryComplexity": "Complexidade média, com necessidade de integração externa",
+  "perceivedRisks": "Possível impacto em SLA de operação e necessidade de validação de dados",
+  "suggestedResponsible": "Maria Souza",
+  "suggestedResponsibleJustification": "Equipe com histórico de integrações similares",
+  "exitStatus": "7",
+  "result": "Aprovado para mapeamento",
+  "conclusionJustification": "A solicitação está aderente ao escopo, com riscos conhecidos e categoria ajustada."
+}
+```
+
+Regras de validação:
+
+- `adherentToScope` aceita `"Sim"`, `"Não"` ou `""`.
+- Se `adherentToScope === "Não"`, `adherentJustification` é obrigatório.
+- Se `adherentToScope === "Sim"`, `preliminaryComplexity` e `perceivedRisks` são obrigatórios.
+- Se `changeCategory === "Sim"`, `newCategory` é obrigatório.
+- `exitStatus` é obrigatório e deve corresponder a um status ativo elegível para triagem.
+- `result` e `conclusionJustification` são obrigatórios.
+
+Resposta `201 Created`:
+
+```json
+{
+  "adherentToScope": "Sim",
+  "adherentJustification": "",
+  "changeCategory": "Sim",
+  "newCategory": "4",
+  "preliminaryComplexity": "Complexidade média, com necessidade de integração externa",
+  "perceivedRisks": "Possível impacto em SLA de operação e necessidade de validação de dados",
+  "suggestedResponsible": "Maria Souza",
+  "suggestedResponsibleJustification": "Equipe com histórico de integrações similares",
+  "exitStatus": "7",
+  "result": "Aprovado para mapeamento",
+  "conclusionJustification": "A solicitação está aderente ao escopo, com riscos conhecidos e categoria ajustada."
+}
+```
+
+- Resposta `400 Bad Request`: payload inválido ou parâmetros fora do esperado.
+- Resposta `401 Unauthorized`: sem sessão ou token inválido.
+- Resposta `403 Forbidden`: usuário não autorizado para a solicitação.
+- Resposta `404 Not Found`: protocolo inexistente.
+- Resposta `422 Unprocessable Entity`: erro de validação da triagem, com campos detalhados em `details`.
+
 ### Configuração do portal
 
 Rotas de configuração global (`/portal-config`) — `GET` público consolida
