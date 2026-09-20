@@ -52,10 +52,7 @@ function yesNoDetail(value: YesNoDetail | undefined): YesNoDetailColumns {
   return { flag: null, detail: null };
 }
 
-async function findActiveCategoryId(
-  name: string,
-  trx: Knex.Transaction,
-): Promise<number | null> {
+async function findActiveCategoryId(name: string, trx: Knex.Transaction): Promise<number | null> {
   const row: { category_id: number } | undefined = await trx("categories")
     .where({ name, status: "active" })
     .first("category_id");
@@ -63,10 +60,7 @@ async function findActiveCategoryId(
   return row?.category_id ?? null;
 }
 
-async function findStatusId(
-  name: string,
-  trx: Knex.Transaction,
-): Promise<number> {
+async function findStatusId(name: string, trx: Knex.Transaction): Promise<number> {
   const row: { status_id: number } | undefined = await trx("statuses")
     .where({ name })
     .first("status_id");
@@ -78,10 +72,7 @@ async function findStatusId(
   return row.status_id;
 }
 
-async function upsertRequester(
-  requester: RequesterBlock,
-  trx: Knex.Transaction,
-): Promise<string> {
+async function upsertRequester(requester: RequesterBlock, trx: Knex.Transaction): Promise<string> {
   const email = requester.corporateEmail.trim().toLowerCase();
 
   await trx("requesters")
@@ -115,9 +106,7 @@ interface RequestInsertReturning {
 }
 
 async function nextRequestId(trx: Knex.Transaction): Promise<string> {
-  const result = (await trx.raw(
-    "SELECT nextval('requests_request_seq') AS request_id",
-  )) as {
+  const result = (await trx.raw("SELECT nextval('requests_request_seq') AS request_id")) as {
     rows: Array<{ request_id: string }>;
   };
 
@@ -135,30 +124,26 @@ async function insertRequest(
   requesterId: string,
   categoryId: number,
   statusId: number,
+  requesterUserId: number | null,
   trx: Knex.Transaction,
 ): Promise<RequestInsertReturning> {
   const email = request.requester.corporateEmail.trim().toLowerCase();
   const requestId = await nextRequestId(trx);
 
   const manualControls = yesNoDetail(request.operational.hasManualControls);
-  const processDocumentation = yesNoDetail(
-    request.complementary?.hasProcessDocumentation,
-  );
-  const similarSolution = yesNoDetail(
-    request.complementary?.hasSimilarSolution,
-  );
-  const otherAreas = yesNoDetail(
-    request.complementary?.dependsOnOtherAreas,
-  );
-  const restrictedInfo = yesNoDetail(
-    request.complementary?.handlesRestrictedInfo,
-  );
+  const processDocumentation = yesNoDetail(request.complementary?.hasProcessDocumentation);
+  const similarSolution = yesNoDetail(request.complementary?.hasSimilarSolution);
+  const otherAreas = yesNoDetail(request.complementary?.dependsOnOtherAreas);
+  const restrictedInfo = yesNoDetail(request.complementary?.handlesRestrictedInfo);
 
   const insertedRows = (await trx("requests")
     .insert({
       request_id: requestId,
       protocol: generateProtocol(requestId),
       requester_id: requesterId,
+      // Vínculo com o usuário autenticado (issue #53). Nulo em `PUBLIC` ou em
+      // solicitações anônimas — a coluna é nullable por design.
+      requester_user_id: requesterUserId,
       category_id: categoryId,
       status_id: statusId,
       priority_id: null,
@@ -263,18 +248,13 @@ async function saveAttachments(
 export async function createRequest(
   request: CreateRequestPayload,
   attachments: SavedAttachment[],
+  requesterUserId?: number,
 ): Promise<CreateRequestResponse> {
   return db.transaction(async (trx) => {
-    const categoryId = await findActiveCategoryId(
-      request.demand.category,
-      trx,
-    );
+    const categoryId = await findActiveCategoryId(request.demand.category, trx);
 
     if (categoryId === null) {
-      throw new AppError(
-        "Categoria inválida — selecione uma opção da lista.",
-        400,
-      );
+      throw new AppError("Categoria inválida — selecione uma opção da lista.", 400);
     }
 
     const statusId = await findStatusId(INITIAL_STATUS, trx);
@@ -284,16 +264,13 @@ export async function createRequest(
       requesterId,
       categoryId,
       statusId,
+      requesterUserId ?? null,
       trx,
     );
 
     const email = request.requester.corporateEmail.trim().toLowerCase();
 
-    await saveTimePreferences(
-      saved.request_id,
-      request.schedulePreferences,
-      trx,
-    );
+    await saveTimePreferences(saved.request_id, request.schedulePreferences, trx);
 
     await saveAttachments(saved.request_id, attachments, email, trx);
 
@@ -331,11 +308,7 @@ function baseSummaryQuery(query: ListRequestsQuery) {
       "details_professional.professional_id",
       "requests.professional_id",
     )
-    .leftJoin(
-      "users as assignee_user",
-      "assignee_user.user_id",
-      "details_professional.user_id",
-    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
     .where("requesters.corporate_email", query.email)
     .modify((builder) => {
       if (query.status) {
@@ -347,9 +320,11 @@ function baseSummaryQuery(query: ListRequestsQuery) {
 export async function findRequestsByRequesterEmail(
   query: ListRequestsQuery,
 ): Promise<PaginatedResponse<RequestSummary>> {
-  const countRows = (await baseSummaryQuery(query).count<{
-    count: string;
-  }[]>("*")) as { count: string }[];
+  const countRows = (await baseSummaryQuery(query).count<
+    {
+      count: string;
+    }[]
+  >("*")) as { count: string }[];
 
   const total = Number(countRows[0]?.count ?? 0);
 
@@ -384,9 +359,15 @@ export async function findRequestsByRequesterEmail(
   };
 }
 
-export async function findRequestByProtocol(
+/** Detalhe público + e-mail do dono, para o owner-check da consulta. */
+export interface RequestWithOwner {
+  detail: RequestDetail;
+  requesterEmail: string;
+}
+
+export async function findRequestByProtocolWithOwner(
   protocol: string,
-): Promise<RequestDetail | null> {
+): Promise<RequestWithOwner | null> {
   const response = await db("requests as r")
     .leftJoin("requesters as requester", "requester.requester_id", "r.requester_id")
     .leftJoin(
@@ -394,11 +375,7 @@ export async function findRequestByProtocol(
       "professional.professional_id",
       "r.professional_id",
     )
-    .leftJoin(
-      "users as assignee_user",
-      "assignee_user.user_id",
-      "professional.user_id",
-    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "professional.user_id")
     .leftJoin("statuses as status", "status.status_id", "r.status_id")
     .select(
       "r.protocol as protocol",
@@ -413,6 +390,7 @@ export async function findRequestByProtocol(
       "r.meeting_scheduled_for as meetingScheduledFor",
       "r.meeting_link as meetingLink",
       "r.last_external_update_at as lastUpdate",
+      "requester.corporate_email as requesterEmail",
     )
     .where("r.protocol", protocol)
     .first();
@@ -425,44 +403,37 @@ export async function findRequestByProtocol(
     ? { scheduledFor: meetingScheduledFor, link: response.meetingLink ?? null }
     : null;
 
-  const openedAt =
-    normalizeIsoDate(response.openedAt) ?? new Date().toISOString();
+  const openedAt = normalizeIsoDate(response.openedAt) ?? new Date().toISOString();
 
   return {
-    protocol: response.protocol,
-    demandTitle: response.demandTitle ?? "",
-    processName: response.processName ?? "",
-    status: response.status,
-    assigneeName: response.assigneeName ?? null,
-    openedAt,
-    estimatedCompletion: normalizeIsoDateOnly(response.estimatedCompletion),
-    mappingDate: meetingScheduledFor
-      ? toSaoPauloDateOnly(meetingScheduledFor)
-      : null,
-    meeting,
-    pendingIssues: [],
-    nextStep: response.nextSteps ?? "Aguarde o contato do analista",
-    lastTechnicalMessage: response.lastTechnicalMessage ?? null,
-    lastUpdate: normalizeIsoDate(response.lastUpdate) ?? openedAt,
-    conclusion: null,
-  } satisfies RequestDetail;
+    detail: {
+      protocol: response.protocol,
+      demandTitle: response.demandTitle ?? "",
+      processName: response.processName ?? "",
+      status: response.status,
+      assigneeName: response.assigneeName ?? null,
+      openedAt,
+      estimatedCompletion: normalizeIsoDateOnly(response.estimatedCompletion),
+      mappingDate: meetingScheduledFor ? toSaoPauloDateOnly(meetingScheduledFor) : null,
+      meeting,
+      pendingIssues: [],
+      nextStep: response.nextSteps ?? "Aguarde o contato do analista",
+      lastTechnicalMessage: response.lastTechnicalMessage ?? null,
+      lastUpdate: normalizeIsoDate(response.lastUpdate) ?? openedAt,
+      conclusion: null,
+    } satisfies RequestDetail,
+    requesterEmail: response.requesterEmail ?? "",
+  };
 }
 
 // --- Consulta administrativa/interna (issue #48 + contract-assign-action) ---
 
 export async function findInternalRequestByProtocol(protocol: string) {
-  const hasMapping = await db.schema.hasColumn(
-    "requests",
-    "mapping_professional_id",
-  );
+  const hasMapping = await db.schema.hasColumn("requests", "mapping_professional_id");
 
   let query = db("requests")
     .where({ "requests.protocol": protocol })
-    .leftJoin(
-      "requesters",
-      "requesters.requester_id",
-      "requests.requester_id",
-    )
+    .leftJoin("requesters", "requesters.requester_id", "requests.requester_id")
     .leftJoin("categories", "categories.category_id", "requests.category_id")
     .leftJoin("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
@@ -471,11 +442,7 @@ export async function findInternalRequestByProtocol(protocol: string) {
       "dp_assignee.professional_id",
       "requests.professional_id",
     )
-    .leftJoin(
-      "users as assignee_user",
-      "assignee_user.user_id",
-      "dp_assignee.user_id",
-    );
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "dp_assignee.user_id");
 
   if (hasMapping) {
     query = query
@@ -484,11 +451,7 @@ export async function findInternalRequestByProtocol(protocol: string) {
         "dp_mapping.professional_id",
         "requests.mapping_professional_id",
       )
-      .leftJoin(
-        "users as mapping_user",
-        "mapping_user.user_id",
-        "dp_mapping.user_id",
-      );
+      .leftJoin("users as mapping_user", "mapping_user.user_id", "dp_mapping.user_id");
   }
 
   const baseSelect = [
@@ -563,25 +526,19 @@ export async function findInternalRequestByProtocol(protocol: string) {
         db.raw("NULL::text as mapping_email"),
       ];
 
-  const request = await query
-    .select([...baseSelect, ...mappingSelect])
-    .first();
+  const request = await query.select([...baseSelect, ...mappingSelect]).first();
 
   return request ?? null;
 }
 
-export async function findAttachmentsByRequestId(
-  requestId: string | number,
-) {
+export async function findAttachmentsByRequestId(requestId: string | number) {
   return db("attachments")
     .where({ request_id: requestId })
     .select("file_name", "content_type", "size_bytes")
     .orderBy("uploaded_at", "asc");
 }
 
-export async function findSchedulePreferencesByRequestId(
-  requestId: string | number,
-) {
+export async function findSchedulePreferencesByRequestId(requestId: string | number) {
   return db("request_time_preferences")
     .where({ request_id: requestId })
     .select("scheduled_for")
@@ -672,10 +629,7 @@ export async function findAssignmentCandidateById(
 export async function findAssignmentContextByProtocol(
   protocol: string,
 ): Promise<AssignmentContextRow | undefined> {
-  const hasMapping = await db.schema.hasColumn(
-    "requests",
-    "mapping_professional_id",
-  );
+  const hasMapping = await db.schema.hasColumn("requests", "mapping_professional_id");
 
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
@@ -686,8 +640,7 @@ export async function findAssignmentContextByProtocol(
   };
 
   if (hasMapping) {
-    columns["mapping_professional_id"] =
-      "requests.mapping_professional_id";
+    columns["mapping_professional_id"] = "requests.mapping_professional_id";
   }
 
   const row = await db("requests")
@@ -710,13 +663,11 @@ export async function updateAssignee(
   professionalId: string | null,
   updatedBy: string,
 ): Promise<void> {
-  await trx("requests")
-    .where({ request_id: requestId })
-    .update({
-      professional_id: professionalId,
-      updated_by: updatedBy,
-      updated_at: trx.fn.now(),
-    });
+  await trx("requests").where({ request_id: requestId }).update({
+    professional_id: professionalId,
+    updated_by: updatedBy,
+    updated_at: trx.fn.now(),
+  });
 }
 
 export async function updateMappingAssignee(
@@ -725,13 +676,11 @@ export async function updateMappingAssignee(
   professionalId: string | null,
   updatedBy: string,
 ): Promise<void> {
-  await trx("requests")
-    .where({ request_id: requestId })
-    .update({
-      mapping_professional_id: professionalId,
-      updated_by: updatedBy,
-      updated_at: trx.fn.now(),
-    });
+  await trx("requests").where({ request_id: requestId }).update({
+    mapping_professional_id: professionalId,
+    updated_by: updatedBy,
+    updated_at: trx.fn.now(),
+  });
 }
 
 export async function updateStatus(
@@ -742,13 +691,11 @@ export async function updateStatus(
 ): Promise<void> {
   const statusId = await findStatusId(statusName, trx);
 
-  await trx("requests")
-    .where({ request_id: requestId })
-    .update({
-      status_id: statusId,
-      updated_by: updatedBy,
-      updated_at: trx.fn.now(),
-    });
+  await trx("requests").where({ request_id: requestId }).update({
+    status_id: statusId,
+    updated_by: updatedBy,
+    updated_at: trx.fn.now(),
+  });
 }
 
 // --- Atualização interna dos blocos (issue #88) -----------------------------
@@ -761,9 +708,7 @@ export async function updateStatus(
 export async function findProfessionalByUserId(
   userId: number,
 ): Promise<{ professional_id: string } | undefined> {
-  return db("details_professional")
-    .where({ user_id: userId })
-    .first("professional_id");
+  return db("details_professional").where({ user_id: userId }).first("professional_id");
 }
 
 export async function updateRequestBlocks(
@@ -773,18 +718,10 @@ export async function updateRequestBlocks(
   updatedBy: string,
 ): Promise<void> {
   const manualControls = yesNoDetail(payload.operational.hasManualControls);
-  const processDocumentation = yesNoDetail(
-    payload.complementary?.hasProcessDocumentation,
-  );
-  const similarSolution = yesNoDetail(
-    payload.complementary?.hasSimilarSolution,
-  );
-  const otherAreas = yesNoDetail(
-    payload.complementary?.dependsOnOtherAreas,
-  );
-  const restrictedInfo = yesNoDetail(
-    payload.complementary?.handlesRestrictedInfo,
-  );
+  const processDocumentation = yesNoDetail(payload.complementary?.hasProcessDocumentation);
+  const similarSolution = yesNoDetail(payload.complementary?.hasSimilarSolution);
+  const otherAreas = yesNoDetail(payload.complementary?.dependsOnOtherAreas);
+  const restrictedInfo = yesNoDetail(payload.complementary?.handlesRestrictedInfo);
 
   await trx("requests")
     .where({ request_id: requestId })

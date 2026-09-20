@@ -1,6 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
 import { requireRole } from "../../shared/middleware/requireRole.ts";
+import { requireAccessMode } from "../../shared/middleware/accessMode.ts";
 import { uploadFields } from "../../shared/middleware/upload.ts";
 import {
   getInternalRequestByProtocol,
@@ -15,7 +16,11 @@ import {
 
 const requestsRoutes = express.Router();
 
-requestsRoutes.get("/", getRequestsByEmail);
+// Rotas de solicitação respeitam o modo de abertura do portal: em `PUBLIC`
+// permanecem públicas; em `AUTHENTICATED` o `requireAccessMode` exige sessão.
+requestsRoutes.get("/", requireAccessMode(), getRequestsByEmail);
+
+// Responsáveis pela triagem — lista de profissionais (issue #50).
 requestsRoutes.get(
   "/assignees",
   authMiddleware,
@@ -39,7 +44,7 @@ requestsRoutes.patch(
   patchAssignee,
 );
 
-requestsRoutes.get("/:protocol", getRequestsByProtocol);
+requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
 requestsRoutes.get(
   "/:protocol/internal",
   authMiddleware,
@@ -57,6 +62,9 @@ requestsRoutes.patch(
   requireRole("Analista", "Gestor", "Administrador"),
   patchInternalRequestByProtocol,
 );
-requestsRoutes.post("/", uploadFields, postRequest);
+
+// O guard vem antes do `uploadFields` para não processar multipart de uma
+// requisição que será rejeitada por falta de sessão.
+requestsRoutes.post("/", requireAccessMode(), uploadFields, postRequest);
 
 export default requestsRoutes;

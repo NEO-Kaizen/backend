@@ -25,6 +25,12 @@ Contrato completo: `portal-config-api-0_4.md` (issue #90).
   etc.) não podem ser renomeados ou removidos no `PATCH statuses` (risco §6.1).
 - **Storage de assets**: binários em `uploads/portal/`, URLs relativas
   `/uploads/portal/{variant}-{uuid}.{ext}` (ex: `logo-light`, `avatar-dark`).
+- **`solicitation_mode` efetivo**: o valor definido em `PATCH access` é lido a
+  cada request pelo guard `requireAccessMode()` e incide sobre `POST /requests`,
+  `GET /requests` e `GET /requests/:protocol` (ver
+  [`solicitations-api-requests-0_4.md`](solicitations-api-requests-0_4.md),
+  seção 0). Em `AUTHENTICATED` as rotas exigem sessão e escopam o acesso à
+  identidade do usuário logado.
 
 ## Scripts de teste (curl)
 

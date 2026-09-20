@@ -10,7 +10,7 @@ import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
 import { removeFiles } from "../../shared/storage/fileStorage.ts";
 import type {
   CreateRequestPayload,
-  ListRequestsQuery,
+  ListRequestsInput,
   UpdateInternalRequestPayload,
 } from "../DTOs/requests/RequestRequests.dto.ts";
 import type {
@@ -31,50 +31,121 @@ import {
   toDateTimeMinutes,
   toSaoPauloDateOnly,
 } from "../../shared/utils/date.ts";
+import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 
-import type { AssignRequestPayload, UpdateRequestPayload } from "./requests.schema.ts";
+import type {
+  AssignAnalystPayload,
+  AssignRequestPayload,
+  UpdateRequestPayload,
+} from "./requests.schema.ts";
 import type { Role } from "../../shared/types/role.ts";
 
+interface AuthenticatedIdentity {
+  fullName: string;
+  email: string;
+}
 
-export async function findRequest(protocol: string): Promise<RequestDetail> {
+/**
+ * Resolve a identidade do usuário autenticado direto do banco (fonte fresca):
+ * `name`/`email` do payload do JWT podem estar obsoletos após uma edição de
+ * perfil, então a lista/consulta e a criação usam o cadastro atual.
+ */
+async function resolveAuthenticatedIdentity(userId: number): Promise<AuthenticatedIdentity> {
+  const user = await findUserById(userId);
+
+  if (!user || !user.is_active || !user.profile_is_active) {
+    throw new AppError("Sessão inválida", 401);
+  }
+
+  return { fullName: user.full_name, email: user.email };
+}
+
+export async function findRequest(
+  protocol: string,
+  authenticatedUserId?: number,
+): Promise<RequestDetail> {
   const normalizedProtocol = protocol.trim();
 
-  const response = await repository.findRequestByProtocol(normalizedProtocol);
+  const found = await repository.findRequestByProtocolWithOwner(normalizedProtocol);
 
-  if (!response) {
+  if (!found) {
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  return response;
+  // No modo AUTHENTICATED só o dono enxerga a solicitação. Retornamos 404 (e
+  // não 403) para não revelar a existência de um protocolo de terceiros.
+  if (authenticatedUserId !== undefined) {
+    const identity = await resolveAuthenticatedIdentity(authenticatedUserId);
+    if (found.requesterEmail.trim().toLowerCase() !== identity.email.trim().toLowerCase()) {
+      throw new AppError("Protocolo não encontrado", 404);
+    }
+  }
+
+  return found.detail;
 }
 
 export async function registerRequest(
   request: CreateRequestPayload,
   attachments: SavedAttachment[],
+  authenticatedUserId?: number,
 ) {
   try {
-    return await repository.createRequest(request, attachments);
+    // No modo AUTHENTICATED a identidade vem do cadastro, não do payload —
+    // evita que o solicitante se passe por outro e-mail/nome (spoofing).
+    const payload =
+      authenticatedUserId === undefined
+        ? request
+        : await withAuthenticatedIdentity(request, authenticatedUserId);
+
+    return await repository.createRequest(payload, attachments, authenticatedUserId);
   } catch (err) {
     await removeFiles(attachments);
     throw err;
   }
 }
 
-export async function listRequestsByEmail(
-  query: ListRequestsQuery,
-): Promise<PaginatedResponse<RequestSummary>> {
-  const normalizedEmail = query.email.trim().toLowerCase();
+async function withAuthenticatedIdentity(
+  request: CreateRequestPayload,
+  authenticatedUserId: number,
+): Promise<CreateRequestPayload> {
+  const identity = await resolveAuthenticatedIdentity(authenticatedUserId);
 
-  if (query.status && !(await repository.findStatusByName(query.status))) {
+  return {
+    ...request,
+    requester: {
+      ...request.requester,
+      fullName: identity.fullName,
+      corporateEmail: identity.email,
+    },
+  };
+}
+
+export async function listRequestsByEmail(
+  input: ListRequestsInput,
+  authenticatedUserId?: number,
+): Promise<PaginatedResponse<RequestSummary>> {
+  // No modo AUTHENTICATED o e-mail vem da sessão; em PUBLIC, da query.
+  const email =
+    authenticatedUserId === undefined
+      ? input.email
+      : (await resolveAuthenticatedIdentity(authenticatedUserId)).email;
+
+  if (!email) {
+    throw new AppError("Parâmetro obrigatório ausente: email", 400);
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (input.status && !(await repository.findStatusByName(input.status))) {
     throw new AppError("Status inválido.", 400);
   }
 
   return repository.findRequestsByRequesterEmail({
     email: normalizedEmail,
-    status: query.status,
-    page: query.page,
-    pageSize: query.pageSize,
+    status: input.status,
+    page: input.page,
+    pageSize: input.pageSize,
   });
 }
 

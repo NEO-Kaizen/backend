@@ -1,6 +1,9 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
-import type { SystemSettingsRow } from "../../shared/types/systemSettings.ts";
+import type {
+  PortalSolicitationMode,
+  SystemSettingsRow,
+} from "../../shared/types/systemSettings.ts";
 import type { SystemThemeRow } from "../../shared/types/systemTheme.ts";
 import type {
   CategoryRow,
@@ -23,6 +26,19 @@ export async function getSettingsRow(trx?: Knex.Transaction): Promise<SystemSett
     throw new Error("system_settings singleton não encontrado (settings_id=1).");
   }
   return row;
+}
+
+/**
+ * Leitura enxuta do modo de abertura do portal, usada pelo guard de acesso
+ * (`requireAccessMode`) a cada request. Defensivo: a ausência do singleton é
+ * tratada como `PUBLIC` (o registro é garantido por migration, mas o guard não
+ * deve derrubar o servidor se a linha faltar).
+ */
+export async function getSolicitationMode(): Promise<PortalSolicitationMode> {
+  const row = (await db("system_settings").where({ settings_id: 1 }).first("solicitation_mode")) as
+    Pick<SystemSettingsRow, "solicitation_mode"> | undefined;
+
+  return row?.solicitation_mode ?? "PUBLIC";
 }
 
 export async function getThemeRow(trx?: Knex.Transaction): Promise<SystemThemeRow | undefined> {

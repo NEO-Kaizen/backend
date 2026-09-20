@@ -165,6 +165,13 @@ export const listRequestsQuerySchema = z.object({
     .default(10),
 });
 
+/**
+ * `GET /requests` no modo `AUTHENTICATED`: o e-mail é resolvido pela sessão, então
+ * a query não aceita `email`. Qualquer `?email=` é recusado no controller com
+ * `400` — evitamos divergência silenciosa entre o filtro pedido e o aplicado.
+ */
+export const listAuthenticatedRequestsQuerySchema = listRequestsQuerySchema.omit({ email: true });
+
 export const assignRequestSchema = z
   .object({
     professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable().optional(),

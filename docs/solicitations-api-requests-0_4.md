@@ -158,6 +158,27 @@ export type SchedulePreferences = string[]; // ISO "yyyy-mm-ddThh:mm" — max 3
 
 ---
 
+## 0. Modo de abertura do portal (transversal a este contrato)
+
+Os três endpoints deste contrato respeitam `system_settings.solicitation_mode`
+(`PUBLIC` | `AUTHENTICATED`, default `PUBLIC`), alterável em runtime via
+`PATCH /portal-config/access`. Em `AUTHENTICATED`, o backend exige sessão JWT
+(cookie `session_id`) e escopa o acesso à identidade do usuário logado:
+
+| Endpoint                  | `PUBLIC`                       | `AUTHENTICATED`                                                                                                                             |
+| ------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /requests`          | público (`201`)                | exige sessão; `fullName`/`corporateEmail` do payload são sobrescritos pela identidade do cadastro (campos seguem obrigatórios na validação) |
+| `GET /requests`           | público, `?email=` obrigatório | exige sessão; lista só o e-mail da sessão; `?email=` presente → `400`                                                                       |
+| `GET /requests/:protocol` | público                        | exige sessão; protocolo de terceiro → `404` (mesma resposta de inexistente, para não vazar dados)                                           |
+
+- Sem sessão válida em `AUTHENTICATED`: `401` no envelope padrão.
+- Em `AUTHENTICATED`, o `POST` grava o vínculo `requests.requester_user_id`
+  com o usuário autenticado; em `PUBLIC` (ou anônimo) o campo fica `NULL`.
+- Implementado pelo guard `requireAccessMode()` (`src/shared/middleware/accessMode.ts`),
+  aplicado antes do processamento do multipart.
+
+---
+
 ## 1. POST /requests — Cadastrar solicitação (Formulário de Demanda)
 
 Público (sem autenticação — RN-001). Valida os campos e os limites de

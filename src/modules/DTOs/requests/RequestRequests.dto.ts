@@ -40,3 +40,10 @@ export interface ListRequestsQuery {
   page: number;
   pageSize: number;
 }
+
+/**
+ * Entrada do service de listagem. `email` é opcional porque no modo
+ * `AUTHENTICATED` o e-mail vem da sessão (não da query); em `PUBLIC`, o
+ * controller já garante a presença do parâmetro.
+ */
+export type ListRequestsInput = Omit<ListRequestsQuery, "email"> & { email?: string };
