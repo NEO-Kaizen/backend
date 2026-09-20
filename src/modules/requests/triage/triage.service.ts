@@ -47,40 +47,10 @@ export async function createTriage(
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
-  if (payload.adherentToScope === "Não" && payload.adherentJustification.trim() === "") {
-    throw new ValidationError(
-      { adherentJustification: "Informe a justificativa quando não aderente ao escopo" },
-      "Validação falhou",
-    );
-  }
-
-  if (payload.adherentToScope === "Sim" && payload.preliminaryComplexity.trim() === "") {
-    throw new ValidationError(
-      { preliminaryComplexity: "Descreva a complexidade preliminar" },
-      "Validação falhou",
-    );
-  }
-
-  if (payload.adherentToScope === "Sim" && payload.perceivedRisks.trim() === "") {
-    throw new ValidationError(
-      { perceivedRisks: "Descreva os riscos percebidos" },
-      "Validação falhou",
-    );
-  }
-
-  if (payload.changeCategory === "Sim" && payload.newCategory.trim() === "") {
-    throw new ValidationError(
-      { newCategory: "Selecione a categoria de destino" },
-      "Validação falhou",
-    );
-  }
-
-  if (payload.exitStatus.trim() === "") {
-    throw new ValidationError(
-      { exitStatus: "Selecione o status de saída" },
-      "Validação falhou",
-    );
-  }
+  // Regras condicionais (aderência/justificativa, categoria de destino,
+  // complexidade, riscos, exitStatus não-vazio) já são validadas pelo
+  // `superRefine` de `createTriagePayloadSchema` no controller. Aqui restam
+  // apenas as resoluções contra o banco.
 
   const exitStatus = await repository.resolveExitStatus(payload.exitStatus);
   if (!exitStatus) {

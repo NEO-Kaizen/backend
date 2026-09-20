@@ -68,7 +68,6 @@ const STATUSES = [
     name: "Solicitação enviada",
     description: "Registrada pelo solicitante",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 2,
@@ -76,7 +75,6 @@ const STATUSES = [
     name: "Aguardando triagem",
     description: "Na fila para análise da equipe NEO",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 3,
@@ -84,7 +82,6 @@ const STATUSES = [
     name: "Em triagem",
     description: "Sendo analisada pela equipe NEO",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 4,
@@ -92,7 +89,6 @@ const STATUSES = [
     name: "Pendente de informações",
     description: "Aguardando complemento do solicitante",
     is_final: false,
-    is_triage_exit: true,
   },
   {
     status_id: 5,
@@ -100,7 +96,6 @@ const STATUSES = [
     name: "Aguardando mapeamento",
     description: "Elegível, aguardando agenda de mapeamento",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 6,
@@ -108,7 +103,6 @@ const STATUSES = [
     name: "Mapeamento agendado",
     description: "Reunião de levantamento marcada",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 7,
@@ -116,7 +110,6 @@ const STATUSES = [
     name: "Em mapeamento",
     description: "Levantamento do processo em andamento",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 8,
@@ -124,7 +117,6 @@ const STATUSES = [
     name: "Em análise de viabilidade",
     description: "Avaliação técnica, de impacto e esforço",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 9,
@@ -132,7 +124,6 @@ const STATUSES = [
     name: "Elegível",
     description: "Aprovada para priorização",
     is_final: false,
-    is_triage_exit: true,
   },
   {
     status_id: 10,
@@ -140,7 +131,6 @@ const STATUSES = [
     name: "Não elegível",
     description: "Rejeitada na triagem",
     is_final: true,
-    is_triage_exit: false,
   },
   {
     status_id: 11,
@@ -148,7 +138,6 @@ const STATUSES = [
     name: "Priorizado",
     description: "Recebeu nível de prioridade",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 12,
@@ -156,7 +145,6 @@ const STATUSES = [
     name: "Backlog",
     description: "Aguardando disponibilidade de execução",
     is_final: false,
-    is_triage_exit: true,
   },
   {
     status_id: 13,
@@ -164,7 +152,6 @@ const STATUSES = [
     name: "Direcionado para outra área",
     description: "Encaminhada a outro departamento",
     is_final: true,
-    is_triage_exit: true,
   },
   {
     status_id: 14,
@@ -172,7 +159,6 @@ const STATUSES = [
     name: "Em desenvolvimento",
     description: "Em execução pela equipe",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 15,
@@ -180,7 +166,6 @@ const STATUSES = [
     name: "Em homologação",
     description: "Em validação com o solicitante",
     is_final: false,
-    is_triage_exit: false,
   },
   {
     status_id: 16,
@@ -188,7 +173,6 @@ const STATUSES = [
     name: "Concluído",
     description: "Entregue e validado",
     is_final: true,
-    is_triage_exit: false,
   },
   {
     status_id: 17,
@@ -196,66 +180,12 @@ const STATUSES = [
     name: "Cancelado",
     description: "Encerrado sem execução",
     is_final: true,
-    is_triage_exit: true,
-  },
-  {
-    status_id: 18,
-    order_number: 18,
-    name: "Elegível para avaliação",
-    description: "Demanda elegível para seguir a próxima etapa de avaliação",
-    is_final: false,
-    is_triage_exit: true,
-  },
-  {
-    status_id: 19,
-    order_number: 19,
-    name: "Fora do escopo",
-    description: "Solicitação fora do escopo do NEO",
-    is_final: true,
-    is_triage_exit: true,
-  },
-  {
-    status_id: 20,
-    order_number: 20,
-    name: "Direcionada para outra área",
-    description: "Encaminhada para outra área de negócio ou suporte",
-    is_final: true,
-    is_triage_exit: true,
-  },
-  {
-    status_id: 21,
-    order_number: 21,
-    name: "Duplicada",
-    description: "Solicitação duplicada de outra demanda",
-    is_final: true,
-    is_triage_exit: true,
-  },
-  {
-    status_id: 22,
-    order_number: 22,
-    name: "Cancelada",
-    description: "Solicitação cancelada durante a triagem",
-    is_final: true,
-    is_triage_exit: true,
   },
 ];
 
 export async function up(knex) {
   await knex("categories").insert(CATEGORIES).onConflict("category_id").ignore();
   await knex("statuses").insert(STATUSES).onConflict("status_id").ignore();
-
-  await knex("statuses")
-    .whereIn("name", [
-      "Pendente de informações",
-      "Elegível",
-      "Elegível para avaliação",
-      "Backlog",
-      "Direcionado para outra área",
-      "Direcionada para outra área",
-      "Cancelado",
-      "Cancelada",
-    ])
-    .update({ is_triage_exit: true });
 
   await knex.raw(
     "SELECT setval('categories_category_id_seq', (SELECT COALESCE(MAX(category_id), 1) FROM categories))",

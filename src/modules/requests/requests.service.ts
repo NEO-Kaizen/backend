@@ -311,8 +311,40 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
     })),
     openedAt,
     lastUpdate,
-    internalObservations: (request["internal_notes"] as string | null) ?? null,
+    internalObservations: extractInternalObservations(request["internal_notes"] as string | null),
   };
+}
+
+/**
+ * Extrai as observações internas puras de `requests.internal_notes`,
+ * descartando o wrapper reservado da triagem (`__triage`) quando presente.
+ *
+ * O módulo de triagem persiste seu assessment sob a chave `__triage` do mesmo
+ * campo (decisão P4 do PR #92); o texto bruto restante — observações legadas
+ * não-JSON ou qualquer outra chave customizada — continua sendo o
+ * `internalObservations` do contrato.
+ */
+function extractInternalObservations(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        const record = parsed as Record<string, unknown>;
+        const { __triage: _triage, ...rest } = record;
+        if (Object.keys(rest).length === 0) return null;
+        return JSON.stringify(rest);
+      }
+    } catch {
+      // Não-JSON: trata como texto comum de observação.
+    }
+  }
+
+  return trimmed;
 }
 
 // --- Atualização interna dos blocos (issue #88) -----------------------------

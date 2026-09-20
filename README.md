@@ -515,6 +515,12 @@ inclusive quando `complementary` é omitido por inteiro.
 
 ### Triagem de solicitações
 
+A avaliação é persistida sob a chave reservada `__triage` do campo
+`requests.internal_notes` (mantendo o `internalObservations` do contrato
+`internal-notes-contract.md` intacto) e o POST aplica `status_id`/`category_id`
+na solicitação. `exitStatus` e `newCategory` aceitam **nome ou id** do
+status/categoria de destino.
+
 #### GET /requests/:protocol/triage
 
 Consulta a avaliação de triagem persistida para uma solicitação. Requer autenticação e acesso interno.
@@ -528,7 +534,6 @@ Exemplo de resposta:
 
 ```json
 {
-  "id": "triagem-001",
   "adherentToScope": "Sim",
   "adherentJustification": "",
   "changeCategory": "Não",
@@ -537,7 +542,7 @@ Exemplo de resposta:
   "perceivedRisks": "Risco operacional baixo",
   "suggestedResponsible": "João da Silva",
   "suggestedResponsibleJustification": "Experiência com integrações de ERP",
-  "exitStatus": "3",
+  "exitStatus": "Elegível para avaliação",
   "result": "Solicitação elegível para desenvolvimento",
   "conclusionJustification": "O escopo está bem definido e há capacidade operacional para execução."
 }
@@ -549,7 +554,9 @@ Exemplo de resposta:
 
 #### POST /requests/:protocol/triage
 
-Cria ou atualiza a triagem da solicitação. A rota salva a avaliação em `requests.internal_notes` e também atualiza `status_id` e, quando aplicável, `category_id` da demanda.
+Cria ou atualiza a triagem da solicitação. A rota salva a avaliação em
+`requests.internal_notes` (chave `__triage`) e também atualiza `status_id` e,
+quando aplicável, `category_id` da demanda.
 
 - Requer cookie/JWT válido.
 - Perfil permitido pela rota: `Administrador` ou `Analista`.
@@ -568,7 +575,7 @@ Campos aceitos:
   "perceivedRisks": "Possível impacto em SLA de operação e necessidade de validação de dados",
   "suggestedResponsible": "Maria Souza",
   "suggestedResponsibleJustification": "Equipe com histórico de integrações similares",
-  "exitStatus": "7",
+  "exitStatus": "Elegível para avaliação",
   "result": "Aprovado para mapeamento",
   "conclusionJustification": "A solicitação está aderente ao escopo, com riscos conhecidos e categoria ajustada."
 }
@@ -580,7 +587,7 @@ Regras de validação:
 - Se `adherentToScope === "Não"`, `adherentJustification` é obrigatório.
 - Se `adherentToScope === "Sim"`, `preliminaryComplexity` e `perceivedRisks` são obrigatórios.
 - Se `changeCategory === "Sim"`, `newCategory` é obrigatório.
-- `exitStatus` é obrigatório e deve corresponder a um status ativo elegível para triagem.
+- `exitStatus` é obrigatório e deve corresponder a um status ativo elegível para triagem. Saídas válidas (nome ou id): `Pendente de informações` (4), `Elegível` (9), `Elegível para avaliação` (18), `Backlog` (12), `Direcionado para outra área` (13), `Direcionada para outra área` (20), `Fora do escopo` (19), `Duplicada` (21), `Cancelado` (17), `Cancelada` (22).
 - `result` e `conclusionJustification` são obrigatórios.
 
 Resposta `201 Created`:
@@ -595,7 +602,7 @@ Resposta `201 Created`:
   "perceivedRisks": "Possível impacto em SLA de operação e necessidade de validação de dados",
   "suggestedResponsible": "Maria Souza",
   "suggestedResponsibleJustification": "Equipe com histórico de integrações similares",
-  "exitStatus": "7",
+  "exitStatus": "Elegível para avaliação",
   "result": "Aprovado para mapeamento",
   "conclusionJustification": "A solicitação está aderente ao escopo, com riscos conhecidos e categoria ajustada."
 }

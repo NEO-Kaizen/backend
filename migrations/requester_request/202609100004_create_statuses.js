@@ -5,7 +5,6 @@ export async function up(knex) {
     table.string("name", 100).notNullable().unique({ indexName: "uk_statuses_name" });
     table.text("description");
     table.boolean("is_final").notNullable().defaultTo(false);
-    table.boolean("is_triage_exit").notNullable().defaultTo(false);
   });
 }
 

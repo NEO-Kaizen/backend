@@ -54,31 +54,65 @@ function isTriageAssessment(value: unknown): value is TriageAssessment {
   );
 }
 
+const TRIAGE_WRAPPER_KEY = "__triage";
+
+/**
+ * Extrai o assessment da triagem do `requests.internal_notes`.
+ *
+ * A triagem convive com as observações internas (contrato do módulo
+ * internalNotes) sob a chave reservada `__triage`, preservando o texto puro
+ * de `internalObservations` (ver `requests.service.ts`). Valores legados —
+ * gravados como JSON puro antes do wrapper — continuam sendo lidos.
+ */
+function parseTriageFromInternalNotes(raw: string | null | undefined): TriageAssessment | null {
+  if (!raw) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (typeof parsed !== "object" || parsed === null) return null;
+
+  const wrapper = parsed as Record<string, unknown>;
+  if (TRIAGE_WRAPPER_KEY in wrapper) {
+    return isTriageAssessment(wrapper[TRIAGE_WRAPPER_KEY])
+      ? (wrapper[TRIAGE_WRAPPER_KEY] as TriageAssessment)
+      : null;
+  }
+
+  return isTriageAssessment(parsed) ? parsed : null;
+}
+
 export async function findTriageByProtocol(protocol: string): Promise<TriageAssessment | null> {
   const row = await db("requests")
     .where({ protocol })
     .first("internal_notes");
 
-  if (!row?.internal_notes) {
-    return null;
-  }
+  return parseTriageFromInternalNotes(row?.internal_notes);
+}
 
-  try {
-    const parsed = JSON.parse(String(row.internal_notes));
-    return isTriageAssessment(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
+/** Guarda anti-NaN: converte o raw apenas quando é um id numérico válido
+ * (dígitos puros, sem sinais/hexadecimal/notação científica). */
+function toNumericId(raw: string): number | null {
+  if (!/^[1-9]\d*$/.test(raw)) return null;
+  const numericId = Number(raw);
+  return Number.isSafeInteger(numericId) ? numericId : null;
 }
 
 export async function resolveExitStatus(value: string): Promise<StatusRow | undefined> {
   const raw = value.trim();
   if (!raw) return undefined;
 
+  const numericId = toNumericId(raw);
+
   const query = db("statuses")
     .where({ is_active: true, is_triage_exit: true })
     .where((builder) => {
-      builder.where("status_id", Number(raw)).orWhere("name", raw);
+      builder.where("name", raw);
+      if (numericId !== null) builder.orWhere("status_id", numericId);
     })
     .first("status_id as status_id", "name");
 
@@ -89,9 +123,13 @@ export async function resolveCategoryId(value: string): Promise<CategoryRow | un
   const raw = value.trim();
   if (!raw) return undefined;
 
+  const numericId = toNumericId(raw);
+
   const query = db("categories")
-    .where("category_id", Number(raw))
-    .orWhere("name", raw)
+    .where((builder) => {
+      builder.where("name", raw);
+      if (numericId !== null) builder.orWhere("category_id", numericId);
+    })
     .first("category_id as category_id", "name");
 
   return query as Promise<CategoryRow | undefined>;
@@ -142,10 +180,28 @@ export async function upsertTriage(
 ): Promise<void> {
   const source = trx ?? db;
 
+  const row = await source("requests")
+    .where({ protocol })
+    .first("internal_notes");
+
+  let merged: Record<string, unknown> = {};
+  const rawNotes = row?.internal_notes;
+  if (rawNotes) {
+    try {
+      const parsed: unknown = JSON.parse(String(rawNotes));
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        merged = { ...(parsed as Record<string, unknown>) };
+      }
+    } catch {
+      // Observações não-JSON: descartadas, o wrapper _triage assume a escrita.
+    }
+  }
+  merged[TRIAGE_WRAPPER_KEY] = triage;
+
   await source("requests")
     .where({ protocol })
     .update({
-      internal_notes: JSON.stringify(triage),
+      internal_notes: JSON.stringify(merged),
       updated_by: updatedBy,
       updated_at: source.fn.now(),
     });
