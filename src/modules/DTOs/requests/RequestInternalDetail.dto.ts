@@ -17,6 +17,9 @@ import type {
 export type { ComplementaryBlock, DemandBlock, OperationalBlock, RequesterBlock, YesNoDetail };
 
 export interface Assignee {
+  id: string | null; // details_professional.user_id do responsável (id de users,
+  // serializado como string — comparação com MeResponseDTO.id p/ permissão de
+  // edição do mapeamento, contrato-mapeamento.md §9; issue #86)
   name: string;
   email: string | null;
 }
