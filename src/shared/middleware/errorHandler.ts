@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
+import { ValidationError } from "../errors/ValidationError.ts";
 
 export function errorHandler(
   err: Error | AppError,
@@ -8,11 +9,20 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({
+    const body: Record<string, unknown> = {
       status: "error",
       statusCode: err.statusCode,
       message: err.message,
-    });
+    };
+
+    // Erros de validação (422) incluem os erros por campo no formato da UI
+    // (chave → mensagem) — opcional, não altera o envelope dos demais.
+    const fields = (err as Partial<ValidationError>).fields;
+    if (fields && Object.keys(fields).length > 0) {
+      body.fields = fields;
+    }
+
+    res.status(err.statusCode).json(body);
     return;
   }
 

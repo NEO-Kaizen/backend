@@ -1,12 +1,16 @@
 import { z } from "zod";
 import { optionalString, requiredString } from "../../shared/validation/fieldSchemas.ts";
+import { toSaoPauloDateOnly } from "../../shared/utils/date.ts";
 import type {
   ComplementaryBlock,
   DemandBlock,
   OperationalBlock,
   RequesterBlock,
 } from "../../shared/types/requests.ts";
-import type { CreateRequestPayload } from "../DTOs/requests/RequestRequests.dto.ts";
+import type {
+  CreateRequestPayload,
+  UpdateInternalRequestPayload,
+} from "../DTOs/requests/RequestRequests.dto.ts";
 
 const yesNoDetailSchema = z.union(
   [
@@ -111,6 +115,39 @@ export const createRequestPayloadSchema = z.object(
     error: "O payload deve ser um objeto JSON com os blocos requester, demand e operational.",
   },
 ) satisfies z.ZodType<CreateRequestPayload>;
+
+// --- PATCH /requests/:protocol/internal (issue #88) -------------------------
+// Atualização dos blocos editáveis — reutiliza os schemas de bloco do POST
+// (demand/operational/complementary), restringindo `requester` aos campos
+// editáveis (fullName/corporateEmail são descartados pelo `strip` do Zod —
+// decisão de contrato) e endurecendo `desiredDeadline` (hoje ou futura)
+// somente para o update, sem alterar o comportamento do POST.
+
+const todaySaoPauloYmd = (): string => toSaoPauloDateOnly(new Date()) ?? "";
+
+const desiredDeadlineUpdateSchema = z.iso
+  .date("Data inválida — use o formato AAAA-MM-DD.")
+  .refine(
+    (value) => value >= todaySaoPauloYmd(),
+    "O prazo desejado deve ser hoje ou uma data futura.",
+  );
+
+const operationalUpdateSchema = operationalSchema.extend({
+  desiredDeadline: desiredDeadlineUpdateSchema,
+});
+
+// `z.object` faz `strip` por padrão: fullName/corporateEmail enviadas com o
+// valor original são descartadas silenciosamente (imutáveis por contrato).
+const updateRequesterSchema = requesterSchema.omit({ fullName: true, corporateEmail: true });
+
+export const updateRequestPayloadSchema = z.object({
+  requester: updateRequesterSchema,
+  demand: demandSchema,
+  operational: operationalUpdateSchema,
+  complementary: complementarySchema.optional(),
+}) satisfies z.ZodType<UpdateInternalRequestPayload>;
+
+export type UpdateRequestPayload = z.infer<typeof updateRequestPayloadSchema>;
 
 export const listRequestsQuerySchema = z.object({
   email: z.email("Informe um e-mail válido.").max(254, "Máximo de 254 caracteres."),

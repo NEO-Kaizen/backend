@@ -2,15 +2,16 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type {
+  RequestStatus,
   OperationalImpact,
   RequestPriority,
-  RequestStatus,
 } from "../../shared/types/requests.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
 import { removeFiles } from "../../shared/storage/fileStorage.ts";
 import type {
   CreateRequestPayload,
   ListRequestsQuery,
+  UpdateInternalRequestPayload,
 } from "../DTOs/requests/RequestRequests.dto.ts";
 import type {
   AssignRequestResponse,
@@ -31,7 +32,10 @@ import {
   toSaoPauloDateOnly,
 } from "../../shared/utils/date.ts";
 import * as repository from "./requests.repository.ts";
-import type { AssignAnalystPayload, AssignRequestPayload } from "./requests.schema.ts";
+
+import type { AssignRequestPayload, UpdateRequestPayload } from "./requests.schema.ts";
+import type { Role } from "../../shared/types/role.ts";
+
 
 export async function findRequest(protocol: string): Promise<RequestDetail> {
   const normalizedProtocol = protocol.trim();
@@ -181,6 +185,7 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
     },
     assignee,
     mappingAssignee: mappingAssignee ?? null,
+
     correctionAlert: null,
     requester: {
       fullName: request["requester_name"] as string,
@@ -237,6 +242,160 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
     lastUpdate,
     internalObservations: (request["internal_notes"] as string | null) ?? null,
   };
+}
+
+// --- Atualização interna dos blocos (issue #88) -----------------------------
+// PATCH /requests/:protocol/internal. Semântica de SUBSTITUIÇÃO COMPLETA dos
+// blocos editáveis (decisão de contrato): o payload descreve o estado final;
+// chave ausente = campo limpo (NULL). `last_external_update_at` não é tocado.
+
+/** Linha crua dos blocos de uma solicitação — mesmo shape de
+ * `findInternalRequestByProtocol` (repository), usado pelo PATCH interno. */
+interface InternalRequestRow {
+  request_id: string;
+  requester_id: string;
+  professional_id: string | null;
+  title: string;
+  request_type: string;
+  category: string;
+  process_name: string;
+  need_description: string;
+  problem_opportunity: string;
+  expected_result: string;
+  justification: string;
+  process_description: string;
+  process_steps: string;
+  systems_used: string;
+  execution_frequency: string;
+  approximate_volume: string;
+  people_involved: number;
+  average_duration: string;
+  estimated_monthly_effort: string | number;
+  has_manual_controls: boolean;
+  manual_controls_detail: string | null;
+  main_risks: string;
+  client_impact: string;
+  operational_impact: OperationalImpact;
+  desired_deadline: Date | string;
+  perceived_criticality: RequestPriority;
+  has_process_documentation: boolean | null;
+  process_documentation_detail: string | null;
+  has_similar_solution: boolean | null;
+  similar_solution_detail: string | null;
+  depends_on_other_areas: boolean | null;
+  other_areas_detail: string | null;
+  handles_restricted_info: boolean | null;
+  restricted_info_detail: string | null;
+  additional_notes: string | null;
+  requester_area: string;
+  requester_department: string | null;
+  requester_manager: string;
+  requester_additional_contact: string | null;
+}
+
+/** Blocos editáveis no estado atual — usado como `previousValue` da auditoria. */
+function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalRequestPayload {
+  const complementary: ComplementaryBlock = {
+    hasProcessDocumentation: toYesNoDetail(
+      request.has_process_documentation,
+      request.process_documentation_detail,
+    ),
+    hasSimilarSolution: toYesNoDetail(
+      request.has_similar_solution,
+      request.similar_solution_detail,
+    ),
+    dependsOnOtherAreas: toYesNoDetail(request.depends_on_other_areas, request.other_areas_detail),
+    handlesRestrictedInfo: toYesNoDetail(
+      request.handles_restricted_info,
+      request.restricted_info_detail,
+    ),
+    additionalNotes: request.additional_notes ?? undefined,
+  };
+
+  return {
+    requester: {
+      area: request.requester_area,
+      department: request.requester_department ?? undefined,
+      manager: request.requester_manager,
+      additionalContact: request.requester_additional_contact ?? undefined,
+    },
+    demand: {
+      title: request.title,
+      requestType: request.request_type,
+      category: request.category,
+      processName: request.process_name,
+      description: request.need_description,
+      problem: request.problem_opportunity,
+      expectedResult: request.expected_result,
+      justification: request.justification,
+    },
+    operational: {
+      processDescription: request.process_description,
+      processSteps: request.process_steps,
+      systemsUsed: request.systems_used,
+      executionFrequency: request.execution_frequency,
+      volumetry: request.approximate_volume,
+      peopleInvolved: request.people_involved,
+      averageExecutionTime: request.average_duration,
+      monthlyEffortHours: Number(request.estimated_monthly_effort),
+      hasManualControls: toRequiredYesNoDetail(
+        request.has_manual_controls,
+        request.manual_controls_detail,
+      ),
+      mainRisks: request.main_risks,
+      clientImpact: request.client_impact,
+      operationalImpact: request.operational_impact,
+      desiredDeadline: toDateOnly(request.desired_deadline),
+      perceivedCriticality: request.perceived_criticality,
+    },
+    complementary: hasComplementaryData(complementary) ? complementary : undefined,
+  };
+}
+
+export async function updateInternalRequest(
+  protocol: string,
+  payload: UpdateRequestPayload,
+  actor: { id: number; email: string; role: Role },
+  ipAddress: string | undefined,
+): Promise<RequestInternalDetailDTO> {
+  const request = await repository.findInternalRequestByProtocol(protocol.trim());
+
+  if (!request) {
+    throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  // Autorização por perfil (issue #121): Administrador e Gestor editam qualquer
+  // solicitação; Analista apenas as atribuídas a ele (requests.professional_id
+  // = seu details_professional.professional_id). Solicitação sem responsável
+  // não é de nenhum analista.
+  if (actor.role === "Analista") {
+    const professional = await repository.findProfessionalByUserId(actor.id);
+    const canEdit =
+      professional !== undefined && request.professional_id === professional.professional_id;
+    if (!canEdit) {
+      throw new AppError("Acesso restrito às solicitações atribuídas a você", 403);
+    }
+  }
+
+  await db.transaction(async (trx) => {
+    await repository.updateRequestBlocks(trx, request.request_id, payload, actor.email);
+    await repository.updateRequesterEditable(trx, request.requester_id, payload.requester);
+
+    await recordAudit(trx, {
+      entityType: "request",
+      actionType: "request.update",
+      entityId: protocol.trim(),
+      userId: actor.id,
+      previousValue: JSON.stringify(editableBlocksFromRow(request)),
+      newValue: JSON.stringify(payload),
+      note: ipAddress,
+      changeOrigin: "admin",
+    });
+  });
+
+  // A resposta reutiliza o mapeador do GET interno — formato idêntico ao
+  // contrato `RequestInternalDetailDTO`.
+  return findInternalByProtocol(protocol.trim());
 }
 
 export async function listAssignees(): Promise<AssigneeSummary[]> {

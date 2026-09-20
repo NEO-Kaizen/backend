@@ -9,6 +9,7 @@ export const THEME_TOKEN_KEYS = [
   "border",
   "text_primary",
   "text_secondary",
+  "heading",
   "rich_black",
   "primary",
   "secondary",
@@ -40,6 +41,7 @@ export interface SystemThemeRow {
   light_border: string | null;
   light_text_primary: string | null;
   light_text_secondary: string | null;
+  light_heading: string | null;
   light_rich_black: string | null;
   light_primary: string | null;
   light_secondary: string | null;
@@ -71,6 +73,7 @@ export interface SystemThemeRow {
   dark_border: string | null;
   dark_text_primary: string | null;
   dark_text_secondary: string | null;
+  dark_heading: string | null;
   dark_rich_black: string | null;
   dark_primary: string | null;
   dark_secondary: string | null;

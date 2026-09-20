@@ -288,18 +288,18 @@ retorna as métricas consolidadas da base de usuários.
 
   ```json
   {
-    "totalUsers": 15,
-    "activeUsers": 13,
-    "pendingUsers": 3,
-    "adminUsers": 3
+    "total": 15,
+    "active": 13,
+    "pending": 3,
+    "admins": 3
   }
   ```
 
-- `totalUsers`: total de usuários cadastrados.
-- `activeUsers`: usuários com conta ativa (`is_active = true`).
-- `pendingUsers`: usuários com troca de senha pendente
+- `total`: total de usuários cadastrados.
+- `active`: usuários com conta ativa (`is_active = true`).
+- `pending`: usuários com troca de senha pendente
   (`must_change_password = true` — senha temporária / primeiro acesso).
-- `adminUsers`: usuários vinculados ao perfil `administrador`.
+- `admins`: usuários vinculados ao perfil `administrador`.
 
 Contrato completo (tipos, exemplos de erro e regras de contagem) em
 [`docs/users-api-metrics-0_1.md`](docs/users-api-metrics-0_1.md).
@@ -386,6 +386,70 @@ Resposta `200 OK`:
 - Quando `page` ultrapassa o total de páginas, a API ajusta a resposta para a última página válida (`page` = `totalPages`); com zero resultados, a `page` devolvida é `1`.
 - A lista `assignees` contém apenas profissionais com `status = active`, ordenados por nome.
 
+#### GET /queue/requests/:protocol/mapping
+
+Subfluxo de Mapeamento do fluxo da fila (issue #86). Consulta o mapeamento **mais
+recente** de uma solicitação (agendamento), incluindo o `id` do registro. Sem
+mapeamento ainda, retorna `200` com o **estado vazio**: `id` e campos opcionais
+`null` e `participants: []`.
+
+- Requer cookie/JWT válido e perfil interno de triagem (`Analista`, `Gestor`,
+  `Administrador`) — mesmo guard das rotas da fila.
+- Resposta `401 Unauthorized` sem sessão; `403` para perfil sem acesso; `404`
+  para protocolo inexistente; `200 OK`:
+
+  ```json
+  {
+    "protocol": "MAAT-8K3P-9X2M",
+    "id": "a6e8923e-7661-4827-9a6d-4898d9c70739",
+    "scheduledFor": "2026-10-15T13:30:00Z",
+    "durationMinutes": 60,
+    "modality": "REMOTE",
+    "meetingLink": "https://meet.exemplo.com/mapeamento",
+    "location": null,
+    "participants": [
+      { "id": "103", "name": "Gestor Teste", "email": "gestor_teste@email.com" },
+      { "id": null, "name": "João Silva", "email": "joao.silva@externo.com.br" }
+    ],
+    "notes": "Levantamento inicial da demanda."
+  }
+  ```
+
+#### PUT /queue/requests/:protocol/mapping
+
+Cria ou atualiza o mapeamento. Semântica do payload: campo **ausente mantém** o
+valor atual; `null` **limpa**; `participants` presente **substitui** a lista. O
+alvo é o mapeamento do `id` (quando informado e **aberto**; encerrado → `422`)
+ou o mapeamento atual (mais recente não concluído); sem nenhum aberto, **cria**
+um novo registro.
+
+- Autorização (dois vínculos distintos, contrato §9): **campos do mapeamento**
+  — o **designado do mapeamento** (`mappingAssignee.userId`) ou `Administrador`;
+  **designação** (`mappingAssigneeId` no payload) — o **responsável pela
+  solicitação**, o designado atual ou `Administrador`.
+- Ao criar um mapeamento sem `mappingAssigneeId`, o designado **herda** o
+  responsável da solicitação (delegação posterior via `mappingAssigneeId`;
+  `null` remove; ausente mantém). Elegibilidade do designado: profissional
+  ativo com perfil `analista`/`gestor`.
+- `completeMapping: true` valida os dados mesclados, marca o mapeamento como
+  concluído e altera o status da solicitação para **`Mapeamento agendado`**
+  (auditado na mesma transação); `false` apenas persiste (`mapping.save`).
+- Auditoria: `mapping.assign` registra cada definição/substituição/remoção do
+  designado; `mapping.save`/`mapping.complete` registram o designado vigente no
+  diff.
+- Limites: `durationMinutes` 15–480; até **20 participantes**; `notes` ≤ 2.000;
+  `meetingLink`/`location` ≤ 500; `scheduledFor` ISO-8601 **com offset**
+  (persistido em UTC; resposta com sufixo `Z`); `REMOTE` exige `meetingLink` e
+  `IN_PERSON` exige `location`.
+- Status: `200` mapeamento atualizado; `400` payload malformado; `403` sem
+  permissão; `404` protocolo/mapeamento inexistente; `422` validação de campos
+  ou estado (inclusive solicitação em `Concluído`/`Cancelado` — "solicitação
+  encerrada").
+
+- `participants[].id` é o `users.user_id` serializado como string quando o
+  participante é usuário cadastrado; `null` para participante externo (sem
+  identidade cadastrada — case ideal para ecoar de volta ao `PUT`).
+
 #### GET /requests/:protocol/internal
 
 Consulta administrativa/interna de uma solicitação pelo protocolo — exige
@@ -398,6 +462,28 @@ consulta pública (`GET /requests/:protocol`, acima) em
 
 - Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
 - Resposta `404 Not Found`: protocolo inexistente.
+
+#### PATCH /requests/:protocol/internal
+
+Atualização interna dos blocos editáveis da solicitação pelo protocolo — exige
+autenticação (cookie de sessão) e perfil `Analista`, `Gestor` ou
+`Administrador`. Corpo: os blocos `requester`, `demand`, `operational` e o
+bloco opcional `complementary` (mesmo formato do `GET /requests/:protocol/internal`).
+Semântica de **substituição completa**: chave ausente = campo limpo (NULL),
+inclusive quando `complementary` é omitido por inteiro.
+
+- Autorização por perfil (issue #121): `Administrador`/`Gestor` editam qualquer
+  solicitação; `Analista` apenas as atribuídas a ele (`403` caso contrário).
+- `fullName`/`corporateEmail` enviados no `requester` são **ignorados**
+  (identidade do solicitante imutável via PATCH interno).
+- `last_external_update_at` **não** é alterado; `updated_by` = e-mail do ator
+  e `updated_at` renovado. Auditoria `request.update` gravada na mesma
+  transação (`audit_history`, `previous_value`/`new_value` = JSON dos blocos).
+- Resposta `200 OK`: `RequestInternalDetailDTO` atualizado (mesmo formato do GET
+  interno). `desiredDeadline` deve ser hoje ou data futura (`422` caso contrário).
+- Erros: `401` sem cookie; `403` perfil não autorizado; `404` protocolo
+  inexistente; `422` validação (+ campo `fields` com mensagens por chave, ex.:
+  `demand.title`, `operational.hasManualControlsDetail`).
 
 ### Configuração do portal
 

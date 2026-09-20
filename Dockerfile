@@ -7,6 +7,9 @@ FROM base AS dev
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Uploads gravados em runtime pelo usuário `node` (multer memoryStorage +
+# saveFiles em disco): o COPY acima cria /app/uploads como root.
+RUN mkdir -p /app/uploads/portal && chown -R node:node /app/uploads
 EXPOSE 3000
 USER node
 CMD ["npm", "run", "dev"]
@@ -25,7 +28,9 @@ FROM base AS prod
 ENV NODE_ENV=production
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/assets ./assets
 COPY package.json ./
+RUN mkdir -p /app/uploads/portal && chown -R node:node /app/uploads && chown -R node:node /app/assets
 EXPOSE 3000
 USER node
 CMD ["node", "dist/server.js"]

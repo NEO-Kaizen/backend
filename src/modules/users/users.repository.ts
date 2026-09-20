@@ -240,17 +240,17 @@ export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
   const result = await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .select(
-      db.raw('COUNT(u.*)::int as "totalUsers"'),
-      db.raw('COUNT(CASE WHEN u.is_active THEN 1 END)::int as "activeUsers"'),
-      db.raw('COUNT(CASE WHEN u.must_change_password THEN 1 END)::int as "pendingUsers"'),
-      db.raw("COUNT(CASE WHEN p.name = 'administrador' THEN 1 END)::int as \"adminUsers\""),
+      db.raw('COUNT(u.*)::int as "total"'),
+      db.raw('COUNT(CASE WHEN u.is_active THEN 1 END)::int as "active"'),
+      db.raw('COUNT(CASE WHEN u.must_change_password THEN 1 END)::int as "pending"'),
+      db.raw("COUNT(CASE WHEN p.name = 'administrador' THEN 1 END)::int as \"admins\""),
     )
     .first();
 
   return {
-    totalUsers: result?.totalUsers ?? 0,
-    activeUsers: result?.activeUsers ?? 0,
-    pendingUsers: result?.pendingUsers ?? 0,
-    adminUsers: result?.adminUsers ?? 0,
+    total: result?.total ?? 0,
+    active: result?.active ?? 0,
+    pending: result?.pending ?? 0,
+    admins: result?.admins ?? 0,
   };
 };
