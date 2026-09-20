@@ -4,9 +4,27 @@ import type {
   QueueResponse,
   QueueMetricsResponse,
 } from "../../shared/types/queue.types.ts";
+import type { AuthenticatedUser } from "../../shared/types/user.ts";
 
-export const getQueueMetricsService = async (): Promise<QueueMetricsResponse> => {
-  return await fetchQueueMetrics();
+/**
+ * Escopo de visibilidade da fila por perfil (issue #102).
+ *
+ * O Analista enxerga apenas as solicitações em que é responsável — de triagem
+ * ou de mapeamento. `Gestor` e `Administrador` permanecem sem restrição.
+ * Retorna o `user_id` do próprio ator (mesmo identificador usado pelo frontend);
+ * `0` não existe em `users.user_id` e atua como fail-safe para um id inválido.
+ */
+const resolveQueueScope = (actor?: AuthenticatedUser): number | undefined => {
+  if (actor?.role !== "Analista") return undefined;
+
+  const userId = Number(actor.id);
+  return Number.isInteger(userId) && userId > 0 ? userId : 0;
+};
+
+export const getQueueMetricsService = async (
+  actor?: AuthenticatedUser,
+): Promise<QueueMetricsResponse> => {
+  return await fetchQueueMetrics(resolveQueueScope(actor));
 };
 
 /** Serializa `created_at` (vem como `Date` do pg ou string) em ISO para o contrato. */
@@ -14,7 +32,10 @@ function toIso(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
-export const listQueueService = async (filters: QueueQuery): Promise<QueueResponse> => {
+export const listQueueService = async (
+  filters: QueueQuery,
+  actor?: AuthenticatedUser,
+): Promise<QueueResponse> => {
   const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
   const offset = (page - 1) * pageSize;
 
@@ -29,6 +50,7 @@ export const listQueueService = async (filters: QueueQuery): Promise<QueueRespon
       priority,
       assigneeId: repoAssigneeId,
       unassigned: repoUnassigned,
+      scopedUserId: resolveQueueScope(actor),
       limit: pageSize,
       offset,
     }),
