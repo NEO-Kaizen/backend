@@ -9,6 +9,7 @@ import {
   listRequestsQuerySchema,
   assignRequestSchema,
   updateRequestPayloadSchema,
+  updateInternalObservationsSchema,
 } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
 
@@ -33,6 +34,21 @@ export const getInternalRequestByProtocol = async (
 
   return res.status(200).json(request);
 };
+
+export const putInternalObservations = async (req: Request, res: Response) => {
+  const protocol = assertProtocolParam(req);
+  const parsed = updateInternalObservationsSchema.safeParse(req.body);
+  if(!parsed.success){
+    const {message, fields } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
+  }
+
+  const updated = await service.updateInternalObservations(
+    protocol, parsed.data, actorFromRequest(req), req.ip,
+  )
+
+  return res.status(200).json(updated);
+}
 
 /** Valida e devolve `req.params.protocol` — comum aos dois handlers da rota. */
 function assertProtocolParam(req: Request): string {

@@ -648,6 +648,12 @@ export async function updateRequestBlocks(
     });
 }
 
+export async function updateInternalNotes(trx: Knex.Transaction, requestId: string, internalNotes: string | null, updatedBy: string): Promise<void> {
+  await trx("requests")
+    .where({ request_id: requestId})
+    .update({ internal_notes: internalNotes, updated_by: updatedBy, updated_at: trx.fn.now()});
+}
+
 export async function updateRequesterEditable(
   trx: Knex.Transaction,
   requesterId: string,

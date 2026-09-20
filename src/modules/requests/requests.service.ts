@@ -32,7 +32,7 @@ import {
   toSaoPauloDateOnly,
 } from "../../shared/utils/date.ts";
 import * as repository from "./requests.repository.ts";
-import type { AssignRequestPayload, UpdateRequestPayload } from "./requests.schema.ts";
+import type { AssignRequestPayload, UpdateInternalObservationsPayload, UpdateRequestPayload } from "./requests.schema.ts";
 import type { Role } from "../../shared/types/role.ts";
 
 export async function findRequest(protocol: string): Promise<RequestDetail> {
@@ -470,3 +470,44 @@ export async function assignResponsible(
 
   return { protocol: request.protocol, assignee, status: finalStatus };
 }
+
+async function assertCanEditRequest(
+  request: { professional_id: string | null },
+  actor: { id: number; role: Role},
+) : Promise<void> {
+  if(actor.role != "Analista") return;
+  const professional = await repository.findProfessionalByUserId(actor.id);
+  const canEdit = professional !== undefined && request.professional_id === professional.professional_id;
+  if(!canEdit){
+    throw new AppError("Acesso restrito as solicitacoes atribuidas", 403);
+  }
+}
+
+export async function updateInternalObservations(
+  protocol: string,
+  payload: UpdateInternalObservationsPayload,
+  actor: {id: number, email: string; role: Role },
+  ipAddress: string | undefined,
+ ): Promise<RequestInternalDetailDTO> {
+  const request = await repository.findInternalRequestByProtocol(protocol.trim());
+  if(!request) throw new AppError("Solicitacao nao encontrada", 404);
+
+  await assertCanEditRequest(request, actor);
+
+  await db.transaction(async (trx) => {
+    await repository.updateInternalNotes(trx, request.request_id, payload.internalObservations, actor.email);
+
+    await recordAudit(trx, {
+      entityType: "request",
+      actionType: "request.internal_observations",
+      entityId: request.protocol,
+      userId: actor.id,
+      previousValue: request.internal_notes,
+      newValue: payload.internalObservations,
+      note: ipAddress,
+      changeOrigin: "admin",
+    });
+  });
+
+  return findInternalByProtocol(protocol.trim())
+ }

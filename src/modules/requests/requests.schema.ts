@@ -165,6 +165,12 @@ export const listRequestsQuerySchema = z.object({
     .default(10),
 });
 
+export const updateInternalObservationsSchema = z.object({
+  internalObservations: z.string().trim().max(4000).nullable(),
+});
+
+export type UpdateInternalObservationsPayload = z.infer<typeof updateInternalObservationsSchema>
+
 export const assignRequestSchema = z.object({
   professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable(),
 });

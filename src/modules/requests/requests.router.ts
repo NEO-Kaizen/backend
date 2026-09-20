@@ -10,6 +10,7 @@ import {
   getAssignees,
   patchAssignee,
   patchInternalRequestByProtocol,
+  putInternalObservations,
 } from "./requests.controller.ts";
 
 const requestsRoutes = express.Router();
@@ -28,6 +29,13 @@ requestsRoutes.patch(
   authMiddleware,
   requireRole("Administrador"),
   patchAssignee,
+);
+
+requestsRoutes.put(
+  "/:protocol/internal-observations",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  putInternalObservations,
 );
 
 requestsRoutes.get("/:protocol", getRequestsByProtocol);
