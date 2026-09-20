@@ -73,6 +73,7 @@ export async function getPortalConfig(): Promise<PortalConfigResponse> {
       visibility: st.visibility,
       closesRequest: st.closes_request,
       tone: st.tone,
+      isActive: st.is_active ?? true,
     })),
     prioritizationWeights: Object.fromEntries(
       criteria.map((c) => {
@@ -281,6 +282,7 @@ export async function updateStatuses(
       visibility: st.visibility,
       closesRequest: st.closes_request,
       tone: st.tone,
+      isActive: st.is_active ?? true,
     }));
 
     // Bloqueia renomeação ou remoção de status protegidos (§6.1).

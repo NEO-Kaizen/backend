@@ -1,18 +1,41 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
+import { ValidationError } from "../../shared/errors/ValidationError.ts";
+import type { Role } from "../../shared/types/role.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
-  createRequestPayloadSchema,
-  listRequestsQuerySchema,
+  assignAnalystSchema,
   assignRequestSchema,
+  createRequestPayloadSchema,
+  listAuthenticatedRequestsQuerySchema,
+  listRequestsQuerySchema,
+  updateRequestPayloadSchema,
 } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
+
+/**
+ * `req.user` só existe quando o `requireAccessMode`/`authMiddleware` autenticou
+ * a request — ou seja, no modo AUTHENTICATED. No modo PUBLIC é `undefined`.
+ */
+function authenticatedUserId(req: Request): number | undefined {
+  return req.user ? Number(req.user.id) : undefined;
+}
+
+function requireAuthenticatedUserId(req: Request): number {
+  const userId = authenticatedUserId(req);
+
+  if (userId === undefined) {
+    throw new AppError("Sessão inválida", 401);
+  }
+
+  return userId;
+}
 
 export const getRequestsByProtocol = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocolParam(req);
 
-  const foundRequest = await service.findRequest(protocol);
+  const foundRequest = await service.findRequest(protocol, authenticatedUserId(req));
 
   return res.status(200).json(foundRequest);
 };
@@ -42,8 +65,8 @@ function assertProtocolParam(req: Request): string {
   return protocol.trim();
 }
 
-/** Ator autenticado (id numérico + e-mail) — `req.user` vem do authMiddleware. */
-function actorFromRequest(req: Request): { id: number; email: string } {
+/** Ator autenticado (id numérico + e-mail + papel) — `req.user` vem do authMiddleware. */
+function actorFromRequest(req: Request): { id: number; email: string; role: Role } {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -51,8 +74,33 @@ function actorFromRequest(req: Request): { id: number; email: string } {
   if (!Number.isInteger(id)) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return { id, email: req.user.email };
+  return { id, email: req.user.email, role: req.user.role };
 }
+
+// Atualização interna dos blocos editáveis (issue #88) — modo de edição inline
+// da tela `/(admin)/fila/[protocolo]`. Autenticação e perfil no router;
+// autorização por atribuição (issue #121) no service.
+export const patchInternalRequestByProtocol = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const parsed = updateRequestPayloadSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const { message, fields } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
+  }
+
+  const updated = await service.updateInternalRequest(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
+
+  return res.status(200).json(updated);
+};
 
 export const postRequest = async (req: Request, res: Response): Promise<Response> => {
   const payloadPart: unknown = req.body?.payload;
@@ -77,12 +125,36 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
     multerFiles && !Array.isArray(multerFiles) ? (multerFiles.attachments ?? []) : [];
   const savedAttachments = await saveFiles(attachments);
 
-  const response = await service.registerRequest(parsed.data, savedAttachments);
+  const response = await service.registerRequest(
+    parsed.data,
+    savedAttachments,
+    authenticatedUserId(req),
+  );
 
   return res.status(201).json(response);
 };
 
 export const getRequestsByEmail = async (req: Request, res: Response): Promise<Response> => {
+  // Modo autenticado: a listagem é sempre escopada à identidade da sessão.
+  if (req.accessMode === "AUTHENTICATED") {
+    if (req.query.email !== undefined) {
+      throw new AppError("O parâmetro 'email' não é aceito no modo autenticado.", 400);
+    }
+
+    const parsed = listAuthenticatedRequestsQuerySchema.safeParse(req.query);
+
+    if (!parsed.success) {
+      throw new AppError(formatZodIssues(parsed.error), 400);
+    }
+
+    const requests = await service.listRequestsByEmail(
+      parsed.data,
+      requireAuthenticatedUserId(req),
+    );
+
+    return res.status(200).json(requests);
+  }
+
   if (req.query.email === undefined) {
     throw new AppError("Parâmetro obrigatório ausente: email", 400);
   }
@@ -111,6 +183,24 @@ export const patchAssignee = async (req: Request, res: Response): Promise<Respon
   }
 
   const response = await service.assignResponsible(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
+
+  return res.status(200).json(response);
+};
+
+export const patchInternalAssignee = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const parsed = assignAnalystSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const response = await service.assignAnalyst(
     protocol,
     parsed.data,
     actorFromRequest(req),

@@ -22,6 +22,11 @@ export const getUserMetrics = async (_req: Request, res: Response): Promise<Resp
   return res.status(200).json(metrics);
 };
 
+export const listAnalysts = async (_req: Request, res: Response): Promise<Response> => {
+  const analysts = await service.listAnalysts();
+  return res.status(200).json(analysts);
+};
+
 export const listUsers = async (req: Request, res: Response): Promise<Response> => {
   const parsed = listUsersQuerySchema.safeParse(req.query);
 

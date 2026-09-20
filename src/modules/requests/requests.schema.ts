@@ -1,12 +1,16 @@
 import { z } from "zod";
 import { optionalString, requiredString } from "../../shared/validation/fieldSchemas.ts";
+import { toSaoPauloDateOnly } from "../../shared/utils/date.ts";
 import type {
   ComplementaryBlock,
   DemandBlock,
   OperationalBlock,
   RequesterBlock,
 } from "../../shared/types/requests.ts";
-import type { CreateRequestPayload } from "../DTOs/requests/RequestRequests.dto.ts";
+import type {
+  CreateRequestPayload,
+  UpdateInternalRequestPayload,
+} from "../DTOs/requests/RequestRequests.dto.ts";
 
 const yesNoDetailSchema = z.union(
   [
@@ -112,6 +116,39 @@ export const createRequestPayloadSchema = z.object(
   },
 ) satisfies z.ZodType<CreateRequestPayload>;
 
+// --- PATCH /requests/:protocol/internal (issue #88) -------------------------
+// Atualização dos blocos editáveis — reutiliza os schemas de bloco do POST
+// (demand/operational/complementary), restringindo `requester` aos campos
+// editáveis (fullName/corporateEmail são descartados pelo `strip` do Zod —
+// decisão de contrato) e endurecendo `desiredDeadline` (hoje ou futura)
+// somente para o update, sem alterar o comportamento do POST.
+
+const todaySaoPauloYmd = (): string => toSaoPauloDateOnly(new Date()) ?? "";
+
+const desiredDeadlineUpdateSchema = z.iso
+  .date("Data inválida — use o formato AAAA-MM-DD.")
+  .refine(
+    (value) => value >= todaySaoPauloYmd(),
+    "O prazo desejado deve ser hoje ou uma data futura.",
+  );
+
+const operationalUpdateSchema = operationalSchema.extend({
+  desiredDeadline: desiredDeadlineUpdateSchema,
+});
+
+// `z.object` faz `strip` por padrão: fullName/corporateEmail enviadas com o
+// valor original são descartadas silenciosamente (imutáveis por contrato).
+const updateRequesterSchema = requesterSchema.omit({ fullName: true, corporateEmail: true });
+
+export const updateRequestPayloadSchema = z.object({
+  requester: updateRequesterSchema,
+  demand: demandSchema,
+  operational: operationalUpdateSchema,
+  complementary: complementarySchema.optional(),
+}) satisfies z.ZodType<UpdateInternalRequestPayload>;
+
+export type UpdateRequestPayload = z.infer<typeof updateRequestPayloadSchema>;
+
 export const listRequestsQuerySchema = z.object({
   email: z.email("Informe um e-mail válido.").max(254, "Máximo de 254 caracteres."),
   status: optionalString(100),
@@ -128,8 +165,40 @@ export const listRequestsQuerySchema = z.object({
     .default(10),
 });
 
-export const assignRequestSchema = z.object({
-  professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable(),
-});
+/**
+ * `GET /requests` no modo `AUTHENTICATED`: o e-mail é resolvido pela sessão, então
+ * a query não aceita `email`. Qualquer `?email=` é recusado no controller com
+ * `400` — evitamos divergência silenciosa entre o filtro pedido e o aplicado.
+ */
+export const listAuthenticatedRequestsQuerySchema = listRequestsQuerySchema.omit({ email: true });
+
+export const assignRequestSchema = z
+  .object({
+    professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable().optional(),
+  })
+  .passthrough();
 
 export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;
+
+// Contrato contract-assign-action.md — PATCH /requests/:protocol/internal/assignee
+// Frontend envia user_id string (ex.: "20"), nunca professional_id. XOR: exatamente um campo presente.
+const analystIdSchema = z.string().trim().min(1, "analystId não pode ser vazio.");
+
+export const assignAnalystSchema = z
+  .object({
+    assigneeId: z.union([analystIdSchema, z.null()]).optional(),
+    mappingAssigneeId: z.union([analystIdSchema, z.null()]).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasAssignee = Object.prototype.hasOwnProperty.call(data, "assigneeId");
+    const hasMapping = Object.prototype.hasOwnProperty.call(data, "mappingAssigneeId");
+    if (hasAssignee === hasMapping) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Informe exatamente um de assigneeId ou mappingAssigneeId.",
+        path: [],
+      });
+    }
+  });
+
+export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;

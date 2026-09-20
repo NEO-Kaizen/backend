@@ -1,19 +1,26 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
 import { requireRole } from "../../shared/middleware/requireRole.ts";
+import { requireAccessMode } from "../../shared/middleware/accessMode.ts";
 import { uploadFields } from "../../shared/middleware/upload.ts";
 import {
   getInternalRequestByProtocol,
   getRequestsByEmail,
   getRequestsByProtocol,
+  patchInternalAssignee,
   postRequest,
   getAssignees,
   patchAssignee,
+  patchInternalRequestByProtocol,
 } from "./requests.controller.ts";
 
 const requestsRoutes = express.Router();
 
-requestsRoutes.get("/", getRequestsByEmail);
+// Rotas de solicitação respeitam o modo de abertura do portal: em `PUBLIC`
+// permanecem públicas; em `AUTHENTICATED` o `requireAccessMode` exige sessão.
+requestsRoutes.get("/", requireAccessMode(), getRequestsByEmail);
+
+// Responsáveis pela triagem — lista de profissionais (issue #50).
 requestsRoutes.get(
   "/assignees",
   authMiddleware,
@@ -21,7 +28,15 @@ requestsRoutes.get(
   getAssignees,
 );
 
-// Apenas Administrador define/substitui o responsável (issue #50).
+// Contrato contract-assign-action.md: PATCH /requests/:protocol/internal/assignee com body {assigneeId} | {mappingAssigneeId} (user_id string, XOR, null para remover)
+// Apenas Administrador atribui (Q3). Mantida rota legada /:protocol/assignee para compat até remoção.
+requestsRoutes.patch(
+  "/:protocol/internal/assignee",
+  authMiddleware,
+  requireRole("Administrador"),
+  patchInternalAssignee,
+);
+
 requestsRoutes.patch(
   "/:protocol/assignee",
   authMiddleware,
@@ -29,7 +44,7 @@ requestsRoutes.patch(
   patchAssignee,
 );
 
-requestsRoutes.get("/:protocol", getRequestsByProtocol);
+requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
 requestsRoutes.get(
   "/:protocol/internal",
   authMiddleware,
@@ -38,6 +53,18 @@ requestsRoutes.get(
   requireRole("Analista", "Gestor", "Administrador"),
   getInternalRequestByProtocol,
 );
-requestsRoutes.post("/", uploadFields, postRequest);
+// Atualização interna dos blocos editáveis (issue #88). Perfis internos passam
+// pelo requireRole; a autorização por atribuição (issue #121) acontece no
+// service: Administrador/Gestor editam qualquer; Analista só as próprias.
+requestsRoutes.patch(
+  "/:protocol/internal",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  patchInternalRequestByProtocol,
+);
+
+// O guard vem antes do `uploadFields` para não processar multipart de uma
+// requisição que será rejeitada por falta de sessão.
+requestsRoutes.post("/", requireAccessMode(), uploadFields, postRequest);
 
 export default requestsRoutes;
