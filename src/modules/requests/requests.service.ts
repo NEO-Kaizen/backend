@@ -32,8 +32,10 @@ import {
   toSaoPauloDateOnly,
 } from "../../shared/utils/date.ts";
 import * as repository from "./requests.repository.ts";
+
 import type { AssignRequestPayload, UpdateRequestPayload } from "./requests.schema.ts";
 import type { Role } from "../../shared/types/role.ts";
+
 
 export async function findRequest(protocol: string): Promise<RequestDetail> {
   const normalizedProtocol = protocol.trim();
@@ -102,138 +104,143 @@ function hasComplementaryData(block: ComplementaryBlock): boolean {
 }
 
 export async function findInternalByProtocol(protocol: string): Promise<RequestInternalDetailDTO> {
-  const request = await repository.findInternalRequestByProtocol(protocol);
+  const request = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
+    string,
+    unknown
+  > | null;
 
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
   }
 
+  const requestId = request["request_id"] as string;
   const [attachments, schedulePreferences, evaluation] = await Promise.all([
-    repository.findAttachmentsByRequestId(request.request_id),
-    repository.findSchedulePreferencesByRequestId(request.request_id),
-    // Score/classificação da priorização (RN-007/RN-008, issue #51) —
-    // fonte única, escala 10–50; null até existir avaliação.
+    repository.findAttachmentsByRequestId(requestId),
+    repository.findSchedulePreferencesByRequestId(requestId),
     repository.findEvaluationByProtocol(protocol),
   ]);
 
-  const meetingScheduledFor: string | null = request.meeting_scheduled_for
-    ? new Date(request.meeting_scheduled_for).toISOString()
+  const meetingScheduledFor: string | null = request["meeting_scheduled_for"]
+    ? new Date(request["meeting_scheduled_for"] as string).toISOString()
     : null;
   const meeting = meetingScheduledFor
-    ? { scheduledFor: meetingScheduledFor, link: request.meeting_link ?? null }
+    ? {
+        scheduledFor: meetingScheduledFor,
+        link: (request["meeting_link"] as string | null) ?? null,
+      }
     : null;
 
   const complementary: ComplementaryBlock = {
     hasProcessDocumentation: toYesNoDetail(
-      request.has_process_documentation,
-      request.process_documentation_detail,
+      request["has_process_documentation"] as boolean | null,
+      request["process_documentation_detail"] as string | null,
     ),
     hasSimilarSolution: toYesNoDetail(
-      request.has_similar_solution,
-      request.similar_solution_detail,
+      request["has_similar_solution"] as boolean | null,
+      request["similar_solution_detail"] as string | null,
     ),
-    dependsOnOtherAreas: toYesNoDetail(request.depends_on_other_areas, request.other_areas_detail),
+    dependsOnOtherAreas: toYesNoDetail(
+      request["depends_on_other_areas"] as boolean | null,
+      request["other_areas_detail"] as string | null,
+    ),
     handlesRestrictedInfo: toYesNoDetail(
-      request.handles_restricted_info,
-      request.restricted_info_detail,
+      request["handles_restricted_info"] as boolean | null,
+      request["restricted_info_detail"] as string | null,
     ),
-    additionalNotes: request.additional_notes ?? undefined,
+    additionalNotes: (request["additional_notes"] as string | null) ?? undefined,
   };
 
-  // Timestamps normalizados no formato ISO do contrato (fallback defensivo
-  // caso a leitura venha nula — mesmo padrão da consulta pública).
-  const openedAt = normalizeIsoDate(request.created_at) ?? new Date().toISOString();
-  const lastUpdate = normalizeIsoDate(request.updated_at) ?? openedAt;
+  const openedAt = normalizeIsoDate(request["created_at"]) ?? new Date().toISOString();
+  const lastUpdate = normalizeIsoDate(request["updated_at"]) ?? openedAt;
+
+  const assigneeUserId = request["assignee_user_id"] as number | null;
+  const mappingUserId = request["mapping_user_id"] as number | null;
+
+  const assignee =
+    assigneeUserId !== null && assigneeUserId !== undefined && request["professional_name"]
+      ? {
+          id: String(assigneeUserId),
+          name: request["professional_name"] as string,
+          email: (request["professional_email"] as string | null) ?? null,
+        }
+      : null;
+
+  const mappingAssignee =
+    mappingUserId !== null && mappingUserId !== undefined && request["mapping_name"]
+      ? {
+          id: String(mappingUserId),
+          name: request["mapping_name"] as string,
+          email: (request["mapping_email"] as string | null) ?? null,
+        }
+      : null;
 
   return {
-    protocol: request.protocol,
-    status: request.status,
-    priority: request.priority,
+    protocol: request["protocol"] as string,
+    status: request["status"] as string,
+    priority: (request["priority"] as string | null) ?? null,
     prioritization: {
-      // Escala 10–50 (RN-007/RN-008 — issue #51). `score` e `label` (a
-      // classificação da avaliação) vêm de prioritization_evaluations; ambos
-      // null enquanto a solicitação não for avaliada.
       score: evaluation ? evaluation.score : null,
       maxScore: 50,
       label: evaluation ? evaluation.classification : null,
     },
-    assignee: request.professional_name
-      ? {
-          // `assignee.id` = details_professional.user_id (id de `users`,
-          // serializado como string) para o frontend comparar com o usuário
-          // logado (`mappingAssigneeId === currentUser.id`, contrato §9).
-          id: request.assignee_user_id != null ? String(request.assignee_user_id) : null,
-          name: request.professional_name,
-          email: request.professional_email,
-        }
-      : null,
-    // Sem fonte de dados no schema atual (nenhuma tabela de correção
-    // pendente equivalente) — sempre null até uma issue futura modelar isso.
+    assignee,
+    mappingAssignee: mappingAssignee ?? null,
+
     correctionAlert: null,
     requester: {
-      fullName: request.requester_name,
-      corporateEmail: request.requester_email,
-      area: request.requester_area,
-      department: request.requester_department ?? undefined,
-      manager: request.requester_manager,
-      additionalContact: request.requester_additional_contact ?? undefined,
+      fullName: request["requester_name"] as string,
+      corporateEmail: request["requester_email"] as string,
+      area: request["requester_area"] as string,
+      department: (request["requester_department"] as string | null) ?? undefined,
+      manager: request["requester_manager"] as string,
+      additionalContact: (request["requester_additional_contact"] as string | null) ?? undefined,
     },
     demand: {
-      title: request.title,
-      requestType: request.request_type,
-      category: request.category,
-      processName: request.process_name,
-      description: request.need_description,
-      problem: request.problem_opportunity,
-      expectedResult: request.expected_result,
-      justification: request.justification,
+      title: request["title"] as string,
+      requestType: request["request_type"] as string,
+      category: request["category"] as string,
+      processName: request["process_name"] as string,
+      description: request["need_description"] as string,
+      problem: request["problem_opportunity"] as string,
+      expectedResult: request["expected_result"] as string,
+      justification: request["justification"] as string,
     },
     operational: {
-      processDescription: request.process_description,
-      processSteps: request.process_steps,
-      systemsUsed: request.systems_used,
-      executionFrequency: request.execution_frequency,
-      volumetry: request.approximate_volume,
-      peopleInvolved: request.people_involved,
-      averageExecutionTime: request.average_duration,
-      monthlyEffortHours: Number(request.estimated_monthly_effort),
+      processDescription: request["process_description"] as string,
+      processSteps: request["process_steps"] as string,
+      systemsUsed: request["systems_used"] as string,
+      executionFrequency: request["execution_frequency"] as string,
+      volumetry: request["approximate_volume"] as string,
+      peopleInvolved: request["people_involved"] as number,
+      averageExecutionTime: request["average_duration"] as string,
+      monthlyEffortHours: Number(request["estimated_monthly_effort"]),
       hasManualControls: toRequiredYesNoDetail(
-        request.has_manual_controls,
-        request.manual_controls_detail,
+        request["has_manual_controls"] as boolean,
+        request["manual_controls_detail"] as string | null,
       ),
-      mainRisks: request.main_risks,
-      clientImpact: request.client_impact,
-      operationalImpact: request.operational_impact,
-      desiredDeadline: toDateOnly(request.desired_deadline),
-      perceivedCriticality: request.perceived_criticality,
+      mainRisks: request["main_risks"] as string,
+      clientImpact: request["client_impact"] as string,
+      operationalImpact: request["operational_impact"] as OperationalImpact,
+      desiredDeadline: toDateOnly(request["desired_deadline"] as string | Date),
+      perceivedCriticality: request["perceived_criticality"] as RequestPriority,
     },
-    // Bloco 4 é opcional por inteiro (Especificação 3.0 §1.5): se nenhum dos
-    // 5 campos foi respondido, a chave `complementary` some da resposta em
-    // vez de mandar um objeto todo com valores ausentes.
     complementary: hasComplementaryData(complementary) ? complementary : undefined,
     schedulePreferences:
       schedulePreferences.length > 0
         ? schedulePreferences.map((row) => toDateTimeMinutes(row.scheduled_for))
         : null,
-    // Mesma fonte da consulta pública: requests.meeting_scheduled_for
-    // (America/Sao_Paulo) — os dois nunca divergem (Especificação 3.0 §6.1).
     mappingDate: meetingScheduledFor ? toSaoPauloDateOnly(meetingScheduledFor) : null,
     meeting,
     attachments: attachments.map((attachment) => ({
       fileName: attachment.file_name,
       mimeType: attachment.content_type,
-      // size_bytes é BIGINT — o driver pg devolve como string por padrão
-      // (evita perda de precisão); convertido aqui pois o contrato exige number
-      // e o limite de 10MB do anexo nunca chega perto do teto seguro de um Number.
       sizeBytes: Number(attachment.size_bytes),
-      // Sem endpoint de download implementado ainda — nunca oferece um link
-      // que não funciona.
       downloadUrl: null,
       canDownload: false,
     })),
     openedAt,
     lastUpdate,
-    internalObservations: request.internal_notes,
+    internalObservations: (request["internal_notes"] as string | null) ?? null,
   };
 }
 
@@ -401,6 +408,31 @@ const RN010_FROM_STATUS: RequestStatus = "Em triagem";
 const RN010_TO_STATUS: RequestStatus = "Aguardando mapeamento";
 const RN010_ELIGIBLE_SCREENING = "elegivel";
 
+async function resolveAnalystByUserId(
+  userId: string,
+): Promise<{ professionalId: string; id: string; name: string; email: string }> {
+  if (userId.trim() === "") {
+    throw new AppError("analystId vazio", 400);
+  }
+  const candidate = await repository.findAssignmentCandidateByUserId(userId);
+  if (!candidate) {
+    throw new AppError("Analista não encontrado", 404);
+  }
+  if (candidate.professional_status !== "active" || !candidate.user_is_active) {
+    throw new AppError("Responsável inativo.", 400);
+  }
+  if (!(repository.ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
+    throw new AppError("Perfil do responsável não permite atribuição.", 400);
+  }
+  return {
+    professionalId: candidate.professional_id,
+    id: String(candidate.user_id),
+    name: candidate.name,
+    email: candidate.email,
+  };
+}
+
+// Legado: resolve por professionalId (mantido p/ rota antiga até remoção total)
 async function resolveAssignee(
   professionalId: string,
 ): Promise<{ id: string; name: string; email: string }> {
@@ -416,7 +448,7 @@ async function resolveAssignee(
     throw new AppError("Perfil do responsável não permite atribuição.", 400);
   }
 
-  return { id: candidate.id, name: candidate.name, email: candidate.email };
+  return { id: String(candidate.user_id), name: candidate.name, email: candidate.email };
 }
 
 export async function assignResponsible(
@@ -431,20 +463,28 @@ export async function assignResponsible(
   }
 
   const assignee =
-    payload.professionalId === null ? null : await resolveAssignee(payload.professionalId);
+    payload.professionalId === null || payload.professionalId === undefined
+      ? null
+      : await resolveAssignee(payload.professionalId);
 
   const previousId = request.professional_id;
-  const nextId = assignee?.id ?? null;
-  const action = nextId === null ? "unassign" : previousId === null ? "assign" : "reassign";
+  const nextId = assignee
+    ? await repository
+        .findAssignmentCandidateByUserId(assignee.id)
+        .then((c) => c?.professional_id ?? null)
+    : null;
+  // Para legado mantemos professional_id como valor de auditoria
+  const auditNext = assignee?.id ?? null;
+  const auditPrev = previousId
+    ? ((await repository.findAssignmentCandidateById(previousId))?.user_id ?? null)
+    : null;
+  const action = auditNext === null ? "unassign" : auditPrev === null ? "assign" : "reassign";
 
   const shouldAdvanceStatus =
-    nextId !== null &&
+    auditNext !== null &&
     request.status === RN010_FROM_STATUS &&
     request.screening_result === RN010_ELIGIBLE_SCREENING;
-  const finalStatus = shouldAdvanceStatus ? RN010_TO_STATUS : request.status;
 
-  // Atribuição, gatilho RN-010 e auditoria na MESMA transação: nada fica
-  // parcialmente aplicado nem sem histórico.
   await db.transaction(async (trx) => {
     await repository.updateAssignee(trx, request.request_id, nextId, actor.email);
 
@@ -453,8 +493,8 @@ export async function assignResponsible(
       entityId: request.protocol,
       actionType: `request.${action}`,
       userId: actor.id,
-      previousValue: previousId,
-      newValue: nextId,
+      previousValue: auditPrev ? String(auditPrev) : null,
+      newValue: auditNext ? String(auditNext) : null,
       note: ipAddress,
       changeOrigin: "admin",
     });
@@ -475,5 +515,182 @@ export async function assignResponsible(
     }
   });
 
-  return { protocol: request.protocol, assignee, status: finalStatus };
+  return {
+    protocol: request.protocol,
+    assignee,
+    status: shouldAdvanceStatus ? RN010_TO_STATUS : request.status,
+  };
+}
+
+export async function assignAnalyst(
+  protocol: string,
+  payload: AssignAnalystPayload,
+  actor: { id: number; email: string },
+  ipAddress: string | undefined,
+): Promise<RequestInternalDetailDTO> {
+  const request = await repository.findAssignmentContextByProtocol(protocol.trim());
+  if (!request) {
+    throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
+  const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
+
+  if (hasAssignee) {
+    const raw = payload.assigneeId as string | null | undefined;
+    if (raw === null) {
+      const previous = request.professional_id;
+      const auditPrev = previous
+        ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
+        : null;
+      await db.transaction(async (trx) => {
+        await repository.updateAssignee(trx, request.request_id, null, actor.email);
+        await recordAudit(trx, {
+          entityType: "request",
+          entityId: request.protocol,
+          actionType: "request.unassign",
+          userId: actor.id,
+          previousValue: auditPrev ? String(auditPrev) : null,
+          newValue: null,
+          note: ipAddress,
+          changeOrigin: "admin",
+        });
+      });
+    } else {
+      if (raw === undefined || raw === null || String(raw).trim() === "") {
+        throw new AppError("analystId vazio", 400);
+      }
+      const resolved = await resolveAnalystByUserId(String(raw));
+      const previous = request.professional_id;
+      const auditPrev = previous
+        ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
+        : null;
+      const previousMapping = request.mapping_professional_id;
+      const auditPrevMapping = previousMapping
+        ? ((await repository.findAssignmentCandidateById(previousMapping))?.user_id ?? null)
+        : null;
+      const action = auditPrev === null ? "assign" : "reassign";
+      const shouldAdvance =
+        request.status === RN010_FROM_STATUS &&
+        request.screening_result === RN010_ELIGIBLE_SCREENING;
+      await db.transaction(async (trx) => {
+        await repository.updateAssignee(
+          trx,
+          request.request_id,
+          resolved.professionalId,
+          actor.email,
+        );
+        await recordAudit(trx, {
+          entityType: "request",
+          entityId: request.protocol,
+          actionType: `request.${action}`,
+          userId: actor.id,
+          previousValue: auditPrev ? String(auditPrev) : null,
+          newValue: resolved.id,
+          note: ipAddress,
+          changeOrigin: "admin",
+        });
+        // Exclusividade: atribuir triagem desatribui mapeamento
+        if (previousMapping) {
+          await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
+          await recordAudit(trx, {
+            entityType: "request",
+            entityId: request.protocol,
+            actionType: "request.unassign",
+            userId: actor.id,
+            previousValue: auditPrevMapping ? String(auditPrevMapping) : null,
+            newValue: null,
+            note: ipAddress,
+            changeOrigin: "admin",
+          });
+        } else {
+          await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
+        }
+        if (shouldAdvance) {
+          await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
+          await recordAudit(trx, {
+            entityType: "request",
+            entityId: request.protocol,
+            actionType: "request.status_change",
+            userId: actor.id,
+            previousValue: RN010_FROM_STATUS,
+            newValue: RN010_TO_STATUS,
+            note: "RN-010",
+            changeOrigin: "system",
+          });
+        }
+      });
+    }
+  } else if (hasMapping) {
+    const raw = payload.mappingAssigneeId as string | null | undefined;
+    if (raw === null) {
+      const previous = request.mapping_professional_id;
+      const auditPrev = previous
+        ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
+        : null;
+      await db.transaction(async (trx) => {
+        await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
+        await recordAudit(trx, {
+          entityType: "request",
+          entityId: request.protocol,
+          actionType: "request.unassign",
+          userId: actor.id,
+          previousValue: auditPrev ? String(auditPrev) : null,
+          newValue: null,
+          note: ipAddress,
+          changeOrigin: "admin",
+        });
+      });
+    } else {
+      if (raw === undefined || raw === null || String(raw).trim() === "") {
+        throw new AppError("analystId vazio", 400);
+      }
+      const resolved = await resolveAnalystByUserId(String(raw));
+      const previous = request.mapping_professional_id;
+      const auditPrev = previous
+        ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
+        : null;
+      const previousAssignee = request.professional_id;
+      const auditPrevAssignee = previousAssignee
+        ? ((await repository.findAssignmentCandidateById(previousAssignee))?.user_id ?? null)
+        : null;
+      const action = auditPrev === null ? "assign" : "reassign";
+      await db.transaction(async (trx) => {
+        await repository.updateMappingAssignee(
+          trx,
+          request.request_id,
+          resolved.professionalId,
+          actor.email,
+        );
+        await recordAudit(trx, {
+          entityType: "request",
+          entityId: request.protocol,
+          actionType: `request.${action}`,
+          userId: actor.id,
+          previousValue: auditPrev ? String(auditPrev) : null,
+          newValue: resolved.id,
+          note: ipAddress,
+          changeOrigin: "admin",
+        });
+        // Exclusividade: atribuir mapeamento desatribui triagem
+        if (previousAssignee) {
+          await repository.updateAssignee(trx, request.request_id, null, actor.email);
+          await recordAudit(trx, {
+            entityType: "request",
+            entityId: request.protocol,
+            actionType: "request.unassign",
+            userId: actor.id,
+            previousValue: auditPrevAssignee ? String(auditPrevAssignee) : null,
+            newValue: null,
+            note: ipAddress,
+            changeOrigin: "admin",
+          });
+        } else {
+          await repository.updateAssignee(trx, request.request_id, null, actor.email);
+        }
+      });
+    }
+  }
+
+  return findInternalByProtocol(protocol.trim());
 }

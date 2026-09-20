@@ -140,12 +140,15 @@ export interface AssignmentContextRow {
   request_id: string;
   protocol: string;
   professional_id: string | null;
+  mapping_professional_id: string | null;
   status: RequestStatus;
   screening_result: string | null;
 }
 
 export interface AssignmentCandidateRow {
   id: string;
+  professional_id: string;
+  user_id: number;
   name: string;
   email: string;
   professional_status: "active" | "inactive";

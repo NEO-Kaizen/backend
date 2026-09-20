@@ -44,13 +44,18 @@ function yesNoDetail(value: YesNoDetail | undefined): YesNoDetailColumns {
   if (typeof value === "string") {
     return { flag: true, detail: value };
   }
+
   if (value === false) {
     return { flag: false, detail: null };
   }
+
   return { flag: null, detail: null };
 }
 
-async function findActiveCategoryId(name: string, trx: Knex.Transaction): Promise<number | null> {
+async function findActiveCategoryId(
+  name: string,
+  trx: Knex.Transaction,
+): Promise<number | null> {
   const row: { category_id: number } | undefined = await trx("categories")
     .where({ name, status: "active" })
     .first("category_id");
@@ -58,7 +63,10 @@ async function findActiveCategoryId(name: string, trx: Knex.Transaction): Promis
   return row?.category_id ?? null;
 }
 
-async function findStatusId(name: string, trx: Knex.Transaction): Promise<number> {
+async function findStatusId(
+  name: string,
+  trx: Knex.Transaction,
+): Promise<number> {
   const row: { status_id: number } | undefined = await trx("statuses")
     .where({ name })
     .first("status_id");
@@ -70,7 +78,10 @@ async function findStatusId(name: string, trx: Knex.Transaction): Promise<number
   return row.status_id;
 }
 
-async function upsertRequester(requester: RequesterBlock, trx: Knex.Transaction): Promise<string> {
+async function upsertRequester(
+  requester: RequesterBlock,
+  trx: Knex.Transaction,
+): Promise<string> {
   const email = requester.corporateEmail.trim().toLowerCase();
 
   await trx("requesters")
@@ -104,11 +115,14 @@ interface RequestInsertReturning {
 }
 
 async function nextRequestId(trx: Knex.Transaction): Promise<string> {
-  const result = (await trx.raw("SELECT nextval('requests_request_seq') AS request_id")) as {
+  const result = (await trx.raw(
+    "SELECT nextval('requests_request_seq') AS request_id",
+  )) as {
     rows: Array<{ request_id: string }>;
   };
 
   const row = result.rows[0];
+
   if (!row) {
     throw new Error("Failed to allocate the request id.");
   }
@@ -127,10 +141,18 @@ async function insertRequest(
   const requestId = await nextRequestId(trx);
 
   const manualControls = yesNoDetail(request.operational.hasManualControls);
-  const processDocumentation = yesNoDetail(request.complementary?.hasProcessDocumentation);
-  const similarSolution = yesNoDetail(request.complementary?.hasSimilarSolution);
-  const otherAreas = yesNoDetail(request.complementary?.dependsOnOtherAreas);
-  const restrictedInfo = yesNoDetail(request.complementary?.handlesRestrictedInfo);
+  const processDocumentation = yesNoDetail(
+    request.complementary?.hasProcessDocumentation,
+  );
+  const similarSolution = yesNoDetail(
+    request.complementary?.hasSimilarSolution,
+  );
+  const otherAreas = yesNoDetail(
+    request.complementary?.dependsOnOtherAreas,
+  );
+  const restrictedInfo = yesNoDetail(
+    request.complementary?.handlesRestrictedInfo,
+  );
 
   const insertedRows = (await trx("requests")
     .insert({
@@ -188,6 +210,7 @@ async function insertRequest(
     .returning(["request_id", "protocol", "created_at"])) as RequestInsertReturning[];
 
   const row = insertedRows[0];
+
   if (!row) {
     throw new Error("Failed to save the request.");
   }
@@ -242,17 +265,36 @@ export async function createRequest(
   attachments: SavedAttachment[],
 ): Promise<CreateRequestResponse> {
   return db.transaction(async (trx) => {
-    const categoryId = await findActiveCategoryId(request.demand.category, trx);
+    const categoryId = await findActiveCategoryId(
+      request.demand.category,
+      trx,
+    );
+
     if (categoryId === null) {
-      throw new AppError("Categoria inválida — selecione uma opção da lista.", 400);
+      throw new AppError(
+        "Categoria inválida — selecione uma opção da lista.",
+        400,
+      );
     }
 
     const statusId = await findStatusId(INITIAL_STATUS, trx);
     const requesterId = await upsertRequester(request.requester, trx);
-    const saved = await insertRequest(request, requesterId, categoryId, statusId, trx);
+    const saved = await insertRequest(
+      request,
+      requesterId,
+      categoryId,
+      statusId,
+      trx,
+    );
+
     const email = request.requester.corporateEmail.trim().toLowerCase();
 
-    await saveTimePreferences(saved.request_id, request.schedulePreferences, trx);
+    await saveTimePreferences(
+      saved.request_id,
+      request.schedulePreferences,
+      trx,
+    );
+
     await saveAttachments(saved.request_id, attachments, email, trx);
 
     return {
@@ -289,7 +331,11 @@ function baseSummaryQuery(query: ListRequestsQuery) {
       "details_professional.professional_id",
       "requests.professional_id",
     )
-    .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
+    .leftJoin(
+      "users as assignee_user",
+      "assignee_user.user_id",
+      "details_professional.user_id",
+    )
     .where("requesters.corporate_email", query.email)
     .modify((builder) => {
       if (query.status) {
@@ -301,9 +347,10 @@ function baseSummaryQuery(query: ListRequestsQuery) {
 export async function findRequestsByRequesterEmail(
   query: ListRequestsQuery,
 ): Promise<PaginatedResponse<RequestSummary>> {
-  const countRows = (await baseSummaryQuery(query).count<{ count: string }[]>({
-    count: "*",
-  })) as { count: string }[];
+  const countRows = (await baseSummaryQuery(query).count<{
+    count: string;
+  }[]>("*")) as { count: string }[];
+
   const total = Number(countRows[0]?.count ?? 0);
 
   const rows = (await baseSummaryQuery(query)
@@ -337,7 +384,9 @@ export async function findRequestsByRequesterEmail(
   };
 }
 
-export async function findRequestByProtocol(protocol: string): Promise<RequestDetail | null> {
+export async function findRequestByProtocol(
+  protocol: string,
+): Promise<RequestDetail | null> {
   const response = await db("requests as r")
     .leftJoin("requesters as requester", "requester.requester_id", "r.requester_id")
     .leftJoin(
@@ -345,7 +394,11 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
       "professional.professional_id",
       "r.professional_id",
     )
-    .leftJoin("users as assignee_user", "assignee_user.user_id", "professional.user_id")
+    .leftJoin(
+      "users as assignee_user",
+      "assignee_user.user_id",
+      "professional.user_id",
+    )
     .leftJoin("statuses as status", "status.status_id", "r.status_id")
     .select(
       "r.protocol as protocol",
@@ -367,10 +420,13 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
   if (!response) return null;
 
   const meetingScheduledFor = normalizeIsoDate(response.meetingScheduledFor);
+
   const meeting = meetingScheduledFor
     ? { scheduledFor: meetingScheduledFor, link: response.meetingLink ?? null }
     : null;
-  const openedAt = normalizeIsoDate(response.openedAt) ?? new Date().toISOString();
+
+  const openedAt =
+    normalizeIsoDate(response.openedAt) ?? new Date().toISOString();
 
   return {
     protocol: response.protocol,
@@ -380,7 +436,9 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
     assigneeName: response.assigneeName ?? null,
     openedAt,
     estimatedCompletion: normalizeIsoDateOnly(response.estimatedCompletion),
-    mappingDate: meetingScheduledFor ? toSaoPauloDateOnly(meetingScheduledFor) : null,
+    mappingDate: meetingScheduledFor
+      ? toSaoPauloDateOnly(meetingScheduledFor)
+      : null,
     meeting,
     pendingIssues: [],
     nextStep: response.nextSteps ?? "Aguarde o contato do analista",
@@ -390,104 +448,146 @@ export async function findRequestByProtocol(protocol: string): Promise<RequestDe
   } satisfies RequestDetail;
 }
 
-// --- Consulta administrativa/interna (issue #48) ---------------------------
+// --- Consulta administrativa/interna (issue #48 + contract-assign-action) ---
 
 export async function findInternalRequestByProtocol(protocol: string) {
-  const request = await db("requests")
+  const hasMapping = await db.schema.hasColumn(
+    "requests",
+    "mapping_professional_id",
+  );
+
+  let query = db("requests")
     .where({ "requests.protocol": protocol })
-    .leftJoin("requesters", "requesters.requester_id", "requests.requester_id")
+    .leftJoin(
+      "requesters",
+      "requesters.requester_id",
+      "requests.requester_id",
+    )
     .leftJoin("categories", "categories.category_id", "requests.category_id")
     .leftJoin("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
     .leftJoin(
-      "details_professional",
-      "details_professional.professional_id",
+      "details_professional as dp_assignee",
+      "dp_assignee.professional_id",
       "requests.professional_id",
     )
-    .leftJoin("users as assignee_user", "assignee_user.user_id", "details_professional.user_id")
-    .select(
-      "requests.request_id",
-      // `requester_id` e `professional_id` são necessários pelo PATCH interno
-      // (issue #88): atualização do solicitante e autorização por perfil.
-      "requests.requester_id",
-      "requests.professional_id",
-      "requests.protocol",
-      "requests.title",
-      "requests.request_type",
-      "requests.process_name",
-      "requests.need_description",
-      "requests.problem_opportunity",
-      "requests.expected_result",
-      "requests.justification",
-      "requests.process_description",
-      "requests.process_steps",
-      "requests.systems_used",
-      "requests.execution_frequency",
-      "requests.approximate_volume",
-      "requests.people_involved",
-      "requests.average_duration",
-      "requests.estimated_monthly_effort",
-      "requests.has_manual_controls",
-      "requests.manual_controls_detail",
-      "requests.main_risks",
-      "requests.client_impact",
-      "requests.operational_impact",
-      "requests.desired_deadline",
-      "requests.perceived_criticality",
-      "requests.has_process_documentation",
-      "requests.process_documentation_detail",
-      "requests.has_similar_solution",
-      "requests.similar_solution_detail",
-      "requests.depends_on_other_areas",
-      "requests.other_areas_detail",
-      "requests.handles_restricted_info",
-      "requests.restricted_info_detail",
-      "requests.additional_notes",
-      "requests.internal_notes",
-      "requests.meeting_scheduled_for",
-      "requests.meeting_link",
-      "requests.created_at",
-      "requests.updated_at",
-      "categories.name as category",
-      "statuses.name as status",
-      "priorities.level as priority",
-      "assignee_user.full_name as professional_name",
-      "assignee_user.email as professional_email",
-      "assignee_user.user_id as assignee_user_id",
-      "requesters.full_name as requester_name",
-      "requesters.corporate_email as requester_email",
-      "requesters.area as requester_area",
-      "requesters.department as requester_department",
-      "requesters.manager_name as requester_manager",
-      "requesters.additional_contact as requester_additional_contact",
-    )
+    .leftJoin(
+      "users as assignee_user",
+      "assignee_user.user_id",
+      "dp_assignee.user_id",
+    );
+
+  if (hasMapping) {
+    query = query
+      .leftJoin(
+        "details_professional as dp_mapping",
+        "dp_mapping.professional_id",
+        "requests.mapping_professional_id",
+      )
+      .leftJoin(
+        "users as mapping_user",
+        "mapping_user.user_id",
+        "dp_mapping.user_id",
+      );
+  }
+
+  const baseSelect = [
+    "requests.request_id",
+
+    // Necessários pelo PATCH interno (issue #88)
+    "requests.requester_id",
+    "requests.professional_id",
+
+    "requests.protocol",
+    "requests.title",
+    "requests.request_type",
+    "requests.process_name",
+    "requests.need_description",
+    "requests.problem_opportunity",
+    "requests.expected_result",
+    "requests.justification",
+    "requests.process_description",
+    "requests.process_steps",
+    "requests.systems_used",
+    "requests.execution_frequency",
+    "requests.approximate_volume",
+    "requests.people_involved",
+    "requests.average_duration",
+    "requests.estimated_monthly_effort",
+    "requests.has_manual_controls",
+    "requests.manual_controls_detail",
+    "requests.main_risks",
+    "requests.client_impact",
+    "requests.operational_impact",
+    "requests.desired_deadline",
+    "requests.perceived_criticality",
+    "requests.has_process_documentation",
+    "requests.process_documentation_detail",
+    "requests.has_similar_solution",
+    "requests.similar_solution_detail",
+    "requests.depends_on_other_areas",
+    "requests.other_areas_detail",
+    "requests.handles_restricted_info",
+    "requests.restricted_info_detail",
+    "requests.additional_notes",
+    "requests.internal_notes",
+    "requests.meeting_scheduled_for",
+    "requests.meeting_link",
+    "requests.created_at",
+    "requests.updated_at",
+    "categories.name as category",
+    "statuses.name as status",
+    "priorities.level as priority",
+    "assignee_user.user_id as assignee_user_id",
+    "assignee_user.full_name as professional_name",
+    "assignee_user.email as professional_email",
+    "requesters.full_name as requester_name",
+    "requesters.corporate_email as requester_email",
+    "requesters.area as requester_area",
+    "requesters.department as requester_department",
+    "requesters.manager_name as requester_manager",
+    "requesters.additional_contact as requester_additional_contact",
+  ];
+
+  const mappingSelect = hasMapping
+    ? [
+        "requests.mapping_professional_id",
+        "mapping_user.user_id as mapping_user_id",
+        "mapping_user.full_name as mapping_name",
+        "mapping_user.email as mapping_email",
+      ]
+    : [
+        db.raw("NULL::uuid as mapping_professional_id"),
+        db.raw("NULL::int as mapping_user_id"),
+        db.raw("NULL::text as mapping_name"),
+        db.raw("NULL::text as mapping_email"),
+      ];
+
+  const request = await query
+    .select([...baseSelect, ...mappingSelect])
     .first();
 
   return request ?? null;
 }
 
-export async function findAttachmentsByRequestId(requestId: string | number) {
-  // Acesso já é restrito aos perfis internos (Analista/Gestor/Administrador,
-  // ver requests.router.ts — decisão P2), então anexos marcados como restritos
-  // permanecem visíveis aqui por design; quem não tem acesso não chega à rota.
-  // `is_restricted` não é selecionado porque o contrato (InternalAttachment)
-  // não o expõe hoje.
+export async function findAttachmentsByRequestId(
+  requestId: string | number,
+) {
   return db("attachments")
     .where({ request_id: requestId })
     .select("file_name", "content_type", "size_bytes")
     .orderBy("uploaded_at", "asc");
 }
 
-export async function findSchedulePreferencesByRequestId(requestId: string | number) {
+export async function findSchedulePreferencesByRequestId(
+  requestId: string | number,
+) {
   return db("request_time_preferences")
     .where({ request_id: requestId })
     .select("scheduled_for")
     .orderBy("scheduled_for", "asc");
 }
 
-// Avaliação de priorização (issue #51 / RN-007) — fonte única do score
-// (escala 10–50) e da classificação exibidos no detalhe interno. A tabela
-// `prioritization_evaluations` tem PK = protocol, então no máximo 1 linha.
 export async function findEvaluationByProtocol(
   protocol: string,
 ): Promise<{ score: number; classification: string } | undefined> {
@@ -497,13 +597,14 @@ export async function findEvaluationByProtocol(
 
   if (!row) return undefined;
 
-  // score é DECIMAL — o driver pg devolve string; normaliza aqui (mesmo
-  // cuidado do prioritization.repository.ts da issue #51).
-  return { score: Number(row.score), classification: row.classification };
+  return {
+    score: Number(row.score),
+    classification: row.classification,
+  };
 }
 
-/** Perfis de acesso que podem ser responsáveis técnicos (nomes da tabela `profiles`). */
-export const ASSIGNABLE_PROFILES = ["analista", "gestor"] as const;
+/** Perfil que pode ser responsável técnico — contrato contract-assign-action.md: só Analista. */
+export const ASSIGNABLE_PROFILES = ["analista"] as const;
 
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
   return db("details_professional as dp")
@@ -522,7 +623,33 @@ export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
     .orderBy("u.full_name", "asc");
 }
 
-/** Candidato a responsável sem filtro de elegibilidade — o service decide o motivo da rejeição. */
+/** Candidato a responsável por user_id (contrato usa users.user_id string). */
+export async function findAssignmentCandidateByUserId(
+  userId: string,
+): Promise<AssignmentCandidateRow | undefined> {
+  const numericId = Number(userId);
+
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    return undefined;
+  }
+
+  return db("details_professional as dp")
+    .join("users as u", "u.user_id", "dp.user_id")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .where("u.user_id", numericId)
+    .first({
+      id: "u.user_id",
+      professional_id: "dp.professional_id",
+      user_id: "u.user_id",
+      name: "u.full_name",
+      email: "u.email",
+      professional_status: "dp.status",
+      user_is_active: "u.is_active",
+      profile_name: "p.name",
+    });
+}
+
+/** Legado: busca por professional_id (mantido para compat). */
 export async function findAssignmentCandidateById(
   professionalId: string,
 ): Promise<AssignmentCandidateRow | undefined> {
@@ -531,7 +658,9 @@ export async function findAssignmentCandidateById(
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.professional_id", professionalId)
     .first({
-      id: "dp.professional_id",
+      id: "u.user_id",
+      professional_id: "dp.professional_id",
+      user_id: "u.user_id",
       name: "u.full_name",
       email: "u.email",
       professional_status: "dp.status",
@@ -543,16 +672,36 @@ export async function findAssignmentCandidateById(
 export async function findAssignmentContextByProtocol(
   protocol: string,
 ): Promise<AssignmentContextRow | undefined> {
-  return db("requests")
+  const hasMapping = await db.schema.hasColumn(
+    "requests",
+    "mapping_professional_id",
+  );
+
+  const columns: Record<string, string> = {
+    request_id: "requests.request_id",
+    protocol: "requests.protocol",
+    professional_id: "requests.professional_id",
+    status: "statuses.name",
+    screening_result: "requests.screening_result",
+  };
+
+  if (hasMapping) {
+    columns["mapping_professional_id"] =
+      "requests.mapping_professional_id";
+  }
+
+  const row = await db("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .where("requests.protocol", protocol)
-    .first({
-      request_id: "requests.request_id",
-      protocol: "requests.protocol",
-      professional_id: "requests.professional_id",
-      status: "statuses.name",
-      screening_result: "requests.screening_result",
-    });
+    .first(columns);
+
+  if (!row) return undefined;
+
+  if (!hasMapping) {
+    (row as AssignmentContextRow).mapping_professional_id = null;
+  }
+
+  return row as AssignmentContextRow;
 }
 
 export async function updateAssignee(
@@ -563,7 +712,26 @@ export async function updateAssignee(
 ): Promise<void> {
   await trx("requests")
     .where({ request_id: requestId })
-    .update({ professional_id: professionalId, updated_by: updatedBy, updated_at: trx.fn.now() });
+    .update({
+      professional_id: professionalId,
+      updated_by: updatedBy,
+      updated_at: trx.fn.now(),
+    });
+}
+
+export async function updateMappingAssignee(
+  trx: Knex.Transaction,
+  requestId: string,
+  professionalId: string | null,
+  updatedBy: string,
+): Promise<void> {
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({
+      mapping_professional_id: professionalId,
+      updated_by: updatedBy,
+      updated_at: trx.fn.now(),
+    });
 }
 
 export async function updateStatus(
@@ -576,7 +744,11 @@ export async function updateStatus(
 
   await trx("requests")
     .where({ request_id: requestId })
-    .update({ status_id: statusId, updated_by: updatedBy, updated_at: trx.fn.now() });
+    .update({
+      status_id: statusId,
+      updated_by: updatedBy,
+      updated_at: trx.fn.now(),
+    });
 }
 
 // --- Atualização interna dos blocos (issue #88) -----------------------------
@@ -589,7 +761,9 @@ export async function updateStatus(
 export async function findProfessionalByUserId(
   userId: number,
 ): Promise<{ professional_id: string } | undefined> {
-  return db("details_professional").where({ user_id: userId }).first("professional_id");
+  return db("details_professional")
+    .where({ user_id: userId })
+    .first("professional_id");
 }
 
 export async function updateRequestBlocks(
@@ -599,10 +773,18 @@ export async function updateRequestBlocks(
   updatedBy: string,
 ): Promise<void> {
   const manualControls = yesNoDetail(payload.operational.hasManualControls);
-  const processDocumentation = yesNoDetail(payload.complementary?.hasProcessDocumentation);
-  const similarSolution = yesNoDetail(payload.complementary?.hasSimilarSolution);
-  const otherAreas = yesNoDetail(payload.complementary?.dependsOnOtherAreas);
-  const restrictedInfo = yesNoDetail(payload.complementary?.handlesRestrictedInfo);
+  const processDocumentation = yesNoDetail(
+    payload.complementary?.hasProcessDocumentation,
+  );
+  const similarSolution = yesNoDetail(
+    payload.complementary?.hasSimilarSolution,
+  );
+  const otherAreas = yesNoDetail(
+    payload.complementary?.dependsOnOtherAreas,
+  );
+  const restrictedInfo = yesNoDetail(
+    payload.complementary?.handlesRestrictedInfo,
+  );
 
   await trx("requests")
     .where({ request_id: requestId })

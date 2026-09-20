@@ -63,7 +63,12 @@ export const findQueueRequests = async (
   if (unassigned) {
     baseQuery.whereNull("requests.professional_id");
   } else if (assigneeId) {
-    baseQuery.andWhere("requests.professional_id", assigneeId);
+    const isNumericId = /^\d+$/.test(assigneeId);
+    if (isNumericId) {
+      baseQuery.andWhere("assignee_user.user_id", Number(assigneeId));
+    } else {
+      baseQuery.andWhere("requests.professional_id", assigneeId);
+    }
   }
 
   const countQuery = baseQuery.clone().count("* as total").first();
@@ -75,7 +80,8 @@ export const findQueueRequests = async (
       "requests.process_name as processName",
       "priority_tbl.level as priority",
       "status.name as status",
-      "assignee.professional_id as assigneeId",
+      // Expor user_id como assigneeId para contract-assign-action.md (frontend usa user_id)
+      db.raw('assignee_user.user_id::text as "assigneeId"'),
       "assignee_user.full_name as assignee",
       "requester.full_name as requesterName",
       "requester.corporate_email as requesterEmail",
@@ -93,8 +99,12 @@ export const findQueueRequests = async (
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {
   const rows = await db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.status", "active")
-    .select("dp.professional_id as id", "u.full_name as name")
+    .andWhere("u.is_active", true)
+    .andWhere("p.is_active", true)
+    .where("p.name", "analista")
+    .select(db.raw("u.user_id::text as id"), "u.full_name as name")
     .orderBy("u.full_name", "asc");
 
   return rows;

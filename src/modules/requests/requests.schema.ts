@@ -165,8 +165,33 @@ export const listRequestsQuerySchema = z.object({
     .default(10),
 });
 
-export const assignRequestSchema = z.object({
-  professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable(),
-});
+export const assignRequestSchema = z
+  .object({
+    professionalId: z.string().uuid("professionalId deve ser um UUID.").nullable().optional(),
+  })
+  .passthrough();
 
 export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;
+
+// Contrato contract-assign-action.md — PATCH /requests/:protocol/internal/assignee
+// Frontend envia user_id string (ex.: "20"), nunca professional_id. XOR: exatamente um campo presente.
+const analystIdSchema = z.string().trim().min(1, "analystId não pode ser vazio.");
+
+export const assignAnalystSchema = z
+  .object({
+    assigneeId: z.union([analystIdSchema, z.null()]).optional(),
+    mappingAssigneeId: z.union([analystIdSchema, z.null()]).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasAssignee = Object.prototype.hasOwnProperty.call(data, "assigneeId");
+    const hasMapping = Object.prototype.hasOwnProperty.call(data, "mappingAssigneeId");
+    if (hasAssignee === hasMapping) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Informe exatamente um de assigneeId ou mappingAssigneeId.",
+        path: [],
+      });
+    }
+  });
+
+export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
