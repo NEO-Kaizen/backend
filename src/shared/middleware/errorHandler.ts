@@ -8,11 +8,22 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({
+    const payload: {
+      status: string;
+      statusCode: number;
+      message: string;
+      fields?: Record<string, string>;
+    } = {
       status: "error",
       statusCode: err.statusCode,
       message: err.message,
-    });
+    };
+
+    if (err.details && Object.keys(err.details).length > 0) {
+      payload.fields = err.details;
+    }
+
+    res.status(err.statusCode).json(payload);
     return;
   }
 
