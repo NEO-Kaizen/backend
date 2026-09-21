@@ -4,7 +4,11 @@ import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
-import type { CreateUserRequest, ListUsersQuery } from "../DTOs/users/UserRequests.dto.ts";
+import type {
+  CreateProfessionalInput,
+  CreateUserRequest,
+  ListUsersQuery,
+} from "../DTOs/users/UserRequests.dto.ts";
 import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequestCategory } from "../../shared/types/requests.ts";
 
@@ -45,9 +49,10 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
 }
 
 /** Perfis que ganham a extensão de profissional (1:1 user → details_professional)
- *  logo na criação de conta. Elegibilidade de *atribuição* continua restrita a
- *  `analista` (ver ASSIGNABLE_PROFILES em requests.repository). */
-export const PROFESSIONAL_PROFILES = ["analista", "gestor"] as const;
+ *  na criação de conta. Apenas `analista`: a extensão é o card do analista e a
+ *  elegibilidade de atribuição também é restrita a `analista`
+ *  (ASSIGNABLE_PROFILES em requests.repository). */
+export const PROFESSIONAL_PROFILES = ["analista"] as const;
 
 /** True quando o perfil informado deve nascer com a extensão details_professional. */
 export function isProfessionalProfile(profileName: string): boolean {
@@ -57,14 +62,21 @@ export function isProfessionalProfile(profileName: string): boolean {
 /**
  * Cria a extensão de profissional dentro da transação fornecida (atômica com a
  * criação do usuário). `professional_id` nasce do default da coluna
- * (gen_random_uuid()); `status` e `capacity` dos defaults do schema. Os campos
- * de card (job_title, specialties, attended_category_ids, notes) nascem nulos.
+ * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
+ * `specialties` e `attended_category_ids` são textos separados por vírgula —
+ * mesmo formato lido pelo card (split em `listAnalysts`).
  */
-export async function createProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
+export async function createProfessionalData(
+  trx: Knex.Transaction,
+  userId: number,
+  professional: CreateProfessionalInput,
+): Promise<void> {
   await trx("details_professional").insert({
     user_id: userId,
-    status: "active",
-    capacity: 5,
+    job_title: professional.jobTitle,
+    specialties: professional.specialties.join(", "),
+    attended_category_ids: professional.attendedCategoryIds.join(","),
+    notes: professional.notes ?? null,
   });
 }
 
