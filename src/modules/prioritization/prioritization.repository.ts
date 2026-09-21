@@ -18,6 +18,17 @@ export async function findRequestByProtocol(protocol: string): Promise<boolean> 
   return row !== undefined;
 }
 
+export async function findAssigneeUserIdByProtocol(
+  protocol: string,
+): Promise<number | null | undefined> {
+  const row = await db("requests as r")
+    .leftJoin("details_professional as dp", "dp.professional_id", "r.professional_id")
+    .where("r.protocol", protocol)
+    .first({ assigneeUserId: "dp.user_id" });
+  if (!row) return undefined;
+  return (row.assigneeUserId as number | null) ?? null;
+}
+
 export async function listActiveCriteria(): Promise<CriterionRow[]> {
   return db("criteria").where({ active: true }).orderBy("display_order", "asc");
 }
