@@ -151,13 +151,13 @@ modifica a própria conta; e-mail único (`409`); perfil validado contra o banco
 | POST | `/requests` | Público/Sessão (conforme modo) | Cria solicitação (protocolo + blocos + horários + anexos). |
 | GET | `/requests` | Público/Sessão (conforme modo) | Lista por e-mail (público) ou da sessão (autenticado). |
 | GET | `/requests/:protocol` | Público/Sessão (conforme modo) | Consulta pública por protocolo (acompanhamento). |
-| GET | `/requests/:protocol/internal` | Sessão + Analista/Gestor/Admin | Consulta **interna** completa. |
+| GET | `/requests/:protocol/internal` | Sessão + Admin/Gestor ou Analista assignee | Consulta **interna** completa (Analista escopado por triagem ou mapeamento — #102). |
 | PATCH | `/requests/:protocol/internal` | Sessão + Analista/Gestor/Admin | Edita os blocos editáveis (substituição completa). |
 | GET | `/requests/assignees` | Sessão + Analista/Gestor/Admin | Lista responsáveis ativos. |
 | PATCH | `/requests/:protocol/internal/assignee` | Sessão + Admin | Atribui/remove analista de triagem e/ou mapeamento (XOR). |
 | PATCH | `/requests/:protocol/assignee` | Sessão + Admin | **Legado** — atribui/remove responsável por `professionalId`. |
-| GET | `/requests/:protocol/triage` | Sessão + Analista/Gestor/Admin (só Admin ou assignee) | Consulta a triagem vigente (objeto com `id` uuid e `exitStatus` numérico) ou `null`. |
-| POST | `/requests/:protocol/triage` | Sessão + Analista/Gestor/Admin (só Admin ou assignee) | Cria triagem (gera `id` uuid, deriva `status`/`category`/`lastUpdate`, grava auditoria `request.triage`). |
+| GET | `/requests/:protocol/triage` | Sessão + Admin/Gestor ou Analista assignee | Consulta a triagem vigente (objeto com `id` uuid e `exitStatus` numérico) ou `null` (Gestor leitura; Analista escopado). |
+| POST | `/requests/:protocol/triage` | Sessão + Analista/Admin (só Admin ou assignee) | Cria triagem (gera `id` uuid, deriva `status`/`category`/`lastUpdate`, grava auditoria `request.triage`; Gestor read-only). |
 
 - **Criação**: multipart com `payload` (JSON) + `attachments`; valida os blocos; gera
   protocolo; status inicial **"Solicitação enviada"**; normaliza/upserta o solicitante por
@@ -219,8 +219,8 @@ solicitação (`400` caso contrário).
 
 | Método | Rota | Acesso | Funcionalidade |
 | --- | --- | --- | --- |
-| GET | `/prioritization/criteria` | Sessão + Analista/Gestor | Lista os critérios de priorização (10). |
-| PUT | `/prioritization/:protocol/score` | Sessão + Analista/Gestor | Registra a avaliação de prioridade (score por critério). |
+| GET | `/prioritization/criteria` | Sessão + Analista/Gestor/Admin | Lista os critérios de priorização (10). |
+| PUT | `/prioritization/:protocol/score` | Sessão + Analista/Admin (só Admin ou assignee) | Registra a avaliação de prioridade (score por critério; Gestor read-only). |
 
 - **Critérios** (10, `CRITERION_KEY_TO_ID`): `impacto_operacional`, `risco_operacional`,
   `urgencia`, `volumetria`, `esforco_manual`, `impacto_cliente`, `prazo_regulatorio`,
@@ -294,7 +294,7 @@ solicitações. Tabelas existentes:
 - **Anexos**: até 5 por solicitação (no envio), 10MB cada, formatos controlados.
 - **Observações internas**: lista legível pelos papéis internos, com controle de leitura
   individual (não lida/lida).
-- **Triagem** (`contract-triage_04.md`): cada `POST` gera `id` uuid novo (sequencial, última vigente via `GET`); `exitStatus` numérico validado contra status ativos com `isTriageExit`; `newCategory` (nome) validado contra categorias ativas e persistido pelo nome canônico; `adherentToScope`/`changeCategory` obrigatórios (`Sim|Não`); auditoria `request.triage` na mesma transação.
+- **Triagem** (`contract-triage_04.md`): cada `POST` gera `id` uuid novo (sequencial, última vigente via `GET`); `exitStatus` numérico validado contra status ativos com `isTriageExit`; `newCategory` (nome) validado contra categorias ativas e persistido pelo nome canônico; `adherentToScope`/`changeCategory` obrigatórios (`Sim|Não`); `GET` para Admin/Gestor ou Analista assignee, `POST` só Admin ou assignee (Gestor read-only); auditoria `request.triage` na mesma transação.
 
 ---
 

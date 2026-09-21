@@ -489,6 +489,7 @@ consulta pública (`GET /requests/:protocol`, acima) em
 [`docs/requests-internal-query-contract.md`](docs/requests-internal-query-contract.md).
 
 - Resposta `401 Unauthorized`: sem cookie de sessão, ou token inválido/expirado.
+- Resposta `403 Forbidden`: `Analista` não-assignee (fora do escopo: só vê atribuídas por triagem ou mapeamento — #102; `Gestor`/`Administrador` sem restrição).
 - Resposta `404 Not Found`: protocolo inexistente.
 
 #### PATCH /requests/:protocol/internal
@@ -532,8 +533,7 @@ JSON customizados são mesclados — o contrato `internal-notes-contract.md`
 Consulta a avaliação de triagem persistida para uma solicitação. Requer autenticação e acesso interno.
 
 - Requer cookie/JWT válido.
-- Acesso permitido para `Analista`, `Gestor` e `Administrador` pela rota.
-- O service também reforça que só o `Administrador` ou o assignee atual acessa a triagem (`403` caso contrário, contrato `contract-triage_04.md` §0).
+- Acesso à rota para `Analista`, `Gestor` e `Administrador`; o service libera `Gestor` (read-only) para leitura, mas restringe `Analista` ao assignee atual — `403` caso contrário (contrato `contract-triage_04.md` §0).
 - Resposta `200 OK`: objeto JSON com a avaliação salva, ou `null` quando ainda não existir triagem registrada.
 
 Exemplo de resposta:
@@ -568,8 +568,8 @@ Cria ou atualiza a triagem da solicitação. A rota salva a avaliação em
 quando aplicável, `category_id` da demanda.
 
 - Requer cookie/JWT válido.
-- Perfil permitido pela rota: `Analista`, `Gestor` e `Administrador`.
-- Regra de negócio adicional: somente o `Administrador` ou o assignee atual da solicitação pode executar o registro (`403` caso contrário, contrato `contract-triage_04.md` §0).
+- Perfil permitido pela rota: `Administrador` e `Analista`.
+- Regra de negócio adicional: somente o `Administrador` ou o Analista assignee (`assignee` triagem) pode executar o registro (`403` caso contrário, contrato `contract-triage_04.md` §0). `Gestor` é read-only e não triagem.
 - Cada chamada gera um `id` novo (uuid, não idempotente); a última triagem é a vigente. Auditoria `request.triage` gravada na mesma transação.
 - Body: JSON com os campos da avaliação de triagem (sem `id`).
 

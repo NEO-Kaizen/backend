@@ -121,11 +121,11 @@ Os dois endpoints de triagem respeitam `PUBLIC_API_URL` + `credentials: include`
 (cookie `session_id`), igual a `solicitations-api-requests-0_5.md §0`. Em `dev`
 o frontend usa `MOCK_DOMAINS.triage` (`src/lib/mocks/index.ts`).
 
-| Endpoint                           | Autenticação                | Permissão                                                                    |
-| ---------------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
-| `POST /requests/:protocol/triage`  | exige sessão                | só `Administrador` ou `assignee` atual da solicitação → `403` caso contrário |
-| `GET /requests/:protocol/triage`   | exige sessão                | mesma regra — `403` se não for `Admin` nem `assignee`                        |
-| `GET /requests/:protocol/internal` | exige sessão (fila interna) | mesma regra                                                                  |
+| Endpoint                           | Autenticação                | Permissão                                                                                                                 |
+| ---------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `POST /requests/:protocol/triage`  | exige sessão                | só `Administrador` ou Analista assignee (`assignee` = responsável de triagem) → `403` caso contrário (`Gestor` read-only) |
+| `GET /requests/:protocol/triage`   | exige sessão                | `Administrador` ou `Gestor` (leitura) ou Analista assignee → `403` caso contrário                                         |
+| `GET /requests/:protocol/internal` | exige sessão (fila interna) | `Administrador`/`Gestor` (leitura) ou Analista assignee (triagem ou mapeamento — #102) → `403` caso contrário             |
 
 - Sem sessão válida: `401` no envelope padrão.
 - Implementado pelo guard `canEditSolicitation(assigneeId, user)` (`src/lib/services/access.service`)
