@@ -35,7 +35,20 @@ export interface Meeting {
 
 export interface CorrectionAlert {
   count: number;
-  message: string;
+  batchId: string;
+}
+
+export interface UnreadState {
+  count: number;
+  hasUnread: boolean;
+  lastUnreadAt: string | null;
+}
+
+export interface PendingSummary {
+  total: number;
+  requested: number;
+  responded: number;
+  validated: number;
 }
 
 export interface InternalAttachment {
@@ -54,6 +67,8 @@ export interface RequestInternalDetailDTO {
   assignee: Assignee | null;
   mappingAssignee?: Assignee | null;
   correctionAlert: CorrectionAlert | null;
+  pendingSummary: PendingSummary;
+  unread: UnreadState;
 
   requester: RequesterBlock;
   demand: DemandBlock;

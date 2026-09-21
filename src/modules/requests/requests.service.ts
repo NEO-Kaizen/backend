@@ -13,6 +13,7 @@ import type {
   ListRequestsInput,
   UpdateInternalRequestPayload,
 } from "../DTOs/requests/RequestRequests.dto.ts";
+import * as pendingItemsRepo from "../pendingItems/pendingItems.repository.ts";
 import type {
   AssignRequestResponse,
   AssigneeSummary,
@@ -216,6 +217,30 @@ export async function findInternalByProtocol(
       }
     : null;
 
+  // Pendências (contract-pendencias_03): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
+  const pendingSummary = await (async () => {
+    try {
+      const summary = await pendingItemsRepo.pendingSummaryByRequestId(requestId);
+      const correctionAlert = await pendingItemsRepo.findCorrectionAlert(requestId);
+      const unreadRaw = await pendingItemsRepo.unreadForInternal(requestId);
+      return {
+        summary,
+        correctionAlert,
+        unread: {
+          count: unreadRaw.count,
+          hasUnread: unreadRaw.count > 0,
+          lastUnreadAt: unreadRaw.lastUnreadAt,
+        },
+      };
+    } catch {
+      return {
+        summary: { total: 0, requested: 0, responded: 0, validated: 0 },
+        correctionAlert: null,
+        unread: { count: 0, hasUnread: false, lastUnreadAt: null as string | null },
+      };
+    }
+  })();
+
   const complementary: ComplementaryBlock = {
     hasProcessDocumentation: toYesNoDetail(
       request["has_process_documentation"] as boolean | null,
@@ -272,7 +297,9 @@ export async function findInternalByProtocol(
     assignee,
     mappingAssignee: mappingAssignee ?? null,
 
-    correctionAlert: null,
+    correctionAlert: pendingSummary.correctionAlert,
+    pendingSummary: pendingSummary.summary,
+    unread: pendingSummary.unread,
     requester: {
       fullName: request["requester_name"] as string,
       corporateEmail: request["requester_email"] as string,

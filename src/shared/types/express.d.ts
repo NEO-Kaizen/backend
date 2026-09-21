@@ -9,6 +9,10 @@ declare global {
       authScope?: TokenScope;
       /** Modo de abertura do portal vigente na request (preenchido pelo guard). */
       accessMode?: PortalSolicitationMode;
+      /** Identidade pública verificada via header `X-Requester-Identity` (pendências). */
+      requesterIdentity?: { name: string; email: string } | null;
+      /** Protocolo verificado junto da identidade pública (anti-IDOR). */
+      requesterVerifiedProtocol?: string | null;
     }
   }
 }

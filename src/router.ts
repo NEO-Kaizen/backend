@@ -8,6 +8,8 @@ import prioritizationRoutes from "./modules/prioritization/prioritization.router
 import portalConfigRoutes from "./modules/portalConfig/portalConfig.router.ts";
 import internalNotesRoutes from "./modules/internalNotes/internalNotes.router.ts";
 import reportsRoutes from "./modules/reports/reports.router.ts";
+import pendingItemsRoutes from "./modules/pendingItems/pendingItems.router.ts";
+import { publicVerifyRouter } from "./modules/pendingItems/pendingItems.router.ts";
 
 const router = Router();
 
@@ -15,6 +17,8 @@ router.use("/prioritization", prioritizationRoutes);
 
 router.use("/auth", authRoutes);
 router.use("/requests/:protocol/internal-notes", internalNotesRoutes);
+router.use("/requests/:protocol/pending-items", pendingItemsRoutes);
+router.use("/requests/:protocol/public", publicVerifyRouter);
 router.use("/requests", requestsRoutes);
 router.use("/requests", triageRoutes);
 router.use("/users", usersRoutes);

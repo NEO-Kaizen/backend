@@ -1,8 +1,4 @@
-import type {
-  RequestPriority,
-  RequestStatus,
-  TriageResult,
-} from "../../../shared/types/requests.ts";
+import type { RequestStatus, TriageResult } from "../../../shared/types/requests.ts";
 
 export interface RequestDetail {
   protocol: string;
@@ -35,15 +31,7 @@ export interface CreateRequestResponse {
   createdAt: string; // ISO datetime
 }
 
-export interface RequestSummary {
-  protocol: string;
-  createdAt: string;
-  processName: string;
-  priority: RequestPriority | null;
-  status: RequestStatus;
-  assignee: string | null;
-  requesterName: string;
-}
+export type { RequestSummary } from "../../../shared/types/queue.types.ts";
 
 export interface AssigneeSummary {
   id: string; // professional_id

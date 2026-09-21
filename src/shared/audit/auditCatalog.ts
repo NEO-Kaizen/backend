@@ -31,6 +31,10 @@ export const auditCatalog = {
     label: "Configuração do portal",
     actions: ["update"],
   },
+  pending_item: {
+    label: "Pendências",
+    actions: ["create", "respond", "attach", "validate", "reopen"],
+  },
 } as const;
 
 /** Nome de entidade auditável — ex.: "user". */
