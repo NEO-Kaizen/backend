@@ -49,7 +49,7 @@ export const getInternalRequestByProtocol = async (
 ): Promise<Response> => {
   const protocol = assertProtocolParam(req);
 
-  const request = await service.findInternalByProtocol(protocol);
+  const request = await service.findInternalByProtocol(protocol, actorFromRequest(req));
 
   return res.status(200).json(request);
 };

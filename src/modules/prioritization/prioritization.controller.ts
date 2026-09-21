@@ -5,7 +5,7 @@ import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { evaluateScoreSchema } from "./prioritization.schema.ts";
 import * as service from "./prioritization.service.ts";
 
-function actorUserId(req: Request): number {
+function actorFromRequest(req: Request): { id: number; role: string } {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -13,7 +13,7 @@ function actorUserId(req: Request): number {
   if (!Number.isInteger(id)) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return id;
+  return { id, role: req.user.role };
 }
 
 /** Valida `:protocol` no controller (substitui o cast — S2). */
@@ -42,7 +42,7 @@ export const evaluateScore = async (req: Request, res: Response): Promise<Respon
   const response = await service.evaluateScore(
     parsedParams.data.protocol,
     parsed.data,
-    actorUserId(req),
+    actorFromRequest(req),
   );
 
   return res.status(200).json(response);
