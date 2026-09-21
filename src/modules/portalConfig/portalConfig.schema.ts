@@ -144,9 +144,6 @@ export const portalStatusSchema = z
       error: "Visibilidade inválida — opções: PUBLIC ou INTERNAL.",
     }),
     closesRequest: z.boolean(),
-    // Elegível como saída de triagem (contract-triage_04.md §4). Omitido por
-    // clientes antigos = false (decisão: default + strict).
-    isTriageExit: z.boolean().default(false),
     tone: z.enum(STATUS_TONES, {
       error: "Tom inválido — opções: error, success, info, warning ou neutral.",
     }),

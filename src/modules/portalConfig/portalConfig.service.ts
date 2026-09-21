@@ -72,7 +72,6 @@ export async function getPortalConfig(): Promise<PortalConfigResponse> {
       name: st.name,
       visibility: st.visibility,
       closesRequest: st.closes_request,
-      isTriageExit: st.is_triage_exit ?? false,
       tone: st.tone,
       isActive: st.is_active ?? true,
     })),
@@ -282,7 +281,6 @@ export async function updateStatuses(
       name: st.name,
       visibility: st.visibility,
       closesRequest: st.closes_request,
-      isTriageExit: st.is_triage_exit ?? false,
       tone: st.tone,
       isActive: st.is_active ?? true,
     }));

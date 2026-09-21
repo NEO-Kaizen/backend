@@ -117,15 +117,12 @@ export type StatusVisibility = "PUBLIC" | "INTERNAL";
 
 // Status do ciclo de vida. `closesRequest` encerra a solicitação; `isActive` é a
 // ativação/inativação (não há exclusão — status inativos permanecem na lista,
-// mas não entram em novos fluxos). `isTriageExit` marca as saídas elegíveis
-// da triagem (contract-triage_04.md §4) — distinto de `closesRequest`, pois
-// "Pendente de informações" é saída sem encerrar.
+// mas não entram em novos fluxos).
 export interface PortalStatus {
   id: number;
   name: string;
   visibility: StatusVisibility;
   closesRequest: boolean;
-  isTriageExit: boolean;
   tone: StatusTone;
   isActive: boolean;
 }
@@ -186,7 +183,6 @@ export interface StatusRow {
   name: string;
   visibility: StatusVisibility;
   closes_request: boolean;
-  is_triage_exit: boolean;
   tone: StatusTone;
   order_number: number;
   is_active: boolean;

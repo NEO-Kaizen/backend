@@ -174,10 +174,7 @@ function hasComplementaryData(block: ComplementaryBlock): boolean {
   return Object.values(block).some((value) => value !== undefined);
 }
 
-export async function findInternalByProtocol(
-  protocol: string,
-  actor?: { id: number; role: Role },
-): Promise<RequestInternalDetailDTO> {
+export async function findInternalByProtocol(protocol: string): Promise<RequestInternalDetailDTO> {
   const request = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
     string,
     unknown
@@ -185,18 +182,6 @@ export async function findInternalByProtocol(
 
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
-  }
-
-  // Visibilidade da consulta interna (escopo #102): Administrador e Gestor
-  // (read-only) veem qualquer solicitação; Analista apenas as atribuídas
-  // (triagem ou mapeamento). Solicitante não chega aqui (router).
-  if (actor?.role === "Analista") {
-    const assigneeUserId = request["assignee_user_id"] as number | null;
-    const mappingUserId = request["mapping_user_id"] as number | null;
-    const isAssignee = assigneeUserId === actor.id || mappingUserId === actor.id;
-    if (!isAssignee) {
-      throw new AppError("Acesso negado a esta solicitação", 403);
-    }
   }
 
   const requestId = request["request_id"] as string;
@@ -326,43 +311,8 @@ export async function findInternalByProtocol(
     })),
     openedAt,
     lastUpdate,
-    internalObservations: extractInternalObservations(request["internal_notes"] as string | null),
+    internalObservations: (request["internal_notes"] as string | null) ?? null,
   };
-}
-
-/**
- * Extrai as observações internas puras de `requests.internal_notes`,
- * descartando o wrapper reservado da triagem (`__triage`) quando presente.
- *
- * O módulo de triagem persiste seu assessment sob a chave `__triage` do mesmo
- * campo (decisão P4 do PR #92); o texto bruto restante — observações legadas
- * não-JSON (guardadas sob `observations`) ou qualquer outra chave customizada —
- * continua sendo o `internalObservations` do contrato.
- */
-function extractInternalObservations(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-
-  const trimmed = raw.trim();
-  if (trimmed === "") return null;
-
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        const record = parsed as Record<string, unknown>;
-        if (typeof record.observations === "string") {
-          return record.observations;
-        }
-        const { __triage: _triage, observations: _obs, ...rest } = record;
-        if (Object.keys(rest).length === 0) return null;
-        return JSON.stringify(rest);
-      }
-    } catch {
-      // Não-JSON: trata como texto comum de observação.
-    }
-  }
-
-  return trimmed;
 }
 
 // --- Atualização interna dos blocos (issue #88) -----------------------------

@@ -30,33 +30,14 @@ export async function listActiveCriteria(): Promise<ListCriteriaResponse> {
  * imutável (`audit_history`, evento `prioritization.evaluate`, com snapshot
  * anterior e novo).
  */
-interface Actor {
-  id: number;
-  role: string;
-}
-
-function isAdminOrAssignee(actor: Actor, assigneeUserId: number | null): boolean {
-  if (actor.role === "Administrador") return true;
-  if (assigneeUserId === null) return false;
-  return assigneeUserId === actor.id;
-}
-
 export async function evaluateScore(
   protocol: string,
   payload: EvaluatePrioritizationRequest,
-  actor: Actor,
+  actorUserId: number,
 ): Promise<EvaluatePrioritizationResponse> {
   const exists = await repository.findRequestByProtocol(protocol);
   if (!exists) {
     throw new AppError("Solicitação não encontrada", 404);
-  }
-
-  const assigneeUserId = await repository.findAssigneeUserIdByProtocol(protocol);
-  if (assigneeUserId === undefined) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
-  if (!isAdminOrAssignee(actor, assigneeUserId)) {
-    throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
   const criteria = await repository.listActiveCriteria();
@@ -87,14 +68,14 @@ export async function evaluateScore(
       notes: payload.notes,
       score,
       classification,
-      calculatedBy: actor.id,
+      calculatedBy: actorUserId,
     });
 
     await recordAudit(trx, {
       entityType: "prioritization",
       entityId: protocol,
       actionType: "prioritization.evaluate",
-      userId: actor.id,
+      userId: actorUserId,
       previousValue: previousSnapshot ? canonicalJson(previousSnapshot) : null,
       newValue: canonicalJson(snapshot),
       note: payload.justification ?? null,

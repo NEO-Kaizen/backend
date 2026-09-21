@@ -38,10 +38,6 @@ portador.
 enviado automaticamente após `POST /auth/login`. Sem cookie ou com token
 inválido/expirado → `401`.
 
-**Autorização:** `Administrador` e `Gestor` (read-only) veem qualquer
-solicitação; `Analista` apenas as atribuídas por triagem (`assignee`) ou
-mapeamento (`mappingAssignee`) — escopo #102. Fora do escopo → `403`.
-
 **Path param:** `protocol` — o código de rastreio da solicitação
 (URL-encoded), ex.: `MAAT-8K3P-9X2M`.
 
