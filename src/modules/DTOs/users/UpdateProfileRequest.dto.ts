@@ -21,13 +21,14 @@ export type UpdateRequesterBlock = z.infer<typeof updateRequesterSchema>;
  * - `professional`? (atualiza bloco professional — 400 se perfil ≠ analista)
  * - `removeAvatar`?: true → remove foto atual
  * - campos `fullName`/`corporateEmail`/`role` são descartados (imutáveis)
+ *
+ * A restrição de `professional` ao perfil Analista é feita no service (tem
+ * acesso ao `profile_name` do usuário; o schema não conhece o role).
  */
 export const updateProfileSchema = z.object({
   requester: updateRequesterSchema.optional(),
   professional: professionalSchema.optional(),
   removeAvatar: z.boolean().optional(),
-}).superRefine((_, ctx) => {
-  // Validação de perfil-profissional é feita no service (tem acesso ao role).
 });
 
 export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;

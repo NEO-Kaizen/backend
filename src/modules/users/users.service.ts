@@ -250,7 +250,9 @@ export async function resetPassword(
 // Issue #125 — "Meus dados" (GET /users/me + PUT /users/me)
 // ---------------------------------------------------------------------------
 
-function toRequesterBlock(row: repository.UserProfileRow["requester"]): RequesterProfileBlock | null {
+function toRequesterBlock(
+  row: repository.UserProfileRow["requester"],
+): RequesterProfileBlock | null {
   if (!row) return null;
   return {
     area: row.area,
@@ -260,7 +262,9 @@ function toRequesterBlock(row: repository.UserProfileRow["requester"]): Requeste
   };
 }
 
-function toProfessionalBlock(row: repository.UserProfileRow["professional"]): ProfessionalProfileBlock | null {
+function toProfessionalBlock(
+  row: repository.UserProfileRow["professional"],
+): ProfessionalProfileBlock | null {
   if (!row) return null;
   return {
     jobTitle: row.job_title,
@@ -280,6 +284,15 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     throw new AppError("Usuário não encontrado", 404);
   }
 
+  // Analista legado (sem linha em details_professional) recebe o bloco
+  // professional com defaults em vez de null — o contrato do "Meus dados"
+  // exige o bloco para o perfil Analista, sem erro e sem exigir migração
+  // de dados. Demais perfis permanecem com professional: null.
+  const professional: ProfessionalProfileBlock | null =
+    row.profile_name === ROLE_ANALYST && !row.professional
+      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
+      : toProfessionalBlock(row.professional);
+
   return {
     id: String(row.user_id),
     fullName: row.full_name,
@@ -287,7 +300,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     role: resolveRole(row.profile_name),
     avatarUrl: row.avatar_url,
     requester: toRequesterBlock(row.requester),
-    professional: toProfessionalBlock(row.professional),
+    professional,
   } satisfies UserProfileResponseDTO;
 }
 
@@ -309,6 +322,13 @@ export async function updateMyProfile(
   // Self-service apenas.
   if (actorUserId !== userId) {
     throw new AppError("Você não pode editar o perfil de outro usuário", 403);
+  }
+
+  // Operação de avatar ambígua: remover E enviar arquivo novo na mesma
+  // requisição. Sem este guard o arquivo seria descartado em silêncio (o
+  // cliente acharia ter trocado a foto). Fail-fast: escolha uma operação.
+  if (payload.removeAvatar === true && avatarFile) {
+    throw new AppError("Envie 'removeAvatar' ou 'avatar', não ambos.", 400);
   }
 
   const user = await repository.findUserById(userId);
