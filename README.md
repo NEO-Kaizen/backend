@@ -518,8 +518,9 @@ inclusive quando `complementary` é omitido por inteiro.
 A avaliação é persistida sob a chave reservada `__triage` do campo
 `requests.internal_notes` (mantendo o `internalObservations` do contrato
 `internal-notes-contract.md` intacto) e o POST aplica `status_id`/`category_id`
-na solicitação. `exitStatus` e `newCategory` aceitam **nome ou id** do
-status/categoria de destino.
+na solicitação. `exitStatus` é o **id numérico** do status de saída;
+`newCategory` é o **nome** da categoria de destino (contrato puro —
+literais antigos de status não são aceitos).
 
 #### GET /requests/:protocol/triage
 
@@ -527,13 +528,14 @@ Consulta a avaliação de triagem persistida para uma solicitação. Requer aute
 
 - Requer cookie/JWT válido.
 - Acesso permitido para `Analista`, `Gestor` e `Administrador` pela rota.
-- O service também reforça que o analista só pode consultar a triagem quando for o responsável associado à solicitação, e administradores têm acesso geral.
+- O service também reforça que só o `Administrador` ou o assignee atual acessa a triagem (`403` caso contrário, contrato `contract-triage_04.md` §0).
 - Resposta `200 OK`: objeto JSON com a avaliação salva, ou `null` quando ainda não existir triagem registrada.
 
 Exemplo de resposta:
 
 ```json
 {
+  "id": "660e8400-e29b-41d4-a716-446655440100",
   "adherentToScope": "Sim",
   "adherentJustification": "",
   "changeCategory": "Não",
@@ -542,11 +544,13 @@ Exemplo de resposta:
   "perceivedRisks": "Risco operacional baixo",
   "suggestedResponsible": "João da Silva",
   "suggestedResponsibleJustification": "Experiência com integrações de ERP",
-  "exitStatus": "Elegível para avaliação",
+  "exitStatus": 18,
   "result": "Solicitação elegível para desenvolvimento",
   "conclusionJustification": "O escopo está bem definido e há capacidade operacional para execução."
 }
 ```
+
+> `exitStatus` é o id numérico do `PortalStatus` (`isTriageExit && isActive`); nomes (literais antigos) são rejeitados com `422`.
 
 - Resposta `401 Unauthorized`: sem sessão ou token inválido.
 - Resposta `403 Forbidden`: usuário sem acesso à solicitação.
@@ -559,9 +563,10 @@ Cria ou atualiza a triagem da solicitação. A rota salva a avaliação em
 quando aplicável, `category_id` da demanda.
 
 - Requer cookie/JWT válido.
-- Perfil permitido pela rota: `Administrador` ou `Analista`.
-- Regra de negócio adicional: somente o analista associado à solicitação ou um administrador podem executar o registro; gestores não têm acesso ao POST.
-- Body: JSON com os campos da avaliação de triagem.
+- Perfil permitido pela rota: `Analista`, `Gestor` e `Administrador`.
+- Regra de negócio adicional: somente o `Administrador` ou o assignee atual da solicitação pode executar o registro (`403` caso contrário, contrato `contract-triage_04.md` §0).
+- Cada chamada gera um `id` novo (uuid, não idempotente); a última triagem é a vigente. Auditoria `request.triage` gravada na mesma transação.
+- Body: JSON com os campos da avaliação de triagem (sem `id`).
 
 Campos aceitos:
 
@@ -570,12 +575,12 @@ Campos aceitos:
   "adherentToScope": "Sim",
   "adherentJustification": "",
   "changeCategory": "Sim",
-  "newCategory": "4",
+  "newCategory": "Dashboard ou relatório",
   "preliminaryComplexity": "Complexidade média, com necessidade de integração externa",
   "perceivedRisks": "Possível impacto em SLA de operação e necessidade de validação de dados",
   "suggestedResponsible": "Maria Souza",
   "suggestedResponsibleJustification": "Equipe com histórico de integrações similares",
-  "exitStatus": "Elegível para avaliação",
+  "exitStatus": 18,
   "result": "Aprovado para mapeamento",
   "conclusionJustification": "A solicitação está aderente ao escopo, com riscos conhecidos e categoria ajustada."
 }
@@ -583,26 +588,27 @@ Campos aceitos:
 
 Regras de validação:
 
-- `adherentToScope` aceita `"Sim"`, `"Não"` ou `""`.
+- `adherentToScope` obrigatório (`Sim`|`Não`); `changeCategory` obrigatório (`Sim`|`Não`).
 - Se `adherentToScope === "Não"`, `adherentJustification` é obrigatório.
 - Se `adherentToScope === "Sim"`, `preliminaryComplexity` e `perceivedRisks` são obrigatórios.
-- Se `changeCategory === "Sim"`, `newCategory` é obrigatório.
-- `exitStatus` é obrigatório e deve corresponder a um status ativo elegível para triagem. Saídas válidas (nome ou id): `Pendente de informações` (4), `Elegível` (9), `Elegível para avaliação` (18), `Backlog` (12), `Direcionado para outra área` (13), `Direcionada para outra área` (20), `Fora do escopo` (19), `Duplicada` (21), `Cancelado` (17), `Cancelada` (22).
+- Se `changeCategory === "Sim"`, `newCategory` é obrigatório e deve ser o nome de categoria **ativa**.
+- `exitStatus` é obrigatório (id numérico) e deve ser status ativo com `isTriageExit`. Saídas válidas (id — nome): 4 — `Pendente de informações`, 9 — `Elegível`, 18 — `Elegível para avaliação`, 12 — `Backlog`, 13 — `Direcionado para outra área`, 20 — `Direcionada para outra área`, 19 — `Fora do escopo`, 21 — `Duplicada`, 17 — `Cancelado`, 22 — `Cancelada`.
 - `result` e `conclusionJustification` são obrigatórios.
 
 Resposta `201 Created`:
 
 ```json
 {
+  "id": "770e8400-e29b-41d4-a716-446655440200",
   "adherentToScope": "Sim",
   "adherentJustification": "",
   "changeCategory": "Sim",
-  "newCategory": "4",
+  "newCategory": "Dashboard ou relatório",
   "preliminaryComplexity": "Complexidade média, com necessidade de integração externa",
   "perceivedRisks": "Possível impacto em SLA de operação e necessidade de validação de dados",
   "suggestedResponsible": "Maria Souza",
   "suggestedResponsibleJustification": "Equipe com histórico de integrações similares",
-  "exitStatus": "Elegível para avaliação",
+  "exitStatus": 18,
   "result": "Aprovado para mapeamento",
   "conclusionJustification": "A solicitação está aderente ao escopo, com riscos conhecidos e categoria ajustada."
 }
