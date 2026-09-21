@@ -516,10 +516,14 @@ inclusive quando `complementary` é omitido por inteiro.
 ### Triagem de solicitações
 
 A avaliação é persistida sob a chave reservada `__triage` do campo
-`requests.internal_notes` (mantendo o `internalObservations` do contrato
-`internal-notes-contract.md` intacto) e o POST aplica `status_id`/`category_id`
+`requests.internal_notes` e o POST aplica `status_id`/`category_id`
 na solicitação. `exitStatus` e `newCategory` aceitam **nome ou id** do
 status/categoria de destino.
+
+Ao gravar uma triagem, observações legadas já existentes no campo são
+preservadas: texto puro não-JSON é mantido sob a chave `observations` e objetos
+JSON customizados são mesclados — o contrato `internal-notes-contract.md`
+(`internalObservations`) continua intacto e sem vazar o JSON da triagem.
 
 #### GET /requests/:protocol/triage
 

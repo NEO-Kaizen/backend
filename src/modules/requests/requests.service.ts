@@ -321,8 +321,8 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
  *
  * O módulo de triagem persiste seu assessment sob a chave `__triage` do mesmo
  * campo (decisão P4 do PR #92); o texto bruto restante — observações legadas
- * não-JSON ou qualquer outra chave customizada — continua sendo o
- * `internalObservations` do contrato.
+ * não-JSON (guardadas sob `observations`) ou qualquer outra chave customizada —
+ * continua sendo o `internalObservations` do contrato.
  */
 function extractInternalObservations(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -335,7 +335,10 @@ function extractInternalObservations(raw: string | null | undefined): string | n
       const parsed: unknown = JSON.parse(trimmed);
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         const record = parsed as Record<string, unknown>;
-        const { __triage: _triage, ...rest } = record;
+        if (typeof record.observations === "string") {
+          return record.observations;
+        }
+        const { __triage: _triage, observations: _obs, ...rest } = record;
         if (Object.keys(rest).length === 0) return null;
         return JSON.stringify(rest);
       }
