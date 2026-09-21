@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import db from "../../../database/conection.ts";
+import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
 interface StatusRow {
@@ -18,11 +19,15 @@ interface RequestContextRow {
   professional_id: string | null;
   assignee_user_id: number | null;
   internal_notes: string | null;
+  status_name: string | null;
+  category_name: string | null;
 }
 
 export async function findRequestContext(protocol: string): Promise<RequestContextRow | undefined> {
   return db("requests as r")
     .leftJoin("details_professional as dp", "dp.professional_id", "r.professional_id")
+    .leftJoin("statuses as s", "s.status_id", "r.status_id")
+    .leftJoin("categories as c", "c.category_id", "r.category_id")
     .where("r.protocol", protocol)
     .first({
       request_id: "r.request_id",
@@ -30,6 +35,8 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       professional_id: "r.professional_id",
       assignee_user_id: "dp.user_id",
       internal_notes: "r.internal_notes",
+      status_name: "s.name",
+      category_name: "c.name",
     });
 }
 
@@ -39,7 +46,7 @@ function isTriageAssessment(value: unknown): value is TriageAssessment {
   const record = value as Partial<TriageAssessment>;
 
   return (
-    (typeof record.id === "string" || typeof record.id === "undefined") &&
+    typeof record.id === "string" &&
     typeof record.adherentToScope === "string" &&
     typeof record.adherentJustification === "string" &&
     typeof record.changeCategory === "string" &&
@@ -48,7 +55,7 @@ function isTriageAssessment(value: unknown): value is TriageAssessment {
     typeof record.perceivedRisks === "string" &&
     typeof record.suggestedResponsible === "string" &&
     typeof record.suggestedResponsibleJustification === "string" &&
-    typeof record.exitStatus === "string" &&
+    typeof record.exitStatus === "number" &&
     typeof record.result === "string" &&
     typeof record.conclusionJustification === "string"
   );
@@ -61,8 +68,7 @@ const TRIAGE_WRAPPER_KEY = "__triage";
  *
  * A triagem convive com as observações internas (contrato do módulo
  * internalNotes) sob a chave reservada `__triage`, preservando o texto puro
- * de `internalObservations` (ver `requests.service.ts`). Valores legados —
- * gravados como JSON puro antes do wrapper — continuam sendo lidos.
+ * de `internalObservations` (ver `requests.service.ts`).
  */
 function parseTriageFromInternalNotes(raw: string | null | undefined): TriageAssessment | null {
   if (!raw) return null;
@@ -87,52 +93,35 @@ function parseTriageFromInternalNotes(raw: string | null | undefined): TriageAss
 }
 
 export async function findTriageByProtocol(protocol: string): Promise<TriageAssessment | null> {
-  const row = await db("requests")
-    .where({ protocol })
-    .first("internal_notes");
+  const row = await db("requests").where({ protocol }).first("internal_notes");
 
   return parseTriageFromInternalNotes(row?.internal_notes);
 }
 
-/** Guarda anti-NaN: converte o raw apenas quando é um id numérico válido
- * (dígitos puros, sem sinais/hexadecimal/notação científica). */
-function toNumericId(raw: string): number | null {
-  if (!/^[1-9]\d*$/.test(raw)) return null;
-  const numericId = Number(raw);
-  return Number.isSafeInteger(numericId) ? numericId : null;
+/**
+ * Resolve a saída da triagem contra `statuses` (ativos + `is_triage_exit`).
+ * Contrato puro: só id numérico — literais antigos (nomes) são rejeitados
+ * com 422 (`contract-triage_04.md` §Observações).
+ */
+export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
+  if (!Number.isSafeInteger(value) || value <= 0) return undefined;
+  return db("statuses")
+    .where({ is_active: true, is_triage_exit: true, status_id: value })
+    .first("status_id as status_id", "name") as Promise<StatusRow | undefined>;
 }
 
-export async function resolveExitStatus(value: string): Promise<StatusRow | undefined> {
-  const raw = value.trim();
-  if (!raw) return undefined;
-
-  const numericId = toNumericId(raw);
-
-  const query = db("statuses")
-    .where({ is_active: true, is_triage_exit: true })
-    .where((builder) => {
-      builder.where("name", raw);
-      if (numericId !== null) builder.orWhere("status_id", numericId);
-    })
-    .first("status_id as status_id", "name");
-
-  return query as Promise<StatusRow | undefined>;
-}
-
+/**
+ * Resolve a categoria de destino contra o cadastro **ativo**
+ * (`contract-triage_04.md` §1 — `newCategory` deve estar ativo). Contrato:
+ * name-string (nunca id).
+ */
 export async function resolveCategoryId(value: string): Promise<CategoryRow | undefined> {
   const raw = value.trim();
   if (!raw) return undefined;
 
-  const numericId = toNumericId(raw);
-
-  const query = db("categories")
-    .where((builder) => {
-      builder.where("name", raw);
-      if (numericId !== null) builder.orWhere("category_id", numericId);
-    })
-    .first("category_id as category_id", "name");
-
-  return query as Promise<CategoryRow | undefined>;
+  return db("categories")
+    .where({ status: "active", name: raw })
+    .first("category_id as category_id", "name") as Promise<CategoryRow | undefined>;
 }
 
 export async function applyRequestOutcome(
@@ -154,9 +143,14 @@ export async function applyRequestOutcome(
     updates.category_id = categoryId;
   }
 
-  await source("requests")
-    .where({ protocol })
-    .update(updates);
+  await source("requests").where({ protocol }).update(updates);
+}
+
+export interface TriageAuditContext {
+  actorId: number;
+  previousStatus: string | null;
+  previousCategory: string | null;
+  nextStatus: string;
 }
 
 export async function saveTriageDecision(
@@ -165,10 +159,27 @@ export async function saveTriageDecision(
   categoryId: number | null,
   statusId: number,
   updatedBy: string,
+  audit: TriageAuditContext,
 ): Promise<void> {
   await db.transaction(async (trx) => {
     await upsertTriage(protocol, triage, updatedBy, trx);
     await applyRequestOutcome(protocol, categoryId, statusId, updatedBy, trx);
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: protocol,
+      actionType: "request.triage",
+      userId: audit.actorId,
+      previousValue: JSON.stringify({
+        status: audit.previousStatus,
+        category: audit.previousCategory,
+      }),
+      newValue: JSON.stringify({
+        triageId: triage.id,
+        exitStatus: triage.exitStatus,
+        status: audit.nextStatus,
+      }),
+      changeOrigin: "admin",
+    });
   });
 }
 
@@ -180,9 +191,7 @@ export async function upsertTriage(
 ): Promise<void> {
   const source = trx ?? db;
 
-  const row = await source("requests")
-    .where({ protocol })
-    .first("internal_notes");
+  const row = await source("requests").where({ protocol }).first("internal_notes");
 
   let merged: Record<string, unknown> = {};
   const rawNotes = row?.internal_notes;
@@ -206,4 +215,3 @@ export async function upsertTriage(
       updated_at: source.fn.now(),
     });
 }
-

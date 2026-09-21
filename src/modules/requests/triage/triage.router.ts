@@ -12,9 +12,12 @@ triageRoutes.get(
   requireRole("Analista", "Gestor", "Administrador"),
   getTriage,
 );
+// POST inclui Gestor no gate de perfil; a regra real (só Administrador ou
+// assignee atual → 403) vive no service (`isAdminOrAssignee`), espelhando o
+// contrato contract-triage_04.md §0.
 triageRoutes.post(
   "/:protocol/triage",
-  requireRole("Administrador", "Analista"),
+  requireRole("Analista", "Gestor", "Administrador"),
   saveTriage,
 );
 

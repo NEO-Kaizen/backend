@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
@@ -15,10 +16,7 @@ function isAdminOrAssignee(actor: Actor, assigneeUserId: number | null): boolean
   return assigneeUserId === actor.id;
 }
 
-export async function getTriage(
-  protocol: string,
-  actor: Actor,
-): Promise<TriageAssessment | null> {
+export async function getTriage(protocol: string, actor: Actor): Promise<TriageAssessment | null> {
   const request = await repository.findRequestContext(protocol);
   if (!request) {
     throw new AppError("Protocolo não encontrado", 404);
@@ -61,27 +59,34 @@ export async function createTriage(
   }
 
   let categoryId: number | null = null;
+  let categoryName = "";
   if (payload.changeCategory === "Sim") {
     const newCategory = await repository.resolveCategoryId(payload.newCategory);
     if (!newCategory) {
       throw new ValidationError(
-        { newCategory: "Categoria de destino inválida" },
+        { newCategory: "Categoria de destino inválida ou inativa" },
         "Validação falhou",
       );
     }
     categoryId = newCategory.category_id;
+    // Persiste o nome canônico (contrato: name-string) mesmo quando o
+    // cliente envia o id numérico (compat).
+    categoryName = newCategory.name;
   }
 
   const triage: TriageAssessment = {
+    id: randomUUID(),
     adherentToScope: payload.adherentToScope,
-    adherentJustification: payload.adherentToScope === "Não" ? payload.adherentJustification.trim() : "",
+    adherentJustification:
+      payload.adherentToScope === "Não" ? payload.adherentJustification.trim() : "",
     changeCategory: payload.changeCategory,
-    newCategory: payload.changeCategory === "Sim" ? payload.newCategory.trim() : "",
-    preliminaryComplexity: payload.adherentToScope === "Sim" ? payload.preliminaryComplexity.trim() : "",
+    newCategory: payload.changeCategory === "Sim" ? categoryName : "",
+    preliminaryComplexity:
+      payload.adherentToScope === "Sim" ? payload.preliminaryComplexity.trim() : "",
     perceivedRisks: payload.adherentToScope === "Sim" ? payload.perceivedRisks.trim() : "",
     suggestedResponsible: payload.suggestedResponsible.trim(),
     suggestedResponsibleJustification: payload.suggestedResponsibleJustification.trim(),
-    exitStatus: payload.exitStatus.trim(),
+    exitStatus: exitStatus.status_id,
     result: payload.result.trim(),
     conclusionJustification: payload.conclusionJustification.trim(),
   };
@@ -92,6 +97,12 @@ export async function createTriage(
     categoryId,
     exitStatus.status_id,
     actor.email,
+    {
+      actorId: actor.id,
+      previousStatus: request.status_name,
+      previousCategory: request.category_name,
+      nextStatus: exitStatus.name,
+    },
   );
 
   return triage;
