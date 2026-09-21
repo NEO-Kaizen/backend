@@ -1,11 +1,46 @@
 import { z } from "zod";
 import { emailSchema, requiredString } from "../../shared/validation/fieldSchemas.ts";
 
-export const createUserSchema = z.object({
-  fullName: requiredString(150),
-  email: emailSchema,
-  role: z.string().trim().min(1, "Campo obrigatório.").max(60, "Máximo de 60 caracteres."),
+/**
+ * Dados profissionais do analista — obrigatórios na criação do perfil.
+ * `capacity` e `status` nascem dos defaults do schema (5 / "active").
+ */
+export const professionalSchema = z.object({
+  jobTitle: requiredString(100),
+  specialties: z.array(requiredString(100)).min(1, "Informe ao menos uma especialidade."),
+  attendedCategoryIds: z
+    .array(z.number().int("Id inválido.").positive("Id inválido."))
+    .min(1, "Selecione ao menos uma categoria atendida."),
+  notes: z.string().trim().max(500, "Máximo de 500 caracteres.").optional(),
 });
+
+/** Perfil elegível para a extensão de profissional — apenas analista. */
+const PROFESSIONAL_ROLE = "analista";
+
+export const createUserSchema = z
+  .object({
+    fullName: requiredString(150),
+    email: emailSchema,
+    role: z.string().trim().min(1, "Campo obrigatório.").max(60, "Máximo de 60 caracteres."),
+    professional: professionalSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    const isAnalyst = value.role.trim().toLowerCase() === PROFESSIONAL_ROLE;
+    if (isAnalyst && !value.professional) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["professional"],
+        message: "Dados profissionais são obrigatórios para o perfil Analista.",
+      });
+    }
+    if (!isAnalyst && value.professional !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["professional"],
+        message: "Dados profissionais são exclusivos do perfil Analista.",
+      });
+    }
+  });
 
 export const listUsersQuerySchema = z.object({
   profile: z

@@ -101,6 +101,19 @@ export async function createUser(
         profileId,
       );
 
+      // Issue A (#106): analista nasce com a extensão details_professional (1:1 com
+      // users, card de perfil) usando os dados profissionais enviados no payload —
+      // obrigatórios para o perfil (o schema já valida; guard defensivo para o
+      // service não depender do contrato de entrada). Atômico com a criação:
+      // se a extensão falhar, o usuário não é criado (rollback junto com a auditoria).
+      if (repository.isProfessionalProfile(payload.role)) {
+        const professional = payload.professional;
+        if (!professional) {
+          throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
+        }
+        await repository.createProfessionalData(trx, created.user_id, professional);
+      }
+
       await recordAudit(trx, {
         entityType: "user",
         entityId: String(created.user_id),

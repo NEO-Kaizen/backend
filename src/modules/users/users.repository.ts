@@ -4,7 +4,11 @@ import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
-import type { CreateUserRequest, ListUsersQuery } from "../DTOs/users/UserRequests.dto.ts";
+import type {
+  CreateProfessionalInput,
+  CreateUserRequest,
+  ListUsersQuery,
+} from "../DTOs/users/UserRequests.dto.ts";
 import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequestCategory } from "../../shared/types/requests.ts";
 
@@ -42,6 +46,38 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "p.name as profile_name",
       "p.is_active as profile_is_active",
     );
+}
+
+/** Perfis que ganham a extensão de profissional (1:1 user → details_professional)
+ *  na criação de conta. Apenas `analista`: a extensão é o card do analista e a
+ *  elegibilidade de atribuição também é restrita a `analista`
+ *  (ASSIGNABLE_PROFILES em requests.repository). */
+export const PROFESSIONAL_PROFILES = ["analista"] as const;
+
+/** True quando o perfil informado deve nascer com a extensão details_professional. */
+export function isProfessionalProfile(profileName: string): boolean {
+  return (PROFESSIONAL_PROFILES as readonly string[]).includes(profileName.trim().toLowerCase());
+}
+
+/**
+ * Cria a extensão de profissional dentro da transação fornecida (atômica com a
+ * criação do usuário). `professional_id` nasce do default da coluna
+ * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
+ * `specialties` e `attended_category_ids` são textos separados por vírgula —
+ * mesmo formato lido pelo card (split em `listAnalysts`).
+ */
+export async function createProfessionalData(
+  trx: Knex.Transaction,
+  userId: number,
+  professional: CreateProfessionalInput,
+): Promise<void> {
+  await trx("details_professional").insert({
+    user_id: userId,
+    job_title: professional.jobTitle,
+    specialties: professional.specialties.join(", "),
+    attended_category_ids: professional.attendedCategoryIds.join(","),
+    notes: professional.notes ?? null,
+  });
 }
 
 /** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
@@ -165,17 +201,23 @@ interface AnalystRow {
   job_title: string | null;
   attended_category_ids: string | null;
   notes: string | null;
-  professional_id: string;
+  professional_id: string | null;
 }
 
 export async function listAnalysts(): Promise<AssignAnalyst[]> {
   const rows = (await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
-    .join("details_professional as dp", "dp.user_id", "u.user_id")
+    // LEFT JOIN defensivo: usuário sem extensão (recém-criado ou dados antigos)
+    // ainda aparece no card com campos vazios — formato já previsto no contrato.
+    // A regra de licença (extensão com status 'inactive') permanece filtrando:
+    // o WHERE compensa o LEFT JOIN para excluir apenas extensões inativas.
+    .leftJoin("details_professional as dp", "dp.user_id", "u.user_id")
     .where("p.name", "analista")
     .andWhere("p.is_active", true)
     .andWhere("u.is_active", true)
-    .andWhere("dp.status", "active")
+    .andWhere((builder) => {
+      builder.where("dp.status", "active").orWhereNull("dp.user_id");
+    })
     .select({
       user_id: "u.user_id",
       full_name: "u.full_name",
@@ -200,7 +242,10 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
-  const professionalIds = rows.map((r) => r.professional_id);
+  // Analista SEM extensão não entra no COUNT (sem professional_id válido).
+  const professionalIds = rows
+    .map((r) => r.professional_id)
+    .filter((id): id is string => id !== null);
   const counts = (await db("requests")
     .whereIn("professional_id", professionalIds)
     .select("professional_id")
@@ -230,7 +275,9 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
       specialty: row.job_title ?? "",
       categories: categoriesForAnalyst,
       notes: row.notes ?? null,
-      requestLoad: countByProfessional.get(row.professional_id) ?? 0,
+      // Sem extensão não há carga para contar; contrato permite null.
+      requestLoad:
+        row.professional_id === null ? null : (countByProfessional.get(row.professional_id) ?? 0),
     } satisfies AssignAnalyst;
   });
 }
