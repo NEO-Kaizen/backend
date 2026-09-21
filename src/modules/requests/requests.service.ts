@@ -174,7 +174,10 @@ function hasComplementaryData(block: ComplementaryBlock): boolean {
   return Object.values(block).some((value) => value !== undefined);
 }
 
-export async function findInternalByProtocol(protocol: string): Promise<RequestInternalDetailDTO> {
+export async function findInternalByProtocol(
+  protocol: string,
+  actor?: { id: number; role: Role },
+): Promise<RequestInternalDetailDTO> {
   const request = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
     string,
     unknown
@@ -182,6 +185,18 @@ export async function findInternalByProtocol(protocol: string): Promise<RequestI
 
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  // Visibilidade da consulta interna (escopo #102): Administrador e Gestor
+  // (read-only) veem qualquer solicitação; Analista apenas as atribuídas
+  // (triagem ou mapeamento). Solicitante não chega aqui (router).
+  if (actor?.role === "Analista") {
+    const assigneeUserId = request["assignee_user_id"] as number | null;
+    const mappingUserId = request["mapping_user_id"] as number | null;
+    const isAssignee = assigneeUserId === actor.id || mappingUserId === actor.id;
+    if (!isAssignee) {
+      throw new AppError("Acesso negado a esta solicitação", 403);
+    }
   }
 
   const requestId = request["request_id"] as string;
