@@ -109,8 +109,10 @@ async function upsertRequester(requester: RequesterBlock, trx: Knex.Transaction)
  * (o `POST /requests` autenticado já os sobrescreve com o cadastro). Evita
  * linha duplicada por e-mail (`uk_requesters_user` preserva o 1:1).
  *
- * Modo **anônimo** (ou extensão ausente — dado antigo): cai no upsert por
- * e-mail de hoje, com `user_id = NULL`.
+ * Fallback: sem extensão (usuário legado criado antes da migration) ou fluxo
+ * **anônimo**, cai no upsert por e-mail de hoje — e, no modo autenticado,
+ * vincula o `user_id` à linha resolvida para curar o 1:1 progressivamente
+ * (só linhas anônimas; nunca roubamos a extensão de outro dono).
  */
 async function resolveRequesterId(
   requester: RequesterBlock,
@@ -132,7 +134,20 @@ async function resolveRequesterId(
     }
   }
 
-  return upsertRequester(requester, trx);
+  const requesterId = await upsertRequester(requester, trx);
+
+  // Usuário legado (criado antes da extension) sem linha: o upsert por e-mail
+  // resolve a linha; ligamos o `user_id` agora, curando o vínculo 1:1
+  // progressivamente. A guarda `user_id IS NULL` protege o caso raro em que a
+  // linha por e-mail já pertence a outro dono (nunca roubamos a extensão).
+  if (requesterUserId !== null) {
+    await trx("requesters")
+      .where({ requester_id: requesterId })
+      .whereNull("user_id")
+      .update({ user_id: requesterUserId });
+  }
+
+  return requesterId;
 }
 
 interface RequestInsertReturning {

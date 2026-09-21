@@ -99,7 +99,10 @@ export async function createRequesterData(trx: Knex.Transaction, user: UserRow):
       additional_contact: null,
     })
     .onConflict("corporate_email")
-    .merge({ user_id: user.user_id, full_name: user.full_name });
+    // Só adota linha anônima (`user_id IS NULL`): nunca reassina a extensão de
+    // outro usuário com o mesmo e-mail (caso raro de dados legados).
+    .merge({ user_id: user.user_id, full_name: user.full_name })
+    .whereRaw("requesters.user_id is null");
 }
 
 function baseQuery(query: ListUsersQuery) {
