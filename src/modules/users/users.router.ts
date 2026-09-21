@@ -1,13 +1,16 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
+import { uploadAvatar } from "../../shared/middleware/uploadAvatar.ts";
 import { requireRole } from "../../shared/middleware/requireRole.ts";
 import {
   changeUserStatus,
   createUser,
+  getMyProfile,
   getUserMetrics,
   listAnalysts,
   listUsers,
   resetUserPassword,
+  updateMyProfile,
 } from "./users.controller.ts";
 
 const usersRoutes = express.Router();
@@ -17,7 +20,11 @@ const usersRoutes = express.Router();
 // Autenticado, qualquer perfil interno logado pode listar (modal triagem).
 usersRoutes.get("/analysts", authMiddleware, listAnalysts);
 
+// Issue #125 — "Meus dados" (self-service, qualquer perfil interno).
+usersRoutes.get("/me", authMiddleware, getMyProfile);
+
 usersRoutes.use(authMiddleware);
+usersRoutes.put("/me", uploadAvatar, updateMyProfile);
 usersRoutes.use(requireRole("Administrador"));
 
 usersRoutes.get("/metrics", getUserMetrics);

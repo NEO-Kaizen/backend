@@ -1,11 +1,16 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
+import path from "node:path";
+import fs from "node:fs";
+import Config from "../../configs.ts";
+import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type { Role } from "../../shared/types/role.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
+import type { Knex } from "knex";
 import type {
   ChangeUserStatusRequest,
   CreateUserRequest,
@@ -18,7 +23,16 @@ import type {
   ResetPasswordResponse,
   UserSummary,
 } from "../DTOs/users/UserResponse.dto.ts";
+import type {
+  UserProfileResponseDTO,
+  RequesterProfileBlock,
+  ProfessionalProfileBlock,
+} from "../DTOs/users/UserProfileResponse.dto.ts";
+import type { UpdateProfilePayload } from "../DTOs/users/UpdateProfileRequest.dto.ts";
 import * as repository from "./users.repository.ts";
+
+const AVATAR_DIR = "avatars";
+const ROLE_ANALYST = "analista";
 
 const CHANGE_ORIGIN_ADMIN = "admin";
 
@@ -230,4 +244,177 @@ export async function resetPassword(
   });
 
   return { id: String(id), temporaryPassword };
+}
+
+// ---------------------------------------------------------------------------
+// Issue #125 — "Meus dados" (GET /users/me + PUT /users/me)
+// ---------------------------------------------------------------------------
+
+function toRequesterBlock(
+  row: repository.UserProfileRow["requester"],
+): RequesterProfileBlock | null {
+  if (!row) return null;
+  return {
+    area: row.area,
+    department: row.department,
+    manager: row.manager_name,
+    additionalContact: row.additional_contact,
+  };
+}
+
+function toProfessionalBlock(
+  row: repository.UserProfileRow["professional"],
+): ProfessionalProfileBlock | null {
+  if (!row) return null;
+  return {
+    jobTitle: row.job_title,
+    specialties: row.specialties,
+    attendedCategoryIds: row.attended_category_ids,
+    notes: row.notes,
+  };
+}
+
+/**
+ * `GET /users/me` — perfil completo do próprio usuário
+ * (dados básicos + bloco requester + bloco professional [analista] + avatar).
+ */
+export async function getMyProfile(userId: number): Promise<UserProfileResponseDTO> {
+  const row = await repository.findUserProfile(userId);
+  if (!row) {
+    throw new AppError("Usuário não encontrado", 404);
+  }
+
+  // Analista legado (sem linha em details_professional) recebe o bloco
+  // professional com defaults em vez de null — o contrato do "Meus dados"
+  // exige o bloco para o perfil Analista, sem erro e sem exigir migração
+  // de dados. Demais perfis permanecem com professional: null.
+  const professional: ProfessionalProfileBlock | null =
+    row.profile_name === ROLE_ANALYST && !row.professional
+      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
+      : toProfessionalBlock(row.professional);
+
+  return {
+    id: String(row.user_id),
+    fullName: row.full_name,
+    email: row.email,
+    role: resolveRole(row.profile_name),
+    avatarUrl: row.avatar_url,
+    requester: toRequesterBlock(row.requester),
+    professional,
+  } satisfies UserProfileResponseDTO;
+}
+
+/**
+ * `PUT /users/me` — atualiza bloco requester, bloco professional (analista)
+ * e/ou foto de perfil. Tudo na mesma transação (rollback atômico com
+ * auditoria). Atua como o próprio usuário (self-service); qualquer outro
+ * actor → 403.
+ *
+ * Decisão de domínio: campos imutáveis por esta issue (`fullName`,
+ * `email`, `role`) são ignorados mesmo que presentes no payload.
+ */
+export async function updateMyProfile(
+  userId: number,
+  actorUserId: number,
+  payload: UpdateProfilePayload,
+  avatarFile?: Express.Multer.File,
+): Promise<UserProfileResponseDTO> {
+  // Self-service apenas.
+  if (actorUserId !== userId) {
+    throw new AppError("Você não pode editar o perfil de outro usuário", 403);
+  }
+
+  // Operação de avatar ambígua: remover E enviar arquivo novo na mesma
+  // requisição. Sem este guard o arquivo seria descartado em silêncio (o
+  // cliente acharia ter trocado a foto). Fail-fast: escolha uma operação.
+  if (payload.removeAvatar === true && avatarFile) {
+    throw new AppError("Envie 'removeAvatar' ou 'avatar', não ambos.", 400);
+  }
+
+  const user = await repository.findUserById(userId);
+  if (!user) {
+    throw new AppError("Usuário não encontrado", 404);
+  }
+
+  // Snapshot anterior para auditoria (requester, professional, avatar).
+  const snapshot = await repository.findUserProfile(userId);
+  const previousValue = {
+    requester: snapshot?.requester ?? null,
+    professional: snapshot?.professional ?? null,
+    avatarUrl: snapshot?.avatar_url ?? null,
+    removeAvatar: payload.removeAvatar ?? false,
+  };
+
+  await db.transaction(async (trx) => {
+    // ----- bloco requester -----
+    if (payload.requester) {
+      await repository.upsertRequesterData(trx, userId, {
+        fullName: user.full_name,
+        corporateEmail: user.email.trim().toLowerCase(),
+        area: payload.requester.area,
+        department: payload.requester.department,
+        managerName: payload.requester.manager,
+        additionalContact: payload.requester.additionalContact,
+      });
+    }
+
+    // ----- bloco professional (apenas analista) -----
+    if (payload.professional) {
+      if (user.profile_name !== ROLE_ANALYST) {
+        throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
+      }
+      await repository.upsertProfessionalData(trx, userId, payload.professional);
+    }
+
+    // ----- avatar -----
+    if (payload.removeAvatar && snapshot?.avatar_url) {
+      await removeAvatarFile(snapshot.avatar_url);
+      await repository.removeUserAvatar(trx, userId);
+    } else if (avatarFile && snapshot?.avatar_url) {
+      await removeAvatarFile(snapshot.avatar_url);
+      const url = await saveAndPersistAvatar(trx, userId, avatarFile);
+      await repository.setUserAvatar(trx, userId, url);
+    } else if (avatarFile) {
+      const url = await saveAndPersistAvatar(trx, userId, avatarFile);
+      await repository.setUserAvatar(trx, userId, url);
+    }
+
+    await recordAudit(trx, {
+      entityType: "user",
+      entityId: String(userId),
+      actionType: "user.update_profile",
+      userId: actorUserId,
+      previousValue: JSON.stringify(previousValue),
+      newValue: JSON.stringify({
+        requester: payload.requester ?? null,
+        professional: payload.professional ?? null,
+        avatarChanged: avatarFile !== undefined || payload.removeAvatar === true,
+      }),
+      note: "self-edit via PUT /users/me",
+      changeOrigin: "self",
+    });
+  });
+
+  return getMyProfile(userId);
+}
+
+async function saveAndPersistAvatar(
+  trx: Knex.Transaction,
+  userId: number,
+  file: Express.Multer.File,
+): Promise<string> {
+  const saved = await saveFiles([file], path.resolve(Config.UPLOAD_DIR, AVATAR_DIR), ["avatar"]);
+  const attachment = saved[0];
+  if (!attachment) {
+    throw new AppError("Falha ao salvar o avatar", 500);
+  }
+  return `/uploads/${AVATAR_DIR}/${attachment.storageKey}`;
+}
+
+function removeAvatarFile(currentUrl: string): void {
+  const key = currentUrl.split("/").pop() ?? "";
+  const storagePath = path.resolve(Config.UPLOAD_DIR, AVATAR_DIR, key);
+  void fs.promises.rm(storagePath, { force: true }).catch(() => {
+    // arquivo já removido ou inexistente; não bloqueia a operação
+  });
 }
