@@ -127,11 +127,12 @@ export type SchedulePreferences = string[]; // ISO "yyyy-mm-ddThh:mm" — max 3
 
 export interface RequesterTable {
   requester_id: string;
+  user_id: number | null;
   full_name: string;
   corporate_email: string;
-  area: string;
+  area: string | null;
   department: string | null;
-  manager_name: string;
+  manager_name: string | null;
   additional_contact: string | null;
   created_at: Date;
 }
