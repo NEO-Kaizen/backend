@@ -13,7 +13,7 @@
 export const auditCatalog = {
   user: {
     label: "Usuários",
-    actions: ["create", "activate", "deactivate", "reset_password", "change_password"],
+    actions: ["create", "activate", "deactivate", "reset_password", "change_password", "update_profile"],
   },
   prioritization: {
     label: "Priorização",

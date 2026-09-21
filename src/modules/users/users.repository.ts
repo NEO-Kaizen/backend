@@ -141,6 +141,203 @@ export async function createRequesterData(trx: Knex.Transaction, user: UserRow):
     .whereRaw("requesters.user_id is null");
 }
 
+/**
+ * Carrega o perfil completo do usuário para `GET /users/me`:
+ * - dados de `users` + `profiles` (role/name)
+ * - bloco `requester` (1:1 via user_id) — NULL se não existir
+ * - bloco `professional` (1:1 via user_id) — NULL se não existir
+ *
+ * `specialties`/`attended_category_ids` são desencontradas do texto
+ * separado por vírgula (formato do seed/createProfessionalData) para
+ * array — mesmo parsing do card (`listAnalysts`).
+ */
+export interface UserProfileRow {
+  user_id: number;
+  full_name: string;
+  email: string;
+  avatar_url: string | null;
+  profile_name: string;
+  requester:
+    | {
+        area: string | null;
+        department: string | null;
+        manager_name: string | null;
+        additional_contact: string | null;
+      }
+    | null;
+  professional:
+    | {
+        job_title: string | null;
+        specialties: string[];
+        attended_category_ids: number[];
+        notes: string | null;
+      }
+    | null;
+}
+
+export async function findUserProfile(userId: number): Promise<UserProfileRow | undefined> {
+  const user = await db("users as u")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .where("u.user_id", userId)
+    .first(
+      "u.user_id",
+      "u.full_name",
+      "u.email",
+      "u.avatar_url",
+      "p.name as profile_name",
+    );
+
+  if (!user) return undefined;
+
+  const [requester, professional] = await Promise.all([
+    db("requesters").where({ user_id: userId }).first(
+      "area",
+      "department",
+      "manager_name",
+      "additional_contact",
+    ),
+    db("details_professional").where({ user_id: userId }).first(
+      "job_title",
+      "specialties",
+      "attended_category_ids",
+      "notes",
+    ),
+  ]);
+
+  return {
+    user_id: user.user_id,
+    full_name: user.full_name,
+    email: user.email,
+    avatar_url: user.avatar_url ?? null,
+    profile_name: user.profile_name,
+    requester: requester
+      ? {
+          area: requester.area ?? null,
+          department: requester.department ?? null,
+          manager_name: requester.manager_name ?? null,
+          additional_contact: requester.additional_contact ?? null,
+        }
+      : null,
+    professional: professional
+      ? {
+          job_title: professional.job_title ?? null,
+          specialties: professional.specialties ? professional.specialties.split(", ") : [],
+          attended_category_ids: professional.attended_category_ids
+            ? professional.attended_category_ids.split(",").map((id: string) => Number(id))
+            : [],
+          notes: professional.notes ?? null,
+        }
+      : null,
+  };
+}
+
+/**
+ * Upsert da extensão de solicitante por `user_id` (1:1).
+ * Garante a presença da linha para o "Meus dados" — três cenários:
+ * 1. Linha existente para este `user_id` → apenas atualiza campos editáveis.
+ * 2. Linha anônima com o mesmo e-mail (`user_id = NULL`) → adota (vincula
+ *    o `user_id`); mantém `area`/`manager_name` existentes até o
+ *    `resolveRequesterId` do fluxo de solicitação.
+ * 3. Nenhuma linha → insere nova (requer `fullName`/`corporateEmail`
+ *    do usuário, que são NOT NULL no banco).
+ * `uk_requesters_email` jamais é violado (adoção guardada por
+ * `user_id IS NULL`).
+ */
+export async function upsertRequesterData(
+  trx: Knex.Transaction,
+  userId: number,
+  data: {
+    fullName: string; // para INSERT; não é atualizado nos demais cenários (imutável)
+    corporateEmail: string; // idem
+    area: string;
+    department?: string;
+    managerName: string;
+    additionalContact?: string;
+  },
+): Promise<void> {
+  // 1. Linha existente para este usuário.
+  const updated = await trx("requesters")
+    .where({ user_id: userId })
+    .update({
+      area: data.area,
+      department: data.department ?? null,
+      manager_name: data.managerName,
+      additional_contact: data.additionalContact ?? null,
+    });
+  if (updated > 0) return;
+
+  // 2. Adota linha anônima com o mesmo e-mail (jamais reatribui extensão de terceiros).
+  const adopted = await trx("requesters")
+    .where({ corporate_email: data.corporateEmail })
+    .whereNull("user_id")
+    .update({
+      user_id: userId,
+      full_name: data.fullName,
+      area: data.area,
+      department: data.department ?? null,
+      manager_name: data.managerName,
+      additional_contact: data.additionalContact ?? null,
+    });
+  if (adopted > 0) return;
+
+  // 3. Nova linha.
+  await trx("requesters").insert({
+    user_id: userId,
+    full_name: data.fullName,
+    corporate_email: data.corporateEmail,
+    area: data.area,
+    department: data.department ?? null,
+    manager_name: data.managerName,
+    additional_contact: data.additionalContact ?? null,
+  });
+}
+
+/**
+ * Upsert da extensão profissional por `user_id` (1:1).
+ * Garante presença no "Meus dados" para analistas legados.
+ * `status`/`capacity` NÃO são alterados (defaults do schema).
+ * `specialties`/`attended_category_ids` são serializados como texto
+ * separado por vírgula (mesmo formato do seed/`createProfessionalData`).
+ */
+export async function upsertProfessionalData(
+  trx: Knex.Transaction,
+  userId: number,
+  professional: CreateProfessionalInput,
+): Promise<void> {
+  const specialties = professional.specialties.join(", ");
+  const attendedCategoryIds = professional.attendedCategoryIds.join(",");
+
+  // 1. Linha existente para este usuário.
+  const updated = await trx("details_professional")
+    .where({ user_id: userId })
+    .update({
+      job_title: professional.jobTitle,
+      specialties,
+      attended_category_ids: attendedCategoryIds,
+      notes: professional.notes ?? null,
+    });
+  if (updated > 0) return;
+
+  // 2. Nova linha.
+  await trx("details_professional").insert({
+    user_id: userId,
+    job_title: professional.jobTitle,
+    specialties,
+    attended_category_ids: attendedCategoryIds,
+    notes: professional.notes ?? null,
+  });
+}
+
+/** Define `users.avatar_url` (URL do arquivo em `uploads/avatars/`). */
+export async function setUserAvatar(trx: Knex.Transaction, userId: number, url: string): Promise<void> {
+  await trx("users").where({ user_id: userId }).update({ avatar_url: url, updated_at: trx.fn.now() });
+}
+
+/** Remove `users.avatar_url` (deixa null; arquivo no disco removido pelo serviço). */
+export async function removeUserAvatar(trx: Knex.Transaction, userId: number): Promise<void> {
+  await trx("users").where({ user_id: userId }).update({ avatar_url: null, updated_at: trx.fn.now() });
+}
+
 function baseQuery(query: ListUsersQuery) {
   return db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
