@@ -69,14 +69,9 @@ export async function up(knex) {
     table.boolean("is_triage_exit").notNullable().defaultTo(false);
   });
 
-  await knex("statuses")
-    .insert(STATUS_18_22)
-    .onConflict("status_id")
-    .ignore();
+  await knex("statuses").insert(STATUS_18_22).onConflict("status_id").ignore();
 
-  await knex("statuses")
-    .whereIn("name", TRIAGE_EXIT_NAMES)
-    .update({ is_triage_exit: true });
+  await knex("statuses").whereIn("name", TRIAGE_EXIT_NAMES).update({ is_triage_exit: true });
 
   await knex.raw(
     "SELECT setval('statuses_status_id_seq', (SELECT COALESCE(MAX(status_id), 1) FROM statuses))",

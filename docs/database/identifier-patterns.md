@@ -57,24 +57,24 @@ auditoria "coringa".
 
 ## Estado atual (mapeado das migrations)
 
-| Tabela | PK | Tipo | Gerador | Regra |
-|---|---|---|---|---|
-| `profiles` | `profile_id` | `serial` (int) | `increments()` | 2 |
-| `users` | `user_id` | `serial` (int) | `increments()` | 2 |
-| `audit_history` | `audit_id` | `bigserial` (bigint) | `bigIncrements()` | 2 |
-| `prioritization_evaluations` | `protocol` | `varchar(25)` | natural key | 3 |
-| `system_themes` | `theme_id` | `smallint` | singleton | 4 |
-| `system_settings` | `settings_id` | `smallint` | singleton | 4 |
-| `requesters` | `requester_id` | `uuid` | `gen_random_uuid()` | 1 |
-| `categories` | `category_id` | `serial` (int) | `increments()` | 2 |
-| `priorities` | `priority_id` | `serial` (int) | `increments()` | 2 |
-| `statuses` | `status_id` | `serial` (int) | `increments()` | 2 |
-| `professionals` | `professional_id` | `uuid` | `gen_random_uuid()` | 1 |
-| `requests` | `request_id` | `bigint` | `requests_request_seq` | 5 (proxy `protocol` 3) |
-| `pending_items` | `pending_item_id` | `uuid` | `gen_random_uuid()` | 1 |
-| `attachments` | `attachment_id` | `uuid` | `gen_random_uuid()` | 1 |
-| `request_time_preferences` | `request_time_preference_id` | `serial` (int) | `increments()` | 2 |
-| `criteria` | `criterion_id` | `varchar(50)` | slug | 3 (exceção de seed) |
+| Tabela                       | PK                           | Tipo                 | Gerador                | Regra                  |
+| ---------------------------- | ---------------------------- | -------------------- | ---------------------- | ---------------------- |
+| `profiles`                   | `profile_id`                 | `serial` (int)       | `increments()`         | 2                      |
+| `users`                      | `user_id`                    | `serial` (int)       | `increments()`         | 2                      |
+| `audit_history`              | `audit_id`                   | `bigserial` (bigint) | `bigIncrements()`      | 2                      |
+| `prioritization_evaluations` | `protocol`                   | `varchar(25)`        | natural key            | 3                      |
+| `system_themes`              | `theme_id`                   | `smallint`           | singleton              | 4                      |
+| `system_settings`            | `settings_id`                | `smallint`           | singleton              | 4                      |
+| `requesters`                 | `requester_id`               | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `categories`                 | `category_id`                | `serial` (int)       | `increments()`         | 2                      |
+| `priorities`                 | `priority_id`                | `serial` (int)       | `increments()`         | 2                      |
+| `statuses`                   | `status_id`                  | `serial` (int)       | `increments()`         | 2                      |
+| `professionals`              | `professional_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `requests`                   | `request_id`                 | `bigint`             | `requests_request_seq` | 5 (proxy `protocol` 3) |
+| `pending_items`              | `pending_item_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `attachments`                | `attachment_id`              | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `request_time_preferences`   | `request_time_preference_id` | `serial` (int)       | `increments()`         | 2                      |
+| `criteria`                   | `criterion_id`               | `varchar(50)`        | slug                   | 3 (exceção de seed)    |
 
 ## Decisão aplicada: `mappings`
 
