@@ -189,17 +189,23 @@ interface AnalystRow {
   job_title: string | null;
   attended_category_ids: string | null;
   notes: string | null;
-  professional_id: string;
+  professional_id: string | null;
 }
 
 export async function listAnalysts(): Promise<AssignAnalyst[]> {
   const rows = (await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
-    .join("details_professional as dp", "dp.user_id", "u.user_id")
+    // LEFT JOIN defensivo: usuário sem extensão (recém-criado ou dados antigos)
+    // ainda aparece no card com campos vazios — formato já previsto no contrato.
+    // A regra de licença (extensão com status 'inactive') permanece filtrando:
+    // o WHERE compensa o LEFT JOIN para excluir apenas extensões inativas.
+    .leftJoin("details_professional as dp", "dp.user_id", "u.user_id")
     .where("p.name", "analista")
     .andWhere("p.is_active", true)
     .andWhere("u.is_active", true)
-    .andWhere("dp.status", "active")
+    .andWhere((builder) => {
+      builder.where("dp.status", "active").orWhereNull("dp.user_id");
+    })
     .select({
       user_id: "u.user_id",
       full_name: "u.full_name",
@@ -224,7 +230,10 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
-  const professionalIds = rows.map((r) => r.professional_id);
+  // Analista SEM extensão não entra no COUNT (sem professional_id válido).
+  const professionalIds = rows
+    .map((r) => r.professional_id)
+    .filter((id): id is string => id !== null);
   const counts = (await db("requests")
     .whereIn("professional_id", professionalIds)
     .select("professional_id")
@@ -254,7 +263,9 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
       specialty: row.job_title ?? "",
       categories: categoriesForAnalyst,
       notes: row.notes ?? null,
-      requestLoad: countByProfessional.get(row.professional_id) ?? 0,
+      // Sem extensão não há carga para contar; contrato permite null.
+      requestLoad:
+        row.professional_id === null ? null : (countByProfessional.get(row.professional_id) ?? 0),
     } satisfies AssignAnalyst;
   });
 }
