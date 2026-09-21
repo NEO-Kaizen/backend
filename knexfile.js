@@ -10,7 +10,7 @@ const connection = {
 };
 
 const migrations = {
-  directory: ["./migrations", "./migrations/requester_request"],
+  directory: ["./migrations", "./migrations/requester_request", "./migrations/users"],
   extension: "js",
 };
 
