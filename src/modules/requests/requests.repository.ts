@@ -512,6 +512,10 @@ export async function findInternalRequestByProtocol(protocol: string) {
     "requests.requester_id",
     "requests.professional_id",
 
+    // Dono da solicitação quando criada em modo AUTHENTICATED (#53) — base do
+    // owner-check do acompanhamento (GET /requests/:protocol/tracking).
+    "requests.requester_user_id",
+
     "requests.protocol",
     "requests.title",
     "requests.request_type",
@@ -585,7 +589,7 @@ export async function findInternalRequestByProtocol(protocol: string) {
 export async function findAttachmentsByRequestId(requestId: string | number) {
   return db("attachments")
     .where({ request_id: requestId })
-    .select("file_name", "content_type", "size_bytes")
+    .select("attachment_id", "file_name", "content_type", "size_bytes")
     .orderBy("uploaded_at", "asc");
 }
 

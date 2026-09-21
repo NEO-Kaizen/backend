@@ -74,6 +74,8 @@ Fluxo de boot: `src/server.ts` → `src/app.ts` (Express) → `src/router.ts`
 - **`PUBLIC`**: libera a rota sem autenticação.
 - **`AUTHENTICATED`**: delega ao `authMiddleware` (exige sessão).
 - Aplicado a `POST /requests`, `GET /requests` e `GET /requests/:protocol`.
+- `GET /requests/:protocol/tracking` não usa o guard: decide o modo pelo
+  dual-auth do serviço (`getSolicitationMode()` lido no próprio `getTracking`).
 
 ### 2.5 Validação (Zod)
 
@@ -150,7 +152,8 @@ modifica a própria conta; e-mail único (`409`); perfil validado contra o banco
 | --- | --- | --- | --- |
 | POST | `/requests` | Público/Sessão (conforme modo) | Cria solicitação (protocolo + blocos + horários + anexos). |
 | GET | `/requests` | Público/Sessão (conforme modo) | Lista por e-mail (público) ou da sessão (autenticado). |
-| GET | `/requests/:protocol` | Público/Sessão (conforme modo) | Consulta pública por protocolo (acompanhamento). |
+| GET | `/requests/:protocol` | Público/Sessão (conforme modo) | Consulta pública por protocolo (legado). |
+| GET | `/requests/:protocol/tracking` | Sessão do dono ou identidade pública | Acompanhamento bimodal (`public`/`authenticated`) do solicitante. |
 | GET | `/requests/:protocol/internal` | Sessão + Admin/Gestor ou Analista assignee | Consulta **interna** completa (Analista escopado por triagem ou mapeamento — #102). |
 | PATCH | `/requests/:protocol/internal` | Sessão + Analista/Gestor/Admin | Edita os blocos editáveis (substituição completa). |
 | GET | `/requests/assignees` | Sessão + Analista/Gestor/Admin | Lista responsáveis ativos. |

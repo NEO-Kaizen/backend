@@ -40,6 +40,20 @@ export const getRequestsByProtocol = async (req: Request, res: Response): Promis
   return res.status(200).json(foundRequest);
 };
 
+// Acompanhamento bimodal do solicitante (contrato `contract-pendencias_03.md`
+// §3): sessão do dono → `authenticated`; identidade pública → `public`. A
+// decisão de modo e o owner-check ficam no service.
+export const getTracking = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const response = await service.getTracking(protocol, {
+    user: req.user,
+    requesterIdentity: req.requesterIdentity ?? null,
+  });
+
+  return res.status(200).json(response);
+};
+
 // Consulta administrativa/interna (issue #48) — difere de getRequestsByProtocol
 // (pública, issue #34): exige autenticação e perfil interno (ver
 // requests.router.ts) e retorna o DTO interno completo (RequestInternalDetailDTO).

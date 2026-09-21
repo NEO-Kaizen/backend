@@ -5,7 +5,19 @@ import type {
   RequestStatus,
   OperationalImpact,
   RequestPriority,
+  RequesterBlock,
+  DemandBlock,
 } from "../../shared/types/requests.ts";
+import type { AuthenticatedUser } from "../../shared/types/user.ts";
+import type {
+  Meeting,
+  PublicOperationalImpacts,
+  PublicRequestDetails,
+  RequesterRequestDetails,
+  TrackingDetailsResponse,
+} from "../DTOs/requests/RequestTracking.dto.ts";
+import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts";
+import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
 import { removeFiles } from "../../shared/storage/fileStorage.ts";
 import type {
@@ -390,6 +402,257 @@ function extractInternalObservations(raw: string | null | undefined): string | n
   }
 
   return trimmed;
+}
+
+// --- Acompanhamento do solicitante (GET /requests/:protocol/tracking) -------
+// Contrato em `../DTOs/requests/RequestTracking.dto.ts` (espelho fiel de
+// `frontend/src/lib/types/requester-tracking.ts`). O `mode` é decidido pela
+// credencial resolvida no middleware dual: cookie de sessão do dono →
+// `authenticated`; header `X-Requester-Identity` verificado em modo PUBLIC →
+// `public`. Nunca devolve dados internos (triagem, priorização, anotações).
+
+/** Credencial resolvida por `shared/middleware/dualAuth.ts`. */
+export interface TrackingCaller {
+  user?: AuthenticatedUser;
+  requesterIdentity?: { name: string; email: string } | null;
+}
+
+const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitação.";
+
+function mapTrackingMeeting(row: Record<string, unknown>): Meeting | null {
+  const scheduledFor = row["meeting_scheduled_for"]
+    ? new Date(row["meeting_scheduled_for"] as string).toISOString()
+    : null;
+
+  if (!scheduledFor) return null;
+
+  return { scheduledFor, link: (row["meeting_link"] as string | null) ?? null };
+}
+
+function mapTrackingRequester(row: Record<string, unknown>): RequesterBlock {
+  return {
+    fullName: (row["requester_name"] as string) ?? "",
+    corporateEmail: (row["requester_email"] as string) ?? "",
+    area: (row["requester_area"] as string | null) ?? "",
+    department: (row["requester_department"] as string | null) ?? undefined,
+    manager: (row["requester_manager"] as string | null) ?? "",
+    additionalContact: (row["requester_additional_contact"] as string | null) ?? undefined,
+  };
+}
+
+function mapTrackingDemand(row: Record<string, unknown>): DemandBlock {
+  return {
+    title: row["title"] as string,
+    requestType: row["request_type"] as string,
+    category: (row["category"] as string | null) ?? "",
+    processName: row["process_name"] as string,
+    description: row["need_description"] as string,
+    problem: row["problem_opportunity"] as string,
+    expectedResult: row["expected_result"] as string,
+    justification: row["justification"] as string,
+  };
+}
+
+function mapTrackingImpacts(row: Record<string, unknown>): PublicOperationalImpacts {
+  return {
+    mainRisks: row["main_risks"] as string,
+    clientImpact: row["client_impact"] as string,
+    operationalImpact: row["operational_impact"] as OperationalImpact,
+    perceivedCriticality: row["perceived_criticality"] as RequestPriority,
+    desiredDeadline: toDateOnly(row["desired_deadline"] as string | Date),
+  };
+}
+
+function mapTrackingComplementary(row: Record<string, unknown>): ComplementaryBlock {
+  return {
+    hasProcessDocumentation: toYesNoDetail(
+      row["has_process_documentation"] as boolean | null,
+      row["process_documentation_detail"] as string | null,
+    ),
+    hasSimilarSolution: toYesNoDetail(
+      row["has_similar_solution"] as boolean | null,
+      row["similar_solution_detail"] as string | null,
+    ),
+    dependsOnOtherAreas: toYesNoDetail(
+      row["depends_on_other_areas"] as boolean | null,
+      row["other_areas_detail"] as string | null,
+    ),
+    handlesRestrictedInfo: toYesNoDetail(
+      row["handles_restricted_info"] as boolean | null,
+      row["restricted_info_detail"] as string | null,
+    ),
+    additionalNotes: (row["additional_notes"] as string | null) ?? undefined,
+  };
+}
+
+function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails {
+  const openedAt = normalizeIsoDate(row["created_at"]) ?? new Date().toISOString();
+
+  return {
+    protocol: row["protocol"] as string,
+    status: row["status"] as RequestStatus,
+    openedAt,
+    lastUpdate: normalizeIsoDate(row["updated_at"]) ?? openedAt,
+    meeting: mapTrackingMeeting(row),
+    requester: mapTrackingRequester(row),
+    demand: mapTrackingDemand(row),
+    impacts: mapTrackingImpacts(row),
+  };
+}
+
+async function buildAuthenticatedDetails(
+  row: Record<string, unknown>,
+): Promise<RequesterRequestDetails> {
+  const requestId = row["request_id"] as string;
+  const [attachments, schedulePreferences] = await Promise.all([
+    repository.findAttachmentsByRequestId(requestId),
+    repository.findSchedulePreferencesByRequestId(requestId),
+  ]);
+
+  const meeting = mapTrackingMeeting(row);
+  const complementary = mapTrackingComplementary(row);
+  // O modo autenticado não tem `impacts`: os mesmos campos vivem dentro de
+  // `operational` (`RequesterOperational extends PublicOperationalImpacts`).
+  const { impacts, ...base } = buildPublicDetails(row);
+
+  return {
+    ...base,
+    operational: {
+      ...impacts,
+      processDescription: row["process_description"] as string,
+      processSteps: row["process_steps"] as string,
+      systemsUsed: row["systems_used"] as string,
+      executionFrequency: row["execution_frequency"] as string,
+      volumetry: row["approximate_volume"] as string,
+      peopleInvolved: row["people_involved"] as number,
+      averageExecutionTime: row["average_duration"] as string,
+      monthlyEffortHours: Number(row["estimated_monthly_effort"]),
+      hasManualControls: toRequiredYesNoDetail(
+        row["has_manual_controls"] as boolean,
+        row["manual_controls_detail"] as string | null,
+      ),
+    },
+    complementary: hasComplementaryData(complementary) ? complementary : undefined,
+    schedulePreferences:
+      schedulePreferences.length > 0
+        ? schedulePreferences.map((preference) => toDateTimeMinutes(preference.scheduled_for))
+        : null,
+    mappingDate: meeting ? toSaoPauloDateOnly(meeting.scheduledFor) : null,
+    // Anexos do acompanhamento: metadados apenas; sem endpoint de download o
+    // `downloadUrl` fica vazio e `canDownload` falso (mesma postura do /internal).
+    attachments: attachments.map((attachment) => ({
+      id: attachment.attachment_id as string,
+      fileName: attachment.file_name as string,
+      mimeType: attachment.content_type as string,
+      sizeBytes: Number(attachment.size_bytes),
+      downloadUrl: "",
+      canDownload: false,
+    })),
+  };
+}
+
+/**
+ * Dono da solicitação na sessão autenticada.
+ *
+ * A fonte primária é o vínculo direto `requests.requester_user_id` (gravado no
+ * `POST /requests` em modo AUTHENTICATED), imune a uma troca posterior de
+ * e-mail/nome no cadastro.
+ */
+function isTrackingOwner(row: Record<string, unknown>, user: AuthenticatedUser): boolean {
+  const requesterUserId = row["requester_user_id"] as number | null;
+
+  if (requesterUserId !== null && requesterUserId !== undefined) {
+    return requesterUserId === Number(user.id);
+  }
+
+  // Fallback: solicitações sem vínculo (`requester_user_id` NULL) — criadas em
+  // modo PUBLIC/anônimo antes da curadoria do 1:1. Compara o e-mail
+  // normalizado do snapshot `requesters`; o vínculo é curado progressivamente
+  // por `resolveRequesterId` a cada nova solicitação autenticada.
+  return normalizeEmail((row["requester_email"] as string) ?? "") === normalizeEmail(user.email);
+}
+
+async function getAuthenticatedTracking(
+  protocol: string,
+  user: AuthenticatedUser,
+): Promise<TrackingDetailsResponse> {
+  // Perfis internos têm a consulta administrativa própria (`/internal`); o
+  // acompanhamento é exclusivo do solicitante. 403 uniforme (independe do
+  // protocolo) — não revela existência.
+  if (user.role !== "Solicitante") {
+    throw new AppError("Perfis internos devem acompanhar pela consulta interna.", 403);
+  }
+
+  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
+    string,
+    unknown
+  > | null;
+
+  // Protocolo inexistente ou de terceiro: mesma resposta (404), para não
+  // revelar a existência de solicitações alheias (anti-enumeração).
+  if (!row || !isTrackingOwner(row, user)) {
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  return { mode: "authenticated", details: await buildAuthenticatedDetails(row) };
+}
+
+async function getPublicTracking(
+  protocol: string,
+  identity: { name: string; email: string } | null,
+): Promise<TrackingDetailsResponse> {
+  const mode = await getSolicitationMode();
+
+  if (mode !== "PUBLIC") {
+    throw new AppError("Verificação indisponível no modo atual", 403);
+  }
+
+  // Sem cookie e sem header válido: exige validação prévia (anti-enumeração).
+  if (!identity) {
+    throw new AppError(TRACKING_INVALID_IDENTITY, 401);
+  }
+
+  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
+    string,
+    unknown
+  > | null;
+
+  const nameOk =
+    row !== null &&
+    normalizeName((row["requester_name"] as string) ?? "") === normalizeName(identity.name);
+  const emailOk =
+    row !== null &&
+    normalizeEmail((row["requester_email"] as string) ?? "") === normalizeEmail(identity.email);
+
+  // Inexistente ou divergente → mesmo 401 genérico: não revela qual dado
+  // divergiu nem se o protocolo existe.
+  if (!row || !nameOk || !emailOk) {
+    throw new AppError(TRACKING_INVALID_IDENTITY, 401);
+  }
+
+  return { mode: "public", details: buildPublicDetails(row) };
+}
+
+/**
+ * `GET /requests/:protocol/tracking` — detalhe bimodal do acompanhamento.
+ * O `mode` é decidido pela credencial: sessão do dono → `authenticated`;
+ * identidade pública em modo PUBLIC → `public`.
+ */
+export async function getTracking(
+  protocol: string,
+  caller: TrackingCaller,
+): Promise<TrackingDetailsResponse> {
+  const normalizedProtocol = protocol.trim();
+
+  if (normalizedProtocol === "") {
+    throw new AppError("Protocolo é obrigatório", 400);
+  }
+
+  if (caller.user) {
+    return getAuthenticatedTracking(normalizedProtocol, caller.user);
+  }
+
+  return getPublicTracking(normalizedProtocol, caller.requesterIdentity ?? null);
 }
 
 // --- Atualização interna dos blocos (issue #88) -----------------------------

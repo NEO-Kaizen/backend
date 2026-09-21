@@ -480,6 +480,11 @@ HTTP/1.1 400 Bad Request
 
 ## 3. GET /requests/:protocol — Detalhe da solicitação (`/acompanhar/[protocolo]`)
 
+> **Nota:** o acompanhamento do solicitante evoluiu para
+> `GET /requests/:protocol/tracking` (bimodal `public`/`authenticated`) — ver
+> `contract-pendencias_03.md` §7. Este endpoint puro-público permanece para
+> compatibilidade.
+
 Público (RN-005 — retorna apenas campos públicos; nunca comentários internos,
 notas dos 10 critérios ou scores nem log de auditoria — D-06 da Especificação
 3.0 §9.1 restringe o log ao painel administrativo, `GET /audit/:protocol`).

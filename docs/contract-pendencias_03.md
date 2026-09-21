@@ -166,6 +166,7 @@ solicitação:
 | POST   | `/requests/:protocol/pending-items/:pendingItemId/attachments` | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `201 InternalAttachment`                                                                         |
 | PATCH  | `/requests/:protocol/pending-items/review`                     | cookie `session_id` (`Administrador` ou `assignee`)                    | `200 ReviewPendingItemsResponse` (sem `solicitationStatus` — D-P18; parcial e repetível — D-P23) |
 | GET    | `/requests/:protocol/internal` (estendido)                     | cookie `session_id` (interna)                                          | `200 InternalRequestDetail + unread/correctionAlert/pendingSummary`                              |
+| GET    | `/requests/:protocol/tracking`                                 | cookie `session_id` do dono **ou** header `X-Requester-Identity` (§3)  | `200 { mode: 'public' \| 'authenticated', details }`                                             |
 | POST   | `/requests/:protocol/public/verify`                            | pública                                                                | `200 { canAccess: true }` (bool, sem JWT)                                                        |
 
 Tipos comuns:
@@ -409,6 +410,33 @@ chamada posterior. O lote só fecha quando não restar nenhum `responded`.
   prescrita) e reenvia via `X-Requester-Identity`.
 - **Erros:** `400` formato; `401` genérico anti-enumeração; `403` portal não público;
   `429` rate-limit.
+
+### GET /requests/:protocol/tracking — detalhe do acompanhamento (solicitante)
+
+- **Auth (dual, ordem):** cookie `session_id` → `authMiddleware` (dono pelo vínculo
+  `requests.requester_user_id`; fallback por e-mail normalizado em solicitações
+  legadas/anônimas) ⇒ `authenticated`; sem cookie + header `X-Requester-Identity`
+  válido ⇒ `public`. Sem rate-limit próprio — o gate continua sendo o `verify`
+  (`10/10 min por IP+protocolo`). Perfis internos usam `GET /internal`.
+- **`mode:** ` public`(não autenticado) devolve o recorte público:`protocol`,
+`status`(do request — sem`solicitationStatus`inventado),`openedAt`,
+`lastUpdate`, `meeting`, `requester`(identificação),`demand`(detalhes) e`impacts` (`mainRisks`, `clientImpact`, `operationalImpact`,
+`perceivedCriticality`, `desiredDeadline`). **Nunca** inclui `operational`detalhado,`complementary`, `schedulePreferences` nem anexos.
+- **`mode: "authenticated"`** (dono logado) devolve `public` + `operational`
+  completo, `complementary`, `schedulePreferences`, `mappingDate` e
+  `attachments` (metadados; `downloadUrl` vazio e `canDownload: false` até
+  existir endpoint de download).
+- **Formato:** `200 { mode: 'public' | 'authenticated', details }` — DTO
+  `RequestTracking.dto.ts`, espelho de `frontend/src/lib/types/requester-tracking.ts`.
+- **Erros (ordem):** `400` protocolo ausente; `401` genérico
+  (`Valide seus dados para acompanhar esta solicitação.`) — identidade
+  ausente/divergente/expirada ou protocolo inexistente no modo público
+  (anti-enumeração); `403` portal `AUTHENTICATED` sem sessão e perfil interno
+  (este deve usar `/internal`); `404` protocolo inexistente **ou** não-dono em
+  sessão (não revela a existência).
+- **IDOR/anti-enumeração:** o `:protocol` da URL é a chave de busca; a
+  identidade pública é comparada contra o snapshot `requesters` (nome/e-mail
+  normalizados) e o dono autenticado pelo vínculo `requester_user_id`.
 
 ## 8. Regras de negócio
 

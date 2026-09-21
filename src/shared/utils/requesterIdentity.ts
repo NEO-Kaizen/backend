@@ -1,3 +1,4 @@
+/** Lê o header público `X-Requester-Identity` (`{ name, email }`). */
 export function parseRequesterIdentity(
   header: string | undefined,
 ): { name: string; email: string } | null {

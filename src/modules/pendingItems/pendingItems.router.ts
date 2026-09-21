@@ -2,7 +2,7 @@ import express from "express";
 import multer from "multer";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
 import { requireRole } from "../../shared/middleware/requireRole.ts";
-import { pendingDualAuth } from "./pendingItems.middleware.ts";
+import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import {
   createPendingItems,
   listPendingItems,
@@ -39,17 +39,17 @@ router.post(
   requireRole("Analista", "Gestor", "Administrador"),
   createPendingItems,
 );
-router.get("/", pendingDualAuth, listPendingItems);
+router.get("/", requesterDualAuth, listPendingItems);
 router.patch(
   "/review",
   authMiddleware,
   requireRole("Analista", "Gestor", "Administrador"),
   reviewPendingItems,
 );
-router.patch("/:pendingItemId", pendingDualAuth, respondPendingItem);
+router.patch("/:pendingItemId", requesterDualAuth, respondPendingItem);
 router.post(
   "/:pendingItemId/attachments",
-  pendingDualAuth,
+  requesterDualAuth,
   (req, res, next) => {
     uploadSingle(req, res, (err) => {
       if (err) {
