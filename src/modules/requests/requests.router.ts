@@ -2,11 +2,13 @@ import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
 import { requireRole } from "../../shared/middleware/requireRole.ts";
 import { requireAccessMode } from "../../shared/middleware/accessMode.ts";
+import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import { uploadFields } from "../../shared/middleware/upload.ts";
 import {
   getInternalRequestByProtocol,
   getRequestsByEmail,
   getRequestsByProtocol,
+  getTracking,
   patchInternalAssignee,
   postRequest,
   getAssignees,
@@ -43,6 +45,11 @@ requestsRoutes.patch(
   requireRole("Administrador"),
   patchAssignee,
 );
+
+// Acompanhamento do solicitante (contrato `contract-pendencias_03.md` §3):
+// dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
+// antes de `/:protocol` para não ser capturado por engano.
+requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);
 
 requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
 requestsRoutes.get(

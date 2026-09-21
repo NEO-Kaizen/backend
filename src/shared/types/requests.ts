@@ -156,3 +156,50 @@ export interface AssignmentCandidateRow {
   user_is_active: boolean;
   profile_name: string;
 }
+
+export interface InternalRequestRow {
+  request_id: string;
+  protocol: string;
+  status: string;
+  requester_user_id?: number | null;
+  requester_name: string;
+  requester_email: string;
+  requester_area: string | null;
+  requester_department: string | null;
+  requester_manager: string | null;
+  requester_additional_contact: string | null;
+  title: string;
+  request_type: string;
+  category?: string | null;
+  category_name?: string | null;
+  process_name: string;
+  need_description: string;
+  problem_opportunity: string;
+  expected_result: string;
+  justification: string;
+  process_description: string;
+  process_steps: string;
+  systems_used: string;
+  execution_frequency: string;
+  approximate_volume: string;
+  people_involved: number;
+  average_duration: string;
+  estimated_monthly_effort: string | number;
+  has_manual_controls: boolean;
+  manual_controls_detail: string | null;
+  main_risks: string;
+  client_impact: string;
+  operational_impact: string;
+  desired_deadline: string | Date;
+  perceived_criticality: string;
+  has_process_documentation: boolean | null;
+  process_documentation_detail: string | null;
+  has_similar_solution: boolean | null;
+  similar_solution_detail: string | null;
+  depends_on_other_areas: boolean | null;
+  other_areas_detail: string | null;
+  handles_restricted_info: boolean | null;
+  restricted_info_detail: string | null;
+  additional_notes: string | null;
+  [key: string]: unknown;
+}

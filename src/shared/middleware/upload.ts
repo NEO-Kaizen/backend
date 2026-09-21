@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import multer, { MulterError } from "multer";
 import { AppError } from "../../shared/errors/AppError.ts";
 
-const ALLOWED_MIMES = new Set([
+export const ALLOWED_MIMES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -10,7 +10,7 @@ const ALLOWED_MIMES = new Set([
   "image/jpeg",
 ]);
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENT_COUNT = 5;
 const MAX_FIELD_SIZE_BYTES = 2 * 1024 * 1024;
 

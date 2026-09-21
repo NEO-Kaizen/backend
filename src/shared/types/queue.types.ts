@@ -1,6 +1,15 @@
 import type { RequestPriority, RequestStatus } from "./requests.ts";
-import type { RequestSummary } from "../../modules/DTOs/requests/RequestResponse.dto.ts";
 import type { PaginatedResponse } from "./pagination.ts";
+
+export interface RequestSummary {
+  protocol: string;
+  createdAt: string;
+  processName: string;
+  priority: RequestPriority | null;
+  status: RequestStatus;
+  assignee: string | null;
+  requesterName: string;
+}
 
 export interface QueueMetricsResponse {
   totalRequests: number;
