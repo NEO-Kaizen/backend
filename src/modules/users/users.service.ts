@@ -124,6 +124,11 @@ export async function createUser(
         changeOrigin: CHANGE_ORIGIN_ADMIN,
       });
 
+      // Issue B (#108): todo usuário é requester → a extensão 1:1 nasce junto
+      // com a conta. Mesmo trx da criação: se falhar, o usuário não é criado
+      // (rollback consistente com auditoria e qualquer outra extensão).
+      await repository.createRequesterData(trx, created);
+
       return created;
     });
   } catch (error) {

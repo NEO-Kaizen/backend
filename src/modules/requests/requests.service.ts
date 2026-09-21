@@ -276,9 +276,9 @@ export async function findInternalByProtocol(
     requester: {
       fullName: request["requester_name"] as string,
       corporateEmail: request["requester_email"] as string,
-      area: request["requester_area"] as string,
+      area: (request["requester_area"] as string | null) ?? "",
       department: (request["requester_department"] as string | null) ?? undefined,
-      manager: request["requester_manager"] as string,
+      manager: (request["requester_manager"] as string | null) ?? "",
       additionalContact: (request["requester_additional_contact"] as string | null) ?? undefined,
     },
     demand: {
@@ -408,9 +408,9 @@ interface InternalRequestRow {
   handles_restricted_info: boolean | null;
   restricted_info_detail: string | null;
   additional_notes: string | null;
-  requester_area: string;
+  requester_area: string | null;
   requester_department: string | null;
-  requester_manager: string;
+  requester_manager: string | null;
   requester_additional_contact: string | null;
 }
 
@@ -435,9 +435,9 @@ function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalReque
 
   return {
     requester: {
-      area: request.requester_area,
+      area: request.requester_area ?? "",
       department: request.requester_department ?? undefined,
-      manager: request.requester_manager,
+      manager: request.requester_manager ?? "",
       additionalContact: request.requester_additional_contact ?? undefined,
     },
     demand: {
