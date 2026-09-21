@@ -522,6 +522,11 @@ na solicitação. `exitStatus` é o **id numérico** do status de saída;
 `newCategory` é o **nome** da categoria de destino (contrato puro —
 literais antigos de status não são aceitos).
 
+Ao gravar uma triagem, observações legadas já existentes no campo são
+preservadas: texto puro não-JSON é mantido sob a chave `observations` e objetos
+JSON customizados são mesclados — o contrato `internal-notes-contract.md`
+(`internalObservations`) continua intacto e sem vazar o JSON da triagem.
+
 #### GET /requests/:protocol/triage
 
 Consulta a avaliação de triagem persistida para uma solicitação. Requer autenticação e acesso interno.

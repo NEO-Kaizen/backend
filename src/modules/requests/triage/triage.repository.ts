@@ -200,9 +200,13 @@ export async function upsertTriage(
       const parsed: unknown = JSON.parse(String(rawNotes));
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         merged = { ...(parsed as Record<string, unknown>) };
+      } else {
+        // Observações legadas em texto puro (não-JSON): preservadas sob a
+        // chave `observations` para não serem perdidas ao gravar a triagem.
+        merged = { observations: String(rawNotes) };
       }
     } catch {
-      // Observações não-JSON: descartadas, o wrapper _triage assume a escrita.
+      merged = { observations: String(rawNotes) };
     }
   }
   merged[TRIAGE_WRAPPER_KEY] = triage;
