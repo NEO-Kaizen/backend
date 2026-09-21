@@ -22,7 +22,10 @@ export async function getTriage(protocol: string, actor: Actor): Promise<TriageA
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  const canAccess = isAdminOrAssignee(actor, request.assignee_user_id ?? null);
+  // Leitura: Gestor é read-only e pode consultar qualquer triagem; escrita
+  // (createTriage) segue restrita a Admin ou assignee.
+  const canAccess =
+    actor.role === "Gestor" || isAdminOrAssignee(actor, request.assignee_user_id ?? null);
   if (!canAccess) {
     throw new AppError("Acesso negado a esta solicitação", 403);
   }

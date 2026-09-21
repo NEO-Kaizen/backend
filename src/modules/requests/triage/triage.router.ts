@@ -7,18 +7,15 @@ const triageRoutes = express.Router();
 
 triageRoutes.use(authMiddleware);
 
+// Leitura: perfis internos (`Administrador`, `Gestor` read-only e `Analista`).
+// O service restringe o Analista ao assignee atual da solicitação.
 triageRoutes.get(
   "/:protocol/triage",
   requireRole("Analista", "Gestor", "Administrador"),
   getTriage,
 );
-// POST inclui Gestor no gate de perfil; a regra real (só Administrador ou
-// assignee atual → 403) vive no service (`isAdminOrAssignee`), espelhando o
-// contrato contract-triage_04.md §0.
-triageRoutes.post(
-  "/:protocol/triage",
-  requireRole("Analista", "Gestor", "Administrador"),
-  saveTriage,
-);
+// Escrita: `Administrador` ou o Analista assignee atual → `403` caso contrário
+// (regra no service, `isAdminOrAssignee`). Gestor é read-only e não triagem.
+triageRoutes.post("/:protocol/triage", requireRole("Administrador", "Analista"), saveTriage);
 
 export default triageRoutes;
