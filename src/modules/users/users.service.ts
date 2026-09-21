@@ -101,6 +101,13 @@ export async function createUser(
         profileId,
       );
 
+      // Issue A (#106): analista e gestor nascem com a extensão details_professional
+      // (1:1 com users, card de perfil). Atômico com a criação: se a extensão
+      // falhar, o usuário não é criado (rollback junto com a auditoria).
+      if (repository.isProfessionalProfile(payload.role)) {
+        await repository.createProfessionalData(trx, created.user_id);
+      }
+
       await recordAudit(trx, {
         entityType: "user",
         entityId: String(created.user_id),

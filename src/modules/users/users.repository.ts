@@ -44,6 +44,30 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
     );
 }
 
+/** Perfis que ganham a extensão de profissional (1:1 user → details_professional)
+ *  logo na criação de conta. Elegibilidade de *atribuição* continua restrita a
+ *  `analista` (ver ASSIGNABLE_PROFILES em requests.repository). */
+export const PROFESSIONAL_PROFILES = ["analista", "gestor"] as const;
+
+/** True quando o perfil informado deve nascer com a extensão details_professional. */
+export function isProfessionalProfile(profileName: string): boolean {
+  return (PROFESSIONAL_PROFILES as readonly string[]).includes(profileName.trim().toLowerCase());
+}
+
+/**
+ * Cria a extensão de profissional dentro da transação fornecida (atômica com a
+ * criação do usuário). `professional_id` nasce do default da coluna
+ * (gen_random_uuid()); `status` e `capacity` dos defaults do schema. Os campos
+ * de card (job_title, specialties, attended_category_ids, notes) nascem nulos.
+ */
+export async function createProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
+  await trx("details_professional").insert({
+    user_id: userId,
+    status: "active",
+    capacity: 5,
+  });
+}
+
 /** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
 export async function createUser(
   trx: Knex.Transaction,
