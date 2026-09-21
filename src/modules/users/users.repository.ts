@@ -69,6 +69,39 @@ export async function createUser(
   return row;
 }
 
+/**
+ * Cria a extensão de solicitante dentro da transação fornecida (atômica com a
+ * criação do usuário). Todo usuário é requester: `requesters` funciona como
+ * extensão 1:1 de `users` via `user_id`.
+ *
+ * `area`/`department`/`manager_name`/`additional_contact` nascem nulos (dados
+ * de contato só fazem sentido no contexto de uma solicitação); `resolveRequesterId`
+ * sincroniza esses campos antes da primeira solicitação autenticada.
+ *
+ * Caso de borda tratado: um requester **anônimo** com o mesmo e-mail (solicitação
+ * criada sem conta antes do `POST /users`) é **adotado** pelo usuário em vez de
+ * gerar duplicata (`uk_requesters_email`). O merge liga o `user_id` e atualiza o
+ * nome; `area`/`manager_name` existentes são preservados até o `resolveRequesterId`.
+ * A regra 1:1 (`uk_requesters_user`) nunca é violada porque a linha anônima tem
+ * `user_id = NULL` — e e-mails de usuários já cadastrados param no `users` (409).
+ */
+export async function createRequesterData(trx: Knex.Transaction, user: UserRow): Promise<void> {
+  const corporateEmail = user.email.trim().toLowerCase();
+
+  await trx("requesters")
+    .insert({
+      user_id: user.user_id,
+      full_name: user.full_name,
+      corporate_email: corporateEmail,
+      area: null,
+      department: null,
+      manager_name: null,
+      additional_contact: null,
+    })
+    .onConflict("corporate_email")
+    .merge({ user_id: user.user_id, full_name: user.full_name });
+}
+
 function baseQuery(query: ListUsersQuery) {
   return db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
