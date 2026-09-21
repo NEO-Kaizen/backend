@@ -99,6 +99,42 @@ async function upsertRequester(requester: RequesterBlock, trx: Knex.Transaction)
   return row.requester_id;
 }
 
+/**
+ * Resolve o `requester_id` da solicitação (issue B #108).
+ *
+ * Modo **autenticado** (`requesterUserId !== null`): usa a extensão 1:1 de
+ * `requesters` (criada no `POST /users`) e sincroniza os dados de contato
+ * exibíveis (`area`, `department`, `manager_name`, `additional_contact`) a
+ * partir do payload — `fullName`/`corporateEmail` são imutáveis por contrato
+ * (o `POST /requests` autenticado já os sobrescreve com o cadastro). Evita
+ * linha duplicada por e-mail (`uk_requesters_user` preserva o 1:1).
+ *
+ * Modo **anônimo** (ou extensão ausente — dado antigo): cai no upsert por
+ * e-mail de hoje, com `user_id = NULL`.
+ */
+async function resolveRequesterId(
+  requester: RequesterBlock,
+  requesterUserId: number | null,
+  trx: Knex.Transaction,
+): Promise<string> {
+  if (requesterUserId !== null) {
+    const row = await trx("requesters").where({ user_id: requesterUserId }).first();
+    if (row) {
+      await trx("requesters")
+        .where({ requester_id: row.requester_id })
+        .update({
+          area: requester.area,
+          department: requester.department ?? null,
+          manager_name: requester.manager,
+          additional_contact: requester.additionalContact ?? null,
+        });
+      return row.requester_id;
+    }
+  }
+
+  return upsertRequester(requester, trx);
+}
+
 interface RequestInsertReturning {
   request_id: string;
   protocol: string;
@@ -258,7 +294,7 @@ export async function createRequest(
     }
 
     const statusId = await findStatusId(INITIAL_STATUS, trx);
-    const requesterId = await upsertRequester(request.requester, trx);
+    const requesterId = await resolveRequesterId(request.requester, requesterUserId ?? null, trx);
     const saved = await insertRequest(
       request,
       requesterId,
