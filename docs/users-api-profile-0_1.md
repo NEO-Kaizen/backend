@@ -89,10 +89,10 @@ Os dois endpoints deste contrato respeitam `system_settings.solicitation_mode`
 `PATCH /portal-config/access`. Em `AUTHENTICATED`, o backend exige sessão JWT
 (cookie `session_id`):
 
-| Endpoint        | `PUBLIC`                                  | `AUTHENTICATED`                                   |
-| --------------- | ----------------------------------------- | ------------------------------------------------- |
-| `GET /users/me` | sem acesso (401 sem sessão)               | exige sessão JWT válida                           |
-| `PUT /users/me` | sem acesso (401 sem sessão)               | exige sessão JWT válida + self-service (actor == owner) |
+| Endpoint        | `PUBLIC`                    | `AUTHENTICATED`                                         |
+| --------------- | --------------------------- | ------------------------------------------------------- |
+| `GET /users/me` | sem acesso (401 sem sessão) | exige sessão JWT válida                                 |
+| `PUT /users/me` | sem acesso (401 sem sessão) | exige sessão JWT válida + self-service (actor == owner) |
 
 - Sem sessão válida em `AUTHENTICATED`: `401` no envelope padrão.
 - Em `PUBLIC`, os endpoints apenas retornam `401` (não há conceito de "próprio usuário" sem autenticação).
@@ -216,9 +216,9 @@ HTTP/1.1 401 Unauthorized
 
 **Erros:**
 
-| Status | Quando                                                     |
-| ------ | ---------------------------------------------------------- |
-| 401    | Sem sessão JWT válida ou token expirado                   |
+| Status | Quando                                                                         |
+| ------ | ------------------------------------------------------------------------------ |
+| 401    | Sem sessão JWT válida ou token expirado                                        |
 | 404    | Usuário não encontrado no banco (raro — token válido mas registro inexistente) |
 
 ---
@@ -231,10 +231,10 @@ Autenticado (qualquer perfil interno). Self-service exclusivo: o actor deve ser 
 
 **Partes esperadas:**
 
-| Campo      | Tipo     | Obrigatório | Descrição                                                      |
-| ---------- | -------- | ----------- | -------------------------------------------------------------- |
-| `payload`  | texto    | Sim         | JSON.stringify de `UpdateProfilePayload` (veja seção Tipos)     |
-| `avatar`   | binário  | Não         | Arquivo JPEG/PNG até 2 MB. URL persistida em `users.avatar_url` |
+| Campo     | Tipo    | Obrigatório | Descrição                                                       |
+| --------- | ------- | ----------- | --------------------------------------------------------------- |
+| `payload` | texto   | Sim         | JSON.stringify de `UpdateProfilePayload` (veja seção Tipos)     |
+| `avatar`  | binário | Não         | Arquivo JPEG/PNG até 2 MB. URL persistida em `users.avatar_url` |
 
 > **Nota de implementação (Express/multer):**
 >
@@ -448,17 +448,17 @@ HTTP/1.1 413 Payload Too Large
 
 **Erros:**
 
-| Status | Quando                                                            |
-| ------ | ----------------------------------------------------------------- |
-| 400    | Parte `payload` ausente ou com JSON inválido                      |
+| Status | Quando                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| 400    | Parte `payload` ausente ou com JSON inválido                                                                   |
 | 400    | Validação Zod falha (campos obrigatórios ausentes, limites de caracteres, array vazio em `professional`, etc.) |
-| 400    | Bloco `professional` presente mas perfil do actor ≠ Analista      |
-| 401    | Sem sessão JWT válida ou token expirado                           |
-| 403    | Actor tenta editar perfil de outro usuário (actor ≠ owner)        |
-| 404    | Usuário não encontrado no banco                                   |
-| 413    | Arquivo `avatar` > 2 MB                                           |
-| 415    | Arquivo `avatar` com extensão/MIME fora de JPEG/PNG               |
-| 415    | Parte de arquivo inesperada no multipart (campo diferente de `avatar`) |
+| 400    | Bloco `professional` presente mas perfil do actor ≠ Analista                                                   |
+| 401    | Sem sessão JWT válida ou token expirado                                                                        |
+| 403    | Actor tenta editar perfil de outro usuário (actor ≠ owner)                                                     |
+| 404    | Usuário não encontrado no banco                                                                                |
+| 413    | Arquivo `avatar` > 2 MB                                                                                        |
+| 415    | Arquivo `avatar` com extensão/MIME fora de JPEG/PNG                                                            |
+| 415    | Parte de arquivo inesperada no multipart (campo diferente de `avatar`)                                         |
 
 ---
 

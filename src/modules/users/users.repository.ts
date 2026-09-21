@@ -157,51 +157,35 @@ export interface UserProfileRow {
   email: string;
   avatar_url: string | null;
   profile_name: string;
-  requester:
-    | {
-        area: string | null;
-        department: string | null;
-        manager_name: string | null;
-        additional_contact: string | null;
-      }
-    | null;
-  professional:
-    | {
-        job_title: string | null;
-        specialties: string[];
-        attended_category_ids: number[];
-        notes: string | null;
-      }
-    | null;
+  requester: {
+    area: string | null;
+    department: string | null;
+    manager_name: string | null;
+    additional_contact: string | null;
+  } | null;
+  professional: {
+    job_title: string | null;
+    specialties: string[];
+    attended_category_ids: number[];
+    notes: string | null;
+  } | null;
 }
 
 export async function findUserProfile(userId: number): Promise<UserProfileRow | undefined> {
   const user = await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("u.user_id", userId)
-    .first(
-      "u.user_id",
-      "u.full_name",
-      "u.email",
-      "u.avatar_url",
-      "p.name as profile_name",
-    );
+    .first("u.user_id", "u.full_name", "u.email", "u.avatar_url", "p.name as profile_name");
 
   if (!user) return undefined;
 
   const [requester, professional] = await Promise.all([
-    db("requesters").where({ user_id: userId }).first(
-      "area",
-      "department",
-      "manager_name",
-      "additional_contact",
-    ),
-    db("details_professional").where({ user_id: userId }).first(
-      "job_title",
-      "specialties",
-      "attended_category_ids",
-      "notes",
-    ),
+    db("requesters")
+      .where({ user_id: userId })
+      .first("area", "department", "manager_name", "additional_contact"),
+    db("details_professional")
+      .where({ user_id: userId })
+      .first("job_title", "specialties", "attended_category_ids", "notes"),
   ]);
 
   return {
@@ -329,13 +313,21 @@ export async function upsertProfessionalData(
 }
 
 /** Define `users.avatar_url` (URL do arquivo em `uploads/avatars/`). */
-export async function setUserAvatar(trx: Knex.Transaction, userId: number, url: string): Promise<void> {
-  await trx("users").where({ user_id: userId }).update({ avatar_url: url, updated_at: trx.fn.now() });
+export async function setUserAvatar(
+  trx: Knex.Transaction,
+  userId: number,
+  url: string,
+): Promise<void> {
+  await trx("users")
+    .where({ user_id: userId })
+    .update({ avatar_url: url, updated_at: trx.fn.now() });
 }
 
 /** Remove `users.avatar_url` (deixa null; arquivo no disco removido pelo serviço). */
 export async function removeUserAvatar(trx: Knex.Transaction, userId: number): Promise<void> {
-  await trx("users").where({ user_id: userId }).update({ avatar_url: null, updated_at: trx.fn.now() });
+  await trx("users")
+    .where({ user_id: userId })
+    .update({ avatar_url: null, updated_at: trx.fn.now() });
 }
 
 function baseQuery(query: ListUsersQuery) {
