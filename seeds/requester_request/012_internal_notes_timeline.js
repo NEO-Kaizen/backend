@@ -1,6 +1,7 @@
 const RICH_REQUEST_ID = 1;
 const RICH_PROTOCOL = "MAAT-8K3P-9X2M";
 const RICH_MAPPING_ID = "aaaaaaaa-aaaa-4000-8000-000000000021";
+const OLDER_MAPPING_ID = "aaaaaaaa-aaaa-4000-8000-000000000020";
 
 const TRIAGE_ASSESSMENT = {
   id: "6f1c2a8e-3d4b-4c5a-9e7f-1a2b3c4d5e6f",
@@ -17,6 +18,23 @@ const TRIAGE_ASSESSMENT = {
   conclusionJustification: "Dentro do escopo do NEO; seguir para priorização.",
 };
 
+// Reavaliação posterior (2ª versão do histórico `triages`) — muda a categoria
+// de destino e mantém o registro inicial como primeira entrada.
+const TRIAGE_REASSESSMENT = {
+  id: "7a2d3b9f-4e5c-4d6b-8f80-2b3c4d5e6f70",
+  adherentToScope: "Sim",
+  adherentJustification: "",
+  changeCategory: "Sim",
+  newCategory: "Automação",
+  preliminaryComplexity: "Alta — nova categoria eleva a complexidade de integração.",
+  perceivedRisks: "Dependência de aprovação orçamentária da área.",
+  suggestedResponsible: "Diego Analista",
+  suggestedResponsibleJustification: "Assume a frente após a revisão de escopo.",
+  exitStatus: 18,
+  result: "Reavaliada e elegível",
+  conclusionJustification: "Escopo revisado com a área; categoria ajustada para Automação.",
+};
+
 /**
  * Timeline rica de exemplo para `MAAT-8K3P-9X2M` (request_id 1).
  *
@@ -26,30 +44,37 @@ const TRIAGE_ASSESSMENT = {
  * - 5 notas multi-autor com timestamps intercalados aos eventos;
  * - eventos das 5 ações (request.assign/reassign/unassign/status_change + mapping.assign)
  *   com `text` já composável pelo service e `actor` via join;
- * - `triage` em `requests.internal_notes.__triage` + `request.triage` em audit;
- * - `mappings` + `mapping_participants` concluído + `mapping.save|complete|assign` em audit;
+ * - 2 versões de triagem em `triages` (inicial + reavaliação) + 2 `request.triage`
+ *   em audit (proveniência: occurredAt/actor/changeOrigin via join);
+ * - 2 esforços de mapeamento em `mappings` (anterior concluído + atual concluído)
+ *   + participantes + `mapping.save|complete|assign` em audit;
  * - checkpoint de leitura (`request_internal_note_read_states`) para `unseenCount > 0`.
  *
  * Idempotente: apaga apenas os registros que cria (por `request_id`/`protocol`/uuid fixo)
  * e recria; estados de outras solicitações (ex.: MAAT-2R7Q-4M1C) ficam intocados,
- * demonstrando o estado vazio (`triage: null`, mapping vazio).
+ * demonstrando o estado vazio (`triages: []`, `mappings: []`).
  */
 export async function seed(knex) {
   await knex("request_internal_note_read_states").where({ request_id: RICH_REQUEST_ID }).del();
 
   await knex("request_internal_notes").where({ request_id: RICH_REQUEST_ID }).del();
 
+  const existingMappingIds = await knex("mappings")
+    .where({ request_id: RICH_REQUEST_ID })
+    .pluck("mapping_id");
+
   await knex("audit_history")
     .where(function () {
       this.where({ entity_type: "request", entity_id: RICH_PROTOCOL });
     })
     .orWhere(function () {
-      this.where({ entity_type: "mapping", entity_id: RICH_MAPPING_ID });
+      this.where({ entity_type: "mapping" }).whereIn("entity_id", existingMappingIds);
     })
     .del();
 
-  await knex("mapping_participants").where({ mapping_id: RICH_MAPPING_ID }).del();
-  await knex("mappings").where({ mapping_id: RICH_MAPPING_ID }).del();
+  await knex("mapping_participants").whereIn("mapping_id", existingMappingIds).del();
+  await knex("mappings").where({ request_id: RICH_REQUEST_ID }).del();
+  await knex("triages").where({ request_id: RICH_REQUEST_ID }).del();
 
   const insertedNotes = await knex("request_internal_notes")
     .insert([
@@ -150,10 +175,24 @@ export async function seed(knex) {
       new_value: JSON.stringify({
         triageId: TRIAGE_ASSESSMENT.id,
         exitStatus: TRIAGE_ASSESSMENT.exitStatus,
-        status: "Elegível para avaliação",
+        status: "Elegível",
       }),
       user_id: 101,
       occurred_at: "2026-07-18T14:30:00.000Z",
+      change_origin: "admin",
+    },
+    {
+      entity_type: "request",
+      entity_id: RICH_PROTOCOL,
+      action_type: "request.triage",
+      previous_value: JSON.stringify({ status: "Elegível", category: "Automação" }),
+      new_value: JSON.stringify({
+        triageId: TRIAGE_REASSESSMENT.id,
+        exitStatus: TRIAGE_REASSESSMENT.exitStatus,
+        status: "Elegível para avaliação",
+      }),
+      user_id: 107,
+      occurred_at: "2026-08-20T09:00:00.000Z",
       change_origin: "admin",
     },
     {
@@ -167,6 +206,60 @@ export async function seed(knex) {
       change_origin: "admin",
     },
   ]);
+
+  await knex("triages").insert([
+    {
+      triage_id: TRIAGE_ASSESSMENT.id,
+      request_id: RICH_REQUEST_ID,
+      adherent_to_scope: TRIAGE_ASSESSMENT.adherentToScope,
+      adherent_justification: TRIAGE_ASSESSMENT.adherentJustification,
+      change_category: TRIAGE_ASSESSMENT.changeCategory,
+      new_category: TRIAGE_ASSESSMENT.newCategory,
+      preliminary_complexity: TRIAGE_ASSESSMENT.preliminaryComplexity,
+      perceived_risks: TRIAGE_ASSESSMENT.perceivedRisks,
+      suggested_responsible: TRIAGE_ASSESSMENT.suggestedResponsible,
+      suggested_responsible_justification: TRIAGE_ASSESSMENT.suggestedResponsibleJustification,
+      exit_status: TRIAGE_ASSESSMENT.exitStatus,
+      result: TRIAGE_ASSESSMENT.result,
+      conclusion_justification: TRIAGE_ASSESSMENT.conclusionJustification,
+    },
+    {
+      triage_id: TRIAGE_REASSESSMENT.id,
+      request_id: RICH_REQUEST_ID,
+      adherent_to_scope: TRIAGE_REASSESSMENT.adherentToScope,
+      adherent_justification: TRIAGE_REASSESSMENT.adherentJustification,
+      change_category: TRIAGE_REASSESSMENT.changeCategory,
+      new_category: TRIAGE_REASSESSMENT.newCategory,
+      preliminary_complexity: TRIAGE_REASSESSMENT.preliminaryComplexity,
+      perceived_risks: TRIAGE_REASSESSMENT.perceivedRisks,
+      suggested_responsible: TRIAGE_REASSESSMENT.suggestedResponsible,
+      suggested_responsible_justification: TRIAGE_REASSESSMENT.suggestedResponsibleJustification,
+      exit_status: TRIAGE_REASSESSMENT.exitStatus,
+      result: TRIAGE_REASSESSMENT.result,
+      conclusion_justification: TRIAGE_REASSESSMENT.conclusionJustification,
+    },
+  ]);
+
+  // Esforço ANTERIOR (concluído) — 1ª entrada de `mappings[]`; `created_at`
+  // anterior ao mapeamento atual para que o `GET /mapping` continue devolvendo
+  // o esforço rico mais recente.
+  await knex("mappings").insert({
+    mapping_id: OLDER_MAPPING_ID,
+    request_id: RICH_REQUEST_ID,
+    professional_id: "650e8400-e29b-41d4-a716-446655440001",
+    scheduled_for: "2026-06-25T14:00:00.000Z",
+    duration_minutes: 45,
+    modality: "IN_PERSON",
+    meeting_link: null,
+    location: "Sala 3 — Sede",
+    notes: "Levantamento inicial de requisitos.",
+    is_concluded: true,
+    concluded_at: "2026-07-01T11:00:00.000Z",
+    created_by: "analista_teste@email.com",
+    created_at: "2026-06-20T09:00:00.000Z",
+    updated_by: "analista_teste@email.com",
+    updated_at: "2026-07-01T11:00:00.000Z",
+  });
 
   await knex("mappings").insert({
     mapping_id: RICH_MAPPING_ID,
@@ -198,6 +291,12 @@ export async function seed(knex) {
       user_id: null,
       name: "Fornecedor Acme",
       email: "contato@acme.com",
+    },
+    {
+      mapping_id: OLDER_MAPPING_ID,
+      user_id: 101,
+      name: "Analista Teste",
+      email: "analista_teste@email.com",
     },
   ]);
 
@@ -252,33 +351,47 @@ export async function seed(knex) {
       occurred_at: "2026-08-12T10:20:00.000Z",
       change_origin: "internal",
     },
+    {
+      entity_type: "mapping",
+      entity_id: OLDER_MAPPING_ID,
+      action_type: "mapping.assign",
+      previous_value: null,
+      new_value: "650e8400-e29b-41d4-a716-446655440001",
+      user_id: 102,
+      occurred_at: "2026-06-20T09:00:00.000Z",
+      change_origin: "admin",
+    },
+    {
+      entity_type: "mapping",
+      entity_id: OLDER_MAPPING_ID,
+      action_type: "mapping.save",
+      previous_value: null,
+      new_value: JSON.stringify({
+        scheduledFor: "2026-06-25T14:00:00.000Z",
+        mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440001",
+      }),
+      user_id: 101,
+      occurred_at: "2026-06-22T10:00:00.000Z",
+      change_origin: "internal",
+    },
+    {
+      entity_type: "mapping",
+      entity_id: OLDER_MAPPING_ID,
+      action_type: "mapping.complete",
+      previous_value: JSON.stringify({
+        scheduledFor: "2026-06-25T14:00:00.000Z",
+        mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440001",
+      }),
+      new_value: JSON.stringify({
+        scheduledFor: "2026-06-25T14:00:00.000Z",
+        mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440001",
+        is_concluded: true,
+      }),
+      user_id: 101,
+      occurred_at: "2026-07-01T11:00:00.000Z",
+      change_origin: "internal",
+    },
   ]);
-
-  const requestRow = await knex("requests")
-    .where({ protocol: RICH_PROTOCOL })
-    .first("internal_notes");
-  let merged = {};
-  const rawNotes = requestRow?.internal_notes;
-  if (rawNotes) {
-    try {
-      const parsed = JSON.parse(String(rawNotes));
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        merged = { ...parsed };
-      } else {
-        merged = { observations: String(rawNotes) };
-      }
-    } catch {
-      merged = { observations: String(rawNotes) };
-    }
-  }
-  merged.__triage = TRIAGE_ASSESSMENT;
-
-  await knex("requests")
-    .where({ protocol: RICH_PROTOCOL })
-    .update({
-      internal_notes: JSON.stringify(merged),
-      updated_at: knex.fn.now(),
-    });
 
   await knex.raw(
     "SELECT setval(pg_get_serial_sequence('request_internal_notes','internal_note_id'), (SELECT COALESCE(MAX(internal_note_id), 1) FROM request_internal_notes))",

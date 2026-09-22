@@ -32,14 +32,26 @@ export interface TimelineEvent {
 
 export type TimelineItem = TimelineNote | TimelineEvent;
 
+export interface TriageHistoryEntry {
+  triage: TriageAssessment;
+  occurredAt: string;
+  actor: TimelineActorDTO | null;
+  changeOrigin: TimelineChangeOrigin;
+}
+
+export interface MappingHistoryEntry {
+  mapping: MappingResponseDTO;
+  occurredAt: string;
+  actor: TimelineActorDTO | null;
+  changeOrigin: TimelineChangeOrigin;
+}
+
 export interface InternalNotesResponse {
   items: TimelineItem[];
   nextCursor: string | null;
   unseenCount: number;
-  triage: TriageAssessment | null;
-  triageOccurredAt: string | null;
-  mapping: MappingResponseDTO;
-  mappingOccurredAt: string | null;
+  triages: TriageHistoryEntry[];
+  mappings: MappingHistoryEntry[];
 }
 
 export interface CreateInternalNoteRequest {

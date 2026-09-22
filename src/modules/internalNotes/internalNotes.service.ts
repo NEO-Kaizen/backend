@@ -3,20 +3,22 @@ import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type {
   InternalNoteRow,
   InternalRole,
+  MappingHistoryRow,
   TimelineCursor,
   TimelineEventRow,
+  TriageHistoryRow,
 } from "../../shared/types/internalNotes.ts";
 import type {
   CreateInternalNoteRequest,
   InternalNotesResponse,
+  MappingHistoryEntry,
   MarkInternalNotesReadRequest,
   TimelineActorDTO,
   TimelineEvent,
   TimelineItem,
   TimelineNote,
+  TriageHistoryEntry,
 } from "../DTOs/internalNotes/InternalNotes.dto.ts";
-import { getMappingService } from "../queue/mapping.service.ts";
-import { findTriageByProtocol } from "../requests/triage/triage.repository.ts";
 import * as repository from "./internalNotes.repository.ts";
 import type { ListTimelineQuery, TimelineCursorPayload } from "./internalNotes.schema.ts";
 
@@ -136,7 +138,14 @@ function composeEventText(
   }
 }
 
-function toActorDTO(row: TimelineEventRow): TimelineActorDTO | null {
+/** Proveniência mínima do audit compartilhada por eventos e históricos. */
+interface ActorSource {
+  actor_user_id: number | null;
+  actor_name: string | null;
+  actor_profile_name: string | null;
+}
+
+function toActorDTO(row: ActorSource): TimelineActorDTO | null {
   if (row.actor_user_id === null || row.actor_name === null || row.actor_profile_name === null) {
     return null;
   }
@@ -146,6 +155,69 @@ function toActorDTO(row: TimelineEventRow): TimelineActorDTO | null {
     return null;
   }
   return { id: String(row.actor_user_id), name: row.actor_name, role };
+}
+
+/** Serializa instante para ISO-8601 UTC com sufixo `Z` e precisão de segundos. */
+function toIsoSeconds(value: Date | string | null): string | null {
+  if (value === null) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toISOString().replace(/\.\d+Z$/, "Z");
+}
+
+function toTriageHistoryEntry(row: TriageHistoryRow): TriageHistoryEntry {
+  return {
+    triage: {
+      id: row.triage_id,
+      adherentToScope: row.adherent_to_scope,
+      adherentJustification: row.adherent_justification,
+      changeCategory: row.change_category,
+      newCategory: row.new_category,
+      preliminaryComplexity: row.preliminary_complexity,
+      perceivedRisks: row.perceived_risks,
+      suggestedResponsible: row.suggested_responsible,
+      suggestedResponsibleJustification: row.suggested_responsible_justification,
+      exitStatus: row.exit_status,
+      result: row.result,
+      conclusionJustification: row.conclusion_justification,
+    },
+    occurredAt: row.occurred_at.toISOString(),
+    actor: toActorDTO(row),
+    changeOrigin: row.change_origin,
+  };
+}
+
+function toMappingHistoryEntry(row: MappingHistoryRow): MappingHistoryEntry {
+  return {
+    mapping: {
+      protocol: row.protocol,
+      id: row.mapping_id,
+      scheduledFor: toIsoSeconds(row.scheduled_for),
+      durationMinutes: row.duration_minutes,
+      modality: row.modality,
+      meetingLink: row.meeting_link,
+      location: row.location,
+      participants: row.participants.map((participant) => ({
+        id: participant.userId === null ? null : String(participant.userId),
+        name: participant.name,
+        email: participant.email,
+      })),
+      notes: row.notes,
+      mappingAssignee:
+        row.mappingAssignee === null
+          ? null
+          : {
+              id: row.mappingAssignee.id,
+              userId: String(row.mappingAssignee.userId),
+              name: row.mappingAssignee.name,
+              email: row.mappingAssignee.email,
+              jobTitle: row.mappingAssignee.jobTitle,
+            },
+    },
+    occurredAt: row.occurred_at.toISOString(),
+    actor: toActorDTO(row),
+    changeOrigin: row.change_origin,
+  };
 }
 
 async function buildEventDTOs(rows: TimelineEventRow[]): Promise<TimelineEvent[]> {
@@ -190,16 +262,13 @@ export async function listInternalNotes(
 
   const readState = await repository.findReadState(requestId, actorUserId);
 
-  const [noteRows, eventRows, unseenCount, triage, triageOccurredAt, mapping, mappingOccurredAt] =
-    await Promise.all([
-      repository.listNotesPage(requestId, cursor, pageLimit),
-      repository.listEventsPage(protocol, requestId, cursor, pageLimit),
-      repository.countUnseen(requestId, actorUserId, readState?.last_read_note_id),
-      findTriageByProtocol(protocol),
-      repository.findTriageOccurredAt(protocol),
-      getMappingService(protocol),
-      repository.findMappingOccurredAt(requestId),
-    ]);
+  const [noteRows, eventRows, unseenCount, triageRows, mappingRows] = await Promise.all([
+    repository.listNotesPage(requestId, cursor, pageLimit),
+    repository.listEventsPage(protocol, requestId, cursor, pageLimit),
+    repository.countUnseen(requestId, actorUserId, readState?.last_read_note_id),
+    repository.listTriageHistory(requestId),
+    repository.listMappingHistory(requestId),
+  ]);
 
   const events = await buildEventDTOs(eventRows);
   const notes = noteRows.map(toNoteDTO);
@@ -209,10 +278,8 @@ export async function listInternalNotes(
     items,
     nextCursor,
     unseenCount,
-    triage,
-    triageOccurredAt: triageOccurredAt === null ? null : triageOccurredAt.toISOString(),
-    mapping,
-    mappingOccurredAt: mappingOccurredAt === null ? null : mappingOccurredAt.toISOString(),
+    triages: triageRows.map(toTriageHistoryEntry),
+    mappings: mappingRows.map(toMappingHistoryEntry),
   };
 }
 
