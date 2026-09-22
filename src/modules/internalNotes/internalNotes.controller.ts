@@ -4,6 +4,7 @@ import type { InternalRole } from "../../shared/types/internalNotes.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   createInternalNoteSchema,
+  listTimelineQuerySchema,
   markInternalNotesReadSchema,
   protocolParamsSchema,
 } from "./internalNotes.schema.ts";
@@ -35,8 +36,17 @@ function actorFromRequest(req: Request): { userId: number; role: InternalRole } 
 }
 
 export const listInternalNotes = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = listTimelineQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error, "query"), 400);
+  }
+
   const actor = actorFromRequest(req);
-  const response = await service.listInternalNotes(protocolFromRequest(req), actor.userId);
+  const response = await service.listInternalNotes(
+    protocolFromRequest(req),
+    actor.userId,
+    parsed.data,
+  );
   return res.status(200).json(response);
 };
 
