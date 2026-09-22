@@ -90,7 +90,7 @@ export async function listEventsPage(
             .where("audit.action_type", "mapping.assign")
             .whereIn(
               "audit.entity_id",
-              db("mappings").select("mapping_id").where("request_id", requestId),
+              db("mappings").select(db.raw("mapping_id::text")).where("request_id", requestId),
             );
         });
     });
@@ -160,7 +160,10 @@ export async function findMappingOccurredAt(requestId: string): Promise<Date | n
   const row = (await db("audit_history as audit")
     .where("audit.entity_type", "mapping")
     .whereIn("audit.action_type", MAPPING_RECORD_ACTIONS)
-    .whereIn("audit.entity_id", db("mappings").select("mapping_id").where("request_id", requestId))
+    .whereIn(
+      "audit.entity_id",
+      db("mappings").select(db.raw("mapping_id::text")).where("request_id", requestId),
+    )
     .max({ occurredAt: "audit.occurred_at" })
     .first()) as { occurredAt: Date | string | null } | undefined;
 
