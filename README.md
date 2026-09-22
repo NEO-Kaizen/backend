@@ -532,17 +532,18 @@ inclusive quando `complementary` é omitido por inteiro.
 
 ### Triagem de solicitações
 
-A avaliação é persistida sob a chave reservada `__triage` do campo
-`requests.internal_notes` (mantendo o `internalObservations` do contrato
-`internal-notes-contract.md` intacto) e o POST aplica `status_id`/`category_id`
-na solicitação. `exitStatus` é o **id numérico** do status de saída;
-`newCategory` é o **nome** da categoria de destino (contrato puro —
-literais antigos de status não são aceitos).
+Cada triagem é persistida como uma **row versionada** na tabela `triages`
+(snapshot normalizado; `triage_id` = uuid do assessment — v2.0, D-N14) e o POST
+aplica `status_id`/`category_id` na solicitação. `exitStatus` é o **id
+numérico** do status de saída; `newCategory` é o **nome** da categoria de
+destino (contrato puro — literais antigos de status não são aceitos). A
+proveniência (`occurredAt`/`actor`/`changeOrigin`) vem do `audit_history`
+(`request.triage`), correlacionada por `new_value->>'triageId'`.
 
-Ao gravar uma triagem, observações legadas já existentes no campo são
-preservadas: texto puro não-JSON é mantido sob a chave `observations` e objetos
-JSON customizados são mesclados — o contrato `internal-notes-contract.md`
-(`internalObservations`) continua intacto e sem vazar o JSON da triagem.
+O `GET /triage` devolve a última row (por `occurred_at` do audit) e o
+`GET /internal-notes` devolve o histórico completo em `triages[]`. O campo
+`requests.internal_notes` deixou de ser usado pela triagem; o strip defensivo de
+`__triage` em `extractInternalObservations` permanece para dados legados.
 
 #### GET /requests/:protocol/triage
 
@@ -579,9 +580,9 @@ Exemplo de resposta:
 
 #### POST /requests/:protocol/triage
 
-Cria ou atualiza a triagem da solicitação. A rota salva a avaliação em
-`requests.internal_notes` (chave `__triage`) e também atualiza `status_id` e,
-quando aplicável, `category_id` da demanda.
+Cria a triagem da solicitação (append — cada chamada gera uma nova row em
+`triages`). A rota insere o snapshot na mesma transação e também atualiza
+`status_id` e, quando aplicável, `category_id` da demanda.
 
 - Requer cookie/JWT válido.
 - Perfil permitido pela rota: `Administrador` e `Analista`.
