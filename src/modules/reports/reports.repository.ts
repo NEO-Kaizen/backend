@@ -1,6 +1,9 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { DashboardQuery } from "../DTOs/reports/Dashboard.dto.ts";
+import type { QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
+import { applyQueueFilters } from "../queue/queue.filters.ts";
 
 const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 const OPENED_MONTH_SQL = `DATE_TRUNC(
@@ -211,4 +214,63 @@ export async function fetchDashboardFilterOptions(): Promise<DashboardFilterOpti
   ]);
 
   return { statuses, categories, priorities };
+}
+
+/** Retorna todas as solicitações dos filtros ativos, sem paginação. */
+export async function fetchQueueExportRows(filters: QueueFilterQuery): Promise<QueueExportRow[]> {
+  const query = db("requests")
+    .join("requesters as requester", "requester.requester_id", "requests.requester_id")
+    .join("statuses as status", "status.status_id", "requests.status_id")
+    .join("categories as category", "category.category_id", "requests.category_id")
+    .leftJoin("priorities as priority_tbl", "priority_tbl.priority_id", "requests.priority_id")
+    .leftJoin(
+      "details_professional as assignee",
+      "assignee.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id")
+    .joinRaw(
+      `
+      LEFT JOIN LATERAL (
+        SELECT m.scheduled_for
+        FROM mappings AS m
+        WHERE m.request_id = requests.request_id
+        ORDER BY m.is_concluded ASC, m.created_at DESC
+        LIMIT 1
+      ) AS latest_mapping ON TRUE
+    `,
+    )
+    .joinRaw(
+      `
+      LEFT JOIN LATERAL (
+        SELECT ah.occurred_at
+        FROM audit_history AS ah
+        WHERE status.closes_request = TRUE
+          AND ah.entity_type = 'request'
+          AND ah.entity_id = requests.protocol
+          AND ah.action_type = 'request.status_change'
+          AND ah.new_value = status.name
+        ORDER BY ah.occurred_at DESC
+        LIMIT 1
+      ) AS completion_event ON TRUE
+    `,
+    )
+    .select(
+      "requests.protocol",
+      "requests.created_at as createdAt",
+      "requester.area",
+      "requests.process_name as processName",
+      "category.name as category",
+      "status.name as status",
+      "priority_tbl.level as priority",
+      "assignee_user.full_name as assignee",
+      "latest_mapping.scheduled_for as mappingScheduledFor",
+      db.raw('COALESCE(requests.updated_at, requests.created_at) as "updatedAt"'),
+      "requests.internal_notes as internalNotes",
+      "completion_event.occurred_at as completedAt",
+    )
+    .orderBy("requests.created_at", "desc");
+
+  applyQueueFilters(query, filters);
+  return query as Promise<QueueExportRow[]>;
 }
