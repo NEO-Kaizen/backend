@@ -2,6 +2,7 @@ import db from "../../database/conection.ts";
 import { IN_PROGRESS_STATUSES, TERMINAL_STATUSES } from "../../shared/types/requests.ts";
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
+import { applyQueueFilters } from "./queue.filters.ts";
 
 export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMetricsResponse> => {
   const query = db("requests").leftJoin("statuses as s", "s.status_id", "requests.status_id");
@@ -59,7 +60,7 @@ export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMet
 export const findQueueRequests = async (
   params: FindQueueParams,
 ): Promise<{ items: QueueItem[]; total: number }> => {
-  const { search, status, priority, assigneeId, unassigned, scopedUserId, limit, offset } = params;
+  const { limit, offset } = params;
 
   const baseQuery = db("requests")
     .join("requesters as requester", "requester.requester_id", "requests.requester_id")
@@ -78,39 +79,7 @@ export const findQueueRequests = async (
       "requests.mapping_professional_id",
     );
 
-  if (search) {
-    baseQuery.andWhere((builder) => {
-      builder
-        .where("requests.protocol", "ilike", `%${search}%`)
-        .orWhere("requester.corporate_email", "ilike", `%${search}%`)
-        .orWhere("requester.full_name", "ilike", `%${search}%`);
-    });
-  }
-
-  if (status) baseQuery.andWhere("status.name", status);
-  if (priority) baseQuery.andWhere("priority_tbl.level", priority);
-
-  if (unassigned) {
-    baseQuery.whereNull("requests.professional_id");
-  } else if (assigneeId) {
-    const isNumericId = /^\d+$/.test(assigneeId);
-    if (isNumericId) {
-      baseQuery.andWhere("assignee_user.user_id", Number(assigneeId));
-    } else {
-      baseQuery.andWhere("requests.professional_id", assigneeId);
-    }
-  }
-
-  // Escopo por Analista (#102): AND sobre os filtros do cliente, então
-  // `assigneeId`/`unassigned` de terceiros resultam em conjunto vazio — nunca
-  // ampliam a visibilidade. Sem responsável não casa (ambos os eixos nulos).
-  if (scopedUserId !== undefined) {
-    baseQuery.andWhere((builder) => {
-      builder
-        .where("assignee_user.user_id", scopedUserId)
-        .orWhere("mapping_assignee.user_id", scopedUserId);
-    });
-  }
+  applyQueueFilters(baseQuery, params);
 
   const countQuery = baseQuery.clone().count("* as total").first();
 

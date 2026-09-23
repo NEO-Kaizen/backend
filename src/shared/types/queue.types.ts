@@ -18,13 +18,19 @@ export interface QueueMetricsResponse {
   overdueRequests: number;
 }
 
-/** Query completa aceita por `GET /queue` — validada por `queueQuerySchema`. */
-export interface QueueQuery {
+export type QueuePriorityFilter = RequestPriority | "nenhum";
+
+/** Filtros compartilhados pela fila paginada e pela exportação CSV. */
+export interface QueueFilterQuery {
   search?: string;
   status?: RequestStatus;
-  priority?: RequestPriority;
+  priority?: QueuePriorityFilter;
   assigneeId?: string | "unassigned";
   unassigned?: boolean;
+}
+
+/** Query completa aceita por `GET /queue` — validada por `queueQuerySchema`. */
+export interface QueueQuery extends QueueFilterQuery {
   page: number;
   pageSize: number;
 }
