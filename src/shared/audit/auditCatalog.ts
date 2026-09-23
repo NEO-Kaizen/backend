@@ -29,7 +29,18 @@ export const auditCatalog = {
   },
   request: {
     label: "Solicitações",
-    actions: ["assign", "reassign", "unassign", "status_change", "update", "triage"],
+    actions: [
+      "assign",
+      "reassign",
+      "unassign",
+      "status_change",
+      "update",
+      "triage",
+      // Motor de Status v4 (issue #124): bypass de perfil/restrição do
+      // `PATCH /requests/:protocol/status` e tentativas de acesso negado.
+      "override_status_admin",
+      "access_denied",
+    ],
   },
   mapping: {
     label: "Mapeamento",

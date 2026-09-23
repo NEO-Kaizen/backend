@@ -10,6 +10,7 @@ import {
   getRequestsByProtocol,
   getTracking,
   patchInternalAssignee,
+  patchRequestStatus,
   postRequest,
   getAssignees,
   patchAssignee,
@@ -50,6 +51,16 @@ requestsRoutes.patch(
 // dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
 // antes de `/:protocol` para não ser capturado por engano.
 requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);
+
+// Motor de Status v4 (issue #124, delta §3.3): troca de status única.
+// Autorização no service: Administrador/Gestor (bypass) ou ANALYST_ASSIGNEE
+// (free). Claim órfão (permitir designado editar) fica como pendência no PR.
+requestsRoutes.patch(
+  "/:protocol/status",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  patchRequestStatus,
+);
 
 requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
 requestsRoutes.get(

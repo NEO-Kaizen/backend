@@ -51,8 +51,10 @@ import type {
   AssignAnalystPayload,
   AssignRequestPayload,
   UpdateRequestPayload,
+  UpdateStatusPayload,
 } from "./requests.schema.ts";
 import type { Role } from "../../shared/types/role.ts";
+import type { UpdateStatusResponse } from "../DTOs/requests/RequestRequests.dto.ts";
 
 interface AuthenticatedIdentity {
   fullName: string;
@@ -1105,4 +1107,138 @@ export async function assignAnalyst(
   }
 
   return findInternalByProtocol(protocol.trim());
+}
+
+// --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
+// Rota única de troca de status (delta `portal-config-statuses-amend.md` §3.3):
+// - `isManagerLike` (Administrador/Gestor): bypass de triageMode/mappingMode/
+//   isRestricted — pode ir a qualquer status `isActive` (inativo → 409);
+// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento):
+//   só status ativo, `isRestricted=false` e com `triageMode` OU `mappingMode`
+//   `free` para a etapa vigente.
+// Auditoria: bypass → `request.override_status_admin`; normal →
+// `request.status_change`; negado → `request.access_denied`.
+
+async function recordStatusAccessDeniedAudit(
+  protocol: string,
+  actorId: number,
+  ipAddress: string | undefined,
+  detail: string,
+): Promise<void> {
+  await db.transaction(async (trx) => {
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: protocol,
+      actionType: "request.access_denied",
+      userId: actorId,
+      previousValue: null,
+      newValue: null,
+      note: `Access denied: ${detail} (ip: ${ipAddress ?? "desconhecido"})`,
+      changeOrigin: "system",
+    });
+  });
+}
+
+export async function updateRequestStatus(
+  protocol: string,
+  payload: UpdateStatusPayload,
+  actor: { id: number; email: string; role: Role },
+  ipAddress: string | undefined,
+): Promise<UpdateStatusResponse> {
+  const request = await repository.findRequestStatusContext(protocol.trim());
+  if (!request) {
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  const target = await repository.findRequestStatusTarget(payload.targetStatus);
+  if (!target) {
+    throw new AppError("Status de destino não encontrado", 404);
+  }
+
+  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
+  const isAssignee =
+    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
+  const isMappingAssignee =
+    request.mapping_assignee_user_id !== null &&
+    Number(request.mapping_assignee_user_id) === actor.id;
+  const isAnalystAssignee = isAssignee || isMappingAssignee;
+
+  if (!isManagerLike && !isAnalystAssignee) {
+    await recordStatusAccessDeniedAudit(
+      request.protocol,
+      actor.id,
+      ipAddress,
+      "sem custódia da solicitação",
+    );
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
+
+  if (request.current_status_id !== null && request.current_status_id === target.status_id) {
+    throw new AppError("A solicitação já está neste status.", 422);
+  }
+
+  if (isManagerLike) {
+    if (!target.is_active) {
+      throw new AppError("Status inativo não pode ser alvo.", 409);
+    }
+  } else {
+    if (target.is_restricted) {
+      await recordStatusAccessDeniedAudit(
+        request.protocol,
+        actor.id,
+        ipAddress,
+        "tentativa de definir status restrito (Priorizado) por não-administrador",
+      );
+      throw new AppError(
+        "Status Priorizado só pode ser definido por Administrador.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
+    if (!target.is_active || (target.triage_mode !== "free" && target.mapping_mode !== "free")) {
+      await recordStatusAccessDeniedAudit(
+        request.protocol,
+        actor.id,
+        ipAddress,
+        `analista tentou definir status não-free/inativo (id ${target.status_id})`,
+      );
+      throw new AppError(
+        "Analista só pode definir status ativo com triageMode ou mappingMode free.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
+  }
+
+  const actionType: "request.status_change" | "request.override_status_admin" = isManagerLike
+    ? "request.override_status_admin"
+    : "request.status_change";
+  const changeOrigin = isManagerLike ? "admin" : "internal";
+
+  await db.transaction(async (trx) => {
+    await repository.updateStatusById(trx, request.request_id, target.status_id, actor.email);
+
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: request.protocol,
+      actionType: actionType,
+      userId: actor.id,
+      previousValue: request.current_status_id !== null ? String(request.current_status_id) : null,
+      newValue: String(target.status_id),
+      note: payload.justification,
+      changeOrigin,
+    });
+  });
+
+  return {
+    protocol: request.protocol,
+    status: target.name,
+    previous: request.current_status_name ?? "",
+    next: target.name,
+    lastUpdate: new Date().toISOString(),
+  };
 }

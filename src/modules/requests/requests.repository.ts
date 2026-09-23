@@ -753,6 +753,99 @@ export async function updateStatus(
   });
 }
 
+// --- Motor de Status v4 (issue #124) — PATCH /requests/:protocol/status ------
+
+/** Contexto da solicitação (status atual + custódia triagem/mapeamento). */
+export interface RequestStatusContext {
+  request_id: string;
+  protocol: string;
+  current_status_id: number | null;
+  current_status_name: string | null;
+  current_is_terminal: boolean;
+  current_is_restricted: boolean;
+  /** `details_professional.user_id` do responsável pela triagem. */
+  assignee_user_id: number | null;
+  /** `details_professional.user_id` do designado do mapeamento. */
+  mapping_assignee_user_id: number | null;
+}
+
+/** Status alvo — projeção para validar alcançabilidade (guards v4). */
+export interface RequestStatusTarget {
+  status_id: number;
+  name: string;
+  is_active: boolean;
+  is_restricted: boolean;
+  triage_mode: "none" | "free" | "conclusion_only";
+  mapping_mode: "none" | "free" | "conclusion_only";
+}
+
+export async function findRequestStatusContext(
+  protocol: string,
+): Promise<RequestStatusContext | undefined> {
+  const hasMappingColumn = await db.schema.hasColumn("requests", "mapping_professional_id");
+
+  const columns: Record<string, string> = {
+    request_id: "requests.request_id",
+    protocol: "requests.protocol",
+    current_status_id: "requests.status_id",
+    current_status_name: "statuses.name",
+    current_is_terminal: "statuses.is_terminal",
+    current_is_restricted: "statuses.is_restricted",
+    assignee_user_id: "dp.user_id",
+  };
+  if (hasMappingColumn) {
+    columns["mapping_assignee_user_id"] = "dpm.user_id";
+  }
+
+  const query = db("requests")
+    .join("statuses", "statuses.status_id", "requests.status_id")
+    .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
+  if (hasMappingColumn) {
+    query.leftJoin(
+      "details_professional as dpm",
+      "dpm.professional_id",
+      "requests.mapping_professional_id",
+    );
+  }
+
+  const row = await query.where("requests.protocol", protocol).first(columns);
+  if (!row) return undefined;
+
+  if (!hasMappingColumn) {
+    (row as RequestStatusContext).mapping_assignee_user_id = null;
+  }
+
+  return row as RequestStatusContext;
+}
+
+export async function findRequestStatusTarget(
+  statusId: number,
+): Promise<RequestStatusTarget | undefined> {
+  return db("statuses")
+    .where({ status_id: statusId })
+    .first(
+      "status_id",
+      "name",
+      "is_active",
+      "is_restricted",
+      "triage_mode",
+      "mapping_mode",
+    ) as Promise<RequestStatusTarget | undefined>;
+}
+
+export async function updateStatusById(
+  trx: Knex.Transaction,
+  requestId: string,
+  statusId: number,
+  updatedBy: string,
+): Promise<void> {
+  await trx("requests").where({ request_id: requestId }).update({
+    status_id: statusId,
+    updated_by: updatedBy,
+    updated_at: trx.fn.now(),
+  });
+}
+
 // --- Atualização interna dos blocos (issue #88) -----------------------------
 // PATCH /requests/:protocol/internal — semântica de SUBSTITUIÇÃO COMPLETA dos
 // blocos editáveis: chave ausente no payload = campo limpo (NULL), inclusive
