@@ -49,6 +49,10 @@ export interface MappingRequestContext {
   status: RequestStatus;
   /** `details_professional.user_id` do responsável (id de `users`, não UUID). */
   assignee_user_id: number | null;
+  /** Motor de Status v4 (issue #124): flags do status vigente. */
+  status_id: number | null;
+  is_terminal: boolean;
+  is_restricted: boolean;
 }
 
 /** Candidato a designado do mapeamento (mínimo para elegibilidade + resposta). */
@@ -84,9 +88,34 @@ export const findMappingRequestContext = async (
       professional_id: "requests.professional_id",
       status: "s.name",
       assignee_user_id: "dp.user_id",
+      status_id: "requests.status_id",
+      is_terminal: "s.is_terminal",
+      is_restricted: "s.is_restricted",
     });
 
   return row ?? null;
+};
+
+/**
+ * Status de destino da conclusão do mapeamento (delta v4 §3.2): projeção com
+ * eligible check `isActive && isRestricted===false && mappingMode` em
+ * `conclusion_only`/`free`. `undefined` = inativo/restrito/modo inadequado.
+ */
+export interface MappingTargetRow {
+  status_id: number;
+  name: string;
+}
+
+export const resolveMappingTarget = async (
+  queryable: Knex,
+  statusId: number,
+): Promise<MappingTargetRow | undefined> => {
+  if (!Number.isSafeInteger(statusId) || statusId <= 0) return undefined;
+  return queryable("statuses")
+    .where({ is_active: true, is_restricted: false })
+    .whereIn("mapping_mode", ["conclusion_only", "free"])
+    .andWhere("status_id", statusId)
+    .first("status_id as status_id", "name") as Promise<MappingTargetRow | undefined>;
 };
 
 /**

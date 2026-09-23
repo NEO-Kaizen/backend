@@ -15,9 +15,9 @@
 //    para `Mapeamento agendado`.
 import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { TERMINAL_STATUSES, type RequestStatus } from "../../shared/types/requests.ts";
+import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import { ASSIGNABLE_PROFILES, updateStatus } from "../requests/requests.repository.ts";
+import { ASSIGNABLE_PROFILES, updateStatusById } from "../requests/requests.repository.ts";
 import type {
   MappingActor,
   MappingAssignee,
@@ -293,8 +293,20 @@ export const upsertMappingService = async (
     }
 
     // Status terminais não aceitam edição (não reabre fluxo encerrado).
-    if ((TERMINAL_STATUSES as readonly string[]).includes(context.status)) {
+    // Motor de Status v4: guard por `isTerminal` (não por lista de nomes).
+    if (context.is_terminal) {
       throw new AppError("Solicitação encerrada.", 422);
+    }
+
+    // Priorizado (isRestricted) bloqueia o PUT de qualquer perfil — inclusive
+    // Admin/designado → movimentação de/r para Priorizado só via `PATCH /status`
+    // (delta v4 §3.2: "Priorizado só via override").
+    if (context.is_restricted) {
+      throw new AppError(
+        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
     }
 
     const isAdmin = actor.role === "Administrador";
@@ -465,8 +477,28 @@ export const upsertMappingService = async (
     }
 
     if (concluding) {
-      const toStatus: RequestStatus = "Mapeamento agendado";
-      await updateStatus(trx, context.request_id, toStatus, actor.email);
+      // Destino obrigatório na conclusão — delta v4 §3.2 (`targetStatus`).
+      // Elegibilidade: isActive && isRestricted===false && mappingMode
+      // conclusion_only|free (`resolveMappingTarget`).
+      if (payload.targetStatus === undefined) {
+        throw new ValidationError(
+          { targetStatus: "Informe o status de destino ao concluir o mapeamento" },
+          "Validação falhou",
+        );
+      }
+
+      const target = await repository.resolveMappingTarget(trx, payload.targetStatus);
+      if (!target) {
+        throw new ValidationError(
+          {
+            targetStatus:
+              "Status deve ter mappingMode free ou conclusion_only e isRestricted=false",
+          },
+          "Validação falhou",
+        );
+      }
+
+      await updateStatusById(trx, context.request_id, target.status_id, actor.email);
 
       await recordAudit(trx, {
         entityType: "request",
@@ -474,7 +506,7 @@ export const upsertMappingService = async (
         entityId: context.protocol,
         userId: actor.id,
         previousValue: context.status,
-        newValue: toStatus,
+        newValue: target.name,
         note: "Conclusão do mapeamento (mapping.complete).",
         changeOrigin: "system",
       });

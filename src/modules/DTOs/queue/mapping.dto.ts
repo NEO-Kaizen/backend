@@ -87,6 +87,8 @@ export interface MappingResponseDTO {
  * remove o profissional que executará o mapeamento — ausente mantém o atual;
  * permitido apenas ao responsável da solicitação ou Administrador.
  * `completeMapping` é exclusivo do `PUT` (não aparece na resposta).
+ * `targetStatus` (PortalStatus.id) é obrigatório quando `completeMapping:true`
+ * — status de destino do fluxo de mapeamento (delta v4 §3.2).
  */
 export interface MappingPayloadDTO {
   id?: string;
@@ -99,6 +101,7 @@ export interface MappingPayloadDTO {
   participants?: MappingParticipantInput[];
   notes?: string | null;
   completeMapping: boolean;
+  targetStatus?: number;
 }
 
 /** Ator autenticado com o perfil resolvido (do `authMiddleware`). */
