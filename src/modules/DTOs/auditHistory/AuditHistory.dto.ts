@@ -1,7 +1,15 @@
+import type { AuditEntityName } from "../../../shared/audit/auditCatalog.ts";
+
 export interface AuditHistoryQuery {
   page?: number;
   limit?: number;
-  entityType?: string;
+  entityType?: AuditEntityName;
+}
+
+export interface AuditActor {
+  kind: "system" | "user";
+  userId: number | null;
+  displayName: string | null;
 }
 
 export interface AuditHistorySummary {
@@ -9,7 +17,7 @@ export interface AuditHistorySummary {
   entity_type: string;
   entity_type_label: string;
   action_type: string;
-  user_id: number | null;
+  actor: AuditActor;
   occurred_at: string;
 }
 
@@ -18,7 +26,7 @@ export interface AuditHistoryDetail {
   entity_type: string;
   entity_id: string;
   action_type: string;
-  user_id: number | null;
+  actor: AuditActor;
   previous_value: string | null;
   new_value: string | null;
   note: string | null;
