@@ -172,6 +172,18 @@ export async function seed(knex) {
     .onConflict("user_id")
     .ignore();
 
+  await knex("requesters").insert({
+    requester_id: "550e8400-e29b-41d4-a716-446655440016",
+    full_name: "Solicitante Teste",
+    corporate_email: "solicitante_teste@email.com",
+    user_id: 104,
+    area: "Compras",
+    department: "Suprimentos",
+    manager_name: "Mariana Costa",
+    additional_contact: "(11) 95555-1111",
+    created_at: new Date(),
+  });
+
   await knex.raw(
     "SELECT setval('users_user_id_seq', (SELECT COALESCE(MAX(user_id), 1) FROM users))",
   );
