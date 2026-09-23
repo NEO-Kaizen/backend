@@ -90,7 +90,7 @@ export async function createUser(
   const inserted = (await trx("users")
     .insert({
       full_name: payload.fullName,
-      email: payload.email,
+      email: payload.email.trim().toLowerCase(),
       password_hash: passwordHash,
       profile_id: profileId,
       must_change_password: true,
@@ -121,23 +121,42 @@ export async function createUser(
  * A regra 1:1 (`uk_requesters_user`) nunca é violada porque a linha anônima tem
  * `user_id = NULL` — e e-mails de usuários já cadastrados param no `users` (409).
  */
-export async function createRequesterData(trx: Knex.Transaction, user: UserRow): Promise<void> {
+export async function createRequesterData(
+  trx: Knex.Transaction,
+  user: UserRow,
+  requester?: { area: string; department?: string; manager: string; additionalContact?: string },
+): Promise<void> {
   const corporateEmail = user.email.trim().toLowerCase();
+
+  // Sem requester no payload (legado) ainda insere nulls — mantido para compatibilidade de testes antigos.
+  // Novo contrato: POST /users exige requester, então area/manager virão preenchidos.
+  const hasRequester = requester !== undefined;
 
   await trx("requesters")
     .insert({
       user_id: user.user_id,
       full_name: user.full_name,
       corporate_email: corporateEmail,
-      area: null,
-      department: null,
-      manager_name: null,
-      additional_contact: null,
+      area: hasRequester ? requester.area : null,
+      department: hasRequester ? (requester.department ?? null) : null,
+      manager_name: hasRequester ? requester.manager : null,
+      additional_contact: hasRequester ? (requester.additionalContact ?? null) : null,
     })
     .onConflict("corporate_email")
     // Só adota linha anônima (`user_id IS NULL`): nunca reassina a extensão de
     // outro usuário com o mesmo e-mail (caso raro de dados legados).
-    .merge({ user_id: user.user_id, full_name: user.full_name })
+    .merge(
+      hasRequester
+        ? {
+            user_id: user.user_id,
+            full_name: user.full_name,
+            area: requester.area,
+            department: requester.department ?? null,
+            manager_name: requester.manager,
+            additional_contact: requester.additionalContact ?? null,
+          }
+        : { user_id: user.user_id, full_name: user.full_name },
+    )
     .whereRaw("requesters.user_id is null");
 }
 
@@ -401,6 +420,41 @@ export async function updateStatus(
   }
 }
 
+/** Atualiza campos básicos de `users` dentro da transação (merge — ausente mantém). */
+export async function updateUserFields(
+  trx: Knex.Transaction,
+  id: number,
+  fields: { fullName?: string; email?: string; profileId?: number },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (fields.fullName !== undefined) patch.full_name = fields.fullName.trim();
+  if (fields.email !== undefined) patch.email = fields.email.trim().toLowerCase();
+  if (fields.profileId !== undefined) patch.profile_id = fields.profileId;
+  if (Object.keys(patch).length === 0) return;
+  patch.updated_at = trx.fn.now();
+  const updated = await trx("users").where({ user_id: id }).update(patch);
+  if (updated === 0) {
+    throw new AppError("Usuário não encontrado", 404);
+  }
+}
+
+/** Remove extensão profissional (quando role deixa de ser analista). */
+export async function deleteProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
+  await trx("details_professional").where({ user_id: userId }).del();
+}
+
+/** Sincroniza `requesters.full_name/corporate_email` após troca de nome/e-mail do usuário. */
+export async function syncRequesterIdentity(
+  trx: Knex.Transaction,
+  userId: number,
+  identity: { fullName: string; corporateEmail: string },
+): Promise<void> {
+  await trx("requesters").where({ user_id: userId }).update({
+    full_name: identity.fullName.trim(),
+    corporate_email: identity.corporateEmail.trim().toLowerCase(),
+  });
+}
+
 /** Define senha temporária dentro da transação fornecida (atômico com a auditoria). */
 export async function setTemporaryPassword(
   trx: Knex.Transaction,
@@ -526,3 +580,75 @@ export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
     admins: result?.admins ?? 0,
   };
 };
+
+/**
+ * Merge helper para `PUT /users/:id` — atualiza `requesters` de forma parcial.
+ * Ausente mantém; definido substitui. Garante presença da linha 1:1.
+ */
+export async function mergeRequesterData(
+  trx: Knex.Transaction,
+  userId: number,
+  fullName: string,
+  corporateEmail: string,
+  patch: { area?: string; department?: string; manager?: string; additionalContact?: string },
+): Promise<void> {
+  const existing = await trx("requesters")
+    .where({ user_id: userId })
+    .first("area", "department", "manager_name", "additional_contact");
+
+  if (existing) {
+    const next = {
+      area: (patch.area ?? existing.area) as string | null,
+      department: patch.department !== undefined ? (patch.department ?? null) : existing.department,
+      manager_name: (patch.manager ?? existing.manager_name) as string | null,
+      additional_contact:
+        patch.additionalContact !== undefined
+          ? (patch.additionalContact ?? null)
+          : existing.additional_contact,
+    };
+    await trx("requesters").where({ user_id: userId }).update({
+      area: next.area,
+      department: next.department,
+      manager_name: next.manager_name,
+      additional_contact: next.additional_contact,
+    });
+    return;
+  }
+
+  const anon = await trx("requesters")
+    .where({ corporate_email: corporateEmail.trim().toLowerCase() })
+    .whereNull("user_id")
+    .first("area", "department", "manager_name", "additional_contact");
+
+  if (anon) {
+    await trx("requesters")
+      .where({ corporate_email: corporateEmail.trim().toLowerCase() })
+      .whereNull("user_id")
+      .update({
+        user_id: userId,
+        full_name: fullName,
+        area: patch.area ?? anon.area,
+        department: patch.department !== undefined ? (patch.department ?? null) : anon.department,
+        manager_name: patch.manager ?? anon.manager_name,
+        additional_contact:
+          patch.additionalContact !== undefined
+            ? (patch.additionalContact ?? null)
+            : anon.additional_contact,
+      });
+    return;
+  }
+
+  await trx("requesters").insert({
+    user_id: userId,
+    full_name: fullName,
+    corporate_email: corporateEmail.trim().toLowerCase(),
+    area: patch.area ?? null,
+    department: patch.department ?? null,
+    manager_name: patch.manager ?? null,
+    additional_contact: patch.additionalContact ?? null,
+  });
+}
+
+export async function findRequesterByUserId(userId: number) {
+  return db("requesters").where({ user_id: userId }).first();
+}

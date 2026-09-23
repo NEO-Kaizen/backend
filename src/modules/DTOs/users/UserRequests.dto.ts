@@ -8,12 +8,28 @@ export interface CreateProfessionalInput {
   notes?: string;
 }
 
+export interface RequesterInput {
+  area: string;
+  department?: string;
+  manager: string;
+  additionalContact?: string;
+}
+
 export interface CreateUserRequest {
   fullName: string;
   email: string;
   role: string;
   /** Obrigatório quando `role = "analista"`; proibido para os demais perfis. */
   professional?: CreateProfessionalInput;
+  requester: RequesterInput;
+}
+
+export interface UpdateUserRequest {
+  fullName?: string;
+  email?: string;
+  role?: string;
+  professional?: CreateProfessionalInput;
+  requester?: Partial<RequesterInput>;
 }
 
 export interface ListUsersQuery {

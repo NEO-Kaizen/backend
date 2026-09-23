@@ -11,6 +11,7 @@ import {
   listUsers,
   resetUserPassword,
   updateMyProfile,
+  updateUser,
 } from "./users.controller.ts";
 
 const usersRoutes = express.Router();
@@ -30,6 +31,7 @@ usersRoutes.use(requireRole("Administrador"));
 usersRoutes.get("/metrics", getUserMetrics);
 usersRoutes.get("/", listUsers);
 usersRoutes.post("/", createUser);
+usersRoutes.put("/:id", updateUser);
 usersRoutes.patch("/:id/status", changeUserStatus);
 usersRoutes.post("/:id/reset-password", resetUserPassword);
 

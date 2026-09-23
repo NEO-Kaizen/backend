@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { emailSchema, requiredString } from "../../shared/validation/fieldSchemas.ts";
+import {
+  emailSchema,
+  optionalString,
+  optionalText,
+  requiredString,
+  requiredText,
+} from "../../shared/validation/fieldSchemas.ts";
 
 /**
  * Dados profissionais do analista — obrigatórios na criação do perfil.
@@ -17,12 +23,20 @@ export const professionalSchema = z.object({
 /** Perfil elegível para a extensão de profissional — apenas analista. */
 const PROFESSIONAL_ROLE = "analista";
 
+export const requesterSchema = z.object({
+  area: requiredText(100),
+  department: optionalText(100),
+  manager: requiredText(150),
+  additionalContact: optionalString(100),
+});
+
 export const createUserSchema = z
   .object({
     fullName: requiredString(150),
     email: emailSchema,
     role: z.string().trim().min(1, "Campo obrigatório.").max(60, "Máximo de 60 caracteres."),
     professional: professionalSchema.optional(),
+    requester: requesterSchema,
   })
   .superRefine((value, ctx) => {
     const isAnalyst = value.role.trim().toLowerCase() === PROFESSIONAL_ROLE;
@@ -64,6 +78,56 @@ export const listUsersQuerySchema = z.object({
     .default(10),
 });
 
+export const requesterPatchSchema = z.object({
+  area: requiredText(100).optional(),
+  department: optionalText(100),
+  manager: requiredText(150).optional(),
+  additionalContact: optionalString(100),
+});
+
 export const changeUserStatusSchema = z.object({
   isActive: z.boolean(),
 });
+
+export const updateUserSchema = z
+  .object({
+    fullName: requiredText(150).optional(),
+    email: emailSchema.optional(),
+    role: z
+      .string()
+      .trim()
+      .min(1, "Campo obrigatório.")
+      .max(60, "Máximo de 60 caracteres.")
+      .optional(),
+    professional: professionalSchema.optional(),
+    requester: requesterPatchSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.role !== undefined) {
+      const isAnalyst = value.role.trim().toLowerCase() === PROFESSIONAL_ROLE;
+      if (isAnalyst && value.professional === undefined) {
+        // Permitir merge sem reenviar professional se já existir — validação de presença só no service com acesso ao banco.
+        // Schema apenas bloqueia professional em role não-analista.
+      }
+      if (!isAnalyst && value.professional !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["professional"],
+          message: "Dados profissionais são exclusivos do perfil Analista.",
+        });
+      }
+    } else if (value.professional !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["professional"],
+        message: "Informe o campo role junto com professional.",
+      });
+    }
+    if (Object.keys(value).length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [],
+        message: "Informe ao menos um campo para atualização.",
+      });
+    }
+  });

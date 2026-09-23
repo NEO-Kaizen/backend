@@ -15,6 +15,7 @@ import type {
   ChangeUserStatusRequest,
   CreateUserRequest,
   ListUsersQuery,
+  UpdateUserRequest,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type {
   AssignAnalyst,
@@ -138,10 +139,9 @@ export async function createUser(
         changeOrigin: CHANGE_ORIGIN_ADMIN,
       });
 
-      // Issue B (#108): todo usuário é requester → a extensão 1:1 nasce junto
-      // com a conta. Mesmo trx da criação: se falhar, o usuário não é criado
-      // (rollback consistente com auditoria e qualquer outra extensão).
-      await repository.createRequesterData(trx, created);
+      // Todo usuário é requester (contrato admin-provisioned): a extensão 1:1 nasce junto
+      // com a conta usando o bloco obrigatório do payload (merge com adoção de linha anônima).
+      await repository.createRequesterData(trx, created, payload.requester);
 
       return created;
     });
@@ -305,13 +305,9 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
 }
 
 /**
- * `PUT /users/me` — atualiza bloco requester, bloco professional (analista)
- * e/ou foto de perfil. Tudo na mesma transação (rollback atômico com
- * auditoria). Atua como o próprio usuário (self-service); qualquer outro
- * actor → 403.
- *
- * Decisão de domínio: campos imutáveis por esta issue (`fullName`,
- * `email`, `role`) são ignorados mesmo que presentes no payload.
+ * `PUT /users/me` — após admin-provisioned, só `additionalContact` é
+ * auto-editável. `area/department/manager` rejeitados (403). `fullName`,
+ * `email`, `role` continuam imutáveis aqui — edição completa via PUT /users/:id admin.
  */
 export async function updateMyProfile(
   userId: number,
@@ -346,16 +342,37 @@ export async function updateMyProfile(
   };
 
   await db.transaction(async (trx) => {
-    // ----- bloco requester -----
+    // ----- bloco requester (self-service só additionalContact) -----
     if (payload.requester) {
-      await repository.upsertRequesterData(trx, userId, {
-        fullName: user.full_name,
-        corporateEmail: user.email.trim().toLowerCase(),
-        area: payload.requester.area,
-        department: payload.requester.department,
-        managerName: payload.requester.manager,
-        additionalContact: payload.requester.additionalContact,
-      });
+      // Rejeita `area`/`department`/`manager` vindos do raw multipart (contrato antigo);
+      // frontend já envia só additionalContact. Se vier, fail-fast.
+      const rawRequester = payload.requester as unknown as Record<string, unknown>;
+      if ("area" in rawRequester || "department" in rawRequester || "manager" in rawRequester) {
+        throw new AppError(
+          "Área, departamento e gestor só podem ser alterados por administrador. Use PUT /users/:id.",
+          403,
+        );
+      }
+      // `additionalContact` é o único campo auto-editável. Merge parcial com dados existentes.
+      const existing = await repository.findUserProfile(userId);
+      const current = existing?.requester;
+      const area = current?.area ?? null;
+      const manager = current?.manager_name ?? null;
+      // Legado null precisa ser preenchido por admin antes; self não inventa valores.
+      if (current && (area === null || manager === null)) {
+        // Permitir apenas additionalContact mesmo com legado incompleto — não exige area/manager aqui.
+      }
+      // Se não há linha requester ainda, criar com area/manager null + additionalContact (legado path).
+      if (!current) {
+        await repository.mergeRequesterData(trx, userId, user.full_name, user.email, {
+          additionalContact: payload.requester.additionalContact,
+        });
+      } else {
+        // Merge: mantém area/department/manager, atualiza só additionalContact
+        await repository.mergeRequesterData(trx, userId, user.full_name, user.email, {
+          additionalContact: payload.requester.additionalContact,
+        });
+      }
     }
 
     // ----- bloco professional (apenas analista) -----
@@ -417,4 +434,145 @@ function removeAvatarFile(currentUrl: string): void {
   void fs.promises.rm(storagePath, { force: true }).catch(() => {
     // arquivo já removido ou inexistente; não bloqueia a operação
   });
+}
+
+/**
+ * `PUT /users/:id` — edição completa admin-only (merge). Atualiza
+ * `fullName`, `email`, `role`, `professional` e `requester` de forma
+ * parcial (ausente mantém). Auditoria `user.update`, transação atômica.
+ * Exceção para Administrador alvo: só `requester` pode ser alterado.
+ */
+export async function updateUser(
+  rawId: string,
+  payload: UpdateUserRequest,
+  actorUserId: number,
+  ipAddress: string | undefined,
+): Promise<UserProfileResponseDTO> {
+  const id = parseUserId(rawId);
+
+  if (id === actorUserId) {
+    throw new AppError("Você não pode modificar a própria conta", 400);
+  }
+
+  const target = await repository.findUserById(id);
+  if (!target) {
+    throw new AppError("Usuário não encontrado", 404);
+  }
+
+  const isTargetAdmin = resolveRole(target.profile_name) === "Administrador";
+  const hasNonRequesterPatch =
+    payload.fullName !== undefined ||
+    payload.email !== undefined ||
+    payload.role !== undefined ||
+    payload.professional !== undefined;
+
+  if (isTargetAdmin && hasNonRequesterPatch) {
+    throw new AppError("Não é possível gerenciar contas de Administradores", 403);
+  }
+
+  // Valida novo role se informado, bloqueando criação/promoção para Administrador.
+  let newProfileId: number | undefined;
+  if (payload.role !== undefined) {
+    const pid = await repository.findProfileIdByName(payload.role);
+    if (pid === null) {
+      throw new AppError("Perfil inválido.", 400);
+    }
+    const role = resolveRole(payload.role);
+    assertRoleIsManageable(role);
+    newProfileId = pid;
+  }
+
+  const finalRoleName = payload.role ?? target.profile_name;
+  const isFinalAnalyst = repository.isProfessionalProfile(finalRoleName);
+  const wasAnalyst = repository.isProfessionalProfile(target.profile_name);
+
+  if (payload.professional !== undefined && !isFinalAnalyst) {
+    throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
+  }
+  if (isFinalAnalyst && !wasAnalyst && payload.professional === undefined) {
+    // Promoção para analista sem dados profissionais — exigir bloco.
+    throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
+  }
+  if (
+    payload.professional !== undefined &&
+    !repository.isProfessionalProfile(payload.role ?? target.profile_name)
+  ) {
+    // Role não-analista com professional já tratado acima; guarda extra para caso role ausente.
+    throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
+  }
+
+  // Snapshot para auditoria
+  const before = await repository.findUserProfile(id);
+
+  try {
+    await db.transaction(async (trx) => {
+      // 1. Campos básicos users (merge)
+      await repository.updateUserFields(trx, id, {
+        fullName: payload.fullName,
+        email: payload.email,
+        profileId: newProfileId,
+      });
+
+      // 2. Sincroniza identidade do requester se fullName/email mudaram
+      if (payload.fullName !== undefined || payload.email !== undefined) {
+        const fullName = payload.fullName ?? target.full_name;
+        const corporateEmail = (payload.email ?? target.email).trim().toLowerCase();
+        await repository.syncRequesterIdentity(trx, id, { fullName, corporateEmail });
+      }
+
+      // 3. Professional (1:1) — merge
+      if (payload.professional !== undefined) {
+        await repository.upsertProfessionalData(trx, id, payload.professional);
+      } else if (wasAnalyst && !isFinalAnalyst) {
+        await repository.deleteProfessionalData(trx, id);
+      }
+
+      // 4. Requester (1:1) — merge parcial
+      if (payload.requester !== undefined) {
+        const fullName = payload.fullName ?? target.full_name;
+        const corporateEmail = (payload.email ?? target.email).trim().toLowerCase();
+        await repository.mergeRequesterData(trx, id, fullName, corporateEmail, {
+          area: payload.requester.area,
+          department: payload.requester.department,
+          manager: payload.requester.manager,
+          additionalContact: payload.requester.additionalContact,
+        });
+      }
+
+      await recordAudit(trx, {
+        entityType: "user",
+        entityId: String(id),
+        actionType: "user.update",
+        userId: actorUserId,
+        previousValue: JSON.stringify(before ?? null),
+        newValue: JSON.stringify(payload),
+        note: ipAddress,
+        changeOrigin: CHANGE_ORIGIN_ADMIN,
+      });
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new AppError("E-mail já cadastrado", 409);
+    }
+    throw error;
+  }
+
+  const updated = await repository.findUserProfile(id);
+  if (!updated) {
+    throw new AppError("Usuário não encontrado", 404);
+  }
+  return {
+    id: String(updated.user_id),
+    fullName: updated.full_name,
+    email: updated.email,
+    role: resolveRole(updated.profile_name),
+    avatarUrl: updated.avatar_url,
+    requester: toRequesterBlock(updated.requester),
+    professional: (() => {
+      if (updated.profile_name === ROLE_ANALYST && !updated.professional) {
+        return { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null };
+      }
+      return toProfessionalBlock(updated.professional);
+    })(),
+  } satisfies UserProfileResponseDTO;
 }
