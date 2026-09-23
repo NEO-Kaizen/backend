@@ -8,17 +8,24 @@ import {
 
 const auditHistoryRoutes = express.Router();
 
+// Dados administrativos autenticados: impede armazenamento das respostas
+// pelo navegador ou por intermediários.
+auditHistoryRoutes.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  next();
+});
+
 auditHistoryRoutes.get(
   "/",
   authMiddleware,
-  requireRole("Administrador"),
+  requireRole("Administrador", "Gestor"),
   listAuditHistoryController,
 );
 
 auditHistoryRoutes.get(
   "/:id",
   authMiddleware,
-  requireRole("Administrador"),
+  requireRole("Administrador", "Gestor"),
   getAuditHistoryDetailController,
 );
 
