@@ -47,8 +47,8 @@ export async function createPendingItems(req: Request, res: Response): Promise<R
 
 export async function listPendingItems(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  const items = await service.listPendingItems(protocol, callerFromRequest(req));
-  return res.status(200).json(items);
+  const result = await service.listPendingItems(protocol, callerFromRequest(req));
+  return res.status(200).json(result);
 }
 
 export async function respondPendingItem(req: Request, res: Response): Promise<Response> {

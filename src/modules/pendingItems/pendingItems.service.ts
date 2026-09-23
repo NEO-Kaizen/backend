@@ -6,6 +6,7 @@ import type { PendingItemInsert, ReviewDecisionInput } from "./pendingItems.repo
 import type {
   PendingItem,
   CreatePendingItemsBody,
+  ListPendingItemsResponse,
   ReviewPendingItemsBody,
   InternalRequestRow,
 } from "../DTOs/pendingItems/PendingItems.dto.ts";
@@ -234,12 +235,30 @@ async function assertRequesterAccess(protocol: string, caller: PendingCaller): P
 export async function listPendingItems(
   protocol: string,
   caller: PendingCaller,
-): Promise<PendingItem[]> {
+): Promise<ListPendingItemsResponse> {
   await assertRequesterAccess(protocol, caller);
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) throw new AppError("Solicitação não encontrada", 404);
   const rows = await repo.findPendingItemsByRequestId(request.request_id);
-  return buildPendingItems(protocol, rows);
+  const items = await buildPendingItems(protocol, rows);
+
+  if (rows.length === 0) {
+    return { batchId: null, requestAttachment: false, items };
+  }
+
+  // Lote vigente = primeiro com item open (requested/responded); senão o mais
+  // recente (rows em ordem cronológica asc). `requestAttachment` é uniforme no
+  // lote (D-P8) — basta achar `true` em qualquer linha do lote alvo.
+  const openRow = rows.find(
+    (row) => row["status"] === "requested" || row["status"] === "responded",
+  );
+  const targetRow = openRow ?? rows[rows.length - 1];
+  const batchId = (targetRow?.["batch_id"] as string | undefined) ?? null;
+  const requestAttachment =
+    batchId !== null &&
+    rows.some((row) => row["batch_id"] === batchId && row["request_attachment"] === true);
+
+  return { batchId, requestAttachment, items };
 }
 
 export async function respondPendingItem(

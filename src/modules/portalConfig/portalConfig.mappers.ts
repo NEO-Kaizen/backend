@@ -31,7 +31,7 @@ type Palette = "light" | "dark";
 /**
  * Padrões do contrato quando o tema ainda não foi definido (cores NULL no
  * `system_themes`) — decisão issue-59 §8.2: o GET devolve os defaults do
- * contrato, não `null`.
+ * contrato, não `null`. Gradiente dark = light (pendência 0_4 confirmada).
  */
 export const DEFAULT_THEME: PortalTheme = {
   light: {
@@ -71,7 +71,9 @@ export const DEFAULT_THEME: PortalTheme = {
     onPrimary: "#0b0f1a",
     onDark: "#ffffff",
     onGradient: "#ffffff",
-    gradient: { from: "#0b0f1a", to: "#1b2942", angle: 143 },
+    // Mesmo gradiente do light (pendência portal-config-api-0_4.md: manter o
+    // azul por contraste no dark).
+    gradient: { from: "#002068", to: "#003399", angle: 143 },
     statuses: {
       error: { color: "#f87171", background: "#4c0f0a", backgroundLocked: true },
       success: { color: "#4ade80", background: "#0f2e1d", backgroundLocked: true },
@@ -170,9 +172,9 @@ export function themeFromRow(row: SystemThemeRow | undefined): PortalTheme {
       background:
         (row[background as keyof SystemThemeRow] as string | null) ??
         DEFAULT_THEME[palette].statuses[tone].background,
-      backgroundLocked:
-        (row[backgroundLocked as keyof SystemThemeRow] as boolean | null) ??
-        DEFAULT_THEME[palette].statuses[tone].backgroundLocked,
+      // Contrato: `backgroundLocked` ausente (NULL) = false (não o default
+      // do seed, que é true) — ver portal-config-api_0_4.md §Observações.
+      backgroundLocked: (row[backgroundLocked as keyof SystemThemeRow] as boolean | null) ?? false,
     };
   };
 

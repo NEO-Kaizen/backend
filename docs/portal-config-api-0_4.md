@@ -39,9 +39,11 @@ leitura pública dos parâmetros de runtime e edição administrativa por seçã
   no **Anexo A** e no exemplo do `GET`.
 - Matriz de **status default** corrigida de 6 para os **17 valores validados com
   produto** (`plans/validacao-status-defaults.md`); `PRIVATE` da validação
-  corresponde a `INTERNAL` no contrato.
-- Pendências: backend deve aceitar `heading` no `PATCH` de tema; confirmar o
-  tratamento de `isActive` ausente no `GET` e o gradiente default do dark.
+  corresponde a `INTERNAL` no contrato. Estendida em **19** com as saídas de
+  triagem `18`/`19` (ver Anexo A / `contract-triage_04.md`).
+- Pendências (histórico): backend deve aceitar `heading` no `PATCH` de tema;
+  confirmar o tratamento de `isActive` ausente no `GET` e o gradiente default
+  do dark — **itens resolvidos** (ver “Pendências de alinhamento”).
 
 ---
 
@@ -615,6 +617,24 @@ surface`/`background`.
 
 ## Pendências de alinhamento
 
+> **Status (após sync `20260924000000_sync_portal_config_reference_0_4`):**
+>
+> - ✅ `heading` aceito no `PATCH /theme` (allowlist = `THEME_TOKEN_KEYS`).
+> - ✅ Gradiente dark default = `#002068 → #003399` (mesmo do light) em
+>   `portalConfig.mappers.ts` (`DEFAULT_THEME`).
+> - ✅ Statuses: coluna dinâmica + matriz Anexo A (17) + saídas de triagem
+>   `18 Fora do escopo` / `19 Duplicada` (contrato triage — `isTriageExit` vive
+>   em `contract-triage_04.md`, não no tipo `PortalStatus` deste documento).
+> - ✅ Pesos: API `1–10` inteiro; seed `criteria.weight = 10`
+>   (`prioritization-api.md` / `seeds/002_criteria.js`); fallback FE em
+>   `portal-defaults.ts` pode ser `1`.
+> - ✅ Variantes claro/escuro de assets + `logoUsePrimaryColor` (migration
+>   `20260916180000` + `ensureDefaultAssets`).
+> - ✅ Storage: binários em `uploads/portal/`, URLs `/uploads/portal/…`.
+> - ⏳ Evolução: referência de categoria por `id` (hoje por nome).
+>
+> Itens abaixo mantidos como histórico do 0_3 → 0_4.
+
 - Backend **aceitar o token `heading`** na allowlist do `PATCH /theme` (novo
   desde 0_2).
 - Backend confirmar o **gradiente default do dark** adotado como
@@ -671,10 +691,13 @@ categorias e statuses completas ficam aqui.
 | 9   | Estudo de viabilidade  | Avaliação de viabilidade técnica, operacional e de custo |
 | 10  | Outros                 | Demandas que não se enquadram nas demais categorias      |
 
-### Statuses (17, todos ativos)
+### Statuses (19 — 17 base + 2 saídas de triagem; todos ativos)
 
-Matriz validada com produto (`plans/validacao-status-defaults.md`). A
+Matriz 1–17 validada com produto (`plans/validacao-status-defaults.md`). A
 visibilidade `PRIVATE` da validação corresponde a `INTERNAL` no contrato.
+`18`/`19` vêm do contrato de triagem (`contract-triage_04.md` §4) — o campo
+`isTriageExit` não faz parte do tipo `PortalStatus` deste documento (0_4), mas
+é persistido e exposto pelo `GET` (extensão 0_4 + triage).
 
 | id  | name                        | tone    | visibility | closesRequest | isActive |
 | --- | --------------------------- | ------- | ---------- | ------------- | -------- |
@@ -695,7 +718,13 @@ visibilidade `PRIVATE` da validação corresponde a `INTERNAL` no contrato.
 | 15  | Em homologação              | info    | INTERNAL   | false         | true     |
 | 16  | Concluído                   | success | PUBLIC     | true          | true     |
 | 17  | Cancelado                   | error   | PUBLIC     | true          | true     |
+| 18  | Fora do escopo              | neutral | INTERNAL   | false         | true     |
+| 19  | Duplicada                   | neutral | INTERNAL   | false         | true     |
 
 ### Pesos
 
-Todos os 10 `PRIORITIZATION_CRITERIA` com peso `1` (faixa 1..10).
+Seed oficial (`seeds/requester_request/002_criteria.js` e `prioritization-api.md`):
+todos os 10 `PRIORITIZATION_CRITERIA` com peso **`10`** (faixa API 1..10;
+CHECK de banco 0..10 por decisão de produto). O fallback local em
+`portal-defaults.ts` pode usar `1` — o contrato trata `1` e `1.0` como o
+inteiro `1`.

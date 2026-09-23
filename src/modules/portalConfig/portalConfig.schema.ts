@@ -8,8 +8,9 @@ import { STATUS_TONES, type StatusTone } from "../../shared/types/systemTheme.ts
 
 /**
  * Schemas por seção do `PATCH /portal-config/*` (contrato `portal-config-api.md`).
- * Espelham as validações do contrato por Card; a única divergência deliberada é
- * a escala de pesos (inteiros 0–10, decisão de produto issue-59 §8.3).
+ * Espelham as validações do contrato por Card; escala de pesos **inteira 1–10**
+ * (portal-config-api-0_4.md, alinhada a `criteria.weight`; a migration de CHECK
+ * do banco aceita 0–10 por decisão de produto issue-59 §8.3).
  */
 
 /** Hex #RRGGBB ou #RRGGBBAA. */

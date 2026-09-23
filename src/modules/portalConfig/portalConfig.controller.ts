@@ -99,15 +99,25 @@ export const updateTheme = async (req: Request, res: Response): Promise<Response
 // ---------------------------------------------------------------------------
 
 export const updateAssets = async (req: Request, res: Response): Promise<Response> => {
-  // Parse JSON part `assets` do multipart
+  // Parse JSON part `assets` do multipart. Multer `.fields()` sempre define
+  // `req.files` (OBJECT vazio quando não há arquivo) — checar chaves, não
+  // truthiness, senão um multipart sem nenhuma parte cai em 200 (contrato §5
+  // exige 400).
   const rawAssets = req.body?.assets;
-  if (!rawAssets && !req.files) {
+  const filesMap = (req.files as Record<string, Express.Multer.File[]> | undefined) ?? {};
+  const hasBinary = Object.values(filesMap).some((list) => Array.isArray(list) && list.length > 0);
+  if (!rawAssets && !hasBinary) {
     throw new AppError("Envie ao menos uma chave de asset (JSON ou arquivo).", 400);
   }
 
   let jsonPatch: PortalAssetsPatch = {};
   if (rawAssets) {
-    const parsed = typeof rawAssets === "string" ? JSON.parse(rawAssets) : rawAssets;
+    let parsed: unknown;
+    try {
+      parsed = typeof rawAssets === "string" ? JSON.parse(rawAssets) : rawAssets;
+    } catch {
+      throw new AppError("JSON inválido na parte `assets`.", 400);
+    }
     const validated = portalAssetsPatchSchema.safeParse(parsed);
     if (!validated.success) {
       throw new AppError(formatZodIssues(validated.error, "assets"), 400);
@@ -116,7 +126,7 @@ export const updateAssets = async (req: Request, res: Response): Promise<Respons
   }
 
   // Salva binários e monta URLs
-  const files = (req.files as Record<string, Express.Multer.File[]>) ?? {};
+  const files = filesMap;
   const savedAttachments: SavedAttachment[] = [];
   const binaryUrls: Record<string, string> = {};
 
