@@ -134,20 +134,52 @@ async function withAuthenticatedIdentity(
   };
 }
 
+/**
+ * Listagem do solicitante. O tratamento do `authenticatedUserId` depende do
+ * modo do portal (`assertOwnership` distingue os dois):
+ *
+ * - AUTHENTICATED (`assertOwnership: false`): o e-mail da sessão SUBSTITUI o da
+ *   query (que o controller já rejeita com 400).
+ * - PUBLIC (`assertOwnership: true`): a rota segue pública e o `?email=`
+ *   continua obrigatório, mas havendo sessão de Solicitante o e-mail precisa
+ *   ser o dele — trava o solicitante logado de listar solicitações alheias.
+ *   Sem sessão (anônimo), `authenticatedUserId` é `undefined` e nada muda.
+ */
 export async function listRequestsByEmail(
   input: ListRequestsInput,
   authenticatedUserId?: number,
+  assertOwnership = false,
 ): Promise<PaginatedResponse<RequestSummary>> {
-  // No modo AUTHENTICATED o e-mail vem da sessão; em PUBLIC, da query.
-  const email =
+  const sessionEmail =
     authenticatedUserId === undefined
-      ? input.email
+      ? undefined
       : (await resolveAuthenticatedIdentity(authenticatedUserId)).email;
+
+  if (sessionEmail !== undefined && !assertOwnership) {
+    // AUTHENTICATED: a query nem chega com e-mail; a sessão manda.
+    return listByRequesterEmail(input, sessionEmail);
+  }
+
+  const email = input.email;
 
   if (!email) {
     throw new AppError("Parâmetro obrigatório ausente: email", 400);
   }
 
+  // PUBLIC com sessão de Solicitante: só as próprias. 403 explícito (e não
+  // 404/lista vazia) porque o dono do e-mail consultado não é segredo para
+  // quem já digitou o endereço — o que se impede é a consulta em si.
+  if (sessionEmail !== undefined && normalizeEmail(email) !== normalizeEmail(sessionEmail)) {
+    throw new AppError("Você só pode consultar as suas próprias solicitações.", 403);
+  }
+
+  return listByRequesterEmail(input, email);
+}
+
+async function listByRequesterEmail(
+  input: ListRequestsInput,
+  email: string,
+): Promise<PaginatedResponse<RequestSummary>> {
   const normalizedEmail = email.trim().toLowerCase();
 
   if (input.status && !(await repository.findStatusByName(input.status))) {

@@ -16,7 +16,8 @@ import * as service from "./requests.service.ts";
 
 /**
  * `req.user` só existe quando o `requireAccessMode`/`authMiddleware` autenticou
- * a request — ou seja, no modo AUTHENTICATED. No modo PUBLIC é `undefined`.
+ * a request: sempre no modo AUTHENTICATED e, no modo PUBLIC, apenas quando veio
+ * um cookie de sessão válido (identificação opcional — ver `accessMode.ts`).
  */
 function authenticatedUserId(req: Request): number | undefined {
   return req.user ? Number(req.user.id) : undefined;
@@ -179,7 +180,13 @@ export const getRequestsByEmail = async (req: Request, res: Response): Promise<R
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const requests = await service.listRequestsByEmail(parsed.data);
+  // Modo PUBLIC: a rota segue pública (fluxo anônimo por e-mail inalterado),
+  // mas o solicitante logado só consulta o próprio e-mail — o service compara
+  // com a identidade do cadastro e responde 403 se for de terceiro. Perfis
+  // internos mantêm o comportamento atual: têm as rotas `/internal` e a fila.
+  const requesterUserId = req.user?.role === "Solicitante" ? authenticatedUserId(req) : undefined;
+
+  const requests = await service.listRequestsByEmail(parsed.data, requesterUserId, true);
 
   return res.status(200).json(requests);
 };

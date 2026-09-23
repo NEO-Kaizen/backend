@@ -20,7 +20,10 @@ const requestsRoutes = express.Router();
 
 // Rotas de solicitação respeitam o modo de abertura do portal: em `PUBLIC`
 // permanecem públicas; em `AUTHENTICATED` o `requireAccessMode` exige sessão.
-requestsRoutes.get("/", requireAccessMode(), getRequestsByEmail);
+// Na listagem, `identifyInPublic` resolve a sessão também em PUBLIC: o fluxo
+// anônimo por `?email=` continua igual, mas o solicitante logado fica restrito
+// ao próprio e-mail (403 no service).
+requestsRoutes.get("/", requireAccessMode({ identifyInPublic: true }), getRequestsByEmail);
 
 // Responsáveis pela triagem — lista de profissionais (issue #50).
 requestsRoutes.get(
