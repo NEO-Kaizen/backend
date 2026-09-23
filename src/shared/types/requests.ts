@@ -144,6 +144,10 @@ export interface AssignmentContextRow {
   mapping_professional_id: string | null;
   status: RequestStatus;
   screening_result: string | null;
+  /** `details_professional.user_id` do responsável da triagem (issue #124). */
+  assignee_user_id: number | null;
+  /** `details_professional.user_id` do designado do mapeamento (issue #124). */
+  mapping_assignee_user_id: number | null;
 }
 
 export interface AssignmentCandidateRow {

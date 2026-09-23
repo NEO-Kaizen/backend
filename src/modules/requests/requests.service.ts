@@ -7,6 +7,7 @@ import type {
   RequestPriority,
   RequesterBlock,
   DemandBlock,
+  AssignmentContextRow,
 } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
@@ -868,12 +869,22 @@ async function resolveAssignee(
 export async function assignResponsible(
   protocol: string,
   payload: AssignRequestPayload,
-  actor: { id: number; email: string },
+  actor: { id: number; email: string; role: Role },
   ipAddress: string | undefined,
 ): Promise<AssignRequestResponse> {
   const request = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
+  // ou Administrador — sem justificativa (não é troca de status).
+  if (!canAssignRequest(actor, request)) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
   }
 
   const assignee =
@@ -939,12 +950,22 @@ export async function assignResponsible(
 export async function assignAnalyst(
   protocol: string,
   payload: AssignAnalystPayload,
-  actor: { id: number; email: string },
+  actor: { id: number; email: string; role: Role },
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO> {
   const request = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
+  // ou Administrador — sem justificativa (não é troca de status).
+  if (!canAssignRequest(actor, request)) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
   }
 
   const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
@@ -1107,6 +1128,24 @@ export async function assignAnalyst(
   }
 
   return findInternalByProtocol(protocol.trim());
+}
+
+// issue #124 — atribuição (internal/assignee + legado /assignee):
+// ANALYST_ASSIGNEE (responsável da triagem OU designado do mapeamento) ou
+// Administrador. Gestor continua sem atribuir (Q3/RN).
+function canAssignRequest(
+  actor: { id: number; role: Role },
+  request: AssignmentContextRow,
+): boolean {
+  if (actor.role === "Administrador") return true;
+
+  const isTriageAssignee =
+    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
+  const isMappingAssignee =
+    request.mapping_assignee_user_id !== null &&
+    Number(request.mapping_assignee_user_id) === actor.id;
+
+  return isTriageAssignee || isMappingAssignee;
 }
 
 // --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----

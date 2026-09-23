@@ -32,18 +32,20 @@ requestsRoutes.get(
 );
 
 // Contrato contract-assign-action.md: PATCH /requests/:protocol/internal/assignee com body {assigneeId} | {mappingAssigneeId} (user_id string, XOR, null para remover)
-// Apenas Administrador atribui (Q3). Mantida rota legada /:protocol/assignee para compat até remoção.
+// issue #124: rota aberta aos perfis internos; a autorização por atribuição
+// (ANALYST_ASSIGNEE triagem OU mapeamento, ou Administrador) é feita no
+// service — Gestor não atribui. Mantida rota legada /:protocol/assignee.
 requestsRoutes.patch(
   "/:protocol/internal/assignee",
   authMiddleware,
-  requireRole("Administrador"),
+  requireRole("Analista", "Gestor", "Administrador"),
   patchInternalAssignee,
 );
 
 requestsRoutes.patch(
   "/:protocol/assignee",
   authMiddleware,
-  requireRole("Administrador"),
+  requireRole("Analista", "Gestor", "Administrador"),
   patchAssignee,
 );
 

@@ -692,21 +692,32 @@ export async function findAssignmentContextByProtocol(
     professional_id: "requests.professional_id",
     status: "statuses.name",
     screening_result: "requests.screening_result",
+    assignee_user_id: "dp.user_id",
   };
 
   if (hasMapping) {
     columns["mapping_professional_id"] = "requests.mapping_professional_id";
+    columns["mapping_assignee_user_id"] = "dpm.user_id";
   }
 
-  const row = await db("requests")
+  const query = db("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
-    .where("requests.protocol", protocol)
-    .first(columns);
+    .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
+  if (hasMapping) {
+    query.leftJoin(
+      "details_professional as dpm",
+      "dpm.professional_id",
+      "requests.mapping_professional_id",
+    );
+  }
+
+  const row = await query.where("requests.protocol", protocol).first(columns);
 
   if (!row) return undefined;
 
   if (!hasMapping) {
     (row as AssignmentContextRow).mapping_professional_id = null;
+    (row as AssignmentContextRow).mapping_assignee_user_id = null;
   }
 
   return row as AssignmentContextRow;
