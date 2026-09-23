@@ -38,7 +38,7 @@ Cobre:
   evento — sua informação vive nos históricos abaixo (D-N12).
 - **Históricos completos** (extensão — decisões **D-N9**, **D-N14**): listas
   de topo `triages` e `mappings` — cada entrada o assessment/mapeamento
-  completo daquela versão **mais** `occurredAt`/`actor` do audit que a gerou,
+  completo daquela versão **mais** `occurredAt` do audit que a gerou,
   ordenadas `oldest → newest` para renderizar como tabelas. Sempre o
   histórico **completo** da solicitação, idêntico em todas as páginas
   paginadas (`triages: []` quando nunca triado; `mappings: []` quando
@@ -62,7 +62,7 @@ Cobre:
   (`GET .../triage`, `GET .../mapping`) → contratos de origem
   (`contract-triage.md`; contrato de mapeamento BE #86).
   Os históricos `triages`/`mappings` são espelhos completos com
-  `occurredAt`/`actor`, sem rota própria nova; as abas Triagem/Mapeamento
+  `occurredAt`, sem rota própria nova; as abas Triagem/Mapeamento
   seguem donas da edição.
 - **Pendências por campo** (`/pending-items`) → `formalizacao/pendencias.md`.
   Os eventos `request.status_change` gatilhados pelo ciclo de pendência
@@ -184,19 +184,17 @@ interface TimelineEvent {
   changeOrigin: TimelineChangeOrigin;
 }
 
-// Entradas dos históricos — assessment/mapeamento + proveniência (D-N14).
+// Entradas dos históricos — snapshot + data do audit (D-N14).
+// Ator/origem não são expostos aqui (removidos da API — a UI da tabela
+// também não os exibe); eventos da timeline seguem com `actor`/`changeOrigin`.
 interface TriageHistoryEntry {
   triage: TriageAssessment; // snapshot completo daquela versão
   occurredAt: string; // ISO-8601 da linha `request.triage` que a gerou
-  actor: { id: string; name: string; role: InternalRole } | null;
-  changeOrigin: TimelineChangeOrigin;
 }
 
 interface MappingHistoryEntry {
   mapping: MappingResponse; // snapshot completo (sem `occurredAt` próprio)
   occurredAt: string; // ISO-8601 da linha `mapping.*` que a gerou
-  actor: { id: string; name: string; role: InternalRole } | null;
-  changeOrigin: TimelineChangeOrigin;
 }
 
 interface InternalNotesResponse {
@@ -352,17 +350,18 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
   e é essa imutabilidade que torna o keyset seguro (D-N8).
 - **Históricos completos (D-N14):** `triages`/`mappings` são **listas de
   snapshots** ordenadas `oldest → newest` — cada entrada o assessment/mapeamento
-  daquela versão mais `occurredAt`/`actor` do audit que a gerou. Idênticos em
+  daquela versão mais `occurredAt` do audit que a gerou. Idênticos em
   todas as páginas (não paginados; `[]` = nunca triado / nenhum mapeamento).
 - **Sem dedupe (D-N10):** cada `POST .../triage` e cada `PUT .../mapping`
   gravam audit e uma entrada no seu histórico (`triages.length` ==
   `request.triage` count; `mappings.length` == número de rows em `mappings`).
 - **Versionamento (D-N14):** `triages` (snapshot normalizado por colunas,
   `triage_id` = `TriageAssessment.id`) + `mappings` por `request_id`; a
-  proveniência (`occurred_at`/`actor`/`change_origin`) vem do `audit_history`
-  (`request.triage` por `new_value->>'triageId'`; última `mapping.*` por
-  `mapping_id`), sem colunas de proveniência nas tabelas. Sem histórico
-  parcial — primeira versão já é completa.
+  data (`occurred_at`) vem do `audit_history` (`request.triage` por
+  `new_value->>'triageId'`; última `mapping.*` por `mapping_id`), sem colunas
+  de proveniência nas tabelas. Ator e origem permanecem no `audit_history`,
+  mas **não são expostos** nas entries dos históricos (a UI da tabela também
+  não os exibe). Sem histórico parcial — primeira versão já é completa.
 - **Escopo de eventos (D-N4/D-N12):** as 5 ações de `TimelineEventAction`.
   `request.triage`, `mapping.save`, `mapping.complete`, `request.update`,
   `pending_item.*` e demais entidades ficam de fora (D-N6/D-N12); filtros não
@@ -449,9 +448,7 @@ página** (D-N9).
         "result": "Elegível para avaliação",
         "conclusionJustification": "Dentro do escopo do NEO; seguir para priorização."
       },
-      "occurredAt": "2026-09-18T15:02:10.000Z",
-      "actor": { "id": "7", "name": "Ana Souza", "role": "Analista" },
-      "changeOrigin": "admin"
+      "occurredAt": "2026-09-18T15:02:10.000Z"
     }
   ],
   "mappings": [
@@ -477,9 +474,7 @@ página** (D-N9).
           "jobTitle": "Analista de Processos"
         }
       },
-      "occurredAt": "2026-09-19T14:11:02.000Z",
-      "actor": { "id": "9", "name": "Júlia Reis", "role": "Analista" },
-      "changeOrigin": "internal"
+      "occurredAt": "2026-09-19T14:11:02.000Z"
     }
   ]
 }
@@ -605,21 +600,21 @@ Sem corpo na resposta.
 
 ### Fechadas
 
-| ID    | Decisão                                                                                                                                                                                                                                                           | Origem                          |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| D-N1  | Estender `GET /internal-notes` (união `{ type: "note" \| "event" }`) em vez de endpoint novo ou `GET /audit/:protocol` — POST/PUT intocados                                                                                                                       | conversa de revisão, 2026-09-22 |
-| D-N2  | `unseenCount` conta **somente notas**; checkpoint `last_read_note_id` inalterado; eventos nunca sobem badge                                                                                                                                                       | conversa, 2026-09-22            |
-| D-N3  | Payload do evento = `text` frase completa já renderizada no BE, pt-BR (revisado em v1.3 — antes `summary` + `value`); FE não parseia JSON bruto de auditoria                                                                                                      | conversa, 2026-09-22            |
-| D-N4  | Escopo v1 dos eventos: `request.triage`, `request.status_change`, `request.assign`, `request.reassign`, `request.unassign`, `mapping.save`, `mapping.complete`, `mapping.assign` (inclui status + atribuição) — **revisado em v1.2 por D-N12**                    | conversa, 2026-09-22            |
-| D-N5  | Timeline **nunca** carrega lista inteira: GET paginado com lazy load no FE (fecha a opção "manter lista única" da v1.0)                                                                                                                                           | conversa, 2026-09-22            |
-| D-N7  | Lazy load **newest-first + scroll-up**: primeira página = N mais recentes; FE inverte para exibir e prepensa páginas mais antigas; composer fixo embaixo                                                                                                          | conversa, 2026-09-22            |
-| D-N8  | Envelope **keyset cursor** `{ items, nextCursor, unseenCount }` (exceção registrada em §4 ao `PaginatedResponse`); cursor opaco `{ t, type, id }`                                                                                                                 | conversa, 2026-09-22            |
-| D-N9  | **Históricos top-level** no GET: `triages[]` e `mappings[]` — cada entrada snapshot completo + `occurredAt`/`actor` (`TriageHistoryEntry`/`MappingHistoryEntry`), `oldest→newest`, idêntico em toda página; substitui `triage`/`mapping` singular de v1.2 (D-N14) | conversa, 2026-09-22            |
-| D-N10 | Não é log completo; **sem dedupe** (cada save gera uma entrada no seu histórico)                                                                                                                                                                                  | conversa, 2026-09-22            |
-| D-N12 | Timeline enxuta: **5 ações** (`request.assign/reassign/unassign`, `request.status_change`, `mapping.assign`). **Saem** `request.triage`, `mapping.save`, `mapping.complete` — conteúdo já vive nos históricos (D-N9/D-N14)                                        | conversa, 2026-09-22            |
-| D-N14 | Históricos versionados: `triages` (snapshot normalizado; proveniência via `audit_history`) + `mappings` por `request_id` (`oldest→newest`)                                                                                                                        | conversa, 2026-09-22            |
-| D-N13 | Alinhar família `Responsável …`: `mapping.assign` `text` → `Responsável pelo mapeamento alterado: <nome>` / `Responsável pelo mapeamento removido` (antes `Designação de mapeamento alterada`)                                                                    | conversa, 2026-09-22            |
-| D-N6  | `request.update` e `pending_item.*` **não** entram na timeline — pertencem ao futuro `GET /audit/:protocol`                                                                                                                                                       | conversa, 2026-09-22            |
-| D-N11 | O histórico de triagem embutido (`triages`) é acessível aos 3 perfis internos sob o gate desta rota, **sem** o check de assignee do `GET .../triage`                                                                                                              | conversa, 2026-09-22            |
+| ID    | Decisão                                                                                                                                                                                                                                                                    | Origem                          |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| D-N1  | Estender `GET /internal-notes` (união `{ type: "note" \| "event" }`) em vez de endpoint novo ou `GET /audit/:protocol` — POST/PUT intocados                                                                                                                                | conversa de revisão, 2026-09-22 |
+| D-N2  | `unseenCount` conta **somente notas**; checkpoint `last_read_note_id` inalterado; eventos nunca sobem badge                                                                                                                                                                | conversa, 2026-09-22            |
+| D-N3  | Payload do evento = `text` frase completa já renderizada no BE, pt-BR (revisado em v1.3 — antes `summary` + `value`); FE não parseia JSON bruto de auditoria                                                                                                               | conversa, 2026-09-22            |
+| D-N4  | Escopo v1 dos eventos: `request.triage`, `request.status_change`, `request.assign`, `request.reassign`, `request.unassign`, `mapping.save`, `mapping.complete`, `mapping.assign` (inclui status + atribuição) — **revisado em v1.2 por D-N12**                             | conversa, 2026-09-22            |
+| D-N5  | Timeline **nunca** carrega lista inteira: GET paginado com lazy load no FE (fecha a opção "manter lista única" da v1.0)                                                                                                                                                    | conversa, 2026-09-22            |
+| D-N7  | Lazy load **newest-first + scroll-up**: primeira página = N mais recentes; FE inverte para exibir e prepensa páginas mais antigas; composer fixo embaixo                                                                                                                   | conversa, 2026-09-22            |
+| D-N8  | Envelope **keyset cursor** `{ items, nextCursor, unseenCount }` (exceção registrada em §4 ao `PaginatedResponse`); cursor opaco `{ t, type, id }`                                                                                                                          | conversa, 2026-09-22            |
+| D-N9  | **Históricos top-level** no GET: `triages[]` e `mappings[]` — cada entrada snapshot completo + `occurredAt`, sem ator/origem (`TriageHistoryEntry`/`MappingHistoryEntry`), `oldest→newest`, idêntico em toda página; substitui `triage`/`mapping` singular de v1.2 (D-N14) | conversa, 2026-09-22            |
+| D-N10 | Não é log completo; **sem dedupe** (cada save gera uma entrada no seu histórico)                                                                                                                                                                                           | conversa, 2026-09-22            |
+| D-N12 | Timeline enxuta: **5 ações** (`request.assign/reassign/unassign`, `request.status_change`, `mapping.assign`). **Saem** `request.triage`, `mapping.save`, `mapping.complete` — conteúdo já vive nos históricos (D-N9/D-N14)                                                 | conversa, 2026-09-22            |
+| D-N14 | Históricos versionados: `triages` (snapshot normalizado; proveniência via `audit_history`) + `mappings` por `request_id` (`oldest→newest`)                                                                                                                                 | conversa, 2026-09-22            |
+| D-N13 | Alinhar família `Responsável …`: `mapping.assign` `text` → `Responsável pelo mapeamento alterado: <nome>` / `Responsável pelo mapeamento removido` (antes `Designação de mapeamento alterada`)                                                                             | conversa, 2026-09-22            |
+| D-N6  | `request.update` e `pending_item.*` **não** entram na timeline — pertencem ao futuro `GET /audit/:protocol`                                                                                                                                                                | conversa, 2026-09-22            |
+| D-N11 | O histórico de triagem embutido (`triages`) é acessível aos 3 perfis internos sob o gate desta rota, **sem** o check de assignee do `GET .../triage`                                                                                                                       | conversa, 2026-09-22            |
 
 > Sem decisões abertas: **D-N6** e **D-N11** foram fechadas em 2026-09-22 (opção (a) em ambas).
