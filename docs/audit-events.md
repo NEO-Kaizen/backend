@@ -12,12 +12,12 @@ Documentação interna do serviço de registro de eventos (issue #52).
 
 ## Entidades e ações
 
-| Entidade         | Ações                                                                   | Origem                                        |
-| ---------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
-| `user`           | `create`, `activate`, `deactivate`, `reset_password`, `change_password` | gestão de contas                              |
-| `prioritization` | `evaluate` (avaliação e reavaliação)                                    | `PUT /prioritization/:protocol/score`         |
-| `request`        | `assign`, `reassign`, `unassign`, `status_change`                       | `PATCH /requests/:protocol/assignee` + RN-010 |
-| `settings`       | `update`                                                                | portal-config                                 |
+| Entidade         | Ações                                                                                                 | Origem                                                                                                                    |
+| ---------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `user`           | `create`, `activate`, `deactivate`, `reset_password`, `change_password`                               | gestão de contas                                                                                                          |
+| `prioritization` | `evaluate` (avaliação e reavaliação)                                                                  | `PUT /prioritization/:protocol/score`                                                                                     |
+| `request`        | `assign`, `reassign`, `unassign`, `status_change`, `triage`, `override_status_admin`, `access_denied` | `PATCH /requests/:protocol/assignee` + RN-010; `POST triage`; `PATCH /requests/:protocol/status` (bypass Admin / negação) |
+| `settings`       | `update`                                                                                              | portal-config                                                                                                             |
 
 ## Padrão obrigatório
 

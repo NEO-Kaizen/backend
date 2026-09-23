@@ -321,6 +321,36 @@ HTTP/1.1 404 Not Found
 
 ---
 
+## 3. GET /audit-logs/:protocol — Timeline de auditoria de uma solicitação (issue #124)
+
+Alias por protocolo: mesmo shape da seção 2, mas com **todos** os eventos
+`request.*` de uma solicitação (`entity_id = protocol`), do mais recente para
+o mais antigo. Sem paginação — alimenta a timeline da busca de um protocolo.
+
+```http
+GET /audit-logs/MAAT-8K3P-9X2M HTTP/1.1
+Cookie: session_id=<jwt>
+```
+
+**Response 200** — `AuditHistoryDetail[]` (array direto, sem envelope).
+
+**Permissão:**
+
+- `Administrador` ou `Gestor` (admin-like) — qualquer solicitação.
+- `ANALYST_ASSIGNEE` da solicitação — responsável da triagem **ou** designado
+  do mapeamento (guard `listAuditLogsByProtocol`).
+
+**Erros:**
+
+| Status | Quando                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `:protocol` vazio                                                                                                             |
+| 401    | Sem sessão válida (seção 0)                                                                                                   |
+| 403    | Perfil/sem custódia: não é Administrador/Gestor nem `ANALYST_ASSIGNEE` da solicitação (`code: INSUFFICIENT_ROLE_PERMISSIONS`) |
+| 404    | Protocolo inexistente (`"Protocolo não encontrado"`)                                                                          |
+
+---
+
 ## Observações do contrato
 
 - Valores de `entity_type`/`action_type` são o vocabulário do `auditCatalog`;

@@ -116,10 +116,10 @@ interface InternalRequestDetail {
 **Erros:**
 
 - `400` — `analystId` vazio
-- `403` — sem permissão (só `Administrador` ou `assignee` atual — espelha `SpecTabs` `canTriage`)
+- `403` — sem permissão: só `Administrador` ou `ANALYST_ASSIGNEE` da solicitação (responsável da triagem **ou** designado do mapeamento). Com `code: "INSUFFICIENT_ROLE_PERMISSIONS"`. Gestor **não** atribui (issue #124)
 - `404` — `protocol` ou `analystId` não encontrado
 - `500` — genérico
-- Formato erro: `{status:'error', statusCode, message}`
+- Formato erro: `{status:'error', statusCode, message}` (e `code` quando presente)
 
 **Exemplo triagem:**
 
@@ -164,7 +164,7 @@ Frontend envia `assigneeId` quando `responsibility === "triagem"`, `mappingAssig
 
 ## Auth
 
-Cookie obrigatório. `GET /users/analysts` e `PATCH .../assignee` exigem sessão válida. Atribuição idealmente restrita a `Administrador` ou responsável atual (mesma regra de `canTriage`).
+Cookie obrigatório. `GET /users/analysts` e `PATCH .../assignee` exigem sessão válida. Atribuição restrita a `Administrador` ou `ANALYST_ASSIGNEE` atual (triage ou mapeamento) — implementado no service (`canAssignRequest`, issue #124).
 
 ---
 
