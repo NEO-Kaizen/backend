@@ -19,6 +19,7 @@ interface RequestContextRow {
   professional_id: string | null;
   assignee_user_id: number | null;
   status_name: string | null;
+  status_is_restricted: boolean;
   category_name: string | null;
 }
 
@@ -34,6 +35,7 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       professional_id: "r.professional_id",
       assignee_user_id: "dp.user_id",
       status_name: "s.name",
+      status_is_restricted: "s.is_restricted",
       category_name: "c.name",
     });
 }
@@ -110,14 +112,18 @@ export async function findLatestTriage(protocol: string): Promise<TriageAssessme
 }
 
 /**
- * Resolve a saída da triagem contra `statuses` (ativos + `is_triage_exit`).
+ * Resolve a saída da triagem contra `statuses`. Motor de Status v4 (delta
+ * §3.1): elegível = `isActive && isRestricted===false && triageMode` em
+ * `free`/`conclusion_only` — substitui o antigo filtro `isTriageExit`.
  * Contrato puro: só id numérico — literais antigos (nomes) são rejeitados
  * com 422 (`contract-triage_04.md` §Observações).
  */
 export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
   return db("statuses")
-    .where({ is_active: true, is_triage_exit: true, status_id: value })
+    .where({ is_active: true, is_restricted: false })
+    .whereIn("triage_mode", ["free", "conclusion_only"])
+    .where({ status_id: value })
     .first("status_id as status_id", "name") as Promise<StatusRow | undefined>;
 }
 

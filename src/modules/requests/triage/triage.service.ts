@@ -43,9 +43,23 @@ export async function createTriage(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
+  // Priorizado (isRestricted) bloqueia triagem de qualquer perfil — inclusive
+  // assignee → só via `PATCH /status` com bypass Admin (delta §3.1).
+  if (request.status_is_restricted) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
+
   const canAccess = isAdminOrAssignee(actor, request.assignee_user_id ?? null);
   if (!canAccess) {
-    throw new AppError("Acesso negado a esta solicitação", 403);
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
   }
 
   // Regras condicionais (aderência/justificativa, categoria de destino,
@@ -56,7 +70,10 @@ export async function createTriage(
   const exitStatus = await repository.resolveExitStatus(payload.exitStatus);
   if (!exitStatus) {
     throw new ValidationError(
-      { exitStatus: "Status de saída deve ser um status ativo elegível para triagem" },
+      {
+        exitStatus:
+          "Status de saída deve ser um status ativo com triageMode free ou conclusion_only e isRestricted=false",
+      },
       "Validação falhou",
     );
   }

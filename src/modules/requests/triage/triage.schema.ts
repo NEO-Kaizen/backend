@@ -10,7 +10,7 @@ export interface TriageAssessment {
   perceivedRisks: string;
   suggestedResponsible: string;
   suggestedResponsibleJustification: string;
-  exitStatus: number; // PortalStatus.id — deve ter isTriageExit && isActive
+  exitStatus: number; // PortalStatus.id — deve ter isActive && isRestricted===false && triageMode free|conclusion_only (delta v4 §3.1)
   result: string;
   conclusionJustification: string;
 }
@@ -39,6 +39,8 @@ export const createTriagePayloadSchema = z
     suggestedResponsibleJustification: textField(1000),
     // PortalStatus.id numérico — literais antigos (nomes) não são aceitos
     // (contrato §Observações: "Backend não aceita literais antigos").
+    // Resolução contra `statuses` (v4: is_active/is_restricted/triage_mode)
+    // acontece no service via `resolveExitStatus`.
     exitStatus: z
       .number("Selecione o status de saída")
       .int("Status de saída inválido.")
