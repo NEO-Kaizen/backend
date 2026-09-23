@@ -20,6 +20,7 @@ export const auditCatalog = {
       "reset_password",
       "change_password",
       "update_profile",
+      "update",
     ],
   },
   prioritization: {

@@ -1,16 +1,32 @@
 import { z } from "zod";
-import { optionalString, requiredString } from "../../../shared/validation/fieldSchemas.ts";
+import {
+  nullableOptionalString,
+  optionalText,
+  PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
+  requiredText,
+} from "../../../shared/validation/fieldSchemas.ts";
 import { professionalSchema } from "../../users/users.schema.ts";
 
 /**
- * Bloco requester editável no "Meus dados" — omite `fullName`/
- * `corporateEmail` (imutáveis por decisão de domínio).
+ * Bloco requester self-editável no "Meus dados" — após mudança para
+ * admin-provisioned, só `additionalContact` é mutável pelo dono.
+ * `area/department/manager` são admin-only (rejeitados no service).
+ * `additionalContact` aceita string, ""→null, null→clear, undefined/{}→no-op.
+ */
+export const updateRequesterSelfSchema = z.object({
+  additionalContact: nullableOptionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
+});
+
+/**
+ * Bloco requester completo (admin / criação) — mantém `area/manager`
+ * obrigatórios com charset `isValidText`.
+ * `additionalContact` aceita null/"" para limpar.
  */
 export const updateRequesterSchema = z.object({
-  area: requiredString(100),
-  department: optionalString(100),
-  manager: requiredString(150),
-  additionalContact: optionalString(100),
+  area: requiredText(100),
+  department: optionalText(100),
+  manager: requiredText(150),
+  additionalContact: nullableOptionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
 });
 
 export type UpdateRequesterBlock = z.infer<typeof updateRequesterSchema>;
@@ -26,7 +42,7 @@ export type UpdateRequesterBlock = z.infer<typeof updateRequesterSchema>;
  * acesso ao `profile_name` do usuário; o schema não conhece o role).
  */
 export const updateProfileSchema = z.object({
-  requester: updateRequesterSchema.optional(),
+  requester: updateRequesterSelfSchema.optional(),
   professional: professionalSchema.optional(),
   removeAvatar: z.boolean().optional(),
 });
