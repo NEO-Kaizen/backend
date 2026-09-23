@@ -1,15 +1,18 @@
 import { z } from "zod";
+import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import type { AuditHistoryQuery } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 
 const optionalPositiveInt = z.coerce.number().int().positive().optional();
+
+// Fonte única da verdade: valores derivados do auditCatalog. Novas entidades
+// auditáveis passam a ser aceitas aqui automaticamente.
+const auditEntityNames = Object.keys(auditCatalog) as [AuditEntityName, ...AuditEntityName[]];
 
 export const auditHistoryQuerySchema = z
   .object({
     page: optionalPositiveInt,
     limit: z.coerce.number().int().positive().max(100).optional(),
-    entityType: z
-      .enum(["user", "prioritization", "request", "mapping", "settings", "pending_item"])
-      .optional(),
+    entityType: z.enum(auditEntityNames).optional(),
   })
   .strict()
   .refine((query) => !query.page || query.page >= 1, {
