@@ -59,20 +59,22 @@ export async function seed(knex) {
 
   await knex("request_internal_notes").where({ request_id: RICH_REQUEST_ID }).del();
 
-  const existingMappingIds = await knex("mappings")
-    .where({ request_id: RICH_REQUEST_ID })
-    .pluck("mapping_id");
+  // UUIDs fixos (não pluck): o 001 faz `TRUNCATE requests CASCADE` no início
+  // de cada seed:run, apagando `mappings` antes deste ponto — mas
+  // `audit_history` não tem FK, então os audits viram órfãos e só podem ser
+  // limpos pelos ids constantes deste seed.
+  const seedMappingIds = [RICH_MAPPING_ID, OLDER_MAPPING_ID];
 
   await knex("audit_history")
     .where(function () {
       this.where({ entity_type: "request", entity_id: RICH_PROTOCOL });
     })
     .orWhere(function () {
-      this.where({ entity_type: "mapping" }).whereIn("entity_id", existingMappingIds);
+      this.where({ entity_type: "mapping" }).whereIn("entity_id", seedMappingIds);
     })
     .del();
 
-  await knex("mapping_participants").whereIn("mapping_id", existingMappingIds).del();
+  await knex("mapping_participants").whereIn("mapping_id", seedMappingIds).del();
   await knex("mappings").where({ request_id: RICH_REQUEST_ID }).del();
   await knex("triages").where({ request_id: RICH_REQUEST_ID }).del();
 
@@ -240,25 +242,26 @@ export async function seed(knex) {
     },
   ]);
 
-  // Esforço ANTERIOR (concluído) — 1ª entrada de `mappings[]`; `created_at`
-  // anterior ao mapeamento atual para que o `GET /mapping` continue devolvendo
-  // o esforço rico mais recente.
+  // Esforço ANTERIOR (concluído) — 1ª entrada de `mappings[]`; datas entre a
+  // triagem inicial (07-18 / "Aguardando mapeamento" 07-20) e o esforço atual
+  // (08-05), para a narrativa seguir o fluxo triagem → mapeamento e o
+  // `GET /mapping` continuar devolvendo o esforço rico mais recente.
   await knex("mappings").insert({
     mapping_id: OLDER_MAPPING_ID,
     request_id: RICH_REQUEST_ID,
     professional_id: "650e8400-e29b-41d4-a716-446655440001",
-    scheduled_for: "2026-06-25T14:00:00.000Z",
+    scheduled_for: "2026-07-29T14:00:00.000Z",
     duration_minutes: 45,
     modality: "IN_PERSON",
     meeting_link: null,
     location: "Sala 3 — Sede",
     notes: "Levantamento inicial de requisitos.",
     is_concluded: true,
-    concluded_at: "2026-07-01T11:00:00.000Z",
+    concluded_at: "2026-08-01T11:00:00.000Z",
     created_by: "analista_teste@email.com",
-    created_at: "2026-06-20T09:00:00.000Z",
+    created_at: "2026-07-25T09:00:00.000Z",
     updated_by: "analista_teste@email.com",
-    updated_at: "2026-07-01T11:00:00.000Z",
+    updated_at: "2026-08-01T11:00:00.000Z",
   });
 
   await knex("mappings").insert({
@@ -358,7 +361,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440001",
       user_id: 102,
-      occurred_at: "2026-06-20T09:00:00.000Z",
+      occurred_at: "2026-07-25T09:00:00.000Z",
       change_origin: "admin",
     },
     {
@@ -367,11 +370,11 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value: JSON.stringify({
-        scheduledFor: "2026-06-25T14:00:00.000Z",
+        scheduledFor: "2026-07-29T14:00:00.000Z",
         mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440001",
       }),
       user_id: 101,
-      occurred_at: "2026-06-22T10:00:00.000Z",
+      occurred_at: "2026-07-26T10:00:00.000Z",
       change_origin: "internal",
     },
     {
@@ -379,16 +382,16 @@ export async function seed(knex) {
       entity_id: OLDER_MAPPING_ID,
       action_type: "mapping.complete",
       previous_value: JSON.stringify({
-        scheduledFor: "2026-06-25T14:00:00.000Z",
+        scheduledFor: "2026-07-29T14:00:00.000Z",
         mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440001",
       }),
       new_value: JSON.stringify({
-        scheduledFor: "2026-06-25T14:00:00.000Z",
+        scheduledFor: "2026-07-29T14:00:00.000Z",
         mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440001",
         is_concluded: true,
       }),
       user_id: 101,
-      occurred_at: "2026-07-01T11:00:00.000Z",
+      occurred_at: "2026-08-01T11:00:00.000Z",
       change_origin: "internal",
     },
   ]);
