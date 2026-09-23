@@ -286,15 +286,15 @@ locais do frontend — o backend não precisa tratar esse fallback.
     }
   },
   "assets": {
-    "logoLightUrl": "/assets/MAAT-logo.svg",
-    "logoDarkUrl": "/assets/MAAT-logo.svg",
+    "logoLightUrl": "/uploads/portal/logo-light-default.svg",
+    "logoDarkUrl": "/uploads/portal/logo-dark-default.svg",
     "logoUsePrimaryColor": true,
-    "avatarLightUrl": "/assets/avatar-default.svg",
-    "avatarDarkUrl": "/assets/avatar-default.svg",
-    "loginImageLightUrl": "/assets/login.png",
-    "loginImageDarkUrl": "/assets/loginDark.png",
-    "faviconLightUrl": "/assets/favicon.svg",
-    "faviconDarkUrl": "/assets/favicon.svg"
+    "avatarLightUrl": "/uploads/portal/avatar-light-default.svg",
+    "avatarDarkUrl": "/uploads/portal/avatar-dark-default.svg",
+    "loginImageLightUrl": "/uploads/portal/login-light-default.png",
+    "loginImageDarkUrl": "/uploads/portal/login-dark-default.png",
+    "faviconLightUrl": "/uploads/portal/favicon-light-default.svg",
+    "faviconDarkUrl": "/uploads/portal/favicon-dark-default.svg"
   },
   "categories": [
     {
@@ -667,14 +667,14 @@ categorias e statuses completas ficam aqui.
 
 ### Assets
 
-| Chave (claro/escuro)                 | Default              |
-| ------------------------------------ | -------------------- |
-| `logoLightUrl` / `logoDarkUrl`       | `MAAT-logo.svg`      |
-| `logoUsePrimaryColor`                | `true`               |
-| `avatarLightUrl` / `avatarDarkUrl`   | `avatar-default.svg` |
-| `loginImageLightUrl`                 | `login.png`          |
-| `loginImageDarkUrl`                  | `loginDark.png`      |
-| `faviconLightUrl` / `faviconDarkUrl` | `favicon.svg`        |
+| Chave (claro/escuro)                 | Default                                                                                                        |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `logoLightUrl` / `logoDarkUrl`       | `/uploads/portal/logo-light-default.svg` (`logoUsePrimaryColor:true` → máscara SVG com `var(--primary-color)`) |
+| `logoUsePrimaryColor`                | `true` (render tintado)                                                                                        |
+| `avatarLightUrl` / `avatarDarkUrl`   | `/uploads/portal/avatar-*-default.svg`                                                                         |
+| `loginImageLightUrl`                 | `/uploads/portal/login-light-default.png`                                                                      |
+| `loginImageDarkUrl`                  | `/uploads/portal/login-dark-default.png`                                                                       |
+| `faviconLightUrl` / `faviconDarkUrl` | `/uploads/portal/favicon-*-default.svg`                                                                        |
 
 ### Categorias (10, todas ativas)
 

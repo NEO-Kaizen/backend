@@ -110,7 +110,7 @@ curl -s -X PATCH http://localhost:3000/portal-config/theme \
         "onPrimary": "#0b0f1a",
         "onDark": "#ffffff",
         "onGradient": "#ffffff",
-        "gradient": {"from": "#0b0f1a", "to": "#1b2942", "angle": 143},
+        "gradient": {"from": "#002068", "to": "#003399", "angle": 143},
         "statuses": {
           "error":   {"color": "#f87171", "background": "#4c0f0a", "backgroundLocked": true},
           "success": {"color": "#4ade80", "background": "#0f2e1d", "backgroundLocked": true},
@@ -191,8 +191,8 @@ curl -s -X PATCH http://localhost:3000/portal-config/assets \
   -H "Content-Type: application/json" \
   -b "session_id=$SESSION_ID" \
   -d '{
-    "logoLightUrl": "/assets/MAAT-logo.svg",
-    "logoDarkUrl": "/assets/MAAT-logo-dark.svg",
+    "logoLightUrl": "/uploads/portal/logo-light-default.svg",
+    "logoDarkUrl": "/uploads/portal/logo-dark-default.svg",
     "logoUsePrimaryColor": true
   }' | jq .
 ```
