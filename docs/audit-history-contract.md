@@ -8,7 +8,9 @@ listagem paginada de eventos de auditoria e detalhe de um evento
   `docs/issues/plano-audit-logs-endpoint.md` (plano de execução)
 - Catálogo de entidades/ações: `src/shared/audit/auditCatalog.ts` — os valores
   de `entity_type`/`action_type` trafegados neste contrato nascem desse catálogo
-- Tabela: `audit_history` (migration `202609100009_create_audit_history.js`)
+- Tabela: `audit_history` (migrations `202609100009_create_audit_history.js` e
+  `20260923000001_add_audit_history_append_only_guard.js` — append-only via
+  triggers + FK `user_id` com `ON DELETE RESTRICT`)
 - Erros sempre no envelope: `{ "status": "error", "statusCode": number, "message": string }`
 
 ---
@@ -31,13 +33,23 @@ export interface AuditHistoryQuery {
   entityType?: AuditEntityType; // filtro por tipo de log
 }
 
-// Item da tabela de logs (colunas: ID, Tipo, Ação, Usuário, Data)
+// Ator do evento — substitui o `user_id` cru. `kind: "system"` equivale ao
+// antigo `user_id: null` (ação sem ator humano); a UI renderiza como
+// "Sistema". `displayName` vem de `users.full_name` via JOIN (sem N+1 no
+// frontend); `userId` permite linkar ao cadastro quando necessário.
+export interface AuditActor {
+  kind: "system" | "user";
+  userId: number | null;
+  displayName: string | null; // null quando kind = "system"
+}
+
+// Item da tabela de logs (colunas: ID, Tipo, Ação, Operador, Data)
 export interface AuditHistorySummary {
   audit_id: number;
   entity_type: string; // valor do catálogo (ex.: "settings")
   entity_type_label: string; // rótulo PT-BR (ex.: "Configuração do portal")
   action_type: string; // ação composta "<entidade>.<ação>" (ex.: "settings.update")
-  user_id: number | null; // null → ação de sistema (sem ator)
+  actor: AuditActor;
   occurred_at: string; // ISO datetime
 }
 
@@ -56,7 +68,7 @@ export interface AuditHistoryDetail {
   entity_type: string;
   entity_id: string; // identificador da entidade afetada
   action_type: string;
-  user_id: number | null;
+  actor: AuditActor;
   previous_value: string | null; // valor anterior (texto livre)
   new_value: string | null; // valor novo (texto livre)
   note: string | null;
@@ -70,20 +82,24 @@ export interface AuditHistoryDetail {
 ## 0. Autenticação e autorização (transversal a este contrato)
 
 Os dois endpoints deste contrato exigem sessão JWT (cookie `session_id`,
-`HttpOnly`) **e** perfil `Administrador` — guardas `authMiddleware` +
-`requireRole("Administrador")` (`src/shared/middleware/`), aplicados antes de
-qualquer processamento:
+`HttpOnly`) **e** perfil `Administrador` ou `Gestor` — guardas `authMiddleware`
 
-| Situação                          | Resposta                                          |
-| --------------------------------- | ------------------------------------------------- |
-| Sem cookie `session_id`           | `401` `"Token não fornecido"`                     |
-| Sessão inválida/expirada/revogada | `401` no envelope padrão                          |
-| Perfil diferente de Administrador | `403` `"Acesso restrito ao perfil Administrador"` |
+- `requireRole("Administrador", "Gestor")` (`src/shared/middleware/`),
+  aplicados antes de qualquer processamento:
+
+| Situação                                    | Resposta                                                    |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| Sem cookie `session_id`                     | `401` `"Token não fornecido"`                               |
+| Sessão inválida/expirada/revogada           | `401` no envelope padrão                                    |
+| Perfil diferente de Administrador ou Gestor | `403` `"Acesso restrito ao perfil Administrador ou Gestor"` |
 
 - O papel é resolvido do banco a cada request (`profiles.name` → `Role`);
   troca de perfil passa a valer imediatamente, mesmo com cookie antigo.
 - Usuário com `must_change_password` pendente só acessa `PUT
 /auth/change-password` e `GET /auth/me` — qualquer outra rota responde `403`.
+- As respostas trafegam com `Cache-Control: private, no-store` — dados
+  administrativos autenticados não devem ser armazenados pelo navegador ou por
+  intermediários.
 
 ---
 
@@ -120,7 +136,11 @@ HTTP/1.1 200 OK
       "entity_type": "settings",
       "entity_type_label": "Configuração do portal",
       "action_type": "settings.update",
-      "user_id": 102,
+      "actor": {
+        "kind": "user",
+        "userId": 102,
+        "displayName": "Administrador Teste"
+      },
       "occurred_at": "2026-09-21T04:15:49.041Z"
     },
     {
@@ -128,7 +148,11 @@ HTTP/1.1 200 OK
       "entity_type": "user",
       "entity_type_label": "Usuários",
       "action_type": "user.create",
-      "user_id": 102,
+      "actor": {
+        "kind": "user",
+        "userId": 102,
+        "displayName": "Administrador Teste"
+      },
       "occurred_at": "2026-09-21T04:15:46.164Z"
     }
   ],
@@ -157,7 +181,11 @@ HTTP/1.1 200 OK
       "entity_type": "user",
       "entity_type_label": "Usuários",
       "action_type": "user.create",
-      "user_id": 102,
+      "actor": {
+        "kind": "user",
+        "userId": 102,
+        "displayName": "Administrador Teste"
+      },
       "occurred_at": "2026-09-21T04:15:46.164Z"
     },
     {
@@ -165,7 +193,11 @@ HTTP/1.1 200 OK
       "entity_type": "user",
       "entity_type_label": "Usuários",
       "action_type": "user.change_password",
-      "user_id": 117,
+      "actor": {
+        "kind": "user",
+        "userId": 117,
+        "displayName": "Sol Clean B108"
+      },
       "occurred_at": "2026-09-21T04:07:14.180Z"
     },
     {
@@ -173,7 +205,11 @@ HTTP/1.1 200 OK
       "entity_type": "user",
       "entity_type_label": "Usuários",
       "action_type": "user.create",
-      "user_id": 102,
+      "actor": {
+        "kind": "user",
+        "userId": 102,
+        "displayName": "Administrador Teste"
+      },
       "occurred_at": "2026-09-21T04:07:13.775Z"
     }
   ],
@@ -220,7 +256,7 @@ HTTP/1.1 400 Bad Request
 | 400    | `entityType` fora do catálogo (a mensagem lista os valores válidos) |
 | 400    | Query param desconhecido (schema `.strict()` — ex.: `?foo=1`)       |
 | 401    | Sem sessão válida (seção 0)                                         |
-| 403    | Perfil diferente de Administrador (seção 0)                         |
+| 403    | Perfil diferente de Administrador ou Gestor (seção 0)               |
 
 ---
 
@@ -249,7 +285,11 @@ HTTP/1.1 200 OK
   "entity_type": "settings",
   "entity_id": "settings",
   "action_type": "settings.update",
-  "user_id": 102,
+  "actor": {
+    "kind": "user",
+    "userId": 102,
+    "displayName": "Administrador Teste"
+  },
   "previous_value": "{\"solicitationMode\":\"PUBLIC\"}",
   "new_value": "{\"solicitationMode\":\"PUBLIC\"}",
   "note": null,
@@ -272,12 +312,12 @@ HTTP/1.1 404 Not Found
 
 **Erros:**
 
-| Status | Quando                                          |
-| ------ | ----------------------------------------------- |
-| 400    | `:id` não numérico ou < 1 (`"ID inválido"`)     |
-| 401    | Sem sessão válida (seção 0)                     |
-| 403    | Perfil diferente de Administrador (seção 0)     |
-| 404    | `audit_id` inexistente (`"Log não encontrado"`) |
+| Status | Quando                                                |
+| ------ | ----------------------------------------------------- |
+| 400    | `:id` não numérico ou < 1 (`"ID inválido"`)           |
+| 401    | Sem sessão válida (seção 0)                           |
+| 403    | Perfil diferente de Administrador ou Gestor (seção 0) |
+| 404    | `audit_id` inexistente (`"Log não encontrado"`)       |
 
 ---
 
@@ -289,9 +329,14 @@ HTTP/1.1 404 Not Found
 - `previous_value`/`new_value` são texto livre (podem conter JSON serializado,
   como no exemplo da seção 2) — parse é decisão do frontend; `null` significa
   "não registrado para este evento", não string vazia.
-- `user_id: null` indica ação de sistema (sem ator humano); a UI deve renderizar
-  como "Sistema" em vez de buscar usuário.
-- `audit_history` é imutável por modelagem (`is_immutable` default `true`) —
-  este contrato é somente leitura; não há POST/PUT/DELETE.
+- `actor.kind: "system"` indica ação sem ator humano; a UI deve renderizar
+  como "Sistema". Com a FK `user_id` em `ON DELETE RESTRICT`, nenhum `NULL`
+  futuro virá de usuário apagado — `NULL` significa confiavelmente "sistema".
+  **Limitação conhecida:** linhas gravadas antes dessa migration cujo usuário
+  tenha sido removido via `SET NULL` permanecem indistinguíveis de ações de
+  sistema.
+- `audit_history` é append-only garantido no banco (triggers rejeitam
+  `UPDATE`/`DELETE`/`TRUNCATE`; a coluna `is_immutable` foi removida por ser um
+  marcador morto) — este contrato é somente leitura; não há POST/PUT/DELETE.
 - Fora de escopo deste contrato (issue futura, se necessário): filtro por
   período/data, busca textual, exportação e paginação por cursor.
