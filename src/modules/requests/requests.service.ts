@@ -371,12 +371,13 @@ export async function findInternalByProtocol(
 
 /**
  * Extrai as observações internas puras de `requests.internal_notes`,
- * descartando o wrapper reservado da triagem (`__triage`) quando presente.
+ * descartando o wrapper legado da triagem (`__triage`) quando presente.
  *
- * O módulo de triagem persiste seu assessment sob a chave `__triage` do mesmo
- * campo (decisão P4 do PR #92); o texto bruto restante — observações legadas
- * não-JSON (guardadas sob `observations`) ou qualquer outra chave customizada —
- * continua sendo o `internalObservations` do contrato.
+ * A partir da v2.0 a triagem vive na tabela `triages` (não escreve mais neste
+ * campo); o strip de `__triage` permanece apenas defensivo para dados legados.
+ * O texto bruto restante — observações não-JSON (guardadas sob `observations`)
+ * ou qualquer outra chave customizada — continua sendo o `internalObservations`
+ * do contrato.
  */
 function extractInternalObservations(raw: string | null | undefined): string | null {
   if (!raw) return null;

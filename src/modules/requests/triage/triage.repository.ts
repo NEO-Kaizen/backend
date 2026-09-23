@@ -18,7 +18,6 @@ interface RequestContextRow {
   protocol: string;
   professional_id: string | null;
   assignee_user_id: number | null;
-  internal_notes: string | null;
   status_name: string | null;
   category_name: string | null;
 }
@@ -34,68 +33,80 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       protocol: "r.protocol",
       professional_id: "r.professional_id",
       assignee_user_id: "dp.user_id",
-      internal_notes: "r.internal_notes",
       status_name: "s.name",
       category_name: "c.name",
     });
 }
 
-function isTriageAssessment(value: unknown): value is TriageAssessment {
-  if (typeof value !== "object" || value === null) return false;
-
-  const record = value as Partial<TriageAssessment>;
-
-  return (
-    typeof record.id === "string" &&
-    typeof record.adherentToScope === "string" &&
-    typeof record.adherentJustification === "string" &&
-    typeof record.changeCategory === "string" &&
-    typeof record.newCategory === "string" &&
-    typeof record.preliminaryComplexity === "string" &&
-    typeof record.perceivedRisks === "string" &&
-    typeof record.suggestedResponsible === "string" &&
-    typeof record.suggestedResponsibleJustification === "string" &&
-    typeof record.exitStatus === "number" &&
-    typeof record.result === "string" &&
-    typeof record.conclusionJustification === "string"
-  );
+/** Linha de `triages` — snapshot normalizado do assessment (fonte de verdade). */
+interface TriageRow {
+  triage_id: string;
+  adherent_to_scope: "Sim" | "Não" | "";
+  adherent_justification: string;
+  change_category: "Sim" | "Não" | "";
+  new_category: string;
+  preliminary_complexity: string;
+  perceived_risks: string;
+  suggested_responsible: string;
+  suggested_responsible_justification: string;
+  exit_status: number;
+  result: string;
+  conclusion_justification: string;
 }
 
-const TRIAGE_WRAPPER_KEY = "__triage";
+const TRIAGE_COLUMNS = [
+  "t.triage_id",
+  "t.adherent_to_scope",
+  "t.adherent_justification",
+  "t.change_category",
+  "t.new_category",
+  "t.preliminary_complexity",
+  "t.perceived_risks",
+  "t.suggested_responsible",
+  "t.suggested_responsible_justification",
+  "t.exit_status",
+  "t.result",
+  "t.conclusion_justification",
+] as const;
+
+function rowToAssessment(row: TriageRow): TriageAssessment {
+  return {
+    id: row.triage_id,
+    adherentToScope: row.adherent_to_scope,
+    adherentJustification: row.adherent_justification,
+    changeCategory: row.change_category,
+    newCategory: row.new_category,
+    preliminaryComplexity: row.preliminary_complexity,
+    perceivedRisks: row.perceived_risks,
+    suggestedResponsible: row.suggested_responsible,
+    suggestedResponsibleJustification: row.suggested_responsible_justification,
+    exitStatus: row.exit_status,
+    result: row.result,
+    conclusionJustification: row.conclusion_justification,
+  };
+}
 
 /**
- * Extrai o assessment da triagem do `requests.internal_notes`.
+ * Última triagem da solicitação (fonte: `triages`).
  *
- * A triagem convive com as observações internas (contrato do módulo
- * internalNotes) sob a chave reservada `__triage`, preservando o texto puro
- * de `internalObservations` (ver `requests.service.ts`).
+ * O uuid de `triage_id` NÃO é monotônico (contrato: uuid v4 gerado no POST),
+ * então a ordem vem da linha `request.triage` do `audit_history` que a gerou
+ * (`new_value->>'triageId'`), desempatada por `audit_id` — nunca pelo id.
  */
-function parseTriageFromInternalNotes(raw: string | null | undefined): TriageAssessment | null {
-  if (!raw) return null;
+export async function findLatestTriage(protocol: string): Promise<TriageAssessment | null> {
+  const row = await db("audit_history as audit")
+    .joinRaw("JOIN triages AS t ON t.triage_id = (audit.new_value::json->>'triageId')::uuid")
+    .join("requests as r", "r.request_id", "t.request_id")
+    .where({
+      "audit.entity_type": "request",
+      "audit.action_type": "request.triage",
+      "r.protocol": protocol,
+    })
+    .orderBy("audit.occurred_at", "desc")
+    .orderBy("audit.audit_id", "desc")
+    .first(...TRIAGE_COLUMNS);
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-
-  if (typeof parsed !== "object" || parsed === null) return null;
-
-  const wrapper = parsed as Record<string, unknown>;
-  if (TRIAGE_WRAPPER_KEY in wrapper) {
-    return isTriageAssessment(wrapper[TRIAGE_WRAPPER_KEY])
-      ? (wrapper[TRIAGE_WRAPPER_KEY] as TriageAssessment)
-      : null;
-  }
-
-  return isTriageAssessment(parsed) ? parsed : null;
-}
-
-export async function findTriageByProtocol(protocol: string): Promise<TriageAssessment | null> {
-  const row = await db("requests").where({ protocol }).first("internal_notes");
-
-  return parseTriageFromInternalNotes(row?.internal_notes);
+  return row ? rowToAssessment(row as TriageRow) : null;
 }
 
 /**
@@ -153,8 +164,37 @@ export interface TriageAuditContext {
   nextStatus: string;
 }
 
+/**
+ * Append do snapshot em `triages` (D-N14): um id só — `triage_id =
+ * TriageAssessment.id` (uuid gerado no service). A proveniência
+ * (`occurredAt`/`actor`/`changeOrigin`) NÃO mora nesta tabela; vem do
+ * `audit_history` `request.triage` correlacionado por `new_value->>'triageId'`.
+ */
+export async function insertTriage(
+  requestId: string,
+  triage: TriageAssessment,
+  trx: Knex.Transaction,
+): Promise<void> {
+  await trx("triages").insert({
+    triage_id: triage.id,
+    request_id: requestId,
+    adherent_to_scope: triage.adherentToScope,
+    adherent_justification: triage.adherentJustification,
+    change_category: triage.changeCategory,
+    new_category: triage.newCategory,
+    preliminary_complexity: triage.preliminaryComplexity,
+    perceived_risks: triage.perceivedRisks,
+    suggested_responsible: triage.suggestedResponsible,
+    suggested_responsible_justification: triage.suggestedResponsibleJustification,
+    exit_status: triage.exitStatus,
+    result: triage.result,
+    conclusion_justification: triage.conclusionJustification,
+  });
+}
+
 export async function saveTriageDecision(
   protocol: string,
+  requestId: string,
   triage: TriageAssessment,
   categoryId: number | null,
   statusId: number,
@@ -162,7 +202,7 @@ export async function saveTriageDecision(
   audit: TriageAuditContext,
 ): Promise<void> {
   await db.transaction(async (trx) => {
-    await upsertTriage(protocol, triage, updatedBy, trx);
+    await insertTriage(requestId, triage, trx);
     await applyRequestOutcome(protocol, categoryId, statusId, updatedBy, trx);
     await recordAudit(trx, {
       entityType: "request",
@@ -181,41 +221,4 @@ export async function saveTriageDecision(
       changeOrigin: "admin",
     });
   });
-}
-
-export async function upsertTriage(
-  protocol: string,
-  triage: TriageAssessment,
-  updatedBy: string,
-  trx?: Knex.Transaction,
-): Promise<void> {
-  const source = trx ?? db;
-
-  const row = await source("requests").where({ protocol }).first("internal_notes");
-
-  let merged: Record<string, unknown> = {};
-  const rawNotes = row?.internal_notes;
-  if (rawNotes) {
-    try {
-      const parsed: unknown = JSON.parse(String(rawNotes));
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        merged = { ...(parsed as Record<string, unknown>) };
-      } else {
-        // Observações legadas em texto puro (não-JSON): preservadas sob a
-        // chave `observations` para não serem perdidas ao gravar a triagem.
-        merged = { observations: String(rawNotes) };
-      }
-    } catch {
-      merged = { observations: String(rawNotes) };
-    }
-  }
-  merged[TRIAGE_WRAPPER_KEY] = triage;
-
-  await source("requests")
-    .where({ protocol })
-    .update({
-      internal_notes: JSON.stringify(merged),
-      updated_by: updatedBy,
-      updated_at: source.fn.now(),
-    });
 }

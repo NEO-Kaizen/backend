@@ -69,7 +69,8 @@ export interface PortalStatus {
 // gerado pelo backend — NÃO confundir com os ids numéricos de
 // PortalCategory/PortalStatus). Nunca há duas triagens simultâneas;
 // apenas sequenciais — a última retornada por GET /triage é a vigente.
-// Histórico completo é GET /triages (futuro).
+// Persistida na tabela `triages` (snapshot normalizado; fonte de verdade);
+// histórico completo embutido em GET /internal-notes (`triages[]`).
 export interface TriageAssessment {
   id: string; // uuid v4 do registro — gerado pelo backend no POST, readonly no GET
   adherentToScope: "Sim" | "Não" | ""; // obrigatório
@@ -137,7 +138,8 @@ o frontend usa `MOCK_DOMAINS.triage` (`src/lib/mocks/index.ts`).
 
 Cria uma nova triagem. **Não idempotente**: cada chamada gera `id` novo (uuid do registro).
 Nunca há duas triagens simultâneas — apenas sequenciais; a última retornada por
-`GET /triage` é a vigente. Histórico pode ser exposto futuramente via `GET /triages`.
+`GET /triage` é a vigente. Cada POST faz append de uma row em `triages`; o
+histórico completo é embutido em `GET /internal-notes` (`triages[]`).
 
 **Request**
 
@@ -355,7 +357,7 @@ HTTP/1.1 200 OK
 null
 ```
 
-> Futuro: `GET /requests/:protocol/triages` → `TriageAssessment[]` ordenado por `createdAt` desc (histórico).
+> Histórico completo: embutido em `GET /internal-notes` (`triages[]`, `oldest→newest`); não há rota própria de lista.
 
 **Erros:**
 
@@ -465,6 +467,6 @@ Migração: semear `isTriageExit: true` nos 7 status de triagem em `src/lib/conf
 - `newCategory` e `DemandBlock.category` permanecem `RequestCategory` (name-string) por ora — ver TODO em §Tipos. Frontend deriva `FilterSelect` de `portalConfig.categories` (nomes ativos); backend valida contra o cadastro ativo (não aceita categoria inativa/inexistente).
 - `triage.id` é uuid v4 do registro gerado no `POST` (distinto dos ids numéricos de PortalCategory/PortalStatus); frontend nunca envia `id` no body (`Omit<TriageAssessment,"id">`).
 - Trim e limpeza condicional (`adherentJustification` quando `adherentToScope !== "Não"`, `newCategory` quando `changeCategory !== "Sim"`) espelham `triage-validation.ts:28`.
-- Histórico: `GET /triage` retorna a última triagem ou `null`; `GET /triages` (lista) é escopo futuro.
+- Histórico: `GET /triage` retorna a última triagem (row mais recente de `triages`, ordenada pelo `occurred_at` do audit `request.triage`) ou `null`; a lista completa (`triages[]`) é embutida em `GET /internal-notes`.
 - Departamento `select` híbrido e tipos `RequestCategory` seguem `solicitations-api-requests-0_5.md §Tipos compartilhados`.
 - Pendência: semear `isTriageExit: true` nos 7 `PortalStatus` de triagem em `portal-defaults` (ids numéricos existentes; atenção à divergência `Cancelada` vs `Cancelado`).

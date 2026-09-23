@@ -30,7 +30,7 @@ export async function getTriage(protocol: string, actor: Actor): Promise<TriageA
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
-  return repository.findTriageByProtocol(protocol);
+  return repository.findLatestTriage(protocol);
 }
 
 export async function createTriage(
@@ -96,6 +96,7 @@ export async function createTriage(
 
   await repository.saveTriageDecision(
     protocol,
+    request.request_id,
     triage,
     categoryId,
     exitStatus.status_id,
