@@ -55,3 +55,15 @@ export const optionalText = (maxChars: number) =>
     })
     .transform((value) => (value === "" ? undefined : value))
     .optional();
+
+export const nullableOptionalString = (maxChars: number) =>
+  z
+    .union([
+      z
+        .string()
+        .trim()
+        .max(maxChars, `Máximo de ${ptNumber(maxChars)} caracteres.`)
+        .transform((value) => (value === "" ? null : value)),
+      z.null(),
+    ])
+    .optional();

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   emailSchema,
-  optionalString,
+  nullableOptionalString,
   optionalText,
   requiredString,
   requiredText,
@@ -27,7 +27,7 @@ export const requesterSchema = z.object({
   area: requiredText(100),
   department: optionalText(100),
   manager: requiredText(150),
-  additionalContact: optionalString(100),
+  additionalContact: nullableOptionalString(100),
 });
 
 export const createUserSchema = z
@@ -82,7 +82,7 @@ export const requesterPatchSchema = z.object({
   area: requiredText(100).optional(),
   department: optionalText(100),
   manager: requiredText(150).optional(),
-  additionalContact: optionalString(100),
+  additionalContact: nullableOptionalString(100),
 });
 
 export const changeUserStatusSchema = z.object({

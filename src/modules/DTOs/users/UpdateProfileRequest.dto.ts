@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  optionalString,
+  nullableOptionalString,
   optionalText,
   PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
   requiredText,
@@ -11,20 +11,22 @@ import { professionalSchema } from "../../users/users.schema.ts";
  * Bloco requester self-editável no "Meus dados" — após mudança para
  * admin-provisioned, só `additionalContact` é mutável pelo dono.
  * `area/department/manager` são admin-only (rejeitados no service).
+ * `additionalContact` aceita string, ""→null, null→clear, undefined/{}→no-op.
  */
 export const updateRequesterSelfSchema = z.object({
-  additionalContact: optionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
+  additionalContact: nullableOptionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
 });
 
 /**
  * Bloco requester completo (admin / criação) — mantém `area/manager`
  * obrigatórios com charset `isValidText`.
+ * `additionalContact` aceita null/"" para limpar.
  */
 export const updateRequesterSchema = z.object({
   area: requiredText(100),
   department: optionalText(100),
   manager: requiredText(150),
-  additionalContact: optionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
+  additionalContact: nullableOptionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
 });
 
 export type UpdateRequesterBlock = z.infer<typeof updateRequesterSchema>;

@@ -124,7 +124,12 @@ export async function createUser(
 export async function createRequesterData(
   trx: Knex.Transaction,
   user: UserRow,
-  requester?: { area: string; department?: string; manager: string; additionalContact?: string },
+  requester?: {
+    area: string;
+    department?: string;
+    manager: string;
+    additionalContact?: string | null;
+  },
 ): Promise<void> {
   const corporateEmail = user.email.trim().toLowerCase();
 
@@ -255,7 +260,7 @@ export async function upsertRequesterData(
     area: string;
     department?: string;
     managerName: string;
-    additionalContact?: string;
+    additionalContact?: string | null;
   },
 ): Promise<void> {
   // 1. Linha existente para este usuário.
@@ -590,7 +595,12 @@ export async function mergeRequesterData(
   userId: number,
   fullName: string,
   corporateEmail: string,
-  patch: { area?: string; department?: string; manager?: string; additionalContact?: string },
+  patch: {
+    area?: string;
+    department?: string;
+    manager?: string;
+    additionalContact?: string | null;
+  },
 ): Promise<void> {
   const existing = await trx("requesters")
     .where({ user_id: userId })

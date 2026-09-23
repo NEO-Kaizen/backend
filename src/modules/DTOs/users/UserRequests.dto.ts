@@ -12,7 +12,7 @@ export interface RequesterInput {
   area: string;
   department?: string;
   manager: string;
-  additionalContact?: string;
+  additionalContact?: string | null;
 }
 
 export interface CreateUserRequest {
