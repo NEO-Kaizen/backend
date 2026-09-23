@@ -35,15 +35,11 @@ export type TimelineItem = TimelineNote | TimelineEvent;
 export interface TriageHistoryEntry {
   triage: TriageAssessment;
   occurredAt: string;
-  actor: TimelineActorDTO | null;
-  changeOrigin: TimelineChangeOrigin;
 }
 
 export interface MappingHistoryEntry {
   mapping: MappingResponseDTO;
   occurredAt: string;
-  actor: TimelineActorDTO | null;
-  changeOrigin: TimelineChangeOrigin;
 }
 
 export interface InternalNotesResponse {

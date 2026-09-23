@@ -46,7 +46,7 @@ export interface TimelineEventRow {
   actor_profile_name: string | null;
 }
 
-/** Linha do histórico de triagem: snapshot normalizado + proveniência do audit. */
+/** Linha do histórico de triagem: snapshot normalizado + data do audit. */
 export interface TriageHistoryRow {
   triage_id: string;
   adherent_to_scope: "Sim" | "Não" | "";
@@ -61,10 +61,6 @@ export interface TriageHistoryRow {
   result: string;
   conclusion_justification: string;
   occurred_at: Date;
-  change_origin: TimelineChangeOrigin;
-  actor_user_id: number | null;
-  actor_name: string | null;
-  actor_profile_name: string | null;
 }
 
 /** Participante de um mapeamento histórico (userId null = externo). */
@@ -83,7 +79,7 @@ export interface MappingHistoryAssignee {
   jobTitle: string | null;
 }
 
-/** Linha do histórico de mapeamento: snapshot + participantes + designado + audit. */
+/** Linha do histórico de mapeamento: snapshot + participantes + designado + data. */
 export interface MappingHistoryRow {
   protocol: string;
   mapping_id: string;
@@ -95,10 +91,6 @@ export interface MappingHistoryRow {
   location: string | null;
   notes: string | null;
   occurred_at: Date;
-  change_origin: TimelineChangeOrigin;
-  actor_user_id: number | null;
-  actor_name: string | null;
-  actor_profile_name: string | null;
   participants: MappingHistoryParticipant[];
   mappingAssignee: MappingHistoryAssignee | null;
 }

@@ -163,16 +163,13 @@ const TRIAGE_HISTORY_COLUMNS = [
   "t.result",
   "t.conclusion_justification",
   "audit.occurred_at as occurred_at",
-  "audit.change_origin as change_origin",
-  "audit.user_id as actor_user_id",
-  "actor.full_name as actor_name",
-  "actor_profile.name as actor_profile_name",
 ] as const;
 
 /**
  * Histórico versionado de triagens (D-N14) — `triages` ⋈ `audit_history`
- * (`request.triage` via `new_value->>'triageId'`) ⋈ `users`/`profiles`.
- * Ordenado `oldest → newest` por `occurred_at`/`audit_id`.
+ * (`request.triage` via `new_value->>'triageId'`). Ordenado
+ * `oldest → newest` por `occurred_at`/`audit_id`. O audit segue como fonte
+ * de data; ator/origem não são expostos nas entries (removidos da API).
  */
 export async function listTriageHistory(requestId: string): Promise<TriageHistoryRow[]> {
   return (await db("triages as t")
@@ -181,8 +178,6 @@ export async function listTriageHistory(requestId: string): Promise<TriageHistor
         " AND audit.action_type = 'request.triage'" +
         " AND (audit.new_value::json->>'triageId')::uuid = t.triage_id",
     )
-    .leftJoin("users as actor", "actor.user_id", "audit.user_id")
-    .leftJoin("profiles as actor_profile", "actor_profile.profile_id", "actor.profile_id")
     .where("t.request_id", requestId)
     .select([...TRIAGE_HISTORY_COLUMNS])
     .orderBy("audit.occurred_at", "asc")
@@ -204,15 +199,13 @@ export async function listMappingHistory(requestId: string): Promise<MappingHist
     .orderBy("a.entity_id", "asc")
     .orderBy("a.occurred_at", "desc")
     .orderBy("a.audit_id", "desc")
-    .select("a.entity_id", "a.occurred_at", "a.change_origin", "a.user_id", "a.audit_id");
+    .select("a.entity_id", "a.occurred_at", "a.audit_id");
 
   const rows = (await db("mappings as m")
     .join("requests as r", "r.request_id", "m.request_id")
     .join(latestAudit.as("audit"), function () {
       this.on("audit.entity_id", "=", db.raw("m.mapping_id::text"));
     })
-    .leftJoin("users as actor", "actor.user_id", "audit.user_id")
-    .leftJoin("profiles as actor_profile", "actor_profile.profile_id", "actor.profile_id")
     .where("m.request_id", requestId)
     .select([
       "r.protocol as protocol",
@@ -225,10 +218,6 @@ export async function listMappingHistory(requestId: string): Promise<MappingHist
       "m.location",
       "m.notes",
       "audit.occurred_at as occurred_at",
-      "audit.change_origin as change_origin",
-      "audit.user_id as actor_user_id",
-      "actor.full_name as actor_name",
-      "actor_profile.name as actor_profile_name",
     ])
     .orderBy("audit.occurred_at", "asc")
     .orderBy("audit.audit_id", "asc")) as MappingHistoryBaseRow[];

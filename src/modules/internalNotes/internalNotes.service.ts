@@ -182,8 +182,6 @@ function toTriageHistoryEntry(row: TriageHistoryRow): TriageHistoryEntry {
       conclusionJustification: row.conclusion_justification,
     },
     occurredAt: row.occurred_at.toISOString(),
-    actor: toActorDTO(row),
-    changeOrigin: row.change_origin,
   };
 }
 
@@ -215,8 +213,6 @@ function toMappingHistoryEntry(row: MappingHistoryRow): MappingHistoryEntry {
             },
     },
     occurredAt: row.occurred_at.toISOString(),
-    actor: toActorDTO(row),
-    changeOrigin: row.change_origin,
   };
 }
 
