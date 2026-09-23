@@ -137,23 +137,62 @@ export const updateCategoriesSchema = z
   })
   .strict();
 
-export const portalStatusSchema = z
-  .object({
-    id: z.number().int("Id deve ser inteiro.").positive("Id deve ser positivo."),
-    name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
-    visibility: z.enum(["PUBLIC", "INTERNAL"], {
-      error: "Visibilidade inválida — opções: PUBLIC ou INTERNAL.",
-    }),
-    closesRequest: z.boolean(),
-    // Elegível como saída de triagem (contract-triage_04.md §4). Omitido por
-    // clientes antigos = false (decisão: default + strict).
-    isTriageExit: z.boolean().default(false),
-    tone: z.enum(STATUS_TONES, {
-      error: "Tom inválido — opções: error, success, info, warning ou neutral.",
-    }),
-    isActive: z.boolean(),
-  })
-  .strict();
+const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
+  error: "Modo inválido — opções: none, free ou conclusion_only.",
+});
+
+/**
+ * Normaliza payloads legados (pré-v4) para o shape novo do Motor de Status v4
+ * (delta `portal-config-statuses-amend.md`). Quando o objeto já traz alguma
+ * chave do v4 (`isPublic`/`isTerminal`/`triageMode`/`mappingMode`), as chaves
+ * legadas são descartadas (o shape novo vence). Caso contrário, mapeia:
+ * `visibility→isPublic` (`PUBLIC→true`), `closesRequest→isTerminal`,
+ * `isTriageExit→triageMode` (`true→free`, senão `none`), `mappingMode=none` e
+ * `isRestricted=false`.
+ */
+function normalizeStatusLegacy(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  const record = value as Record<string, unknown>;
+  const { visibility, closesRequest, isTriageExit, ...rest } = record;
+  const hasV4Fields =
+    "isPublic" in record ||
+    "isTerminal" in record ||
+    "triageMode" in record ||
+    "mappingMode" in record;
+
+  if (hasV4Fields) {
+    return rest;
+  }
+  return {
+    ...rest,
+    isPublic: visibility === "INTERNAL" ? false : true,
+    isTerminal: closesRequest === true,
+    triageMode: isTriageExit === true ? "free" : "none",
+    mappingMode: "none",
+    isRestricted: false,
+  };
+}
+
+export const portalStatusSchema = z.preprocess(
+  normalizeStatusLegacy,
+  z
+    .object({
+      id: z.number().int("Id deve ser inteiro.").positive("Id deve ser positivo."),
+      name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
+      order: z.number().int("Ordem deve ser inteiro.").nonnegative("Ordem mínima de 0.").optional(),
+      isCore: z.boolean(),
+      isPublic: z.boolean(),
+      isTerminal: z.boolean(),
+      triageMode: StatusModeSchema,
+      mappingMode: StatusModeSchema,
+      isRestricted: z.boolean(),
+      tone: z.enum(STATUS_TONES, {
+        error: "Tom inválido — opções: error, success, info, warning ou neutral.",
+      }),
+      isActive: z.boolean(),
+    })
+    .strict(),
+);
 
 export const updateStatusesSchema = z
   .object({
@@ -162,17 +201,47 @@ export const updateStatusesSchema = z
       .min(1, "Informe ao menos um status.")
       .max(50, "Máximo de 50 status.")
       .superRefine((statuses, ctx) => {
-        const seen = new Set<string>();
+        const seenNames = new Set<string>();
+        const seenOrders = new Set<number>();
         statuses.forEach((status, index) => {
-          const key = status.name.trim().toLowerCase();
-          if (seen.has(key)) {
+          const nameKey = status.name.trim().toLowerCase();
+          if (seenNames.has(nameKey)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               path: [index, "name"],
               message: "Nomes de status devem ser únicos (ignora maiúsculas/minúsculas).",
             });
           }
-          seen.add(key);
+          seenNames.add(nameKey);
+
+          if (status.order !== undefined) {
+            if (seenOrders.has(status.order)) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: [index, "order"],
+                message: "Ordens de status devem ser únicas.",
+              });
+            }
+            seenOrders.add(status.order);
+          }
+
+          if (status.isCore && !status.isActive) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [index, "isActive"],
+              message: "Os statuses núcleo não podem ser desativados.",
+            });
+          }
+          if (
+            status.isRestricted &&
+            (status.triageMode !== "none" || status.mappingMode !== "none")
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [index, "isRestricted"],
+              message: "Status restrito só aceita modos none (bloqueia triagem e mapeamento).",
+            });
+          }
         });
         if (!statuses.some((status) => status.isActive)) {
           ctx.addIssue({

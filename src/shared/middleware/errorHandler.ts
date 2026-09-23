@@ -15,6 +15,11 @@ export function errorHandler(
       message: err.message,
     };
 
+    // Código de erro estável para a UI (delta `portal-config-statuses-amend.md`).
+    if (err.code) {
+      body.code = err.code;
+    }
+
     // Erros de validação (422) incluem os erros por campo no formato da UI
     // (chave → mensagem) — opcional, não altera o envelope dos demais.
     const fields = (err as Partial<ValidationError>).fields;

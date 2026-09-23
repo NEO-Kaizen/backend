@@ -115,17 +115,34 @@ export interface PortalCategory {
 // restrito à equipe.
 export type StatusVisibility = "PUBLIC" | "INTERNAL";
 
-// Status do ciclo de vida. `closesRequest` encerra a solicitação; `isActive` é a
-// ativação/inativação (não há exclusão — status inativos permanecem na lista,
-// mas não entram em novos fluxos). `isTriageExit` marca as saídas elegíveis
-// da triagem (contract-triage_04.md §4) — distinto de `closesRequest`, pois
-// "Pendente de informações" é saída sem encerrar.
+/**
+ * Modo de uso de um status nos fluxos de triagem/mapeamento (Motor de Status
+ * v4 — delta `portal-config-statuses-amend.md`):
+ * - `none`: nunca é alvo direto da etapa (ex.: transição de N para Concluído);
+ * - `free`: pode ser alvo livremente pelo agente da etapa;
+ * - `conclusion_only`: alvo apenas na etapa de conclusão (ex.: Concluído).
+ */
+export type StatusMode = "none" | "free" | "conclusion_only";
+
+/**
+ * Status do ciclo de vida — Motor de Status v4. `order` é a posição de
+ * exibição (mantida consistente pela ordem do array no PATCH). `isCore` marca
+ * statuses de núcleo (ids fixos 1,3,4,7,16,17 — não podem ser removidos,
+ * renomeados, não-núcleo ou desativados). `isRestricted` limita o status a
+ * Administrador (ex.: Priorizado). `isTerminal` encerra a solicitação.
+ * `isPublic` controla a exibição ao solicitante (mapeia para `visibility`).
+ * `triageMode`/`mappingMode` regem os alvos da triagem e do mapeamento.
+ */
 export interface PortalStatus {
   id: number;
   name: string;
-  visibility: StatusVisibility;
-  closesRequest: boolean;
-  isTriageExit: boolean;
+  order: number;
+  isCore: boolean;
+  isPublic: boolean;
+  isTerminal: boolean;
+  triageMode: StatusMode;
+  mappingMode: StatusMode;
+  isRestricted: boolean;
   tone: StatusTone;
   isActive: boolean;
 }
@@ -180,13 +197,19 @@ export interface CategoryRow {
   display_order: number | null;
 }
 
-/** Linha da tabela `statuses` — projeção usada pelo portal config. */
+/** Linha da tabela `statuses` — projeção usada pelo portal config (v4). */
 export interface StatusRow {
   status_id: number;
   name: string;
   visibility: StatusVisibility;
   closes_request: boolean;
+  is_final: boolean;
   is_triage_exit: boolean;
+  is_core: boolean;
+  is_restricted: boolean;
+  is_terminal: boolean;
+  triage_mode: StatusMode;
+  mapping_mode: StatusMode;
   tone: StatusTone;
   order_number: number;
   is_active: boolean;

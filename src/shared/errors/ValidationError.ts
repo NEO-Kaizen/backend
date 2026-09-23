@@ -10,8 +10,8 @@ import { AppError } from "./AppError.ts";
 export class ValidationError extends AppError {
   public readonly fields: Record<string, string>;
 
-  constructor(fields: Record<string, string>, message: string) {
-    super(message, 422);
+  constructor(fields: Record<string, string>, message: string, code?: string) {
+    super(message, 422, code);
     this.name = "ValidationError";
     this.fields = fields;
   }
