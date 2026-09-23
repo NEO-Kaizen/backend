@@ -2505,7 +2505,7 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000243",
       request_id: 243,
       professional_id: "650e8400-e29b-41d4-a716-446655440001",
-      scheduled_for: "2026-08-30 21:00:37",
+      scheduled_for: "2026-08-30 21:00:00",
       duration_minutes: 90,
       modality: "REMOTE",
       meeting_link: "https://meet.empresa.com/levantamento",
@@ -2514,8 +2514,8 @@ export async function seed(knex) {
       is_concluded: false,
       concluded_at: null,
       created_by: "analista_teste@email.com",
-      created_at: "2026-08-23 21:00:37",
-      updated_at: "2026-08-30 21:00:37",
+      created_at: "2026-08-23 21:00:00",
+      updated_at: "2026-08-30 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000067",
@@ -2571,18 +2571,18 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000221",
       request_id: 221,
       professional_id: "650e8400-e29b-41d4-a716-446655440001",
-      scheduled_for: "2026-07-15 21:00:58",
+      scheduled_for: "2026-07-15 21:00:00",
       duration_minutes: 60,
       modality: "REMOTE",
       meeting_link: "https://meet.empresa.com/levantamento",
       location: null,
       notes: "Levantamento do processo de inadimplência.",
       is_concluded: true,
-      concluded_at: "2026-07-17 21:00:58",
+      concluded_at: "2026-07-17 21:00:00",
       created_by: "analista_teste@email.com",
-      created_at: "2026-07-09 21:00:58",
+      created_at: "2026-07-09 21:00:00",
       updated_by: "analista_teste@email.com",
-      updated_at: "2026-07-17 21:00:58",
+      updated_at: "2026-07-17 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000171",
@@ -2888,18 +2888,18 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000250",
       request_id: 250,
       professional_id: "650e8400-e29b-41d4-a716-446655440001",
-      scheduled_for: "2026-08-08 21:00:47",
+      scheduled_for: "2026-08-08 21:00:00",
       duration_minutes: 120,
       modality: "IN_PERSON",
       meeting_link: null,
       location: "Sala 4 — Matriz",
       notes: "Levantamento do processo de tuning de banco.",
       is_concluded: true,
-      concluded_at: "2026-08-11 21:00:47",
+      concluded_at: "2026-08-11 21:00:00",
       created_by: "analista_teste@email.com",
-      created_at: "2026-08-03 21:00:47",
+      created_at: "2026-08-03 21:00:00",
       updated_by: "analista_teste@email.com",
-      updated_at: "2026-08-11 21:00:47",
+      updated_at: "2026-08-11 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000086",
@@ -2922,18 +2922,18 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000090",
       request_id: 90,
       professional_id: "650e8400-e29b-41d4-a716-446655440001",
-      scheduled_for: "2026-07-31 21:00:49",
+      scheduled_for: "2026-07-31 21:00:00",
       duration_minutes: 60,
       modality: "REMOTE",
       meeting_link: "https://meet.empresa.com/levantamento",
       location: null,
       notes: "Levantamento do processo de inadimplência.",
       is_concluded: true,
-      concluded_at: "2026-08-05 21:00:49",
+      concluded_at: "2026-08-05 21:00:00",
       created_by: "analista_teste@email.com",
-      created_at: "2026-07-23 21:00:49",
+      created_at: "2026-07-23 21:00:00",
       updated_by: "analista_teste@email.com",
-      updated_at: "2026-08-05 21:00:49",
+      updated_at: "2026-08-05 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000222",
@@ -3258,35 +3258,35 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000058",
       request_id: 58,
       professional_id: "650e8400-e29b-41d4-a716-446655440006",
-      scheduled_for: "2026-08-24 21:00:32",
+      scheduled_for: "2026-08-24 21:00:00",
       duration_minutes: 60,
       modality: "IN_PERSON",
       meeting_link: null,
       location: "Sala 1 — Sede",
       notes: "Levantamento do processo de turnover.",
       is_concluded: true,
-      concluded_at: "2026-08-29 21:00:32",
+      concluded_at: "2026-08-29 21:00:00",
       created_by: "gestor_teste@email.com",
-      created_at: "2026-08-22 21:00:32",
+      created_at: "2026-08-22 21:00:00",
       updated_by: "gestor_teste@email.com",
-      updated_at: "2026-08-29 21:00:32",
+      updated_at: "2026-08-29 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000213",
       request_id: 213,
       professional_id: "650e8400-e29b-41d4-a716-446655440006",
-      scheduled_for: "2026-07-17 21:00:12",
+      scheduled_for: "2026-07-17 21:00:00",
       duration_minutes: 90,
       modality: "IN_PERSON",
       meeting_link: null,
       location: "Sala 4 — Matriz",
       notes: "Levantamento do processo de turnover.",
       is_concluded: true,
-      concluded_at: "2026-07-23 21:00:12",
+      concluded_at: "2026-07-23 21:00:00",
       created_by: "gestor_teste@email.com",
-      created_at: "2026-07-15 21:00:12",
+      created_at: "2026-07-15 21:00:00",
       updated_by: "gestor_teste@email.com",
-      updated_at: "2026-07-23 21:00:12",
+      updated_at: "2026-07-23 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000241",
@@ -3309,18 +3309,18 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000223",
       request_id: 223,
       professional_id: "650e8400-e29b-41d4-a716-446655440006",
-      scheduled_for: "2026-08-08 21:00:30",
+      scheduled_for: "2026-08-08 21:00:00",
       duration_minutes: 60,
       modality: "IN_PERSON",
       meeting_link: null,
       location: "Sala de reunião — Filial Sul",
       notes: "Levantamento do processo de turnover.",
       is_concluded: true,
-      concluded_at: "2026-08-09 21:00:30",
+      concluded_at: "2026-08-09 21:00:00",
       created_by: "gestor_teste@email.com",
-      created_at: "2026-07-31 21:00:30",
+      created_at: "2026-07-31 21:00:00",
       updated_by: "gestor_teste@email.com",
-      updated_at: "2026-08-09 21:00:30",
+      updated_at: "2026-08-09 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000136",
@@ -3545,18 +3545,18 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000047",
       request_id: 47,
       professional_id: "650e8400-e29b-41d4-a716-446655440001",
-      scheduled_for: "2026-07-14 21:00:45",
+      scheduled_for: "2026-07-14 21:00:00",
       duration_minutes: 60,
       modality: "IN_PERSON",
       meeting_link: null,
       location: "Sala 1 — Sede",
       notes: "Levantamento do processo de tuning de banco.",
       is_concluded: true,
-      concluded_at: "2026-07-19 21:00:45",
+      concluded_at: "2026-07-19 21:00:00",
       created_by: "analista_teste@email.com",
-      created_at: "2026-07-12 21:00:45",
+      created_at: "2026-07-12 21:00:00",
       updated_by: "analista_teste@email.com",
-      updated_at: "2026-07-19 21:00:45",
+      updated_at: "2026-07-19 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000114",
@@ -3628,7 +3628,7 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000122",
       request_id: 122,
       professional_id: "650e8400-e29b-41d4-a716-446655440003",
-      scheduled_for: "2026-09-16 21:00:27",
+      scheduled_for: "2026-09-16 21:00:00",
       duration_minutes: 90,
       modality: "IN_PERSON",
       meeting_link: null,
@@ -3637,8 +3637,8 @@ export async function seed(knex) {
       is_concluded: false,
       concluded_at: null,
       created_by: "bruno.analista@email.com",
-      created_at: "2026-09-13 21:00:27",
-      updated_at: "2026-09-16 21:00:27",
+      created_at: "2026-09-13 21:00:00",
+      updated_at: "2026-09-16 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000242",
@@ -3744,7 +3744,7 @@ export async function seed(knex) {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000238",
       request_id: 238,
       professional_id: "650e8400-e29b-41d4-a716-446655440003",
-      scheduled_for: "2026-08-20 21:00:41",
+      scheduled_for: "2026-08-20 21:00:00",
       duration_minutes: 60,
       modality: "REMOTE",
       meeting_link: "https://meet.empresa.com/levantamento",
@@ -3753,8 +3753,8 @@ export async function seed(knex) {
       is_concluded: false,
       concluded_at: null,
       created_by: "bruno.analista@email.com",
-      created_at: "2026-08-18 21:00:41",
-      updated_at: "2026-08-20 21:00:41",
+      created_at: "2026-08-18 21:00:00",
+      updated_at: "2026-08-20 21:00:00",
     },
     {
       mapping_id: "aabbccdd-eeff-4000-8000-000000000034",
@@ -6766,7 +6766,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000243","exitStatus":9,"status":"Elegível"}',
       user_id: 101,
-      occurred_at: "2026-08-23 21:00:37",
+      occurred_at: "2026-08-23 21:00:00",
       change_origin: "admin",
     },
     {
@@ -6776,7 +6776,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440001",
       user_id: 102,
-      occurred_at: "2026-08-23 21:00:37",
+      occurred_at: "2026-08-23 21:00:00",
       change_origin: "admin",
     },
     {
@@ -6785,9 +6785,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-08-30 21:00:37","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-08-30 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       user_id: 101,
-      occurred_at: "2026-08-30 21:00:37",
+      occurred_at: "2026-08-30 21:00:00",
       change_origin: "internal",
     },
     {
@@ -6918,7 +6918,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000221","exitStatus":9,"status":"Elegível"}',
       user_id: 101,
-      occurred_at: "2026-07-09 21:00:58",
+      occurred_at: "2026-07-09 21:00:00",
       change_origin: "admin",
     },
     {
@@ -6928,7 +6928,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440001",
       user_id: 102,
-      occurred_at: "2026-07-09 21:00:58",
+      occurred_at: "2026-07-09 21:00:00",
       change_origin: "admin",
     },
     {
@@ -6937,9 +6937,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-07-15 21:00:58","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-07-15 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       user_id: 101,
-      occurred_at: "2026-07-15 21:00:58",
+      occurred_at: "2026-07-15 21:00:00",
       change_origin: "internal",
     },
     {
@@ -6947,11 +6947,11 @@ export async function seed(knex) {
       entity_id: "aabbccdd-eeff-4000-8000-000000000221",
       action_type: "mapping.complete",
       previous_value:
-        '{"scheduledFor":"2026-07-15 21:00:58","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-07-15 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       new_value:
-        '{"scheduledFor":"2026-07-15 21:00:58","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
+        '{"scheduledFor":"2026-07-15 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
       user_id: 101,
-      occurred_at: "2026-07-17 21:00:58",
+      occurred_at: "2026-07-17 21:00:00",
       change_origin: "internal",
     },
     {
@@ -7628,7 +7628,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000068","exitStatus":9,"status":"Elegível"}',
       user_id: 107,
-      occurred_at: "2026-08-16 21:00:30",
+      occurred_at: "2026-08-16 21:00:00",
       change_origin: "admin",
     },
     {
@@ -7715,7 +7715,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000250","exitStatus":9,"status":"Elegível"}',
       user_id: 101,
-      occurred_at: "2026-08-03 21:00:47",
+      occurred_at: "2026-08-03 21:00:00",
       change_origin: "admin",
     },
     {
@@ -7725,7 +7725,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440001",
       user_id: 102,
-      occurred_at: "2026-08-03 21:00:47",
+      occurred_at: "2026-08-03 21:00:00",
       change_origin: "admin",
     },
     {
@@ -7734,9 +7734,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-08-08 21:00:47","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-08-08 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       user_id: 101,
-      occurred_at: "2026-08-08 21:00:47",
+      occurred_at: "2026-08-08 21:00:00",
       change_origin: "internal",
     },
     {
@@ -7744,11 +7744,11 @@ export async function seed(knex) {
       entity_id: "aabbccdd-eeff-4000-8000-000000000250",
       action_type: "mapping.complete",
       previous_value:
-        '{"scheduledFor":"2026-08-08 21:00:47","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-08-08 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       new_value:
-        '{"scheduledFor":"2026-08-08 21:00:47","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
+        '{"scheduledFor":"2026-08-08 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
       user_id: 101,
-      occurred_at: "2026-08-11 21:00:47",
+      occurred_at: "2026-08-11 21:00:00",
       change_origin: "internal",
     },
     {
@@ -7803,7 +7803,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000090","exitStatus":9,"status":"Elegível"}',
       user_id: 101,
-      occurred_at: "2026-07-23 21:00:49",
+      occurred_at: "2026-07-23 21:00:00",
       change_origin: "admin",
     },
     {
@@ -7813,7 +7813,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440001",
       user_id: 102,
-      occurred_at: "2026-07-23 21:00:49",
+      occurred_at: "2026-07-23 21:00:00",
       change_origin: "admin",
     },
     {
@@ -7822,9 +7822,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-07-31 21:00:49","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-07-31 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       user_id: 101,
-      occurred_at: "2026-07-31 21:00:49",
+      occurred_at: "2026-07-31 21:00:00",
       change_origin: "internal",
     },
     {
@@ -7832,11 +7832,11 @@ export async function seed(knex) {
       entity_id: "aabbccdd-eeff-4000-8000-000000000090",
       action_type: "mapping.complete",
       previous_value:
-        '{"scheduledFor":"2026-07-31 21:00:49","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-07-31 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       new_value:
-        '{"scheduledFor":"2026-07-31 21:00:49","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
+        '{"scheduledFor":"2026-07-31 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
       user_id: 101,
-      occurred_at: "2026-08-05 21:00:49",
+      occurred_at: "2026-08-05 21:00:00",
       change_origin: "internal",
     },
     {
@@ -8646,7 +8646,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000058","exitStatus":9,"status":"Elegível"}',
       user_id: 103,
-      occurred_at: "2026-08-22 21:00:32",
+      occurred_at: "2026-08-22 21:00:00",
       change_origin: "admin",
     },
     {
@@ -8656,7 +8656,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440006",
       user_id: 102,
-      occurred_at: "2026-08-22 21:00:32",
+      occurred_at: "2026-08-22 21:00:00",
       change_origin: "admin",
     },
     {
@@ -8665,9 +8665,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-08-24 21:00:32","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
+        '{"scheduledFor":"2026-08-24 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
       user_id: 103,
-      occurred_at: "2026-08-24 21:00:32",
+      occurred_at: "2026-08-24 21:00:00",
       change_origin: "internal",
     },
     {
@@ -8675,11 +8675,11 @@ export async function seed(knex) {
       entity_id: "aabbccdd-eeff-4000-8000-000000000058",
       action_type: "mapping.complete",
       previous_value:
-        '{"scheduledFor":"2026-08-24 21:00:32","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
+        '{"scheduledFor":"2026-08-24 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
       new_value:
-        '{"scheduledFor":"2026-08-24 21:00:32","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006","is_concluded":true}',
+        '{"scheduledFor":"2026-08-24 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006","is_concluded":true}',
       user_id: 103,
-      occurred_at: "2026-08-29 21:00:32",
+      occurred_at: "2026-08-29 21:00:00",
       change_origin: "internal",
     },
     {
@@ -8690,7 +8690,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000213","exitStatus":9,"status":"Elegível"}',
       user_id: 103,
-      occurred_at: "2026-07-15 21:00:12",
+      occurred_at: "2026-07-15 21:00:00",
       change_origin: "admin",
     },
     {
@@ -8700,7 +8700,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440006",
       user_id: 102,
-      occurred_at: "2026-07-15 21:00:12",
+      occurred_at: "2026-07-15 21:00:00",
       change_origin: "admin",
     },
     {
@@ -8709,9 +8709,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-07-17 21:00:12","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
+        '{"scheduledFor":"2026-07-17 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
       user_id: 103,
-      occurred_at: "2026-07-17 21:00:12",
+      occurred_at: "2026-07-17 21:00:00",
       change_origin: "internal",
     },
     {
@@ -8719,11 +8719,11 @@ export async function seed(knex) {
       entity_id: "aabbccdd-eeff-4000-8000-000000000213",
       action_type: "mapping.complete",
       previous_value:
-        '{"scheduledFor":"2026-07-17 21:00:12","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
+        '{"scheduledFor":"2026-07-17 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
       new_value:
-        '{"scheduledFor":"2026-07-17 21:00:12","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006","is_concluded":true}',
+        '{"scheduledFor":"2026-07-17 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006","is_concluded":true}',
       user_id: 103,
-      occurred_at: "2026-07-23 21:00:12",
+      occurred_at: "2026-07-23 21:00:00",
       change_origin: "internal",
     },
     {
@@ -8789,7 +8789,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000223","exitStatus":9,"status":"Elegível"}',
       user_id: 103,
-      occurred_at: "2026-07-31 21:00:30",
+      occurred_at: "2026-07-31 21:00:00",
       change_origin: "admin",
     },
     {
@@ -8799,7 +8799,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440006",
       user_id: 102,
-      occurred_at: "2026-07-31 21:00:30",
+      occurred_at: "2026-07-31 21:00:00",
       change_origin: "admin",
     },
     {
@@ -8808,9 +8808,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-08-08 21:00:30","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
+        '{"scheduledFor":"2026-08-08 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
       user_id: 103,
-      occurred_at: "2026-08-08 21:00:30",
+      occurred_at: "2026-08-08 21:00:00",
       change_origin: "internal",
     },
     {
@@ -8818,11 +8818,11 @@ export async function seed(knex) {
       entity_id: "aabbccdd-eeff-4000-8000-000000000223",
       action_type: "mapping.complete",
       previous_value:
-        '{"scheduledFor":"2026-08-08 21:00:30","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
+        '{"scheduledFor":"2026-08-08 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006"}',
       new_value:
-        '{"scheduledFor":"2026-08-08 21:00:30","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006","is_concluded":true}',
+        '{"scheduledFor":"2026-08-08 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440006","is_concluded":true}',
       user_id: 103,
-      occurred_at: "2026-08-09 21:00:30",
+      occurred_at: "2026-08-09 21:00:00",
       change_origin: "internal",
     },
     {
@@ -9392,7 +9392,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000047","exitStatus":9,"status":"Elegível"}',
       user_id: 101,
-      occurred_at: "2026-07-12 21:00:45",
+      occurred_at: "2026-07-12 21:00:00",
       change_origin: "admin",
     },
     {
@@ -9402,7 +9402,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440001",
       user_id: 102,
-      occurred_at: "2026-07-12 21:00:45",
+      occurred_at: "2026-07-12 21:00:00",
       change_origin: "admin",
     },
     {
@@ -9411,9 +9411,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-07-14 21:00:45","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-07-14 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       user_id: 101,
-      occurred_at: "2026-07-14 21:00:45",
+      occurred_at: "2026-07-14 21:00:00",
       change_origin: "internal",
     },
     {
@@ -9421,11 +9421,11 @@ export async function seed(knex) {
       entity_id: "aabbccdd-eeff-4000-8000-000000000047",
       action_type: "mapping.complete",
       previous_value:
-        '{"scheduledFor":"2026-07-14 21:00:45","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
+        '{"scheduledFor":"2026-07-14 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001"}',
       new_value:
-        '{"scheduledFor":"2026-07-14 21:00:45","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
+        '{"scheduledFor":"2026-07-14 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440001","is_concluded":true}',
       user_id: 101,
-      occurred_at: "2026-07-19 21:00:45",
+      occurred_at: "2026-07-19 21:00:00",
       change_origin: "internal",
     },
     {
@@ -9599,7 +9599,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000122","exitStatus":9,"status":"Elegível"}',
       user_id: 108,
-      occurred_at: "2026-09-13 21:00:27",
+      occurred_at: "2026-09-13 21:00:00",
       change_origin: "admin",
     },
     {
@@ -9609,7 +9609,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440003",
       user_id: 102,
-      occurred_at: "2026-09-13 21:00:27",
+      occurred_at: "2026-09-13 21:00:00",
       change_origin: "admin",
     },
     {
@@ -9618,9 +9618,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-09-16 21:00:27","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440003"}',
+        '{"scheduledFor":"2026-09-16 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440003"}',
       user_id: 108,
-      occurred_at: "2026-09-16 21:00:27",
+      occurred_at: "2026-09-16 21:00:00",
       change_origin: "internal",
     },
     {
@@ -9871,7 +9871,7 @@ export async function seed(knex) {
       new_value:
         '{"triageId":"f1f2f3f4-f5f6-4000-8000-000000000238","exitStatus":9,"status":"Elegível"}',
       user_id: 108,
-      occurred_at: "2026-08-18 21:00:41",
+      occurred_at: "2026-08-18 21:00:00",
       change_origin: "admin",
     },
     {
@@ -9881,7 +9881,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440003",
       user_id: 102,
-      occurred_at: "2026-08-18 21:00:41",
+      occurred_at: "2026-08-18 21:00:00",
       change_origin: "admin",
     },
     {
@@ -9890,9 +9890,9 @@ export async function seed(knex) {
       action_type: "mapping.save",
       previous_value: null,
       new_value:
-        '{"scheduledFor":"2026-08-20 21:00:41","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440003"}',
+        '{"scheduledFor":"2026-08-20 21:00:00","mappingAssigneeId":"650e8400-e29b-41d4-a716-446655440003"}',
       user_id: 108,
-      occurred_at: "2026-08-20 21:00:41",
+      occurred_at: "2026-08-20 21:00:00",
       change_origin: "internal",
     },
     {
