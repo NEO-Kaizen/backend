@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Config from "../../configs.ts";
+import db from "../../database/conection.ts";
 
 const DEFAULT_ASSETS: Array<[string, string]> = [
   ["MAAT-logo.svg", "portal/logo-light-default.svg"],
@@ -56,6 +57,37 @@ export async function ensureDefaultAssets(): Promise<void> {
       console.log(`[assets] copied default ${srcName} -> ${destRel}`);
     } catch (e) {
       console.warn("[assets] failed to copy", src, "->", dest, e);
+    }
+  }
+
+  // Auto-heal: se a linha singleton ainda tem /assets/* ou NULL/vazio, aponta
+  // para os defaults que acabamos de garantir em /uploads/portal/* (sem
+  // sobrescrever uploads customizados do admin).
+  const destToColumn = {
+    "portal/logo-light-default.svg": "logo_light_url",
+    "portal/logo-dark-default.svg": "logo_dark_url",
+    "portal/avatar-light-default.svg": "avatar_light_url",
+    "portal/avatar-dark-default.svg": "avatar_dark_url",
+    "portal/login-light-default.png": "login_image_light_url",
+    "portal/login-dark-default.png": "login_image_dark_url",
+    "portal/favicon-light-default.svg": "favicon_light_url",
+    "portal/favicon-dark-default.svg": "favicon_dark_url",
+  };
+  for (const [, destRel] of DEFAULT_ASSETS) {
+    const column = destToColumn[destRel as keyof typeof destToColumn];
+    if (!column) continue;
+    const url = `/uploads/${destRel}`;
+    try {
+      const hasCol = await db.schema.hasColumn("system_settings", column);
+      if (!hasCol) continue;
+      await db("system_settings")
+        .where({ settings_id: 1 })
+        .andWhere((qb) => {
+          qb.whereNull(column).orWhere(column, "").orWhere(column, "like", "/assets/%");
+        })
+        .update({ [column]: url });
+    } catch (e) {
+      console.warn("[assets] self-heal skip", column, url, e);
     }
   }
 }

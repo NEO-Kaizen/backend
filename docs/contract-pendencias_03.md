@@ -161,7 +161,7 @@ solicitação:
 | Método | Rota                                                           | Auth                                                                   | Resposta                                                                                         |
 | ------ | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | POST   | `/requests/:protocol/pending-items`                            | cookie `session_id` (`Administrador` ou `assignee`)                    | `201 CreatePendingItemsResponse` (sem `solicitationStatus` — D-P18)                              |
-| GET    | `/requests/:protocol/pending-items`                            | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `200 PendingItem[]`                                                                              |
+| GET    | `/requests/:protocol/pending-items`                            | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `200 ListPendingItemsResponse` (`batchId` + `requestAttachment` + `items`)                       |
 | PATCH  | `/requests/:protocol/pending-items/:pendingItemId`             | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `200 PendingItem` (`responded`)                                                                  |
 | POST   | `/requests/:protocol/pending-items/:pendingItemId/attachments` | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `201 InternalAttachment`                                                                         |
 | PATCH  | `/requests/:protocol/pending-items/review`                     | cookie `session_id` (`Administrador` ou `assignee`)                    | `200 ReviewPendingItemsResponse` (sem `solicitationStatus` — D-P18; parcial e repetível — D-P23) |
@@ -276,7 +276,19 @@ export interface PendingSummary {
 - Retorna todas as pendências do `protocol` (sem filtro por `is_visible_to_requester` — coluna removida neste contrato; toda pendência é para o solicitante resolver).
 - **Query:** nenhuma (ordem cronológica; agrupada por `batchId` no front em um único
   card "N campos + observação").
-- **Response `200`:** `PendingItem[]` (vazio → `[]`).
+- **Response `200`:** `ListPendingItemsResponse` — envelope de lote (D-P8/D-P15;
+  `requestAttachment` nunca é por campo):
+  ```ts
+  export interface ListPendingItemsResponse {
+    batchId: string | null; // lote vigente; null quando não há pendências
+    requestAttachment: boolean; // flag do lote vigente (default false)
+    items: PendingItem[]; // vazio → []
+  }
+  ```
+  `batchId`/`requestAttachment` descrevem o **lote aberto** (`requested`/`responded`);
+  se todos os lotes estão `validated`, o lote mais recente. O FE usa
+  `requestAttachment` para exibir/ocultar o input de anexo do solicitante —
+  sem este campo o anexo sempre aparecia mesmo quando o lote não pedia.
 - **Erros:** `401` — sem autorização; `404` — solicitação não encontrada.
 
 ### PATCH /requests/:protocol/pending-items/:pendingItemId — Responder um item
@@ -734,6 +746,11 @@ validatedAt IS NULL`; corrigir `correctionAlert` (`null` fixo em
 - Respostas de escrita **não** devolvem `solicitationStatus` (D-P18): removido de
   `CreatePendingItemsResponse` e `ReviewPendingItemsResponse`; o backend aplica a
   transição e o frontend observa via `GET /internal` / `tracking`.
+- **`GET /pending-items` envolto (B2):** a lista deixou de ser `PendingItem[]`
+  e passou a `ListPendingItemsResponse { batchId, requestAttachment, items }`
+  para expor a flag de lote (D-P8) ao solicitante — sem ela o input de anexo
+  sempre aparecia, mesmo quando o lote não pedia anexo. `batchId: null` +
+  `requestAttachment: false` quando não há pendências.
 - Cópias antigas (`contratos/fluxo-solicitante/*`, `backend/docs/*`,
   `funcionalidades-especificacao.md`) viram ponteiros após o freeze, conforme
   `contratos/formalizacao/README.md` §"Migração das cópias antigas".

@@ -62,6 +62,17 @@ export interface CreatePendingItemsResponse {
   items: PendingItem[];
 }
 
+/**
+ * Resposta de `GET /requests/:protocol/pending-items` (D-P8/D-P15).
+ * `requestAttachment` é flag do LOTE (nunca por campo) — o envelope expõe o
+ * lote vigente para o solicitante saber se deve enviar anexo.
+ */
+export interface ListPendingItemsResponse {
+  batchId: string | null;
+  requestAttachment: boolean;
+  items: PendingItem[];
+}
+
 export type ReviewDecision = "validate" | "reopen";
 
 export type ReviewPendingItemDecision =

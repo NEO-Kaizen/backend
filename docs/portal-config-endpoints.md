@@ -17,12 +17,19 @@ Contrato completo: `portal-config-api-0_4.md` (issue #90).
 
 ## Decisões de produto (divergentes do contrato)
 
-- **Pesos**: inteiros 1–10 (contrato 0_4, alinhado ao `criteria.weight`).
-  `criteria.weight` INT com CHECK `0..10` (migration `20260916170010`).
+- **Pesos**: API `1–10` inteiros (contrato 0_4, alinhado ao `criteria.weight`).
+  `criteria.weight` INT com CHECK `0..10` (migration `20260916170010`) — o 0
+  existe só na coluna (decisão issue-59 §8.3); o `PATCH` rejeita `< 1`.
+  Seed oficial = `10` (`002_criteria.js` / `prioritization-api.md`).
 - **Reset**: descartado — defaults restaurados por `PATCH` explícito por seção.
 - **Tema ausente (NULL)**: `GET` retorna defaults documentados no contrato §1.
+  `backgroundLocked` com coluna `NULL` → `false` (contrato §Observações).
+  Gradiente dark = light (`#002068 → #003399`).
 - **Status protegidos**: 8 nomes hardcoded (`Solicitação enviada`, `Em triagem`,
-  etc.) não podem ser renomeados ou removidos no `PATCH statuses` (risco §6.1).
+  etc.) não podem ser renomeados ou removidos no `PATCH statuses` (risco §6.1)
+  → `409`.
+- **Statuses seed**: 1–17 matriz Anexo A + `18 Fora do escopo` / `19 Duplicada`
+  (triage); legados `20–22` inativados por `20260924000000`.
 - **Storage de assets**: binários em `uploads/portal/`, URLs relativas
   `/uploads/portal/{variant}-{uuid}.{ext}` (ex: `logo-light`, `avatar-dark`).
 - **`solicitation_mode` efetivo**: o valor definido em `PATCH access` é lido a
@@ -103,7 +110,7 @@ curl -s -X PATCH http://localhost:3000/portal-config/theme \
         "onPrimary": "#0b0f1a",
         "onDark": "#ffffff",
         "onGradient": "#ffffff",
-        "gradient": {"from": "#0b0f1a", "to": "#1b2942", "angle": 143},
+        "gradient": {"from": "#002068", "to": "#003399", "angle": 143},
         "statuses": {
           "error":   {"color": "#f87171", "background": "#4c0f0a", "backgroundLocked": true},
           "success": {"color": "#4ade80", "background": "#0f2e1d", "backgroundLocked": true},
@@ -184,8 +191,8 @@ curl -s -X PATCH http://localhost:3000/portal-config/assets \
   -H "Content-Type: application/json" \
   -b "session_id=$SESSION_ID" \
   -d '{
-    "logoLightUrl": "/assets/MAAT-logo.svg",
-    "logoDarkUrl": "/assets/MAAT-logo-dark.svg",
+    "logoLightUrl": "/uploads/portal/logo-light-default.svg",
+    "logoDarkUrl": "/uploads/portal/logo-dark-default.svg",
     "logoUsePrimaryColor": true
   }' | jq .
 ```
