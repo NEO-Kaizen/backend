@@ -15,5 +15,8 @@ export async function seed(knex) {
     { request_id: 17, scheduled_for: "2026-10-06 09:00:00" },
     { request_id: 18, scheduled_for: "2026-10-05 15:00:00" },
     { request_id: 19, scheduled_for: "2026-10-09 11:00:00" },
+    { request_id: 25, scheduled_for: "2026-09-30 14:00:00" },
+    { request_id: 25, scheduled_for: "2026-10-01 09:00:00" },
+    { request_id: 26, scheduled_for: "2026-10-02 09:30:00" },
   ]);
 }
