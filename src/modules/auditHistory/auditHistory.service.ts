@@ -22,7 +22,11 @@ export async function listAuditHistoryLogs(
     entity_type: row.entity_type,
     entity_type_label: entityLabels[row.entity_type as AuditEntityName] ?? row.entity_type,
     action_type: row.action_type,
-    user_id: row.user_id,
+    actor: {
+      kind: row.user_id === null ? "system" : "user",
+      userId: row.user_id,
+      displayName: row.actor_name,
+    },
     occurred_at: row.occurred_at instanceof Date ? row.occurred_at.toISOString() : row.occurred_at,
   }));
 
@@ -41,12 +45,17 @@ export async function getAuditHistoryDetail(auditId: number): Promise<AuditHisto
   }
   const occurredAt =
     row.occurred_at instanceof Date ? row.occurred_at.toISOString() : String(row.occurred_at);
+  const userId = row.user_id === null ? null : Number(row.user_id);
   return {
     audit_id: Number(row.audit_id),
     entity_type: row.entity_type,
     entity_id: row.entity_id,
     action_type: row.action_type,
-    user_id: row.user_id === null ? null : Number(row.user_id),
+    actor: {
+      kind: userId === null ? "system" : "user",
+      userId,
+      displayName: row.actor_name,
+    },
     previous_value: row.previous_value,
     new_value: row.new_value,
     note: row.note,
