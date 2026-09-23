@@ -4,6 +4,7 @@ import { requireRole } from "../../shared/middleware/requireRole.ts";
 import {
   listAuditHistoryController,
   getAuditHistoryDetailController,
+  getAuditLogsByProtocolController,
 } from "./auditHistory.controller.ts";
 
 const auditHistoryRoutes = express.Router();
@@ -30,3 +31,15 @@ auditHistoryRoutes.get(
 );
 
 export default auditHistoryRoutes;
+
+// Alias `GET /audit-logs/:protocol` (issue #124) — timeline de auditoria de
+// uma solicitação. `/:protocol` aqui NÃO conflita com o `/:id` numérico acima
+// (montagens diferentes): `/audit-history/<int>` vs `/audit-logs/<protocol>`.
+export const auditLogsRouter = express.Router();
+
+auditLogsRouter.get(
+  "/:protocol",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  getAuditLogsByProtocolController,
+);

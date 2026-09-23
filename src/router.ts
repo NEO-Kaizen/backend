@@ -11,7 +11,7 @@ import reportsRoutes from "./modules/reports/reports.router.ts";
 import pendingItemsRoutes, {
   publicVerifyRouter,
 } from "./modules/pendingItems/pendingItems.router.ts";
-import auditHistoryRoutes from "./modules/auditHistory/auditHistory.router.ts";
+import auditHistoryRoutes, { auditLogsRouter } from "./modules/auditHistory/auditHistory.router.ts";
 
 const router = Router();
 
@@ -29,5 +29,6 @@ router.use("/queue", queueRoutes);
 router.use("/portal-config", portalConfigRoutes);
 router.use("/reports", reportsRoutes);
 router.use("/audit-history", auditHistoryRoutes);
+router.use("/audit-logs", auditLogsRouter);
 
 export default router;

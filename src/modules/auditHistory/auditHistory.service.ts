@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import type { Role } from "../../shared/types/role.ts";
 import type {
   AuditHistoryQuery,
   AuditHistorySummary,
@@ -7,6 +8,7 @@ import type {
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
 import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
+import { findRequestStatusContext } from "../requests/requests.repository.ts";
 
 const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
   Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
@@ -38,11 +40,9 @@ export async function listAuditHistoryLogs(
   };
 }
 
-export async function getAuditHistoryDetail(auditId: number): Promise<AuditHistoryDetail> {
-  const row = await repository.findAuditHistoryById(auditId);
-  if (!row) {
-    throw new AppError("Log não encontrado", 404);
-  }
+function toDetail(
+  row: NonNullable<Awaited<ReturnType<typeof repository.findAuditHistoryById>>>,
+): AuditHistoryDetail {
   const occurredAt =
     row.occurred_at instanceof Date ? row.occurred_at.toISOString() : String(row.occurred_at);
   const userId = row.user_id === null ? null : Number(row.user_id);
@@ -62,4 +62,45 @@ export async function getAuditHistoryDetail(auditId: number): Promise<AuditHisto
     change_origin: row.change_origin,
     occurred_at: occurredAt,
   };
+}
+
+export async function getAuditHistoryDetail(auditId: number): Promise<AuditHistoryDetail> {
+  const row = await repository.findAuditHistoryById(auditId);
+  if (!row) {
+    throw new AppError("Log não encontrado", 404);
+  }
+  return toDetail(row);
+}
+
+/**
+ * Timeline de auditoria por protocolo (`GET /audit-logs/:protocol`, issue
+ * #124). Acesso: Administrador/Gestor (admin-like) ou ANALYST_ASSIGNEE da
+ * solicitação (responsável da triagem ou designado do mapeamento).
+ */
+export async function listAuditLogsByProtocol(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<AuditHistoryDetail[]> {
+  const request = await findRequestStatusContext(protocol.trim());
+  if (!request) {
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
+  const isAssignee =
+    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
+  const isMappingAssignee =
+    request.mapping_assignee_user_id !== null &&
+    Number(request.mapping_assignee_user_id) === actor.id;
+
+  if (!isManagerLike && !isAssignee && !isMappingAssignee) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
+
+  const rows = await repository.listAuditHistoryByProtocol(request.protocol);
+  return rows.map((row) => toDetail(row));
 }

@@ -2,7 +2,11 @@ import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { auditHistoryQuerySchema } from "./auditHistory.schema.ts";
-import { listAuditHistoryLogs, getAuditHistoryDetail } from "./auditHistory.service.ts";
+import {
+  listAuditHistoryLogs,
+  getAuditHistoryDetail,
+  listAuditLogsByProtocol,
+} from "./auditHistory.service.ts";
 
 export async function listAuditHistoryController(req: Request, res: Response): Promise<Response> {
   const parsed = auditHistoryQuerySchema.safeParse(req.query);
@@ -26,4 +30,25 @@ export async function getAuditHistoryDetailController(
 
   const detail = await getAuditHistoryDetail(id);
   return res.status(200).json(detail);
+}
+
+export async function getAuditLogsByProtocolController(
+  req: Request,
+  res: Response,
+): Promise<Response> {
+  if (!req.user) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+
+  const protocol = String(req.params.protocol ?? "").trim();
+  if (protocol === "") {
+    throw new AppError("Protocolo é obrigatório", 400);
+  }
+
+  const logs = await listAuditLogsByProtocol(protocol, {
+    id: Number(req.user.id),
+    role: req.user.role,
+  });
+
+  return res.status(200).json(logs);
 }
