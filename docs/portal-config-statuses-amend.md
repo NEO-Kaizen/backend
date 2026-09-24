@@ -23,27 +23,27 @@
 
 ```ts
 // Tom visual — allowlist semântica (mantido 0_4)
-export const STATUS_TONES = ['error', 'success', 'info', 'warning', 'neutral'] as const;
+export const STATUS_TONES = ["error", "success", "info", "warning", "neutral"] as const;
 export type StatusTone = (typeof STATUS_TONES)[number];
 
 // Modo por fase (normaliza Acessível triage/mapping + Apenas triage/mapping)
-export type StatusMode = 'none' | 'free' | 'conclusion_only';
+export type StatusMode = "none" | "free" | "conclusion_only";
 
 // Status do ciclo de vida — fonte única do PortalConfig.
 // `isCore` substitui PROTECTED_STATUS_NAMES (service.ts:261 8→6 core).
 // `isTerminal` unifica closesRequest/is_final/closes_request (só 16,17).
 // `isRestricted` substitui allowedRoles (só 11 Priorizado).
 export interface PortalStatus {
-	id: number; // 1..50, estável (max+1 aceito)
-	name: string; // 1..40 trim, único ci
-	isCore: boolean; // 6 vitais não apagam/renomeiam/desativam
-	isPublic: boolean; // true = solicitante vê esse nome; false = interno só equipe, solicitante vê último status público
-	isTerminal: boolean; // encerra solicitação (qualquer status pode ser terminal; por padrão só Concluído/Cancelado)
-	triageMode: StatusMode; // none|free(via PATCH /status)|conclusion_only(via POST triage)
-	mappingMode: StatusMode; // none|free|conclusion_only(via PUT mapping)
-	isRestricted: boolean; // false=assignee|Admin, true=Admin-only via override
-	tone: StatusTone;
-	isActive: boolean;
+  id: number; // 1..50, estável (max+1 aceito)
+  name: string; // 1..40 trim, único ci
+  isCore: boolean; // 6 vitais não apagam/renomeiam/desativam
+  isPublic: boolean; // true = solicitante vê esse nome; false = interno só equipe, solicitante vê último status público
+  isTerminal: boolean; // encerra solicitação (qualquer status pode ser terminal; por padrão só Concluído/Cancelado)
+  triageMode: StatusMode; // none|free(via PATCH /status)|conclusion_only(via POST triage)
+  mappingMode: StatusMode; // none|free|conclusion_only(via PUT mapping)
+  isRestricted: boolean; // false=assignee|Admin, true=Admin-only via override
+  tone: StatusTone;
+  isActive: boolean;
 }
 ```
 
@@ -96,7 +96,7 @@ Admin. **Lista atômica**: envia a lista completa; a ordem de exibição é a or
 
 ```ts
 export interface UpdateStatusesRequest {
-	statuses: PortalStatus[];
+  statuses: PortalStatus[];
 }
 ```
 
@@ -151,7 +151,7 @@ Cookie: session_id=<sessão>
 **Body:**
 
 ```ts
-export type CreateTriagePayload = Omit<TriageAssessment, 'id'>;
+export type CreateTriagePayload = Omit<TriageAssessment, "id">;
 // exitStatus é PortalStatus.id (number) — frontend envia id filtrado por triageMode
 ```
 
@@ -175,7 +175,7 @@ export type CreateTriagePayload = Omit<TriageAssessment, 'id'>;
 
 ```ts
 export interface TriageAssessment {
-	id: string; /* ...CreateTriagePayload */
+  id: string; /* ...CreateTriagePayload */
 }
 ```
 
@@ -201,7 +201,7 @@ HTTP/1.1 201 Created
 **Efeitos colaterais (transação atômica):**
 
 ```ts
-if (changeCategory === 'Sim') demand.category = newCategory;
+if (changeCategory === "Sim") demand.category = newCategory;
 status = portalConfig.statuses.find((s) => s.id === exitStatus)!.name;
 lastUpdate = now().toISOString();
 ```
@@ -318,16 +318,16 @@ Cookie: session_id=<sessão>
 
 ```ts
 export interface PutMappingPayload {
-	mappingAssigneeId?: string | null; // uuid do maapeador
-	scheduledFor?: string | null; // ISO datetime
-	durationMinutes?: number | null; // 15..480
-	modality?: 'REMOTE' | 'IN_PERSON' | null;
-	meetingLink?: string | null;
-	location?: string | null;
-	notes?: string | null;
-	participants?: string[]; // ids de usuário, max 20, sem duplicado
-	completeMapping: boolean; // true = conclui e avança status
-	targetStatus?: number; // id de PortalStatus, obrigatório se completeMapping:true
+  mappingAssigneeId?: string | null; // uuid do maapeador
+  scheduledFor?: string | null; // ISO datetime
+  durationMinutes?: number | null; // 15..480
+  modality?: "REMOTE" | "IN_PERSON" | null;
+  meetingLink?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  participants?: string[]; // ids de usuário, max 20, sem duplicado
+  completeMapping: boolean; // true = conclui e avança status
+  targetStatus?: number; // id de PortalStatus, obrigatório se completeMapping:true
 }
 ```
 
@@ -436,8 +436,8 @@ Cookie: session_id=<admin>
 
 ```ts
 export interface UpdateStatusRequest {
-	targetStatus: number; // PortalStatus.id 1..50
-	justification: string; // 1..4000 obrigatório trim não-vazio — toda mudança exige justificativa
+  targetStatus: number; // PortalStatus.id 1..50
+  justification: string; // 1..4000 obrigatório trim não-vazio — toda mudança exige justificativa
 }
 ```
 
@@ -452,11 +452,11 @@ export interface UpdateStatusRequest {
 
 ```ts
 export interface UpdateStatusResponse {
-	protocol: string;
-	status: string;
-	previous: string;
-	next: string;
-	lastUpdate: string;
+  protocol: string;
+  status: string;
+  previous: string;
+  next: string;
+  lastUpdate: string;
 }
 ```
 
