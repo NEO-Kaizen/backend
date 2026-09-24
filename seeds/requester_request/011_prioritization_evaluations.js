@@ -15,6 +15,10 @@
  * `classification` informada.
  */
 export async function seed(knex) {
+  // Idempotência parcial: remove apenas as avaliações deste lote.
+  await knex("prioritization_evaluations")
+    .whereIn("protocol", ["MAAT-8Q6D-1R4N", "MAAT-1L7G-5P9A"])
+    .del();
   await knex("prioritization_evaluations").insert([
     {
       protocol: "MAAT-3Y8U-2D5G",
@@ -225,6 +229,48 @@ export async function seed(knex) {
       calculated_at: "2026-09-02 09:30:00",
       created_at: "2026-09-02 09:30:00",
       updated_at: "2026-09-02 09:30:00",
+    },
+    {
+      protocol: "MAAT-8Q6D-1R4N",
+      notes: {
+        impacto_operacional: 4,
+        risco_operacional: 3,
+        urgencia: 4,
+        volumetria: 3,
+        esforco_manual: 4,
+        impacto_cliente: 4,
+        prazo_regulatorio: 3,
+        areas_impactadas: 3,
+        alinhamento_estrategico: 4,
+        complexidade_estimada: 3,
+      },
+      score: 35.0,
+      classification: "Alta",
+      calculated_by: 108,
+      calculated_at: "2026-09-15 14:00:00",
+      created_at: "2026-09-15 14:00:00",
+      updated_at: "2026-09-15 14:00:00",
+    },
+    {
+      protocol: "MAAT-1L7G-5P9A",
+      notes: {
+        impacto_operacional: 3,
+        risco_operacional: 3,
+        urgencia: 3,
+        volumetria: 3,
+        esforco_manual: 2,
+        impacto_cliente: 3,
+        prazo_regulatorio: 3,
+        areas_impactadas: 3,
+        alinhamento_estrategico: 3,
+        complexidade_estimada: 2,
+      },
+      score: 28.0,
+      classification: "Média",
+      calculated_by: 114,
+      calculated_at: "2026-08-20 10:30:00",
+      created_at: "2026-08-20 10:30:00",
+      updated_at: "2026-08-20 10:30:00",
     },
   ]);
 }
