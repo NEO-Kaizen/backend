@@ -10,11 +10,15 @@
 //   * status 18 (elegível para avaliação) → exit_status 9, sem mapping;
 // - mappings somente para as 126 elegíveis (status 5-16):
 //   * abertos para 5-7; concluídos para 8-9 e 11-16;
-// - mapping_participants (interno + equipe da área);
+// - mapping_participants (interno + placeholder de área "<Categoria> da equipe",
+//   `user_id` nulo — métricas de pessoas envolvidas devem desconsiderá-lo);
 // - audit_history (request.triage, mapping.assign/save, mapping.complete);
+//   `entity_id` = `protocol` (request) ou uuid do mapping — acoplado ao formato
+//   dessas colunas; se o formato mudar, a limpeza abaixo deixa lixo.
 // - notas internas + read states num subconjunto (~13, apenas mapeados).
 //
 // Idempotente no lote 31-250: remove o que for recriado por request_id/protocol/uuid.
+// (Os seeds 014 também limpam o próprio intervalo — ordem full-run: 014* → 015.)
 export async function seed(knex) {
   await knex("request_internal_note_read_states").whereBetween("request_id", [31, 250]).del();
   await knex("request_internal_notes").whereBetween("request_id", [31, 250]).del();

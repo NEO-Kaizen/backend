@@ -1,8 +1,13 @@
 // Solicitações em bulk — parte 2 (ids 106-180)
 //
 // Pré-requisito: 004_users (user 104 — Solicitante Teste).
-// O requester 016 (solicitante) é garantido de forma idempotente aqui, pois
-// não existe em `main` (vive apenas na branch de timeline do solicitante).
+// O requester 016 segue a definição canônica compartilhada com o seed 004 da
+// branch de timeline do solicitante (upsert convergente — ver parte 1).
+// Datas incluem pico noturno proposital (19–21h); strings ingênuas = hora
+// local do PG. Prioridade em status 5–9, 11–16 e 18.
+//
+// Idempotente no lote 106-180: remove timeline filha + requests do intervalo
+// antes de reinserir (full `seed:run` ou `--specific`).
 export async function seed(knex) {
   await knex("requesters")
     .insert({
@@ -13,10 +18,29 @@ export async function seed(knex) {
       area: "Compras",
       department: "Suprimentos",
       manager_name: "Mariana Costa",
+      additional_contact: "(11) 95555-1111",
       created_at: "2026-07-01 09:00:00",
     })
     .onConflict("requester_id")
     .merge();
+
+  await knex("request_internal_note_read_states").whereBetween("request_id", [106, 180]).del();
+  await knex("request_internal_notes").whereBetween("request_id", [106, 180]).del();
+  await knex("audit_history")
+    .whereIn(
+      "entity_id",
+      knex("requests").select("protocol").whereBetween("request_id", [106, 180]),
+    )
+    .del();
+  await knex("mapping_participants")
+    .whereIn(
+      "mapping_id",
+      knex("mappings").select("mapping_id").whereBetween("request_id", [106, 180]),
+    )
+    .del();
+  await knex("mappings").whereBetween("request_id", [106, 180]).del();
+  await knex("triages").whereBetween("request_id", [106, 180]).del();
+  await knex("requests").whereBetween("request_id", [106, 180]).del();
 
   await knex("requests").insert([
     {
