@@ -81,12 +81,23 @@ export async function listAuditLogsByProtocol(
   protocol: string,
   actor: { id: number; role: Role },
 ): Promise<AuditHistoryDetail[]> {
-  const request = await findRequestStatusContext(protocol.trim());
+  const normalized = protocol.trim();
+  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
+
+  const request = await findRequestStatusContext(normalized);
   if (!request) {
+    // Sem vazar existência: não-custódia recebe 403 genérico; só perfis com
+    // leitura ampla veem o 404 real.
+    if (!isManagerLike) {
+      throw new AppError(
+        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
   const isAssignee =
     request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
   const isMappingAssignee =

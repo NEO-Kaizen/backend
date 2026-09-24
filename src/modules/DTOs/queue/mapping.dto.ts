@@ -89,6 +89,8 @@ export interface MappingResponseDTO {
  * `completeMapping` é exclusivo do `PUT` (não aparece na resposta).
  * `targetStatus` (PortalStatus.id) é obrigatório quando `completeMapping:true`
  * — status de destino do fluxo de mapeamento (delta v4 §3.2).
+ * `justification` (1..4000) é obrigatória quando `completeMapping:true` —
+ * toda mudança de status exige justificativa (delta §3.3).
  */
 export interface MappingPayloadDTO {
   id?: string;
@@ -102,6 +104,7 @@ export interface MappingPayloadDTO {
   notes?: string | null;
   completeMapping: boolean;
   targetStatus?: number;
+  justification?: string;
 }
 
 /** Ator autenticado com o perfil resolvido (do `authMiddleware`). */

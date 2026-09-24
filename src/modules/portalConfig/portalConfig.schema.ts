@@ -143,13 +143,16 @@ const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
 
 /**
  * Normaliza payloads legados (pré-v4) para o shape novo do Motor de Status v4
- * (delta `portal-config-statuses-amend.md`). Quando o objeto já traz alguma
- * chave do v4 (`isPublic`/`isTerminal`/`triageMode`/`mappingMode`), as chaves
- * legadas são descartadas (o shape novo vence). Caso contrário, mapeia:
+ * (delta `portal-config-statuses-amend.md`). Leitura de aliases legados é
+ * tolerada; ESCRITA legada pura é convertida. MIX (chaves v4 + legadas no
+ * mesmo objeto) é rejeitado: o objeto original é devolvido intacto para que o
+ * `.strict()` falhe com 400 — sem divergência silenciosa.
  * `visibility→isPublic` (`PUBLIC→true`), `closesRequest→isTerminal`,
  * `isTriageExit→triageMode` (`true→free`, senão `none`), `mappingMode=none` e
  * `isRestricted=false`.
  */
+const LEGACY_STATUS_KEYS = ["visibility", "closesRequest", "isTriageExit"] as const;
+
 function normalizeStatusLegacy(value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value;
   const record = value as Record<string, unknown>;
@@ -159,8 +162,11 @@ function normalizeStatusLegacy(value: unknown): unknown {
     "isTerminal" in record ||
     "triageMode" in record ||
     "mappingMode" in record;
+  const hasLegacyFields = LEGACY_STATUS_KEYS.some((key) => key in record);
 
   if (hasV4Fields) {
+    // Mix v4+legado: devolve intacto para o `.strict()` rejeitar (400).
+    if (hasLegacyFields) return record;
     return rest;
   }
   return {
@@ -173,11 +179,18 @@ function normalizeStatusLegacy(value: unknown): unknown {
   };
 }
 
+/** Ids que podem carregar `isCore:true` (núcleo do Anexo A — imutáveis). */
+const CORE_STATUS_IDS = [1, 3, 4, 7, 16, 17] as const;
+
 export const portalStatusSchema = z.preprocess(
   normalizeStatusLegacy,
   z
     .object({
-      id: z.number().int("Id deve ser inteiro.").positive("Id deve ser positivo."),
+      id: z
+        .number()
+        .int("Id deve ser inteiro.")
+        .min(1, "Id mínimo de 1.")
+        .max(50, "Id máximo de 50."),
       name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
       order: z.number().int("Ordem deve ser inteiro.").nonnegative("Ordem mínima de 0.").optional(),
       isCore: z.boolean(),
@@ -191,7 +204,16 @@ export const portalStatusSchema = z.preprocess(
       }),
       isActive: z.boolean(),
     })
-    .strict(),
+    .strict()
+    .superRefine((status, ctx) => {
+      if (status.isCore && !(CORE_STATUS_IDS as readonly number[]).includes(status.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["isCore"],
+          message: "isCore só é permitido nos status de núcleo (ids 1, 3, 4, 7, 16, 17).",
+        });
+      }
+    }),
 );
 
 export const updateStatusesSchema = z

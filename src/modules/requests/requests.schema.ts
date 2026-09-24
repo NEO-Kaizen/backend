@@ -204,9 +204,10 @@ export const assignAnalystSchema = z
 export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 
 // --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
-// Único endpoint de troca de status: analista (custódia) só para status de
-// etapa `free` e `isRestricted=false`; Admin/Gestor fazem bypass (qualquer
-// `isActive`). Toda mudança exige justificativa (delta §3.3).
+// Único endpoint de troca de status: responsável com custódia só para status
+// de etapa `free` e `isRestricted=false`; Administrador faz bypass (qualquer
+// `isActive`); saída de terminal bloqueada para todos. Toda mudança exige
+// justificativa (delta §3.3).
 
 export const updateStatusSchema = z
   .object({

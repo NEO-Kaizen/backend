@@ -1150,11 +1150,13 @@ function canAssignRequest(
 
 // --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
 // Rota única de troca de status (delta `portal-config-statuses-amend.md` §3.3):
-// - `isManagerLike` (Administrador/Gestor): bypass de triageMode/mappingMode/
-//   isRestricted — pode ir a qualquer status `isActive` (inativo → 409);
-// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento):
-//   só status ativo, `isRestricted=false` e com `triageMode` OU `mappingMode`
-//   `free` para a etapa vigente.
+// - `Administrador`: bypass de triageMode/mappingMode/isRestricted — pode ir a
+//   qualquer status `isActive` (inativo → 409);
+// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
+//   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
+//   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
+// - status terminais (`isTerminal`) nunca são saída — fluxo encerrado não
+//   reabre por este endpoint (→ 422).
 // Auditoria: bypass → `request.override_status_admin`; normal →
 // `request.status_change`; negado → `request.access_denied`.
 
@@ -1194,7 +1196,7 @@ export async function updateRequestStatus(
     throw new AppError("Status de destino não encontrado", 404);
   }
 
-  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
+  const isAdmin = actor.role === "Administrador";
   const isAssignee =
     request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
   const isMappingAssignee =
@@ -1202,7 +1204,7 @@ export async function updateRequestStatus(
     Number(request.mapping_assignee_user_id) === actor.id;
   const isAnalystAssignee = isAssignee || isMappingAssignee;
 
-  if (!isManagerLike && !isAnalystAssignee) {
+  if (!isAdmin && !isAnalystAssignee) {
     await recordStatusAccessDeniedAudit(
       request.protocol,
       actor.id,
@@ -1220,7 +1222,19 @@ export async function updateRequestStatus(
     throw new AppError("A solicitação já está neste status.", 422);
   }
 
-  if (isManagerLike) {
+  // Fluxo encerrado não reabre: saída de status terminal é bloqueada para
+  // todos os perfis (inclusive Admin) neste endpoint.
+  if (request.current_is_terminal) {
+    await recordStatusAccessDeniedAudit(
+      request.protocol,
+      actor.id,
+      ipAddress,
+      "tentativa de reabrir solicitação encerrada (status terminal)",
+    );
+    throw new AppError("Solicitação encerrada — o status terminal não pode ser alterado.", 422);
+  }
+
+  if (isAdmin) {
     if (!target.is_active) {
       throw new AppError("Status inativo não pode ser alvo.", 409);
     }
@@ -1243,20 +1257,20 @@ export async function updateRequestStatus(
         request.protocol,
         actor.id,
         ipAddress,
-        `analista tentou definir status não-free/inativo (id ${target.status_id})`,
+        `tentativa de definir status não-free/inativo (id ${target.status_id})`,
       );
       throw new AppError(
-        "Analista só pode definir status ativo com triageMode ou mappingMode free.",
+        "Só é possível definir status ativo com triageMode ou mappingMode free.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
       );
     }
   }
 
-  const actionType: "request.status_change" | "request.override_status_admin" = isManagerLike
+  const actionType: "request.status_change" | "request.override_status_admin" = isAdmin
     ? "request.override_status_admin"
     : "request.status_change";
-  const changeOrigin = isManagerLike ? "admin" : "internal";
+  const changeOrigin = isAdmin ? "admin" : "internal";
 
   await db.transaction(async (trx) => {
     await repository.updateStatusById(trx, request.request_id, target.status_id, actor.email);

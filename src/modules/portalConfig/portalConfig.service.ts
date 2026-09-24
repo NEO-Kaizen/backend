@@ -315,6 +315,20 @@ export async function updateStatuses(
           "core_status_forced_inactive",
         );
       }
+      // Flags estruturais do núcleo são imutáveis via PATCH (mudança de modo
+      // de um status core quebraria o motor — exige migration versionada).
+      if (
+        incoming.isTerminal !== existing.is_terminal ||
+        incoming.isRestricted !== existing.is_restricted ||
+        incoming.triageMode !== existing.triage_mode ||
+        incoming.mappingMode !== existing.mapping_mode
+      ) {
+        throw new AppError(
+          `Flags/modos do status de núcleo "${existing.name}" (id ${coreId}) são imutáveis.`,
+          409,
+          "core_status_locked",
+        );
+      }
     }
 
     await repository.upsertStatuses(trx, statuses);

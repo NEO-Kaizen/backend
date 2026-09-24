@@ -31,6 +31,25 @@ import * as repository from "./mapping.repository.ts";
 import type { MappingRow } from "./mapping.repository.ts";
 import type { Knex } from "knex";
 
+/** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
+async function recordMappingAccessDenied(
+  trx: Knex.Transaction,
+  protocol: string,
+  actorId: number,
+  detail: string,
+): Promise<void> {
+  await recordAudit(trx, {
+    entityType: "request",
+    actionType: "request.access_denied",
+    entityId: protocol,
+    userId: actorId,
+    previousValue: null,
+    newValue: null,
+    note: `Mapping negado: ${detail}`,
+    changeOrigin: "system",
+  });
+}
+
 /** Serializa instante para ISO-8601 UTC com sufixo `Z` e precisão de segundos. */
 function toIsoSeconds(value: Date | string | null): string | null {
   if (value === null) return null;
@@ -295,6 +314,7 @@ export const upsertMappingService = async (
     // Status terminais não aceitam edição (não reabre fluxo encerrado).
     // Motor de Status v4: guard por `isTerminal` (não por lista de nomes).
     if (context.is_terminal) {
+      await recordMappingAccessDenied(trx, context.protocol, actor.id, "demanda encerrada");
       throw new AppError("Solicitação encerrada.", 422);
     }
 
@@ -302,6 +322,7 @@ export const upsertMappingService = async (
     // Admin/designado → movimentação de/r para Priorizado só via `PATCH /status`
     // (delta v4 §3.2: "Priorizado só via override").
     if (context.is_restricted) {
+      await recordMappingAccessDenied(trx, context.protocol, actor.id, "demanda priorizada");
       throw new AppError(
         "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
         403,
@@ -410,6 +431,40 @@ export const upsertMappingService = async (
       }
     }
 
+    // Destino + justificativa validados ANTES de qualquer escrita (delta v4
+    // §3.2/§3.3): `targetStatus` elegível (mappingMode free/conclusion_only +
+    // isRestricted===false) e `justification` 1..4000 obrigatória ao concluir.
+    let concludeTarget: { status_id: number; name: string } | null = null;
+    if (concluding) {
+      if (payload.targetStatus === undefined) {
+        throw new ValidationError(
+          { targetStatus: "Informe o status de destino ao concluir o mapeamento" },
+          "Validação falhou",
+        );
+      }
+      if (payload.justification === undefined) {
+        throw new ValidationError(
+          {
+            justification:
+              "Justificativa obrigatória ao concluir o mapeamento (1..4000 caracteres).",
+          },
+          "Validação falhou",
+        );
+      }
+
+      const target = await repository.resolveMappingTarget(trx, payload.targetStatus);
+      if (!target) {
+        throw new ValidationError(
+          {
+            targetStatus:
+              "Status deve ter mappingMode free ou conclusion_only e isRestricted=false",
+          },
+          "Validação falhou",
+        );
+      }
+      concludeTarget = target;
+    }
+
     const resolvedParticipants =
       payload.participants !== undefined
         ? await resolveParticipants(trx, payload.participants)
@@ -476,29 +531,8 @@ export const upsertMappingService = async (
       });
     }
 
-    if (concluding) {
-      // Destino obrigatório na conclusão — delta v4 §3.2 (`targetStatus`).
-      // Elegibilidade: isActive && isRestricted===false && mappingMode
-      // conclusion_only|free (`resolveMappingTarget`).
-      if (payload.targetStatus === undefined) {
-        throw new ValidationError(
-          { targetStatus: "Informe o status de destino ao concluir o mapeamento" },
-          "Validação falhou",
-        );
-      }
-
-      const target = await repository.resolveMappingTarget(trx, payload.targetStatus);
-      if (!target) {
-        throw new ValidationError(
-          {
-            targetStatus:
-              "Status deve ter mappingMode free ou conclusion_only e isRestricted=false",
-          },
-          "Validação falhou",
-        );
-      }
-
-      await updateStatusById(trx, context.request_id, target.status_id, actor.email);
+    if (concluding && concludeTarget) {
+      await updateStatusById(trx, context.request_id, concludeTarget.status_id, actor.email);
 
       await recordAudit(trx, {
         entityType: "request",
@@ -506,8 +540,8 @@ export const upsertMappingService = async (
         entityId: context.protocol,
         userId: actor.id,
         previousValue: context.status,
-        newValue: target.name,
-        note: "Conclusão do mapeamento (mapping.complete).",
+        newValue: concludeTarget.name,
+        note: payload.justification as string,
         changeOrigin: "system",
       });
     }

@@ -20,6 +20,7 @@ interface RequestContextRow {
   assignee_user_id: number | null;
   status_name: string | null;
   status_is_restricted: boolean;
+  status_is_terminal: boolean;
   category_name: string | null;
 }
 
@@ -36,6 +37,7 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       assignee_user_id: "dp.user_id",
       status_name: "s.name",
       status_is_restricted: "s.is_restricted",
+      status_is_terminal: "s.is_terminal",
       category_name: "c.name",
     });
 }

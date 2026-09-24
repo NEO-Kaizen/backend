@@ -43,9 +43,14 @@ export async function createTriage(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  // Priorizado (isRestricted) bloqueia triagem de qualquer perfil — inclusive
-  // assignee → só via `PATCH /status` com bypass Admin (delta §3.1).
-  if (request.status_is_restricted) {
+  // Priorizado (isRestricted) bloqueia triagem de não-Admin — inclusive
+  // assignee → movimentação de/r para Priorizado só via `PATCH /status` com
+  // bypass Admin (delta §3.1). Fluxo encerrado (isTerminal) não reabre.
+  if (request.status_is_terminal) {
+    throw new AppError("Solicitação encerrada.", 422);
+  }
+
+  if (request.status_is_restricted && actor.role !== "Administrador") {
     throw new AppError(
       "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
       403,

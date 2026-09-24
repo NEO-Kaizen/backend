@@ -213,36 +213,47 @@ const TRIAGE_EXIT_EXTRA = [
 ];
 
 export async function up(knex) {
-  await knex.raw("CREATE TYPE status_triage_mode AS ENUM ('none', 'free', 'conclusion_only')");
-  await knex.raw("CREATE TYPE status_mapping_mode AS ENUM ('none', 'free', 'conclusion_only')");
+  // Idempotente: tipos e colunas criados apenas se ainda não existirem
+  // (retry de deploy não quebra).
+  for (const typeName of ["status_triage_mode", "status_mapping_mode"]) {
+    const exists = await knex("pg_type").where({ typname: typeName }).first();
+    if (!exists) {
+      await knex.raw(`CREATE TYPE ${typeName} AS ENUM ('none', 'free', 'conclusion_only')`);
+    }
+  }
 
-  await knex.schema.alterTable("statuses", (table) => {
-    table.boolean("is_core").notNullable().defaultTo(false);
-    table.boolean("is_restricted").notNullable().defaultTo(false);
-    table.boolean("is_terminal").notNullable().defaultTo(false);
-    table
-      .enu("triage_mode", ["none", "free", "conclusion_only"], {
-        useNative: true,
-        enumName: "status_triage_mode",
-        existingType: true,
-      })
-      .notNullable()
-      .defaultTo("none");
-    table
-      .enu("mapping_mode", ["none", "free", "conclusion_only"], {
-        useNative: true,
-        enumName: "status_mapping_mode",
-        existingType: true,
-      })
-      .notNullable()
-      .defaultTo("none");
-  });
+  for (const column of ["is_core", "is_restricted", "is_terminal"]) {
+    const has = await knex.schema.hasColumn("statuses", column);
+    if (!has) {
+      await knex.schema.alterTable("statuses", (table) => {
+        table.boolean(column).notNullable().defaultTo(false);
+      });
+    }
+  }
+  for (const column of ["triage_mode", "mapping_mode"]) {
+    const has = await knex.schema.hasColumn("statuses", column);
+    if (!has) {
+      const enumName = column === "triage_mode" ? "status_triage_mode" : "status_mapping_mode";
+      await knex.schema.alterTable("statuses", (table) => {
+        table
+          .enu(column, ["none", "free", "conclusion_only"], {
+            useNative: true,
+            enumName,
+            existingType: true,
+          })
+          .notNullable()
+          .defaultTo("none");
+      });
+    }
+  }
 
+  // Backfill não-destrutivo: preenche apenas as colunas novas (+ espelhos
+  // derivados tone/visibility/closes_request/is_final) e NUNCA renomeia —
+  // customizações de `name` em produção são preservadas.
   for (const status of ANEXO_A) {
     await knex("statuses")
       .where({ status_id: status.status_id })
       .update({
-        name: status.name,
         is_core: status.is_core,
         is_restricted: status.is_restricted,
         is_terminal: status.is_terminal,
@@ -258,6 +269,7 @@ export async function up(knex) {
   }
 
   for (const extra of TRIAGE_EXIT_EXTRA) {
+    // Só em ambientes que possuem 18–22 (0 rows = sem efeito, sem erro).
     await knex("statuses").where({ status_id: extra.status_id }).update({
       is_core: false,
       is_restricted: false,
