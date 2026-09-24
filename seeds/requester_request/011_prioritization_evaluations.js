@@ -15,6 +15,10 @@
  * `classification` informada.
  */
 export async function seed(knex) {
+  // Idempotência parcial: remove apenas as avaliações deste lote.
+  await knex("prioritization_evaluations")
+    .whereIn("protocol", ["MAAT-8Q6D-1R4N", "MAAT-1L7G-5P9A"])
+    .del();
   await knex("prioritization_evaluations").insert([
     {
       protocol: "MAAT-3Y8U-2D5G",

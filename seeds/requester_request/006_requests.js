@@ -7,6 +7,10 @@
 // Proposital: `created_by` e o snapshot em `requesters` mantêm os dados
 // originais do formulário, mesmo quando divergem da conta vinculada.
 export async function seed(knex) {
+  // Idempotência parcial: remove apenas as solicitações deste lote (21–30)
+  // antes de reinserir. As requests 1–20 legadas e o TRUNCATE global do 001
+  // seguem o padrão histórico deste arquivo.
+  await knex("requests").whereIn("request_id", [21, 22, 23, 24, 25, 26, 27, 28, 29, 30]).del();
   await knex("requests").insert([
     {
       request_id: 1,
@@ -1073,13 +1077,13 @@ export async function seed(knex) {
       desired_deadline: "2026-12-05",
       perceived_criticality: "Alta",
       category_id: 4,
-      status_id: 9,
+      status_id: 11,
       priority_id: 3,
       preliminary_complexity: "media",
       screening_result: "elegivel",
       professional_id: "650e8400-e29b-41d4-a716-446655440002",
       mapping_professional_id: "650e8400-e29b-41d4-a716-446655440002",
-      last_technical_message: "Solicitação elegível. Aguardando priorização do comitê.",
+      last_technical_message: "Solicitação priorizada com prioridade Alta no comitê de setembro.",
       estimated_completion: "2026-12-15",
       meeting_scheduled_for: null,
       meeting_link: null,

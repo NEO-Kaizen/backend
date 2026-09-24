@@ -1,4 +1,6 @@
 export async function seed(knex) {
+  // Idempotência parcial: remove apenas as preferências deste lote (reqs 25/26).
+  await knex("request_time_preferences").whereIn("request_id", [25, 26]).del();
   await knex("request_time_preferences").insert([
     { request_id: 7, scheduled_for: "2026-09-08 10:00:00" },
     { request_id: 7, scheduled_for: "2026-09-08 14:00:00" },

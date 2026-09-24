@@ -14,8 +14,8 @@
 // - 26 (Mapeamento agendado): triagem + mapping aberto (10-02 09:30) +
 //   mapping.assign/save + participantes + nota.
 // - 27 (Em mapeamento): triagem + mapping aberto + mapping.save + participantes.
-// - 28 (Elegível): triagem + mapping concluído (10-09→10-12) + mapping.complete
-//   + participantes + notas + read state.
+// - 28 (Priorizado): triagem + mapping concluído (10-09→10-12) + mapping.complete
+//   + status_change Elegível→Priorizado + participantes + notas + read state.
 // - 29 (Concluído): triagem + mapping concluído + participantes + notas
 //   multi-autor + read state (checkpoint no meio → unseenCount > 0).
 // - 30 (Não elegível): triagem com exit_status 10 + request.triage +
@@ -23,7 +23,10 @@
 //
 // Idempotente: apaga apenas o que cria (por request_id/protocol/uuid fixo) e
 // recria; timelines de outras solicitações (ex.: request 1 do 012) ficam
-// intocadas.
+// intocadas. O `DELETE` em `audit_history` desabilita temporariamente o guard
+// append-only (`trg_audit_history_prevent_update_delete`) e o reabilita em
+// `finally` — mesmo padrão do seed 012. `read_at` usa timestamps fixos
+// (reprodutível entre runs — nunca `now()`).
 export async function seed(knex) {
   const REQUEST_IDS = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30];
   const PROTOCOLS = [
@@ -49,15 +52,25 @@ export async function seed(knex) {
   await knex("request_internal_notes").whereIn("request_id", REQUEST_IDS).del();
 
   // `audit_history` não tem FK e sobrevive ao TRUNCATE do 001 — limpeza pelos
-  // ids constantes deste seed.
-  await knex("audit_history")
-    .where(function () {
-      this.where({ entity_type: "request" }).whereIn("entity_id", PROTOCOLS);
-    })
-    .orWhere(function () {
-      this.where({ entity_type: "mapping" }).whereIn("entity_id", MAPPING_IDS);
-    })
-    .del();
+  // ids constantes deste seed. O guard append-only precisa ser desabilitado
+  // durante o reseed (ver cabeçalho).
+  await knex.raw(
+    "ALTER TABLE audit_history DISABLE TRIGGER trg_audit_history_prevent_update_delete",
+  );
+  try {
+    await knex("audit_history")
+      .where(function () {
+        this.where({ entity_type: "request" }).whereIn("entity_id", PROTOCOLS);
+      })
+      .orWhere(function () {
+        this.where({ entity_type: "mapping" }).whereIn("entity_id", MAPPING_IDS);
+      })
+      .del();
+  } finally {
+    await knex.raw(
+      "ALTER TABLE audit_history ENABLE TRIGGER trg_audit_history_prevent_update_delete",
+    );
+  }
 
   await knex("mapping_participants").whereIn("mapping_id", MAPPING_IDS).del();
   await knex("mappings").whereIn("request_id", [26, 27, 28, 29]).del();
@@ -350,25 +363,29 @@ export async function seed(knex) {
     ])
     .returning(["internal_note_id", "request_id"]);
 
-  const noteByRequest = insertedNotes.reduce((acc, note) => {
+  // Ordena pelo id retornado para checkpoint determinístico (o Postgres não
+  // garante a ordem do `RETURNING`).
+  const orderedNotes = [...insertedNotes].sort((a, b) => a.internal_note_id - b.internal_note_id);
+  const noteByRequest = orderedNotes.reduce((acc, note) => {
     (acc[note.request_id] ??= []).push(note.internal_note_id);
     return acc;
   }, {});
 
   // Checkpoint de leitura: usuário interno leu até a nota do meio → posterior
   // (ex.: a de priorização/entrega) fica como não lida (unseenCount > 0).
+  // Timestamps fixos (determinísticos entre runs).
   await knex("request_internal_note_read_states").insert([
     {
       request_id: 28,
       user_id: 101,
       last_read_note_id: noteByRequest[28][0],
-      read_at: knex.fn.now(),
+      read_at: "2026-09-12T10:06:00.000Z",
     },
     {
       request_id: 29,
       user_id: 101,
       last_read_note_id: noteByRequest[29][1],
-      read_at: knex.fn.now(),
+      read_at: "2026-08-28T14:15:00.000Z",
     },
   ]);
 
@@ -565,6 +582,18 @@ export async function seed(knex) {
       user_id: 107,
       occurred_at: "2026-09-12T10:00:00.000Z",
       change_origin: "internal",
+    },
+    // 28 — priorização no comitê (request 28 em status 11 Priorizado).
+    {
+      entity_type: "request",
+      entity_id: "MAAT-8Q6D-1R4N",
+      action_type: "request.status_change",
+      previous_value: "Elegível",
+      new_value: "Priorizado",
+      user_id: 102,
+      occurred_at: "2026-09-15T14:00:00.000Z",
+      note: "Priorizado com prioridade Alta no comitê de setembro.",
+      change_origin: "admin",
     },
     // 29 — triagem + mapping completo (timeline mais rica).
     {
