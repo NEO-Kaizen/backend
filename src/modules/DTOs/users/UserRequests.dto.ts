@@ -29,7 +29,12 @@ export interface UpdateUserRequest {
   email?: string;
   role?: string;
   professional?: CreateProfessionalInput;
-  requester?: Partial<RequesterInput>;
+  requester?: {
+    area?: string;
+    department?: string | null;
+    manager?: string;
+    additionalContact?: string | null;
+  };
 }
 
 export interface ListUsersQuery {

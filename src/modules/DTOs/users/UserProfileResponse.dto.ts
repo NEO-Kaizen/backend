@@ -1,6 +1,6 @@
 import type { Role } from "../../../shared/types/role.ts";
 
-/** Resposta de `GET /users/me` — perfil completo do próprio usuário. */
+/** Resposta de `GET /users/me` e `GET /users/:id` — perfil completo. */
 export interface UserProfileResponseDTO {
   id: string;
   fullName: string;
@@ -11,7 +11,7 @@ export interface UserProfileResponseDTO {
   professional: ProfessionalProfileBlock | null;
 }
 
-/** Bloco de dados de solicitante editável no "Meus dados". */
+/** Bloco de dados de solicitante; somente additionalContact é autoeditável. */
 export interface RequesterProfileBlock {
   area: string | null;
   department: string | null;
@@ -19,7 +19,7 @@ export interface RequesterProfileBlock {
   additionalContact: string | null;
 }
 
-/** Bloco de dados profissionais editável no "Meus dados" (apenas analista). */
+/** Bloco de dados profissionais administrado pelo Admin (apenas analista). */
 export interface ProfessionalProfileBlock {
   jobTitle: string | null;
   specialties: string[];

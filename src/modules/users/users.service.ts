@@ -304,10 +304,16 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
   } satisfies UserProfileResponseDTO;
 }
 
+/** `GET /users/:id` — consulta administrativa do perfil completo. */
+export async function getUser(rawId: string): Promise<UserProfileResponseDTO> {
+  return getMyProfile(parseUserId(rawId));
+}
+
 /**
- * `PUT /users/me` — após admin-provisioned, só `additionalContact` é
- * auto-editável. `area/department/manager` rejeitados (403). `fullName`,
- * `email`, `role` continuam imutáveis aqui — edição completa via PUT /users/:id admin.
+ * `PUT /users/me` — `fullName`, `additionalContact` e avatar são
+ * autoeditáveis. O próprio Administrador também pode editar seus dados
+ * administrativos de requester. Dados profissionais continuam pertencendo
+ * ao fluxo administrativo em `PUT /users/:id`.
  */
 export async function updateMyProfile(
   userId: number,
@@ -332,55 +338,53 @@ export async function updateMyProfile(
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  // Snapshot anterior para auditoria (requester, professional, avatar).
+  // Snapshot anterior para auditoria (nome, requester e avatar).
   const snapshot = await repository.findUserProfile(userId);
   const previousValue = {
+    fullName: snapshot?.full_name ?? user.full_name,
     requester: snapshot?.requester ?? null,
-    professional: snapshot?.professional ?? null,
     avatarUrl: snapshot?.avatar_url ?? null,
     removeAvatar: payload.removeAvatar ?? false,
   };
 
   await db.transaction(async (trx) => {
-    // ----- bloco requester (self-service só additionalContact) -----
+    // ----- identidade self-service (somente nome) -----
+    if (payload.fullName !== undefined) {
+      await repository.updateUserFields(trx, userId, { fullName: payload.fullName });
+      await repository.syncRequesterIdentity(trx, userId, {
+        fullName: payload.fullName,
+        corporateEmail: user.email,
+      });
+    }
+
+    // ----- bloco requester -----
     if (payload.requester) {
-      // Rejeita `area`/`department`/`manager` vindos do raw multipart (contrato antigo);
-      // frontend já envia só additionalContact. Se vier, fail-fast.
       const rawRequester = payload.requester as unknown as Record<string, unknown>;
-      if ("area" in rawRequester || "department" in rawRequester || "manager" in rawRequester) {
+      const changesAdministrativeFields =
+        "area" in rawRequester || "department" in rawRequester || "manager" in rawRequester;
+
+      // A autorização usa o perfil persistido no banco, não apenas o JWT.
+      if (changesAdministrativeFields && resolveRole(user.profile_name) !== "Administrador") {
         throw new AppError(
           "Área, departamento e gestor só podem ser alterados por administrador. Use PUT /users/:id.",
           403,
         );
       }
-      // `additionalContact` é o único campo auto-editável. Merge parcial com dados existentes.
-      const existing = await repository.findUserProfile(userId);
-      const current = existing?.requester;
-      const area = current?.area ?? null;
-      const manager = current?.manager_name ?? null;
-      // Legado null precisa ser preenchido por admin antes; self não inventa valores.
-      if (current && (area === null || manager === null)) {
-        // Permitir apenas additionalContact mesmo com legado incompleto — não exige area/manager aqui.
-      }
-      // Se não há linha requester ainda, criar com area/manager null + additionalContact (legado path).
-      if (!current) {
-        await repository.mergeRequesterData(trx, userId, user.full_name, user.email, {
-          additionalContact: payload.requester.additionalContact,
-        });
-      } else {
-        // Merge: mantém area/department/manager, atualiza só additionalContact
-        await repository.mergeRequesterData(trx, userId, user.full_name, user.email, {
-          additionalContact: payload.requester.additionalContact,
-        });
-      }
-    }
 
-    // ----- bloco professional (apenas analista) -----
-    if (payload.professional) {
-      if (user.profile_name !== ROLE_ANALYST) {
-        throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
-      }
-      await repository.upsertProfessionalData(trx, userId, payload.professional);
+      // Merge parcial: campos ausentes são preservados. Também cobre usuários
+      // legados que ainda não possuem a extensão requester.
+      await repository.mergeRequesterData(
+        trx,
+        userId,
+        payload.fullName ?? user.full_name,
+        user.email,
+        {
+          area: payload.requester.area,
+          department: payload.requester.department,
+          manager: payload.requester.manager,
+          additionalContact: payload.requester.additionalContact,
+        },
+      );
     }
 
     // ----- avatar -----
@@ -403,8 +407,8 @@ export async function updateMyProfile(
       userId: actorUserId,
       previousValue: JSON.stringify(previousValue),
       newValue: JSON.stringify({
+        fullName: payload.fullName ?? null,
         requester: payload.requester ?? null,
-        professional: payload.professional ?? null,
         avatarChanged: avatarFile !== undefined || payload.removeAvatar === true,
       }),
       note: "self-edit via PUT /users/me",

@@ -597,7 +597,7 @@ export async function mergeRequesterData(
   corporateEmail: string,
   patch: {
     area?: string;
-    department?: string;
+    department?: string | null;
     manager?: string;
     additionalContact?: string | null;
   },

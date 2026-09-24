@@ -76,6 +76,12 @@ export const updateUser = async (req: Request, res: Response): Promise<Response>
   return res.status(200).json(updated);
 };
 
+export const getUser = async (req: Request, res: Response): Promise<Response> => {
+  const user = await service.getUser(req.params.id as string);
+
+  return res.status(200).json(user);
+};
+
 export const changeUserStatus = async (req: Request, res: Response): Promise<Response> => {
   const parsed = changeUserStatusSchema.safeParse(req.body);
 
@@ -110,8 +116,9 @@ export const getMyProfile = async (_req: Request, res: Response): Promise<Respon
 };
 
 /**
- * PUT /users/me — atualiza bloco requester, bloco professional (analista)
- * e/ou foto de perfil. Self-service (actor == owner). Multipart:
+ * PUT /users/me — atualiza nome, contato adicional e/ou foto de perfil.
+ * O próprio Administrador também pode atualizar área, departamento e gestor.
+ * Self-service (actor == owner). Multipart:
  * campo `payload` (JSON) + campo `avatar` (arquivo opcional).
  */
 export const updateMyProfile = async (req: Request, res: Response): Promise<Response> => {
@@ -128,7 +135,8 @@ export const updateMyProfile = async (req: Request, res: Response): Promise<Resp
     throw new AppError("A parte 'payload' contém um JSON inválido.", 400);
   }
 
-  // Detecção antecipada de area/department/manager em PUT /me (contrato antigo do FE)
+  // Mensagem explícita para perfis que tentem alterar dados administrativos.
+  // O próprio Administrador é a única exceção no self-service.
   if (
     parsedPayload !== null &&
     typeof parsedPayload === "object" &&
@@ -139,6 +147,7 @@ export const updateMyProfile = async (req: Request, res: Response): Promise<Resp
       unknown
     > | null;
     if (
+      req.user?.role !== "Administrador" &&
       rawReq !== null &&
       typeof rawReq === "object" &&
       ("area" in rawReq || "department" in rawReq || "manager" in rawReq)
