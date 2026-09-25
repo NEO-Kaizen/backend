@@ -16,6 +16,7 @@ export interface UserRow {
   user_id: number;
   full_name: string;
   email: string;
+  avatar_url: string | null;
   password_hash: string;
   profile_id: number;
   is_active: boolean;

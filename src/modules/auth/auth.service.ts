@@ -12,6 +12,7 @@ export interface SessionUserResult {
   id: string;
   name: string;
   email: string;
+  avatarUrl: string | null;
   role: Role;
   mustChangePassword: boolean;
   /** Época (ms) de `users.password_changed_at` — vai no payload do JWT. */
@@ -51,6 +52,7 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
     id: String(user.user_id),
     name: user.full_name,
     email: user.email,
+    avatarUrl: user.avatar_url,
     role: resolveRole(user.profile_name),
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
@@ -69,6 +71,7 @@ export async function getSessionUser(userId: number): Promise<SessionUserResult>
     id: String(user.user_id),
     name: user.full_name,
     email: user.email,
+    avatarUrl: user.avatar_url,
     role: resolveRole(user.profile_name),
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
@@ -125,6 +128,7 @@ export async function changePassword(
     id: String(user.user_id),
     name: user.full_name,
     email: user.email,
+    avatarUrl: user.avatar_url,
     role: resolveRole(user.profile_name),
     mustChangePassword: false,
     passwordChangedAt: new Date(password_changed_at).getTime(),

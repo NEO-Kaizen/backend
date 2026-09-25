@@ -80,7 +80,7 @@ export const listUsersQuerySchema = z.object({
 
 export const requesterPatchSchema = z.object({
   area: requiredText(100).optional(),
-  department: optionalText(100),
+  department: z.union([optionalText(100), z.null()]).optional(),
   manager: requiredText(150).optional(),
   additionalContact: nullableOptionalString(100),
 });
@@ -116,12 +116,6 @@ export const updateUserSchema = z
           message: "Dados profissionais são exclusivos do perfil Analista.",
         });
       }
-    } else if (value.professional !== undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["professional"],
-        message: "Informe o campo role junto com professional.",
-      });
     }
     if (Object.keys(value).length === 0) {
       ctx.addIssue({

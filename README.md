@@ -177,12 +177,16 @@ Autentica o usuário com e-mail e senha. Em caso de sucesso, retorna os dados do
     "id": "1",
     "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
+    "avatarUrl": "/uploads/avatars/1-foto.jpg",
     "role": "Analista",
     "mustChangePassword": false
   }
   ```
 
-  `role` pode ser `Solicitante`, `Analista`, `Gestor` ou `Administrador`. Quando `mustChangePassword` é `true`, o cookie de sessão é emitido com escopo de troca de senha e o usuário deve concluir a troca antes de continuar.
+  `avatarUrl` é a URL relativa da foto do usuário ou `null`; `role` pode ser
+  `Solicitante`, `Analista`, `Gestor` ou `Administrador`. Quando
+  `mustChangePassword` é `true`, o cookie de sessão é emitido com escopo de
+  troca de senha e o usuário deve concluir a troca antes de continuar.
 
 - Resposta `400 Bad Request`: e-mail ou senha ausentes.
 - Resposta `401 Unauthorized`: credenciais inválidas (e-mail não encontrado, senha incorreta, usuário ou perfil inativo — a resposta é genérica para não revelar o motivo).
@@ -209,6 +213,7 @@ Retorna a sessão atual a partir do cookie de sessão HttpOnly. Valida o JWT e r
     "id": "1",
     "email": "maria@instituicao.gov.br",
     "name": "Maria Oliveira",
+    "avatarUrl": "/uploads/avatars/1-foto.jpg",
     "role": "Analista",
     "mustChangePassword": false
   }

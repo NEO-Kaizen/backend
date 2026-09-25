@@ -5,17 +5,21 @@ import {
   PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH,
   requiredText,
 } from "../../../shared/validation/fieldSchemas.ts";
-import { professionalSchema } from "../../users/users.schema.ts";
 
 /**
- * Bloco requester self-editável no "Meus dados" — após mudança para
- * admin-provisioned, só `additionalContact` é mutável pelo dono.
- * `area/department/manager` são admin-only (rejeitados no service).
+ * Bloco requester aceito no "Meus dados". O service aplica a autorização:
+ * somente o próprio Administrador pode alterar `area/department/manager`;
+ * para os demais perfis, apenas `additionalContact` é autoeditável.
  * `additionalContact` aceita string, ""→null, null→clear, undefined/{}→no-op.
  */
-export const updateRequesterSelfSchema = z.object({
-  additionalContact: nullableOptionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
-});
+export const updateRequesterSelfSchema = z
+  .object({
+    area: requiredText(100).optional(),
+    department: z.union([optionalText(100), z.null()]).optional(),
+    manager: requiredText(150).optional(),
+    additionalContact: nullableOptionalString(PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH),
+  })
+  .strict();
 
 /**
  * Bloco requester completo (admin / criação) — mantém `area/manager`
@@ -33,18 +37,19 @@ export type UpdateRequesterBlock = z.infer<typeof updateRequesterSchema>;
 
 /**
  * Payload de `PUT /users/me` (multipart: campo `payload` = JSON).
- * - `requester`? (atualiza bloco de requester)
- * - `professional`? (atualiza bloco professional — 400 se perfil ≠ analista)
+ * - `fullName`? (atualiza o nome do próprio usuário)
+ * - `requester`? (contato adicional; Administrador também pode atualizar seus
+ *   próprios área, departamento e gestor)
  * - `removeAvatar`?: true → remove foto atual
- * - campos `fullName`/`corporateEmail`/`role` são descartados (imutáveis)
- *
- * A restrição de `professional` ao perfil Analista é feita no service (tem
- * acesso ao `profile_name` do usuário; o schema não conhece o role).
+ * - demais campos são recusados; dados administrativos pertencem a
+ *   `PUT /users/:id`.
  */
-export const updateProfileSchema = z.object({
-  requester: updateRequesterSelfSchema.optional(),
-  professional: professionalSchema.optional(),
-  removeAvatar: z.boolean().optional(),
-});
+export const updateProfileSchema = z
+  .object({
+    fullName: requiredText(150).optional(),
+    requester: updateRequesterSelfSchema.optional(),
+    removeAvatar: z.boolean().optional(),
+  })
+  .strict();
 
 export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;
