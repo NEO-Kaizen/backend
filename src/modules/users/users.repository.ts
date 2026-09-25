@@ -16,6 +16,7 @@ interface UserSummaryRow {
   user_id: number;
   full_name: string;
   email: string;
+  avatar_url: string | null;
   profile_name: string;
   is_active: boolean;
   must_change_password: boolean;
@@ -36,6 +37,7 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "u.user_id",
       "u.full_name",
       "u.email",
+      "u.avatar_url",
       "u.password_hash",
       "u.profile_id",
       "u.is_active",
@@ -383,6 +385,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       user_id: "u.user_id",
       full_name: "u.full_name",
       email: "u.email",
+      avatar_url: "u.avatar_url",
       profile_name: "p.name",
       is_active: "u.is_active",
       must_change_password: "u.must_change_password",
@@ -398,6 +401,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       id: String(row.user_id),
       fullName: row.full_name,
       email: row.email,
+      avatarUrl: row.avatar_url,
       profile: resolveRole(row.profile_name),
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,

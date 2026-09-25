@@ -5,6 +5,7 @@ export interface UserSummary {
   id: string;
   fullName: string;
   email: string;
+  avatarUrl: string | null;
   profile: Role;
   isActive: boolean;
   mustChangePassword: boolean;
@@ -24,7 +25,7 @@ export interface AssignAnalyst {
 // compat alias — contrato contract-assign-action.md usa AssignAnalyst; manter Analyst como alias até remover usos legados
 export type Analyst = AssignAnalyst;
 
-export interface CreateUserResponse extends Omit<UserSummary, "profile"> {
+export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {
   /** Vocabulário de exibição — capitalizado (ex.: "Analista"). */
   role: Role;
   /** Exibida uma única vez — não recuperável depois. */
