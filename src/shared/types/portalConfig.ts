@@ -111,21 +111,34 @@ export interface PortalCategory {
   isActive: boolean;
 }
 
-// Visibilidade de um status: PUBLIC aparece ao solicitante; INTERNAL fica
-// restrito à equipe.
-export type StatusVisibility = "PUBLIC" | "INTERNAL";
+/**
+ * Modo de uso de um status nos fluxos de triagem/mapeamento (Motor de Status
+ * v4 — delta `portal-config-statuses-amend.md`):
+ * - `none`: nunca é alvo direto da etapa (ex.: transição de N para Concluído);
+ * - `free`: pode ser alvo livremente pelo agente da etapa;
+ * - `conclusion_only`: alvo apenas na etapa de conclusão (ex.: Concluído).
+ */
+export type StatusMode = "none" | "free" | "conclusion_only";
 
-// Status do ciclo de vida. `closesRequest` encerra a solicitação; `isActive` é a
-// ativação/inativação (não há exclusão — status inativos permanecem na lista,
-// mas não entram em novos fluxos). `isTriageExit` marca as saídas elegíveis
-// da triagem (contract-triage_04.md §4) — distinto de `closesRequest`, pois
-// "Pendente de informações" é saída sem encerrar.
+export const CORE_STATUS_IDS = [1, 3, 4, 6, 7, 16, 17] as const;
+
+/**
+ * Status do ciclo de vida — Motor de Status v4. A ordem de exibição é a
+ * posição do array no PATCH. `isCore` marca statuses de núcleo (ids fixos
+ * 1,3,4,6,7,16,17 — não podem ser removidos, renomeados, rebaixados ou
+ * desativados). `isRestricted` limita o status a Administrador (Priorizado).
+ * `isTerminal` encerra a solicitação. `isPublic` controla a exibição ao
+ * solicitante. `triageMode`/`mappingMode` regem os alvos dos fluxos.
+ */
 export interface PortalStatus {
   id: number;
   name: string;
-  visibility: StatusVisibility;
-  closesRequest: boolean;
-  isTriageExit: boolean;
+  isCore: boolean;
+  isPublic: boolean;
+  isTerminal: boolean;
+  triageMode: StatusMode;
+  mappingMode: StatusMode;
+  isRestricted: boolean;
   tone: StatusTone;
   isActive: boolean;
 }
@@ -180,13 +193,16 @@ export interface CategoryRow {
   display_order: number | null;
 }
 
-/** Linha da tabela `statuses` — projeção usada pelo portal config. */
+/** Linha da tabela `statuses` — projeção usada pelo portal config (v4). */
 export interface StatusRow {
   status_id: number;
   name: string;
-  visibility: StatusVisibility;
-  closes_request: boolean;
-  is_triage_exit: boolean;
+  is_public: boolean;
+  is_core: boolean;
+  is_restricted: boolean;
+  is_terminal: boolean;
+  triage_mode: StatusMode;
+  mapping_mode: StatusMode;
   tone: StatusTone;
   order_number: number;
   is_active: boolean;

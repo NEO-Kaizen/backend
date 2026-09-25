@@ -11,6 +11,7 @@ import {
   listAuthenticatedRequestsQuerySchema,
   listRequestsQuerySchema,
   updateRequestPayloadSchema,
+  updateStatusSchema,
 } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
 
@@ -215,6 +216,24 @@ export const patchInternalAssignee = async (req: Request, res: Response): Promis
   }
 
   const response = await service.assignAnalyst(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
+
+  return res.status(200).json(response);
+};
+
+export const patchRequestStatus = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const parsed = updateStatusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const response = await service.updateRequestStatus(
     protocol,
     parsed.data,
     actorFromRequest(req),

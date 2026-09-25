@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  CORE_STATUS_IDS,
   PRIORITIZATION_CRITERIA,
   THEME_TOKEN_KEYS,
   type ThemeTokenKey,
@@ -137,23 +138,39 @@ export const updateCategoriesSchema = z
   })
   .strict();
 
+const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
+  error: "Modo inválido — opções: none, free ou conclusion_only.",
+});
+
 export const portalStatusSchema = z
   .object({
-    id: z.number().int("Id deve ser inteiro.").positive("Id deve ser positivo."),
+    id: z
+      .number()
+      .int("Id deve ser inteiro.")
+      .min(1, "Id mínimo de 1.")
+      .max(50, "Id máximo de 50."),
     name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
-    visibility: z.enum(["PUBLIC", "INTERNAL"], {
-      error: "Visibilidade inválida — opções: PUBLIC ou INTERNAL.",
-    }),
-    closesRequest: z.boolean(),
-    // Elegível como saída de triagem (contract-triage_04.md §4). Omitido por
-    // clientes antigos = false (decisão: default + strict).
-    isTriageExit: z.boolean().default(false),
+    isCore: z.boolean(),
+    isPublic: z.boolean(),
+    isTerminal: z.boolean(),
+    triageMode: StatusModeSchema,
+    mappingMode: StatusModeSchema,
+    isRestricted: z.boolean(),
     tone: z.enum(STATUS_TONES, {
       error: "Tom inválido — opções: error, success, info, warning ou neutral.",
     }),
     isActive: z.boolean(),
   })
-  .strict();
+  .strict()
+  .superRefine((status, ctx) => {
+    if (status.isCore && !(CORE_STATUS_IDS as readonly number[]).includes(status.id)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isCore"],
+        message: "isCore só é permitido nos status de núcleo (ids 1, 3, 4, 6, 7, 16, 17).",
+      });
+    }
+  });
 
 export const updateStatusesSchema = z
   .object({
@@ -162,17 +179,35 @@ export const updateStatusesSchema = z
       .min(1, "Informe ao menos um status.")
       .max(50, "Máximo de 50 status.")
       .superRefine((statuses, ctx) => {
-        const seen = new Set<string>();
+        const seenNames = new Set<string>();
         statuses.forEach((status, index) => {
-          const key = status.name.trim().toLowerCase();
-          if (seen.has(key)) {
+          const nameKey = status.name.trim().toLowerCase();
+          if (seenNames.has(nameKey)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               path: [index, "name"],
               message: "Nomes de status devem ser únicos (ignora maiúsculas/minúsculas).",
             });
           }
-          seen.add(key);
+          seenNames.add(nameKey);
+
+          if (status.isCore && !status.isActive) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [index, "isActive"],
+              message: "Os statuses núcleo não podem ser desativados.",
+            });
+          }
+          if (
+            status.isRestricted &&
+            (status.triageMode !== "none" || status.mappingMode !== "none")
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [index, "isRestricted"],
+              message: "Status restrito só aceita modos none (bloqueia triagem e mapeamento).",
+            });
+          }
         });
         if (!statuses.some((status) => status.isActive)) {
           ctx.addIssue({

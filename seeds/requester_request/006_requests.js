@@ -781,6 +781,10 @@ export async function seed(knex) {
   ]);
 
   await knex.raw(
+    "UPDATE requests r SET last_public_status_id = CASE WHEN s.is_public THEN r.status_id ELSE (SELECT status_id FROM statuses WHERE is_public ORDER BY status_id LIMIT 1) END FROM statuses s WHERE s.status_id = r.status_id",
+  );
+
+  await knex.raw(
     "SELECT setval('requests_request_seq', (SELECT COALESCE(MAX(request_id), 1) FROM requests))",
   );
 }

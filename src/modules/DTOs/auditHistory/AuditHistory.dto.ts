@@ -29,7 +29,11 @@ export interface AuditHistoryDetail {
   actor: AuditActor;
   previous_value: string | null;
   new_value: string | null;
+  /** Justificativa interna da transição. */
   note: string | null;
+  /** Snapshot do retorno público da transição (nunca concatenado em `note`). */
+  last_technical_message: string | null;
+  ip_address: string | null;
   change_origin: string | null;
   occurred_at: string;
 }

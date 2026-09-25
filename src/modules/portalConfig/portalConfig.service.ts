@@ -13,9 +13,11 @@ import type {
   PrioritizationWeights,
   PrioritizationWeightsSection,
   StatusesSection,
+  StatusRow,
   ThemeSection,
 } from "../../shared/types/portalConfig.ts";
 import { CRITERION_ID_TO_KEY } from "../../shared/types/criteria.ts";
+import { CORE_STATUS_IDS } from "../../shared/types/portalConfig.ts";
 import type { SystemSettingsRow } from "../../shared/types/systemSettings.ts";
 import { themeFromRow, themeToColumns } from "./portalConfig.mappers.ts";
 import * as repository from "./portalConfig.repository.ts";
@@ -37,6 +39,22 @@ function assetsFromRow(settings: SystemSettingsRow) {
     loginImageDarkUrl: settings.login_image_dark_url ?? "",
     faviconLightUrl: settings.favicon_light_url ?? "",
     faviconDarkUrl: settings.favicon_dark_url ?? "",
+  };
+}
+
+/** Projeta uma linha de `statuses` para o `PortalStatus` do contrato v4. */
+function statusToPortal(st: StatusRow): PortalStatus {
+  return {
+    id: st.status_id,
+    name: st.name,
+    isCore: st.is_core ?? false,
+    isPublic: st.is_public ?? false,
+    isTerminal: st.is_terminal ?? false,
+    triageMode: st.triage_mode ?? "none",
+    mappingMode: st.mapping_mode ?? "none",
+    isRestricted: st.is_restricted ?? false,
+    tone: st.tone,
+    isActive: st.is_active ?? true,
   };
 }
 
@@ -67,15 +85,7 @@ export async function getPortalConfig(): Promise<PortalConfigResponse> {
       description: cat.description ?? "",
       isActive: cat.status === "active",
     })),
-    statuses: statuses.map((st) => ({
-      id: st.status_id,
-      name: st.name,
-      visibility: st.visibility,
-      closesRequest: st.closes_request,
-      isTriageExit: st.is_triage_exit ?? false,
-      tone: st.tone,
-      isActive: st.is_active ?? true,
-    })),
+    statuses: statuses.map(statusToPortal),
     prioritizationWeights: Object.fromEntries(
       criteria.map((c) => {
         const key = CRITERION_ID_TO_KEY[c.criterion_id];
@@ -253,22 +263,6 @@ export async function updateCategories(
 // R7 — PATCH /portal-config/statuses
 // ---------------------------------------------------------------------------
 
-/**
- * Statuses com nomes referenciados diretamente no código (requests.ts /
- * queue.ts). Renomeá-los ou removê-los quebraria o fluxo sem alinhamento
- * prévio com o contrato de solicitações (§6.1 do plano issue-59).
- */
-const PROTECTED_STATUS_NAMES = new Set([
-  "Solicitação enviada",
-  "Em triagem",
-  "Em mapeamento",
-  "Em análise de viabilidade",
-  "Em desenvolvimento",
-  "Em homologação",
-  "Concluído",
-  "Cancelado",
-]);
-
 export async function updateStatuses(
   statuses: PortalStatus[],
   userId: number,
@@ -277,35 +271,62 @@ export async function updateStatuses(
     await repository.lockSettings(trx);
 
     const prevRows = await repository.listStatuses(trx);
-    const previous = prevRows.map((st) => ({
-      id: st.status_id,
-      name: st.name,
-      visibility: st.visibility,
-      closesRequest: st.closes_request,
-      isTriageExit: st.is_triage_exit ?? false,
-      tone: st.tone,
-      isActive: st.is_active ?? true,
-    }));
+    const previous = prevRows.map(statusToPortal);
+    const prevById = new Map(prevRows.map((st) => [st.status_id, st]));
+    const incomingById = new Map(statuses.map((s) => [s.id, s]));
 
-    // Bloqueia renomeação ou remoção de status protegidos (§6.1).
-    const prevByName = new Map(prevRows.map((st) => [st.name, st]));
-    const newByName = new Map(statuses.map((s) => [s.name, s]));
-
-    for (const protectedName of PROTECTED_STATUS_NAMES) {
-      const existing = prevByName.get(protectedName);
-      if (!existing) continue;
-
-      const incoming = newByName.get(protectedName);
-      if (!incoming) {
+    for (const coreId of CORE_STATUS_IDS) {
+      const existing = prevById.get(coreId);
+      if (!existing) {
         throw new AppError(
-          `Não é possível remover o status protegido "${protectedName}" (referenciado pelo fluxo de solicitações).`,
+          `O status de núcleo com id ${coreId} não existe. Execute a migration de status v4 antes de atualizar a configuração.`,
           409,
+          "core_status_missing",
         );
       }
-      if (incoming.id !== existing.status_id) {
+
+      const incoming = incomingById.get(coreId);
+      if (!incoming) {
         throw new AppError(
-          `O status protegido "${protectedName}" possui id fixo (${existing.status_id}).`,
+          `Não é possível remover o status de núcleo "${existing.name}" (id ${coreId} — referenciado pelo fluxo).`,
           409,
+          "core_status_removed",
+        );
+      }
+      if (incoming.name !== existing.name) {
+        throw new AppError(
+          `Não é possível renomear o status de núcleo "${existing.name}" (id ${coreId}).`,
+          409,
+          "core_status_renamed",
+        );
+      }
+      if (!incoming.isCore) {
+        throw new AppError(
+          `Não é possível redefinir o status de núcleo "${existing.name}" como não-núcleo (id ${coreId}).`,
+          409,
+          "core_status_forced",
+        );
+      }
+      if (incoming.isActive === false) {
+        throw new AppError(
+          `Não é possível desativar o status de núcleo "${existing.name}" (id ${coreId}).`,
+          409,
+          "core_status_forced_inactive",
+        );
+      }
+      // Flags estruturais do núcleo são imutáveis via PATCH (mudança de modo
+      // de um status core quebraria o motor — exige migration versionada).
+      if (
+        incoming.isPublic !== (existing.is_public ?? false) ||
+        incoming.isTerminal !== existing.is_terminal ||
+        incoming.isRestricted !== existing.is_restricted ||
+        incoming.triageMode !== existing.triage_mode ||
+        incoming.mappingMode !== existing.mapping_mode
+      ) {
+        throw new AppError(
+          `Flags/modos do status de núcleo "${existing.name}" (id ${coreId}) são imutáveis.`,
+          409,
+          "core_status_locked",
         );
       }
     }

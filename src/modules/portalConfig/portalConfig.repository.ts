@@ -202,21 +202,6 @@ export async function upsertCategories(
 // Statuses upsert (R7)
 // ---------------------------------------------------------------------------
 
-/**
- * Statuses cujos nomes são referenciados diretamente no código (requests.ts,
- * queue.ts). Renomeá-los ou removê-los quebraria o fluxo sem alinhamento.
- */
-export const PROTECTED_STATUS_NAMES = new Set([
-  "Solicitação enviada",
-  "Em triagem",
-  "Em mapeamento",
-  "Em análise de viabilidade",
-  "Em desenvolvimento",
-  "Em homologação",
-  "Concluído",
-  "Cancelado",
-]);
-
 export async function upsertStatuses(
   trx: Knex.Transaction,
   statuses: PortalStatus[],
@@ -226,29 +211,23 @@ export async function upsertStatuses(
 
   for (const status of statuses) {
     const orderNumber = orderById.get(status.id) as number;
-    await trx("statuses")
-      .insert({
-        status_id: status.id,
-        name: status.name,
-        order_number: orderNumber,
-        visibility: status.visibility,
-        closes_request: status.closesRequest,
-        is_triage_exit: status.isTriageExit ?? false,
-        tone: status.tone,
-        is_active: status.isActive,
-        is_final: status.closesRequest,
-      })
-      .onConflict("status_id")
-      .merge({
-        name: status.name,
-        order_number: orderNumber,
-        visibility: status.visibility,
-        closes_request: status.closesRequest,
-        is_triage_exit: status.isTriageExit ?? false,
-        tone: status.tone,
-        is_active: status.isActive,
-        is_final: status.closesRequest,
-      });
+    const triageMode = status.triageMode ?? "none";
+    const mappingMode = status.mappingMode ?? "none";
+    const isTerminal = status.isTerminal ?? false;
+    const row = {
+      status_id: status.id,
+      name: status.name,
+      order_number: orderNumber,
+      is_public: status.isPublic,
+      is_core: status.isCore ?? false,
+      is_restricted: status.isRestricted ?? false,
+      is_terminal: isTerminal,
+      triage_mode: triageMode,
+      mapping_mode: mappingMode,
+      tone: status.tone,
+      is_active: status.isActive,
+    } as const;
+    await trx("statuses").insert(row).onConflict("status_id").merge(row);
   }
 
   // Status ausentes da lista enviada são inativados (não há exclusão) e

@@ -45,6 +45,26 @@ leitura pública dos parâmetros de runtime e edição administrativa por seçã
   confirmar o tratamento de `isActive` ausente no `GET` e o gradiente default
   do dark — **itens resolvidos** (ver “Pendências de alinhamento”).
 
+## Changelog (0_4 → v4 — issue #124, Motor de Status)
+
+Delta completo em `portal-config-statuses-amend.md` (product-response v4 §1.2).
+**Apenas `PortalConfig.statuses` muda**; `access`, `identity`, `theme`, `assets`,
+`categories` e `prioritization-weights` ficam idênticos ao 0_4.
+
+- `PortalStatus` passa de 6 para **10 campos**: derrubados `visibility`/
+  `closesRequest`; adicionados `order`, `isCore`, `isPublic`, `isTerminal`,
+  `triageMode`, `mappingMode`, `isRestricted` (mapeamento legado abaixo).
+- Fase por modo: `triageMode`/`mappingMode` ∈ `none|free|conclusion_only`.
+- `isCore` = ids `1,3,4,7,16,17` — imutáveis/indeletáveis na API (409).
+- **Compat durante rollout:** o `PATCH /statuses` aceita aliases legados
+  (`visibility`→`isPublic`, `isTriageExit`→`triageMode`, `closesRequest`→
+  `isTerminal`) normalizados pelo schema (`normalizeStatusLegacy`).
+- Unificação do ciclo em **3 endpoints**: `POST triage`, `PUT mapping`,
+  `PATCH /requests/:protocol/status` único com bypass Admin (sem rota
+  `.../status/override`). Todo `status change` exige `justification` (`1..4000`).
+- Backend: `Anexo A` com 17 status; saídas de triagem 18–22 mantidas fora da
+  API (`triageMode: conclusion_only`, `mappingMode: none`, `isTerminal=is_final`).
+
 ---
 
 ## Tipos compartilhados
@@ -159,19 +179,27 @@ export interface PortalCategory {
   isActive: boolean;
 }
 
-// Visibilidade de um status: PUBLIC aparece ao solicitante; INTERNAL fica
-// restrito à equipe.
-export type StatusVisibility = "PUBLIC" | "INTERNAL";
+// Modo de phase de um status (v4, issue #124). `none` = não alcançável pela
+// fase; `free` = alcançável por analista via `PATCH /status`;
+// `conclusion_only` = saída exclusiva do `POST triage`/`PUT mapping`.
+export type StatusMode = "none" | "free" | "conclusion_only";
 
-// Status do ciclo de vida. `closesRequest` encerra a solicitação; `visibility` e
-// `tone` são enums allowlist. `isActive` é a ativação/inativação: não há
-// exclusão de status (para preservar histórico); status inativos permanecem na
-// lista, mas não entram em novos fluxos.
+// Status do ciclo de vida (Motor de Status v4). `order` é a posição de
+// exibição (única, 1..50); `isCore` (1,3,4,7,16,17) congela nome/ordem/flag na
+// API; `isPublic` controla a visibilidade ao solicitante; `isTerminal`
+// encerra a solicitação (Concluído/Cancelado); `isRestricted` (Priorizado)
+// só é alcançável por Administrador via override. `tone` e `isActive` seguem
+// o 0_4. Status nunca são excluídos (preservação de histórico).
 export interface PortalStatus {
   id: number;
   name: string;
-  visibility: StatusVisibility;
-  closesRequest: boolean;
+  order: number;
+  isCore: boolean;
+  isPublic: boolean;
+  isTerminal: boolean;
+  isRestricted: boolean;
+  triageMode: StatusMode;
+  mappingMode: StatusMode;
   tone: StatusTone;
   isActive: boolean;
 }
@@ -529,14 +557,25 @@ export interface UpdateStatusesRequest {
 ```
 
 **Validações:** 1 a 50 itens; `id` inteiro positivo; `name` trim 1..40; nomes
-únicos (case-insensitive); `visibility` em `PUBLIC|INTERNAL`; `closesRequest`
-booleano; `tone` nos 5 `STATUS_TONES`; `isActive` booleano e ao menos um status
-ativo.
+únicos (case-insensitive); `order` 1..50 único; `isCore/isPublic/isTerminal/
+isRestricted/isActive` booleanos; `triageMode/mappingMode` em
+`none|free|conclusion_only`; `tone` nos 5 `STATUS_TONES`; ao menos um status
+ativo. Regras v4 (delta §1):
+
+- `isCore` = ids `1,3,4,7,16,17` — recusar 400 se o item tentar alterar
+  `name`/`order`/`isCore` (core congelado na API).
+- `isRestricted && (triageMode !== "none" || mappingMode !== "none")` → `400`
+  (Priorizado só `none/none`).
+- **Compat:** aliases legados (`visibility`→`isPublic`, `isTriageExit`→
+  `triageMode`, `closesRequest`→`isTerminal`) são aceitos durante o rollout e
+  normalizados pelo schema.
+- Erros com `code`: `core_status_name_locked`, `core_status_order_locked`,
+  `core_status_flag_locked`, `restricted_status_mode_invalid`, `inactive_core_status`.
 
 **Response 200** — `StatusesSection` (lista consolidada, com ids finais).
 
-**Erros:** `400` (vazia, > 50, item inválido, nome repetido), `401`, `403`,
-`500`.
+**Erros:** `400` (vazia, > 50, item inválido, nome repetido, core alterado),
+`401`, `403`, `500`.
 
 ---
 

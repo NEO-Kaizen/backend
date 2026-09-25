@@ -10,6 +10,7 @@ import {
   getRequestsByProtocol,
   getTracking,
   patchInternalAssignee,
+  patchRequestStatus,
   postRequest,
   getAssignees,
   patchAssignee,
@@ -31,18 +32,20 @@ requestsRoutes.get(
 );
 
 // Contrato contract-assign-action.md: PATCH /requests/:protocol/internal/assignee com body {assigneeId} | {mappingAssigneeId} (user_id string, XOR, null para remover)
-// Apenas Administrador atribui (Q3). Mantida rota legada /:protocol/assignee para compat até remoção.
+// issue #124: a autorização por atribuição (ANALYST_ASSIGNEE triagem OU
+// mapeamento, ou Administrador) é feita no service — Gestor não atribui
+// (403 no service). Mantida rota legada /:protocol/assignee.
 requestsRoutes.patch(
   "/:protocol/internal/assignee",
   authMiddleware,
-  requireRole("Administrador"),
+  requireRole("Analista", "Administrador"),
   patchInternalAssignee,
 );
 
 requestsRoutes.patch(
   "/:protocol/assignee",
   authMiddleware,
-  requireRole("Administrador"),
+  requireRole("Analista", "Administrador"),
   patchAssignee,
 );
 
@@ -50,6 +53,16 @@ requestsRoutes.patch(
 // dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
 // antes de `/:protocol` para não ser capturado por engano.
 requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);
+
+// Motor de Status v4 (issue #124, delta §3.3): troca de status única.
+// Autorização no service: Administrador (bypass) ou responsável com custódia
+// (free). Claim órfão (permitir designado editar) fica como pendência no PR.
+requestsRoutes.patch(
+  "/:protocol/status",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  patchRequestStatus,
+);
 
 requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
 requestsRoutes.get(

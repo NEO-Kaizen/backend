@@ -18,6 +18,9 @@ export interface MappingRow {
   mapping_id: string;
   request_id: string;
   professional_id: string | null;
+  target_status_id: number | null;
+  justification: string | null;
+  last_technical_message: string | null;
   scheduled_for: Date | string | null;
   duration_minutes: number | null;
   modality: "REMOTE" | "IN_PERSON" | null;
@@ -46,9 +49,15 @@ export interface MappingRequestContext {
   request_id: string;
   protocol: string;
   professional_id: string | null;
+  mapping_professional_id: string | null;
   status: RequestStatus;
   /** `details_professional.user_id` do responsável (id de `users`, não UUID). */
   assignee_user_id: number | null;
+  mapping_assignee_user_id: number | null;
+  /** Motor de Status v4 (issue #124): flags do status vigente. */
+  status_id: number | null;
+  is_terminal: boolean;
+  is_restricted: boolean;
 }
 
 /** Candidato a designado do mapeamento (mínimo para elegibilidade + resposta). */
@@ -77,16 +86,54 @@ export const findMappingRequestContext = async (
   const row = await queryable("requests")
     .join("statuses as s", "s.status_id", "requests.status_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id")
+    .leftJoin(
+      "details_professional as mapping_dp",
+      "mapping_dp.professional_id",
+      "requests.mapping_professional_id",
+    )
+    .leftJoin("users as mapping_user", "mapping_user.user_id", "mapping_dp.user_id")
     .where("requests.protocol", protocol)
+    .forUpdate("requests")
     .first({
       request_id: "requests.request_id",
       protocol: "requests.protocol",
       professional_id: "requests.professional_id",
+      mapping_professional_id: "requests.mapping_professional_id",
       status: "s.name",
       assignee_user_id: "dp.user_id",
+      mapping_assignee_user_id: "mapping_user.user_id",
+      status_id: "requests.status_id",
+      is_terminal: "s.is_terminal",
+      is_restricted: "s.is_restricted",
     });
 
   return row ?? null;
+};
+
+/**
+ * Status de destino da conclusão do mapeamento (delta v4 §3.2): projeção com
+ * eligible check `isActive && isRestricted===false && mappingMode` em
+ * `conclusion_only`/`free`. `undefined` = inativo/restrito/modo inadequado.
+ */
+export interface MappingTargetRow {
+  status_id: number;
+  name: string;
+  isPublic: boolean;
+}
+
+export const resolveMappingTarget = async (
+  queryable: Knex,
+  statusId: number,
+): Promise<MappingTargetRow | undefined> => {
+  if (!Number.isSafeInteger(statusId) || statusId <= 0) return undefined;
+  return queryable("statuses")
+    .where({ is_active: true, is_restricted: false })
+    .where({ mapping_mode: "conclusion_only" })
+    .andWhere("status_id", statusId)
+    .first("status_id as status_id", "name", "is_public")
+    .then((row: { status_id: number; name: string; is_public: boolean } | undefined) =>
+      row ? { status_id: row.status_id, name: row.name, isPublic: row.is_public } : undefined,
+    ) as Promise<MappingTargetRow | undefined>;
 };
 
 /**
@@ -234,6 +281,9 @@ export const insertMapping = async (
     requestId: string;
     professionalId: string | null;
     values: MappingValues;
+    targetStatus?: number | null;
+    justification?: string | null;
+    lastTechnicalMessage?: string | null;
     createdBy: string;
   },
 ): Promise<string> => {
@@ -241,6 +291,9 @@ export const insertMapping = async (
     .insert({
       request_id: args.requestId,
       professional_id: args.professionalId,
+      target_status_id: args.targetStatus ?? null,
+      justification: args.justification ?? null,
+      last_technical_message: args.lastTechnicalMessage ?? null,
       scheduled_for: args.values.scheduledFor,
       duration_minutes: args.values.durationMinutes,
       modality: args.values.modality,
@@ -262,6 +315,9 @@ export const updateMapping = async (
   updatedBy: string,
   conclude: boolean,
   professionalId?: string | null,
+  targetStatus?: number | null,
+  justification?: string | null,
+  lastTechnicalMessage?: string | null,
 ): Promise<void> => {
   await trx("mappings")
     .where({ mapping_id: mappingId })
@@ -272,6 +328,9 @@ export const updateMapping = async (
       meeting_link: values.meetingLink,
       location: values.location,
       notes: values.notes,
+      target_status_id: conclude ? (targetStatus ?? null) : undefined,
+      justification: conclude ? (justification ?? null) : undefined,
+      last_technical_message: conclude ? (lastTechnicalMessage ?? null) : undefined,
       updated_by: updatedBy,
       updated_at: trx.fn.now(),
       // Apenas a conclusão toca nos flags — rascunho não reescreve `concluded_at`.
@@ -279,6 +338,24 @@ export const updateMapping = async (
       // Designação própria do mapeamento — `undefined` mantém o designado atual.
       ...(professionalId !== undefined ? { professional_id: professionalId } : {}),
     });
+};
+
+/**
+ * Libera o responsável de mapeamento da solicitação (`requests.mapping_professional_id`).
+ * Usado na conclusão real do mapeamento (`targetStatus !== 6`): a custódia volta a
+ * ficar órfã e depende de nova atribuição. O snapshot do designado permanece em
+ * `mappings.professional_id`.
+ */
+export const clearRequestMappingAssignee = async (
+  trx: Knex.Transaction,
+  requestId: string,
+  updatedBy: string,
+): Promise<void> => {
+  await trx("requests").where({ request_id: requestId }).update({
+    mapping_professional_id: null,
+    updated_by: updatedBy,
+    updated_at: trx.fn.now(),
+  });
 };
 
 /** Substituição atômica dos participantes (delete + insert na mesma transação). */

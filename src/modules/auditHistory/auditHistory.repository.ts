@@ -24,6 +24,8 @@ interface AuditHistoryDetailRow {
   previous_value: string | null;
   new_value: string | null;
   note: string | null;
+  last_technical_message: string | null;
+  ip_address: string | null;
   change_origin: string | null;
   occurred_at: Date | string;
 }
@@ -80,9 +82,43 @@ export async function findAuditHistoryById(
       "a.previous_value",
       "a.new_value",
       "a.note",
+      "a.last_technical_message",
+      "a.ip_address",
       "a.change_origin",
       "a.occurred_at",
     )
     .where("a.audit_id", auditId)
     .first<AuditHistoryDetailRow>();
+}
+
+/**
+ * Timeline de auditoria de uma solicitação (alias `GET /audit-logs/:protocol`,
+ * issue #124): registros `request.*` cujo `entity_id` é o protocolo, do mais
+ * recente ao mais antigo.
+ */
+export async function listAuditHistoryByProtocol(
+  protocol: string,
+): Promise<AuditHistoryDetailRow[]> {
+  return db("audit_history as a")
+    .leftJoin("users as u", "u.user_id", "a.user_id")
+    .select(
+      "a.audit_id",
+      "a.entity_type",
+      "a.entity_id",
+      "a.action_type",
+      "a.user_id",
+      "u.full_name as actor_name",
+      "a.previous_value",
+      "a.new_value",
+      "a.note",
+      "a.last_technical_message",
+      "a.ip_address",
+      "a.change_origin",
+      "a.occurred_at",
+    )
+    .where("a.entity_type", "request")
+    .andWhere("a.entity_id", protocol)
+    .orderBy("a.occurred_at", "desc")
+    .orderBy("a.audit_id", "desc")
+    .then((rows) => rows as AuditHistoryDetailRow[]);
 }

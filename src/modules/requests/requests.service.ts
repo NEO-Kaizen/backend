@@ -7,6 +7,7 @@ import type {
   RequestPriority,
   RequesterBlock,
   DemandBlock,
+  AssignmentContextRow,
 } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
@@ -46,13 +47,16 @@ import {
 } from "../../shared/utils/date.ts";
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
+import { applyStatusTransition } from "./statusTransition.ts";
 
 import type {
   AssignAnalystPayload,
   AssignRequestPayload,
   UpdateRequestPayload,
+  UpdateStatusPayload,
 } from "./requests.schema.ts";
 import type { Role } from "../../shared/types/role.ts";
+import type { UpdateStatusResponse } from "../DTOs/requests/RequestRequests.dto.ts";
 
 interface AuthenticatedIdentity {
   fullName: string;
@@ -491,9 +495,13 @@ function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails 
 
   return {
     protocol: row["protocol"] as string,
-    status: row["status"] as RequestStatus,
+    status: (row["public_status"] as string | null) ?? "Solicitação enviada",
     openedAt,
-    lastUpdate: normalizeIsoDate(row["updated_at"]) ?? openedAt,
+    lastUpdate:
+      normalizeIsoDate(row["last_external_update_at"]) ??
+      normalizeIsoDate(row["updated_at"]) ??
+      openedAt,
+    lastTechnicalMessage: (row["last_technical_message"] as string | null) ?? null,
     meeting: mapTrackingMeeting(row),
     requester: mapTrackingRequester(row),
     demand: mapTrackingDemand(row),
@@ -800,7 +808,7 @@ export async function updateInternalRequest(
       userId: actor.id,
       previousValue: JSON.stringify(editableBlocksFromRow(request)),
       newValue: JSON.stringify(payload),
-      note: ipAddress,
+      ipAddress,
       changeOrigin: "admin",
     });
   });
@@ -866,12 +874,22 @@ async function resolveAssignee(
 export async function assignResponsible(
   protocol: string,
   payload: AssignRequestPayload,
-  actor: { id: number; email: string },
+  actor: { id: number; email: string; role: Role },
   ipAddress: string | undefined,
 ): Promise<AssignRequestResponse> {
   const request = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
+  // ou Administrador — sem justificativa (não é troca de status).
+  if (!canAssignRequest(actor, request)) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
   }
 
   const assignee =
@@ -907,7 +925,7 @@ export async function assignResponsible(
       userId: actor.id,
       previousValue: auditPrev ? String(auditPrev) : null,
       newValue: auditNext ? String(auditNext) : null,
-      note: ipAddress,
+      ipAddress,
       changeOrigin: "admin",
     });
 
@@ -937,12 +955,22 @@ export async function assignResponsible(
 export async function assignAnalyst(
   protocol: string,
   payload: AssignAnalystPayload,
-  actor: { id: number; email: string },
+  actor: { id: number; email: string; role: Role },
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO> {
   const request = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
+  // ou Administrador — sem justificativa (não é troca de status).
+  if (!canAssignRequest(actor, request)) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
   }
 
   const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
@@ -964,7 +992,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: null,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
       });
@@ -999,7 +1027,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: resolved.id,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
         // Exclusividade: atribuir triagem desatribui mapeamento
@@ -1012,7 +1040,7 @@ export async function assignAnalyst(
             userId: actor.id,
             previousValue: auditPrevMapping ? String(auditPrevMapping) : null,
             newValue: null,
-            note: ipAddress,
+            ipAddress,
             changeOrigin: "admin",
           });
         } else {
@@ -1049,7 +1077,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: null,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
       });
@@ -1081,7 +1109,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: resolved.id,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
         // Exclusividade: atribuir mapeamento desatribui triagem
@@ -1094,7 +1122,7 @@ export async function assignAnalyst(
             userId: actor.id,
             previousValue: auditPrevAssignee ? String(auditPrevAssignee) : null,
             newValue: null,
-            note: ipAddress,
+            ipAddress,
             changeOrigin: "admin",
           });
         } else {
@@ -1105,4 +1133,198 @@ export async function assignAnalyst(
   }
 
   return findInternalByProtocol(protocol.trim());
+}
+
+// issue #124 — atribuição (internal/assignee + legado /assignee):
+// ANALYST_ASSIGNEE (responsável da triagem OU designado do mapeamento) ou
+// Administrador. Gestor continua sem atribuir (Q3/RN).
+function canAssignRequest(
+  actor: { id: number; role: Role },
+  request: AssignmentContextRow,
+): boolean {
+  if (actor.role === "Administrador") return true;
+
+  const isTriageAssignee =
+    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
+  const isMappingAssignee =
+    request.mapping_assignee_user_id !== null &&
+    Number(request.mapping_assignee_user_id) === actor.id;
+
+  return isTriageAssignee || isMappingAssignee;
+}
+
+// --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
+// Rota única de troca de status (delta `portal-config-statuses-amend.md` §3.3):
+// - `Administrador`: bypass de triageMode/mappingMode/isRestricted — pode ir a
+//   qualquer status `isActive` (inativo → 409);
+// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
+//   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
+//   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
+// - status terminais (`isTerminal`) nunca são saída — fluxo encerrado não
+//   reabre por este endpoint (→ 422).
+// Auditoria: bypass → `request.override_status_admin`; normal →
+// `request.status_change`; negado → `request.access_denied`.
+
+async function recordStatusAccessDeniedAudit(
+  protocol: string,
+  actorId: number,
+  ipAddress: string | undefined,
+  detail: string,
+): Promise<void> {
+  await db.transaction(async (trx) => {
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: protocol,
+      actionType: "request.access_denied",
+      userId: actorId,
+      previousValue: null,
+      newValue: null,
+      note: `Access denied: ${detail}`,
+      ipAddress,
+      changeOrigin: "system",
+    });
+  });
+}
+
+export async function updateRequestStatus(
+  protocol: string,
+  payload: UpdateStatusPayload,
+  actor: { id: number; email: string; role: Role },
+  ipAddress: string | undefined,
+): Promise<UpdateStatusResponse> {
+  const request = await repository.findRequestStatusContext(protocol.trim());
+  if (!request) {
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  const target = await repository.findRequestStatusTarget(payload.targetStatus);
+  if (!target) {
+    throw new AppError("Status de destino não encontrado", 404);
+  }
+
+  const isAdmin = actor.role === "Administrador";
+  if (actor.role === "Gestor") {
+    await recordStatusAccessDeniedAudit(
+      request.protocol,
+      actor.id,
+      ipAddress,
+      "perfil Gestor é somente leitura",
+    );
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
+  const isAssignee =
+    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
+  const isMappingAssignee =
+    request.mapping_assignee_user_id !== null &&
+    Number(request.mapping_assignee_user_id) === actor.id;
+  const isAnalystAssignee = isAssignee || isMappingAssignee;
+
+  if (!isAdmin && !isAnalystAssignee) {
+    await recordStatusAccessDeniedAudit(
+      request.protocol,
+      actor.id,
+      ipAddress,
+      "sem custódia da solicitação",
+    );
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
+
+  if (request.current_status_id !== null && request.current_status_id === target.status_id) {
+    throw new AppError("A solicitação já está neste status.", 422);
+  }
+
+  if (!target.is_active) {
+    await recordStatusAccessDeniedAudit(
+      request.protocol,
+      actor.id,
+      ipAddress,
+      `tentativa de definir status inativo (id ${target.status_id})`,
+    );
+    throw new AppError("Status inativo não pode ser alvo.", 409);
+  }
+
+  if (!isAdmin) {
+    if (target.is_restricted) {
+      await recordStatusAccessDeniedAudit(
+        request.protocol,
+        actor.id,
+        ipAddress,
+        "tentativa de definir status restrito (Priorizado) por não-administrador",
+      );
+      throw new AppError(
+        "Status Priorizado só pode ser definido por Administrador.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
+    if (target.triage_mode !== "free" && target.mapping_mode !== "free") {
+      await recordStatusAccessDeniedAudit(
+        request.protocol,
+        actor.id,
+        ipAddress,
+        `tentativa de definir status não-free (id ${target.status_id})`,
+      );
+      throw new AppError(
+        "Só é possível definir status ativo com triageMode ou mappingMode free.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
+  }
+
+  if (target.isPublic && payload.lastTechnicalMessage == null) {
+    throw new AppError("Retorno ao solicitante obrigatório para status público.", 400);
+  }
+
+  const actionType: "request.status_change" | "request.override_status_admin" = isAdmin
+    ? "request.override_status_admin"
+    : "request.status_change";
+  const changeOrigin = isAdmin ? "admin" : "internal";
+
+  const lastUpdate = await db.transaction(async (trx) => {
+    const persistedAt = await applyStatusTransition(trx, {
+      requestId: request.request_id,
+      target: {
+        status_id: target.status_id,
+        name: target.name,
+        isPublic: target.isPublic,
+      },
+      updatedBy: actor.email,
+      lastTechnicalMessage: payload.lastTechnicalMessage,
+      expectedStatusId: request.current_status_id,
+    });
+
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: request.protocol,
+      actionType,
+      userId: actor.id,
+      previousValue: request.current_status_name,
+      newValue: target.name,
+      // `note` = justificativa interna; o retorno público é snapshot próprio
+      // (nunca concatenado), persistido apenas quando o destino é público.
+      note: payload.justification ?? null,
+      lastTechnicalMessage: target.isPublic ? (payload.lastTechnicalMessage ?? null) : null,
+      ipAddress,
+      changeOrigin,
+    });
+
+    return persistedAt;
+  });
+
+  return {
+    protocol: request.protocol,
+    status: target.name,
+    previous: request.current_status_name ?? "",
+    next: target.name,
+    lastUpdate,
+  };
 }

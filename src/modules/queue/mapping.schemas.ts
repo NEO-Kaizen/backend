@@ -100,6 +100,18 @@ export const mappingPayloadSchema = z.object(
       })
       .optional(),
     completeMapping: z.boolean("Informe completeMapping (true ou false)."),
+    // PortalStatus.id do destino ao concluir (delta v4 §3.2). A obrigatoriedade
+    // quando `completeMapping:true` e a elegibilidade (mappingMode
+    // free/conclusion_only + isRestricted===false) são resolvidas no service.
+    targetStatus: z
+      .number()
+      .int("Status de destino inválido.")
+      .positive("Status de destino inválido.")
+      .optional(),
+    // Justificativa da mudança de status (delta v4 §3.3: 1..4000, obrigatória
+    // ao concluir). Obrigatoriedade condicional no `superRefine` abaixo.
+    justification: requiredString(4000).optional(),
+    lastTechnicalMessage: requiredString(4000).nullable().optional(),
   },
   {
     error: "O payload deve ser um objeto JSON com a chave completeMapping.",

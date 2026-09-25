@@ -78,17 +78,17 @@ function applyDashboardFilters(query: Knex.QueryBuilder, filters: DashboardQuery
   }
 
   if (filters.situation === "open") {
-    query.where("s.closes_request", false);
+    query.where("s.is_terminal", false);
   } else if (filters.situation === "closed") {
-    query.where("s.closes_request", true);
+    query.where("s.is_terminal", true);
   } else if (filters.situation === "overdue") {
     query
-      .where("s.closes_request", false)
+      .where("s.is_terminal", false)
       .whereRaw(`r.desired_deadline < (CURRENT_TIMESTAMP AT TIME ZONE ?)::date`, [
         BUSINESS_TIME_ZONE,
       ]);
   } else if (filters.situation === "unassigned") {
-    query.where("s.closes_request", false).whereNull("r.professional_id");
+    query.where("s.is_terminal", false).whereNull("r.professional_id");
   }
 
   if (filters.statusId) {
@@ -113,18 +113,18 @@ export async function fetchDashboardSummary(
     .join("statuses as s", "s.status_id", "r.status_id")
     .select(
       db.raw('COUNT(*)::int AS "total"'),
-      db.raw('COUNT(*) FILTER (WHERE NOT s.closes_request)::int AS "open"'),
-      db.raw('COUNT(*) FILTER (WHERE s.closes_request)::int AS "closed"'),
+      db.raw('COUNT(*) FILTER (WHERE NOT s.is_terminal)::int AS "open"'),
+      db.raw('COUNT(*) FILTER (WHERE s.is_terminal)::int AS "closed"'),
       db.raw(
         `COUNT(*) FILTER (
-          WHERE NOT s.closes_request
+          WHERE NOT s.is_terminal
             AND r.desired_deadline < (CURRENT_TIMESTAMP AT TIME ZONE ?)::date
         )::int AS "overdue"`,
         [BUSINESS_TIME_ZONE],
       ),
       db.raw(
         `COUNT(*) FILTER (
-          WHERE NOT s.closes_request AND r.professional_id IS NULL
+          WHERE NOT s.is_terminal AND r.professional_id IS NULL
         )::int AS "unassigned"`,
       ),
     )
@@ -143,10 +143,10 @@ export async function fetchDashboardByStatus(
       "s.status_id as id",
       "s.name",
       "s.tone",
-      "s.closes_request as closesRequest",
+      "s.is_terminal as closesRequest",
       db.raw('COUNT(*)::int AS "count"'),
     )
-    .groupBy("s.status_id", "s.name", "s.tone", "s.closes_request", "s.order_number")
+    .groupBy("s.status_id", "s.name", "s.tone", "s.is_terminal", "s.order_number")
     .orderBy("s.order_number", "asc");
 
   applyDashboardFilters(query, filters);
@@ -245,7 +245,7 @@ export async function fetchQueueExportRows(filters: QueueFilterQuery): Promise<Q
       LEFT JOIN LATERAL (
         SELECT ah.occurred_at
         FROM audit_history AS ah
-        WHERE status.closes_request = TRUE
+        WHERE status.is_terminal = TRUE
           AND ah.entity_type = 'request'
           AND ah.entity_id = requests.protocol
           AND ah.action_type = 'request.status_change'

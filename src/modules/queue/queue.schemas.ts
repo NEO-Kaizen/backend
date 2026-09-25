@@ -1,10 +1,15 @@
 import { z } from "zod";
-import { REQUEST_PRIORITIES, REQUEST_STATUSES } from "../../shared/types/requests.ts";
+import { REQUEST_PRIORITIES } from "../../shared/types/requests.ts";
 import type { QueueFilterQuery, QueueQuery } from "../../shared/types/queue.types.ts";
 
 const queueFilterShape = {
   search: z.string().trim().max(254, "Máximo de 254 caracteres.").optional(),
-  status: z.enum(REQUEST_STATUSES, { error: "Status inválido." }).optional(),
+  status: z
+    .string()
+    .trim()
+    .min(1, "Status inválido.")
+    .max(100, "Máximo de 100 caracteres.")
+    .optional(),
   priority: z
     .union([z.enum(REQUEST_PRIORITIES, { error: "Prioridade inválida." }), z.literal("nenhum")])
     .optional(),

@@ -71,7 +71,9 @@ export interface AuditHistoryDetail {
   actor: AuditActor;
   previous_value: string | null; // valor anterior (texto livre)
   new_value: string | null; // valor novo (texto livre)
-  note: string | null;
+  note: string | null; // justificativa interna da transição
+  last_technical_message: string | null; // snapshot do retorno público da transição
+  ip_address: string | null; // IP do ator no momento do evento
   change_origin: string | null;
   occurred_at: string; // ISO datetime
 }
@@ -293,6 +295,8 @@ HTTP/1.1 200 OK
   "previous_value": "{\"solicitationMode\":\"PUBLIC\"}",
   "new_value": "{\"solicitationMode\":\"PUBLIC\"}",
   "note": null,
+  "last_technical_message": null,
+  "ip_address": null,
   "change_origin": null,
   "occurred_at": "2026-09-21T04:15:49.041Z"
 }
@@ -318,6 +322,36 @@ HTTP/1.1 404 Not Found
 | 401    | Sem sessão válida (seção 0)                           |
 | 403    | Perfil diferente de Administrador ou Gestor (seção 0) |
 | 404    | `audit_id` inexistente (`"Log não encontrado"`)       |
+
+---
+
+## 3. GET /audit-logs/:protocol — Timeline de auditoria de uma solicitação (issue #124)
+
+Alias por protocolo: mesmo shape da seção 2, mas com **todos** os eventos
+`request.*` de uma solicitação (`entity_id = protocol`), do mais recente para
+o mais antigo. Sem paginação — alimenta a timeline da busca de um protocolo.
+
+```http
+GET /audit-logs/MAAT-8K3P-9X2M HTTP/1.1
+Cookie: session_id=<jwt>
+```
+
+**Response 200** — `AuditHistoryDetail[]` (array direto, sem envelope).
+
+**Permissão:**
+
+- `Administrador` ou `Gestor` (admin-like) — qualquer solicitação.
+- `ANALYST_ASSIGNEE` da solicitação — responsável da triagem **ou** designado
+  do mapeamento (guard `listAuditLogsByProtocol`).
+
+**Erros:**
+
+| Status | Quando                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `:protocol` vazio                                                                                                             |
+| 401    | Sem sessão válida (seção 0)                                                                                                   |
+| 403    | Perfil/sem custódia: não é Administrador/Gestor nem `ANALYST_ASSIGNEE` da solicitação (`code: INSUFFICIENT_ROLE_PERMISSIONS`) |
+| 404    | Protocolo inexistente (`"Protocolo não encontrado"`)                                                                          |
 
 ---
 

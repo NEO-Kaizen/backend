@@ -33,7 +33,7 @@ export async function seed(knex) {
     }
 
     const statuses = await trx("statuses")
-      .select("status_id", "closes_request")
+      .select("status_id", "is_terminal", "is_public")
       .orderBy("order_number", "asc");
     const categories = await trx("categories")
       .select("category_id")
@@ -60,7 +60,7 @@ export async function seed(knex) {
       const openedAt = openedAtFor(index, now);
       const updatedAtCandidate = addUtcDays(openedAt, 3 + (index % 18));
       const updatedAt = updatedAtCandidate > now ? now : updatedAtCandidate;
-      const isOverdueExample = !status.closes_request && index % 3 === 0;
+      const isOverdueExample = !status.is_terminal && index % 3 === 0;
       const desiredDeadline = isOverdueExample
         ? addUtcDays(now, -(3 + (index % 45)))
         : addUtcDays(now, 15 + (index % 75));
@@ -87,6 +87,10 @@ export async function seed(knex) {
     });
 
     await trx("requests").insert(rows);
+    await trx.raw(
+      "UPDATE requests r SET last_public_status_id = CASE WHEN s.is_public THEN r.status_id ELSE (SELECT status_id FROM statuses WHERE is_public ORDER BY status_id LIMIT 1) END FROM statuses s WHERE s.status_id = r.status_id AND r.created_by = ?",
+      [DEMO_MARKER],
+    );
     await trx.raw(
       "SELECT setval('requests_request_seq', (SELECT COALESCE(MAX(request_id), 1) FROM requests))",
     );

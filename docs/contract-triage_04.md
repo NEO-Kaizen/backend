@@ -50,17 +50,21 @@ export type RequestCategory =
 
 // Status do ciclo de vida — lista gerenciada em PortalConfig.statuses
 // (Card 6, src/lib/types/portal-config.ts:136). `id` é PK estável —
-// inteiro positivo (1..17 nos defaults de portal-defaults.ts,
-// gerado no cliente como max+1 em itens novos e aceito pela API).
-// `closesRequest` encerra a solicitação (Concluído/Cancelado);
-// `isTriageExit` marca as saídas elegíveis da triagem — distinto de
-// `closesRequest` pois "Pendente de informações" é saída sem encerrar.
+// inteiro positivo. **Motor de Status v4 (issue #124)**: `visibility`
+// vira `isPublic`, `closesRequest` vira `isTerminal`, e `isTriageExit`
+// é substituído por `triageMode`/`mappingMode` (fase em que o status
+// pode ser alvo). "Pendente de informações" é saída de triagem sem
+// encerrar (`triageMode: conclusion_only`, `isTerminal: false`).
 export interface PortalStatus {
   id: number; // inteiro positivo estável — gerado no cliente ao criar status, aceito pela API
   name: string; // 1..40, único case-insensitive
-  visibility: "PUBLIC" | "INTERNAL";
-  closesRequest: boolean;
-  isTriageExit: boolean; // NOVO — true nos status que podem ser exitStatus da triagem
+  isPublic: boolean;
+  isTerminal: boolean; // encerra a solicitação (Concluído/Cancelado)
+  isCore: boolean;
+  isRestricted: boolean; // Priorizado — só Admin via override
+  triageMode: "none" | "free" | "conclusion_only";
+  mappingMode: "none" | "free" | "conclusion_only";
+  order: number;
   tone: "error" | "success" | "info" | "warning" | "neutral";
   isActive: boolean; // false = inativo (permanece no histórico, não entra em novos fluxos)
 }
@@ -81,7 +85,7 @@ export interface TriageAssessment {
   perceivedRisks: string; // 4000, obrigatório se adherentToScope === "Sim"
   suggestedResponsible: string; // 150, opcional
   suggestedResponsibleJustification: string; // 1000, opcional
-  exitStatus: number; // id numérico de PortalStatus.id — obrigatório; deve ter isTriageExit===true && isActive===true
+  exitStatus: number; // id numérico de PortalStatus.id — obrigatório; deve ter isActive===true && isRestricted===false && (triageMode === "conclusion_only" || triageMode === "free") (v4 §3.1)
   result: string; // 1000, obrigatório
   conclusionJustification: string; // 4000, obrigatório
 }
@@ -108,11 +112,8 @@ export interface InternalRequestDetail {
 > `Fora do escopo`, `Direcionada para outra área`, `Duplicada`, `Cancelada`, `Backlog`)
 > **removido** — `exitStatus` não trafega mais como literal, e sim como
 > `PortalStatus.id` (number). O frontend deriva as opções de
-> `portalConfig.statuses.filter(s => s.isActive && s.isTriageExit)` (value = `id`,
-> label = `name`) e o backend valida contra a mesma lista. Os 7 nomes devem
-> existir como `PortalStatus` com `isTriageExit: true` (ver
-> `src/lib/config/portal-defaults.ts` — ids numéricos 1..17 já existentes;
-> atenção para `Cancelada` vs `Cancelado` já presente nos defaults).
+> `portalConfig.statuses.filter(s => s.isActive && !s.isRestricted && (s.triageMode === "conclusion_only" || s.triageMode === "free"))` (value = `id`,
+> label = `name`) e o backend valida contra a mesma lista (delta v4 §3.1).
 
 ---
 
@@ -288,13 +289,13 @@ HTTP/1.1 422 Unprocessable Entity
 
 **Erros:**
 
-| Status | Quando                                                                 |
-| ------ | ---------------------------------------------------------------------- |
-| 401    | Sem sessão / cookie inválido                                           |
-| 403    | Usuário não é `Administrador` nem `assignee` atual da solicitação      |
-| 404    | Protocolo inexistente                                                  |
-| 422    | Validação — body fora dos limites abaixo (envelope `fields` por campo) |
-| 500    | Erro genérico                                                          |
+| Status | Quando                                                                                                                                                                                                                                                                                                      |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 401    | Sem sessão / cookie inválido                                                                                                                                                                                                                                                                                |
+| 403    | Usuário não é `Administrador` nem `ANALYST_ASSIGNEE` atual da solicitação (mensagem `Ação restrita ao Administrador ou ao Analista responsável pela demanda.` + `code: INSUFFICIENT_ROLE_PERMISSIONS`); rejeita também solicitação com status `isRestricted` (Priorizado — só via `PATCH /status` override) |
+| 404    | Protocolo inexistente                                                                                                                                                                                                                                                                                       |
+| 422    | Validação — body fora dos limites abaixo (envelope `fields` por campo)                                                                                                                                                                                                                                      |
+| 500    | Erro genérico                                                                                                                                                                                                                                                                                               |
 
 **Validações `422` (espelham `src/routes/(admin)/fila/[protocolo]/components/triagem/triage-validation.ts:49`):**
 
@@ -308,7 +309,7 @@ HTTP/1.1 422 Unprocessable Entity
 | `perceivedRisks`                    | obrigatório se `adherentToScope === "Sim"`, trim não-vazio                                                                                                          | 4000   |
 | `suggestedResponsible`              | opcional                                                                                                                                                            | 150    |
 | `suggestedResponsibleJustification` | opcional                                                                                                                                                            | 1000   |
-| `exitStatus`                        | obrigatório, inteiro positivo, `portalConfig.statuses.find(s => s.id === exitStatus && s.isActive && s.isTriageExit)`                                               | —      |
+| `exitStatus`                        | obrigatório, inteiro positivo, `isActive && !isRestricted && (triageMode === "conclusion_only" \|\| triageMode === "free")` (v4 §3.1 — substitui `isTriageExit`)    | —      |
 | `result`                            | obrigatório, trim não-vazio                                                                                                                                         | 1000   |
 | `conclusionJustification`           | obrigatório, trim não-vazio                                                                                                                                         | 4000   |
 
@@ -424,38 +425,49 @@ HTTP/1.1 200 OK
 
 ---
 
-## 4. PortalConfig — `isTriageExit`
+## 4. PortalConfig — Motor de Status v4 (`triageMode`) — issue #124
 
-Novo campo em `PortalStatus` para distinguir saída de triagem de encerramento:
+`isTriageExit`/`closesRequest`/`visibility` foram **substituídos** pelos campos
+v4 (delta `portal-config-statuses-amend.md` §1):
 
 ```ts
-// src/lib/types/portal-config.ts:136
+// src/lib/types/portal-config.ts (v4)
 export interface PortalStatus {
   id: number;
   name: string;
-  visibility: "PUBLIC" | "INTERNAL";
-  closesRequest: boolean; // encerra solicitação (Concluído/Cancelado)
-  isTriageExit: boolean; // NOVO — elegível como exitStatus da triagem
+  order: number;
+  isCore: boolean;
+  isPublic: boolean; // era visibility
+  isTerminal: boolean; // era closesRequest (Concluído/Cancelado)
+  isRestricted: boolean; // Priorizado — só Admin via override
+  triageMode: "none" | "free" | "conclusion_only";
+  mappingMode: "none" | "free" | "conclusion_only";
   tone: "error" | "success" | "info" | "warning" | "neutral";
   isActive: boolean;
 }
 ```
 
-- `closesRequest` = terminal (ex: `Concluído` `id 16`, `Cancelado` `id 17` nos defaults).
-- `isTriageExit` = elegível como saída (inclui `Pendente de informações`, `Fora do escopo`, `Direcionada para outra área`, `Duplicada`, `Backlog`, `Elegível para avaliação` mesmo que `closesRequest === false`).
+- `isTerminal` = encerra a solicitação (defaults: `Concluído` `id 16`, `Cancelado` `id 17`).
+- `triageMode: "conclusion_only"` = elegível como `exitStatus` do `POST triage` (inclui `Pendente de informações`, `Fora do escopo`, `Direcionada para outra área`, `Duplicada`, `Backlog`, saídas elegíveis mesmo com `isTerminal === false`); `"free"` = também alcançável via `PATCH /status` por analista.
+- `isRestricted` bloqueia triagem/mapeamento de qualquer perfil — `Priorizado` (`11`) só via `PATCH /status` com bypass Admin. `isCore` = ids `1,3,4,7,16,17` (imutáveis na API de portal-config).
 
-Backend valida `exitStatus` contra `statuses.filter(s => s.isActive && s.isTriageExit)`. Frontend filtra `portalConfig.statuses` para `FilterSelect`:
+Backend valida `exitStatus` contra `statuses` com `isActive && isRestricted=false && triageMode IN ('conclusion_only','free')` (`triage.repository.resolveExitStatus`). Frontend filtra `portalConfig.statuses` para `FilterSelect`:
 
 ```ts
-// TriageSection.svelte
+// TriageSection.svelte (v4)
 const exitOptions = $derived(
   portalConfig.statuses
-    .filter((s) => s.isActive && s.isTriageExit)
+    .filter(
+      (s) =>
+        s.isActive &&
+        !s.isRestricted &&
+        (s.triageMode === "conclusion_only" || s.triageMode === "free"),
+    )
     .map((s) => ({ value: s.id, label: s.name })),
 );
 ```
 
-Migração: semear `isTriageExit: true` nos 7 status de triagem em `src/lib/config/portal-defaults.ts` e `src/lib/mocks/portal-config.mock.ts` (ids numéricos existentes, sem mudar o tipo de `id`); mapear literais antigos (`Cancelada` → `Cancelado` já existente) ou criar novos registros com ids numéricos sequenciais (max+1). **Categorias**: sem migração de `id` — `PortalCategory.id` permanece `number` (1..10); apenas validar `newCategory`/`demand.category` (name-string) contra nomes ativos.
+Migração: o banco manteve o espelho legado (`visibility`, `is_final`, `is_triage_exit`, `tone`) recalculado a partir dos campos v4 — a API expõe apenas o shape v4.
 
 ---
 
@@ -463,10 +475,11 @@ Migração: semear `isTriageExit: true` nos 7 status de triagem em `src/lib/conf
 
 - Valores de `status`, `priority`, `category` são strings PT-BR; chaves/estruturas em inglês (CONTRIBUTING §1).
 - Limites de caracteres (Especificação 3.0 §4) espelhados entre UI (`maxLength` + contador visual) e backend/banco; payload fora dos limites → `422` com `fields`, sem truncamento silencioso.
-- `exitStatus` não é mais `TriageResult` — remover enum hardcoded do frontend (`src/lib/types/triage.ts:32` `TRIAGE_EXIT_OPTIONS` → derivado de `PortalStatus` filtrado por `isActive && isTriageExit`, value = `id` numérico). Backend não aceita literais antigos.
+- `exitStatus` não é mais `TriageResult` — remover enum hardcoded do frontend (`src/lib/types/triage.ts:32` `TRIAGE_EXIT_OPTIONS` → derivado de `PortalStatus` filtrado por `isActive && !isRestricted && triageMode free|conclusion_only`, value = `id` numérico). Backend não aceita literais antigos.
 - `newCategory` e `DemandBlock.category` permanecem `RequestCategory` (name-string) por ora — ver TODO em §Tipos. Frontend deriva `FilterSelect` de `portalConfig.categories` (nomes ativos); backend valida contra o cadastro ativo (não aceita categoria inativa/inexistente).
 - `triage.id` é uuid v4 do registro gerado no `POST` (distinto dos ids numéricos de PortalCategory/PortalStatus); frontend nunca envia `id` no body (`Omit<TriageAssessment,"id">`).
 - Trim e limpeza condicional (`adherentJustification` quando `adherentToScope !== "Não"`, `newCategory` quando `changeCategory !== "Sim"`) espelham `triage-validation.ts:28`.
 - Histórico: `GET /triage` retorna a última triagem (row mais recente de `triages`, ordenada pelo `occurred_at` do audit `request.triage`) ou `null`; a lista completa (`triages[]`) é embutida em `GET /internal-notes`.
 - Departamento `select` híbrido e tipos `RequestCategory` seguem `solicitations-api-requests-0_5.md §Tipos compartilhados`.
-- Pendência: semear `isTriageExit: true` nos 7 `PortalStatus` de triagem em `portal-defaults` (ids numéricos existentes; atenção à divergência `Cancelada` vs `Cancelado`).
+- Pendência do PR #124: claim órfão — permitir que um analista designado de mapeamento se atribua a solicitações sem responsável/designado via `internal/assignee` (hoje `ANALYST_ASSIGNEE` exige vínculo já existente na solicitação).
+- Concluir a triagem (`POST /triage`) **libera automaticamente** o responsável de triagem (`requests.professional_id = null`) na mesma transação, gravando `request.unassign` com `changeOrigin: "system"` quando havia vínculo. A solicitação volta a ficar órfã (só Admin reatribui) e o snapshot do autor permanece em `triages.assignee_user_id/name/email`.

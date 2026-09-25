@@ -26,6 +26,15 @@ export type TimelineEventAction =
   | "request.status_change"
   | "mapping.assign";
 
+/**
+ * Ações persistidas em `audit_history` que alimentam a timeline. Diferente da
+ * lista fechada exposta na API (`TimelineEventAction`, 5 ações), inclui
+ * `request.override_status_admin` — gravada pelo bypass de Administrador no
+ * `PATCH /requests/:protocol/status` e **normalizada na leitura** para
+ * `request.status_change` (issue #124). A gravação permanece intocada.
+ */
+export type AuditTimelineAction = TimelineEventAction | "request.override_status_admin";
+
 export type TimelineChangeOrigin = "admin" | "system" | "internal" | null;
 
 export interface TimelineCursor {
@@ -36,9 +45,13 @@ export interface TimelineCursor {
 
 export interface TimelineEventRow {
   audit_id: string;
-  action_type: TimelineEventAction;
+  action_type: AuditTimelineAction;
   previous_value: string | null;
   new_value: string | null;
+  /** Justificativa interna da transição (`audit_history.note`). */
+  note: string | null;
+  /** Snapshot do retorno público da transição (`audit_history.last_technical_message`). */
+  last_technical_message: string | null;
   change_origin: TimelineChangeOrigin;
   occurred_at: Date;
   actor_user_id: number | null;
@@ -60,6 +73,10 @@ export interface TriageHistoryRow {
   exit_status: number;
   result: string;
   conclusion_justification: string;
+  assignee_user_id: number | null;
+  assignee_name: string | null;
+  assignee_email: string | null;
+  last_technical_message: string | null;
   occurred_at: Date;
 }
 
@@ -90,6 +107,9 @@ export interface MappingHistoryRow {
   meeting_link: string | null;
   location: string | null;
   notes: string | null;
+  target_status_id: number | null;
+  justification: string | null;
+  last_technical_message: string | null;
   occurred_at: Date;
   participants: MappingHistoryParticipant[];
   mappingAssignee: MappingHistoryAssignee | null;

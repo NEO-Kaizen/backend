@@ -23,7 +23,7 @@ export const REQUEST_STATUSES = [
   "Cancelado",
 ] as const;
 
-export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+export type RequestStatus = string;
 
 /** Fonte única das prioridades — alimenta a union e a validação (Zod). */
 export const REQUEST_PRIORITIES = ["Baixa", "Média", "Alta", "Crítica"] as const;
@@ -144,6 +144,10 @@ export interface AssignmentContextRow {
   mapping_professional_id: string | null;
   status: RequestStatus;
   screening_result: string | null;
+  /** `details_professional.user_id` do responsável da triagem (issue #124). */
+  assignee_user_id: number | null;
+  /** `details_professional.user_id` do designado do mapeamento (issue #124). */
+  mapping_assignee_user_id: number | null;
 }
 
 export interface AssignmentCandidateRow {

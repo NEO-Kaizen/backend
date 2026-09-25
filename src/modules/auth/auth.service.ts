@@ -117,7 +117,7 @@ export async function changePassword(
       entityId: String(user.user_id),
       actionType: "user.change_password",
       userId: user.user_id,
-      note: ipAddress,
+      ipAddress,
       changeOrigin: "user",
     });
 

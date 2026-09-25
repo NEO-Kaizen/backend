@@ -47,3 +47,15 @@ export interface ListRequestsQuery {
  * controller já garante a presença do parâmetro.
  */
 export type ListRequestsInput = Omit<ListRequestsQuery, "email"> & { email?: string };
+
+/**
+ * Resposta do `PATCH /requests/:protocol/status` (issue #124 — Motor de Status
+ * v4, delta §3.3): protocolo + nomes dos status anterior/novo + instante.
+ */
+export interface UpdateStatusResponse {
+  protocol: string;
+  status: string;
+  previous: string;
+  next: string;
+  lastUpdate: string;
+}

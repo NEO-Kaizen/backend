@@ -70,6 +70,7 @@ export interface MappingAssignee {
 export interface MappingResponseDTO {
   protocol: string;
   id: string | null;
+  targetStatus: number | null;
   scheduledFor: string | null;
   durationMinutes: number | null;
   modality: MappingModality | null;
@@ -77,6 +78,8 @@ export interface MappingResponseDTO {
   location: string | null;
   participants: MappingParticipant[];
   notes: string | null;
+  justification?: string | null;
+  lastTechnicalMessage?: string | null;
   mappingAssignee: MappingAssignee | null;
 }
 
@@ -87,6 +90,10 @@ export interface MappingResponseDTO {
  * remove o profissional que executará o mapeamento — ausente mantém o atual;
  * permitido apenas ao responsável da solicitação ou Administrador.
  * `completeMapping` é exclusivo do `PUT` (não aparece na resposta).
+ * `targetStatus` (PortalStatus.id) é obrigatório quando `completeMapping:true`
+ * — status de destino do fluxo de mapeamento (delta v4 §3.2).
+ * `justification` (1..4000) é obrigatória quando `completeMapping:true` —
+ * toda mudança de status exige justificativa (delta §3.3).
  */
 export interface MappingPayloadDTO {
   id?: string;
@@ -99,6 +106,9 @@ export interface MappingPayloadDTO {
   participants?: MappingParticipantInput[];
   notes?: string | null;
   completeMapping: boolean;
+  targetStatus?: number;
+  justification?: string;
+  lastTechnicalMessage?: string | null;
 }
 
 /** Ator autenticado com o perfil resolvido (do `authMiddleware`). */

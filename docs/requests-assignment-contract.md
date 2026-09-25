@@ -89,8 +89,11 @@ elegíveis (ver critérios acima).
 
 ## 2. PATCH /requests/:protocol/assignee — Definir / substituir / remover responsável
 
-Protegido por autenticação e restrito ao perfil **`Administrador`** (critério
-de aceite da issue #50).
+Protegido por autenticação. **issue #124**: liberado a `Administrador` **ou**
+`ANALYST_ASSIGNEE` da solicitação (responsável da triagem **ou** designado do
+mapeamento — guard `canAssignRequest` no service). `Gestor` não atribui;
+demais perfis → `403`. (Antes da v4 a atribuição era restrita ao perfil
+`Administrador` — critério de aceite da issue #50.)
 
 **Body** — `AssignRequestPayload`
 
@@ -118,15 +121,15 @@ de aceite da issue #50).
 
 **Erros**
 
-| Código | Mensagem                                        | Situação                                                                    |
-| ------ | ----------------------------------------------- | --------------------------------------------------------------------------- |
-| 400    | `Campos inválidos: professionalId — ...`        | Body ausente/inválido (não é UUID nem `null`)                               |
-| 400    | `Responsável não encontrado.`                   | UUID não existe em `details_professional`                                   |
-| 400    | `Responsável inativo.`                          | `details_professional.status = 'inactive'` **ou** `users.is_active = false` |
-| 400    | `Perfil do responsável não permite atribuição.` | Usuário vinculado não é `analista`/`gestor`                                 |
-| 401    | `Token inválido ou expirado`                    | Sem sessão                                                                  |
-| 403    | `Acesso restrito ao perfil Administrador`       | Perfil diferente de `Administrador`                                         |
-| 404    | `Solicitação não encontrada`                    | Protocolo inexistente                                                       |
+| Código | Mensagem                                                                                                          | Situação                                                                             |
+| ------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 400    | `Campos inválidos: professionalId — ...`                                                                          | Body ausente/inválido (não é UUID nem `null`)                                        |
+| 400    | `Responsável não encontrado.`                                                                                     | UUID não existe em `details_professional`                                            |
+| 400    | `Responsável inativo.`                                                                                            | `details_professional.status = 'inactive'` **ou** `users.is_active = false`          |
+| 400    | `Perfil do responsável não permite atribuição.`                                                                   | Usuário vinculado não é `analista`/`gestor`                                          |
+| 401    | `Token inválido ou expirado`                                                                                      | Sem sessão                                                                           |
+| 403    | `Ação restrita ao Administrador ou ao Analista responsável pela demanda.` (`code: INSUFFICIENT_ROLE_PERMISSIONS`) | Perfil sem permissão: não é `Administrador` nem `ANALYST_ASSIGNEE` (inclui `Gestor`) |
+| 404    | `Solicitação não encontrada`                                                                                      | Protocolo inexistente                                                                |
 
 ### Semântica
 
@@ -135,8 +138,16 @@ de aceite da issue #50).
   restrição — a rastreabilidade fica na auditoria.
 - **Remover**: `professionalId: null`. Não reverte o status alterado pela
   RN-010.
-- `requests.updated_by` recebe o e-mail do Administrador; `updated_at` é
-  atualizado.
+- **Liberação automática**: concluir a triagem (`POST /triage`) ou concluir de
+  fato o mapeamento (`PUT mapping` com `completeMapping:true` e
+  `targetStatus !== 6`) remove o responsável vinculado na mesma transação
+  (`requests.professional_id` / `requests.mapping_professional_id = null`),
+  gravando `request.unassign`/`mapping.assign(null)` com
+  `change_origin = 'system'`. A solicitação volta a ficar órfã — apenas
+  `Administrador` consegue reatribuir (não há claim órfão). Agendar o
+  mapeamento (`targetStatus === 6`) **mantém** o designado.
+- `requests.updated_by` recebe o e-mail do executor (Administrador ou
+  analyst-assignee autorizado); `updated_at` é atualizado.
 
 ### RN-010 — Gatilho de status na triagem de elegíveis
 
@@ -162,7 +173,7 @@ Eventos em `audit_history` (`entity_type = 'request'`, `entity_id = protocolo`):
 | `request.unassign`      | UUID anterior    | `null`                  | IP do ator | `admin`         |
 | `request.status_change` | `Em triagem`     | `Aguardando mapeamento` | `RN-010`   | `system`        |
 
-`user_id` é sempre o Administrador que executou a operação, inclusive no
+`user_id` é sempre o executor autenticado da operação, inclusive no
 `status_change` disparado pela regra.
 
 ---
