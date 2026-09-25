@@ -340,6 +340,24 @@ export const updateMapping = async (
     });
 };
 
+/**
+ * Libera o responsável de mapeamento da solicitação (`requests.mapping_professional_id`).
+ * Usado na conclusão real do mapeamento (`targetStatus !== 6`): a custódia volta a
+ * ficar órfã e depende de nova atribuição. O snapshot do designado permanece em
+ * `mappings.professional_id`.
+ */
+export const clearRequestMappingAssignee = async (
+  trx: Knex.Transaction,
+  requestId: string,
+  updatedBy: string,
+): Promise<void> => {
+  await trx("requests").where({ request_id: requestId }).update({
+    mapping_professional_id: null,
+    updated_by: updatedBy,
+    updated_at: trx.fn.now(),
+  });
+};
+
 /** Substituição atômica dos participantes (delete + insert na mesma transação). */
 export const replaceMappingParticipants = async (
   trx: Knex.Transaction,

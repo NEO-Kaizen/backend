@@ -653,6 +653,23 @@ export const upsertMappingService = async (
         ipAddress,
         changeOrigin: "system",
       });
+
+      // Liberação automática do designado quando o mapeamento é concluído de
+      // fato (`targetStatus !== 6`) — agendar (6) mantém o designado. Evento só
+      // quando havia vínculo: `mapping.assign` com `newValue: null` = remoção.
+      if (concludeTarget.status_id !== 6 && context.mapping_professional_id !== null) {
+        await repository.clearRequestMappingAssignee(trx, context.request_id, actor.email);
+        await recordAudit(trx, {
+          entityType: "mapping",
+          actionType: "mapping.assign",
+          entityId: mappingId,
+          userId: actor.id,
+          previousValue: context.mapping_professional_id,
+          newValue: null,
+          ipAddress,
+          changeOrigin: "system",
+        });
+      }
     }
 
     // Resposta construída sem reload: participantes enviados (já resolvidos)
