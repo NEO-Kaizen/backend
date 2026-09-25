@@ -175,6 +175,7 @@ export async function applyRequestOutcome(
   lastTechnicalMessage: string | null,
   expectedStatusId: number,
   updatedBy: string,
+  releaseAssignee: boolean,
   trx?: Knex.Transaction,
 ): Promise<void> {
   const source = trx ?? db;
@@ -184,6 +185,14 @@ export async function applyRequestOutcome(
     updated_at: source.fn.now(),
     status_id: statusId,
   };
+
+  // Conclusão da triagem encerra a custódia do responsável (issue de
+  // release automático): a solicitação volta a ficar sem responsável de
+  // triagem e depende de nova atribuição. O snapshot do autor permanece em
+  // `triages.assignee_*`.
+  if (releaseAssignee) {
+    updates.professional_id = null;
+  }
 
   if (statusIsPublic) {
     if (!lastTechnicalMessage) {
@@ -263,6 +272,7 @@ export async function saveTriageDecision(
   lastTechnicalMessage: string | null,
   expectedStatusId: number,
   updatedBy: string,
+  previousAssignee: { professionalId: string | null; userId: number | null },
   audit: TriageAuditContext,
 ): Promise<void> {
   await db.transaction(async (trx) => {
@@ -275,6 +285,7 @@ export async function saveTriageDecision(
       lastTechnicalMessage,
       expectedStatusId,
       updatedBy,
+      true,
       trx,
     );
     await recordAudit(trx, {
@@ -298,5 +309,21 @@ export async function saveTriageDecision(
       ipAddress: audit.ipAddress,
       changeOrigin: audit.changeOrigin,
     });
+
+    // Liberação automática do responsável na conclusão da triagem. Evento só
+    // quando havia vínculo; `previousValue` segue a convenção de
+    // `request.unassign` (user_id do responsável anterior). Origem `system`.
+    if (previousAssignee.professionalId !== null) {
+      await recordAudit(trx, {
+        entityType: "request",
+        entityId: protocol,
+        actionType: "request.unassign",
+        userId: audit.actorId,
+        previousValue: previousAssignee.userId === null ? null : String(previousAssignee.userId),
+        newValue: null,
+        ipAddress: audit.ipAddress,
+        changeOrigin: "system",
+      });
+    }
   });
 }

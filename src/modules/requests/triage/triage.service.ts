@@ -167,6 +167,7 @@ export async function createTriage(
     triage.lastTechnicalMessage,
     request.status_id,
     actor.email,
+    { professionalId: request.professional_id, userId: request.assignee_user_id },
     {
       actorId: actor.id,
       previousStatus: request.status_name,
