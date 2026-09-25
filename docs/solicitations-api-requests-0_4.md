@@ -165,13 +165,21 @@ Os três endpoints deste contrato respeitam `system_settings.solicitation_mode`
 `PATCH /portal-config/access`. Em `AUTHENTICATED`, o backend exige sessão JWT
 (cookie `session_id`) e escopa o acesso à identidade do usuário logado:
 
-| Endpoint                  | `PUBLIC`                       | `AUTHENTICATED`                                                                                                                             |
-| ------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /requests`          | público (`201`)                | exige sessão; `fullName`/`corporateEmail` do payload são sobrescritos pela identidade do cadastro (campos seguem obrigatórios na validação) |
-| `GET /requests`           | público, `?email=` obrigatório | exige sessão; lista só o e-mail da sessão; `?email=` presente → `400`                                                                       |
-| `GET /requests/:protocol` | público                        | exige sessão; protocolo de terceiro → `404` (mesma resposta de inexistente, para não vazar dados)                                           |
+| Endpoint                  | `PUBLIC`                                                                     | `AUTHENTICATED`                                                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /requests`          | público (`201`)                                                              | exige sessão; `fullName`/`corporateEmail` do payload são sobrescritos pela identidade do cadastro (campos seguem obrigatórios na validação) |
+| `GET /requests`           | público, `?email=` obrigatório (sessão de Solicitante → só o próprio e-mail) | exige sessão; lista só o e-mail da sessão; `?email=` presente → `400`                                                                       |
+| `GET /requests/:protocol` | público                                                                      | exige sessão; protocolo de terceiro → `404` (mesma resposta de inexistente, para não vazar dados)                                           |
 
 - Sem sessão válida em `AUTHENTICATED`: `401` no envelope padrão.
+- Em `PUBLIC`, o `GET /requests` continua público e o `?email=` continua
+  obrigatório — o fluxo anônimo não muda. Porém, se a request trouxer cookie de
+  sessão de um **Solicitante**, o `?email=` precisa ser o e-mail do cadastro
+  dele; e-mail de terceiro → `403`, com a mensagem
+  "Você só pode consultar as suas próprias solicitações.". Perfis internos
+  (Analista/Gestor/Administrador) não são afetados — têm a consulta interna e a
+  fila. Cookie ausente, expirado ou inválido não bloqueia: a request segue como
+  anônima.
 - Em `AUTHENTICATED`, o `POST` grava o vínculo `requests.requester_user_id`
   com o usuário autenticado; em `PUBLIC` (ou anônimo) o campo fica `NULL`.
 - Implementado pelo guard `requireAccessMode()` (`src/shared/middleware/accessMode.ts`),
