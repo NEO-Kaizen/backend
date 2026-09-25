@@ -1,10 +1,12 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type {
+  AuditTimelineAction,
   InternalNoteRow,
   InternalRole,
   MappingHistoryRow,
   TimelineCursor,
+  TimelineEventAction,
   TimelineEventRow,
   TriageHistoryRow,
 } from "../../shared/types/internalNotes.ts";
@@ -108,14 +110,36 @@ function positiveIntOrNull(value: string | null): number | null {
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
+/**
+ * Normaliza a ação persistida em `audit_history` para o vocabulário fechado
+ * exposto na API. O bypass de Administrador no `PATCH /requests/:protocol/status`
+ * grava `request.override_status_admin`, mas a timeline o apresenta como
+ * `request.status_change` (issue #124); `changeOrigin: "admin"` continua
+ * distinguindo a origem. A gravação permanece intocada.
+ */
+function normalizeEventAction(action: AuditTimelineAction): TimelineEventAction {
+  return action === "request.override_status_admin" ? "request.status_change" : action;
+}
+
+/** `request.status_change` e seu override de Admin compartilham render/payload. */
+function isStatusChangeAction(action: AuditTimelineAction): boolean {
+  return action === "request.status_change" || action === "request.override_status_admin";
+}
+
 function composeEventText(
   row: TimelineEventRow,
   userNames: Map<number, string>,
   professionalNames: Map<string, string>,
+  statusNames: Map<number, string>,
 ): string {
   switch (row.action_type) {
     case "request.status_change":
-      return row.new_value ? `Status alterado: ${row.new_value}` : "Status alterado";
+    case "request.override_status_admin": {
+      if (!row.new_value) return "Status alterado";
+      const numericId = positiveIntOrNull(row.new_value);
+      const statusName = numericId === null ? row.new_value : statusNames.get(numericId);
+      return `Status alterado: ${statusName ?? row.new_value}`;
+    }
     case "request.assign": {
       const userId = positiveIntOrNull(row.new_value);
       const name = userId === null ? undefined : userNames.get(userId);
@@ -180,6 +204,15 @@ function toTriageHistoryEntry(row: TriageHistoryRow): TriageHistoryEntry {
       exitStatus: row.exit_status,
       result: row.result,
       conclusionJustification: row.conclusion_justification,
+      assignee:
+        row.assignee_user_id === null && row.assignee_name === null
+          ? null
+          : {
+              id: row.assignee_user_id === null ? null : String(row.assignee_user_id),
+              name: row.assignee_name,
+              email: row.assignee_email,
+            },
+      lastTechnicalMessage: row.last_technical_message,
     },
     occurredAt: row.occurred_at.toISOString(),
   };
@@ -190,6 +223,7 @@ function toMappingHistoryEntry(row: MappingHistoryRow): MappingHistoryEntry {
     mapping: {
       protocol: row.protocol,
       id: row.mapping_id,
+      targetStatus: row.target_status_id,
       scheduledFor: toIsoSeconds(row.scheduled_for),
       durationMinutes: row.duration_minutes,
       modality: row.modality,
@@ -201,6 +235,8 @@ function toMappingHistoryEntry(row: MappingHistoryRow): MappingHistoryEntry {
         email: participant.email,
       })),
       notes: row.notes,
+      justification: row.justification,
+      lastTechnicalMessage: row.last_technical_message,
       mappingAssignee:
         row.mappingAssignee === null
           ? null
@@ -219,6 +255,7 @@ function toMappingHistoryEntry(row: MappingHistoryRow): MappingHistoryEntry {
 async function buildEventDTOs(rows: TimelineEventRow[]): Promise<TimelineEvent[]> {
   const userIds = new Set<number>();
   const professionalIds = new Set<string>();
+  const statusIds = new Set<number>();
 
   for (const row of rows) {
     if (row.action_type === "request.assign" || row.action_type === "request.reassign") {
@@ -226,24 +263,36 @@ async function buildEventDTOs(rows: TimelineEventRow[]): Promise<TimelineEvent[]
       if (userId !== null) {
         userIds.add(userId);
       }
+    } else if (isStatusChangeAction(row.action_type)) {
+      const statusId = positiveIntOrNull(row.new_value);
+      if (statusId !== null) {
+        statusIds.add(statusId);
+      }
     } else if (row.action_type === "mapping.assign" && row.new_value !== null) {
       professionalIds.add(row.new_value);
     }
   }
 
-  const [userNames, professionalNames] = await Promise.all([
+  const [userNames, professionalNames, statusNames] = await Promise.all([
     repository.resolveUserNames([...userIds]),
     repository.resolveProfessionalNames([...professionalIds]),
+    repository.resolveStatusNames([...statusIds]),
   ]);
 
   return rows.map((row) => ({
     type: "event",
     id: `${EVENT_ID_PREFIX}${row.audit_id}`,
-    action: row.action_type,
-    text: composeEventText(row, userNames, professionalNames),
+    action: normalizeEventAction(row.action_type),
+    text: composeEventText(row, userNames, professionalNames, statusNames),
     occurredAt: row.occurred_at.toISOString(),
     actor: toActorDTO(row),
     changeOrigin: row.change_origin,
+    ...(isStatusChangeAction(row.action_type)
+      ? {
+          justification: row.note,
+          lastTechnicalMessage: row.last_technical_message,
+        }
+      : {}),
   }));
 }
 

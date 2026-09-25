@@ -218,11 +218,7 @@ export async function upsertStatuses(
       status_id: status.id,
       name: status.name,
       order_number: orderNumber,
-      // Espelho legado (v4 → colunas que o fluxo ainda lê/embute em respostas).
-      visibility: status.isPublic ? "PUBLIC" : "INTERNAL",
-      closes_request: isTerminal,
-      is_final: isTerminal,
-      is_triage_exit: triageMode !== "none" || mappingMode !== "none",
+      is_public: status.isPublic,
       is_core: status.isCore ?? false,
       is_restricted: status.isRestricted ?? false,
       is_terminal: isTerminal,

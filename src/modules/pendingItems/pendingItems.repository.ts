@@ -358,7 +358,7 @@ export async function createPendingItemsBatch(input: {
         userId: input.actor.id,
         previousValue: current.statusName,
         newValue: "Pendente de informações",
-        note: input.ip ?? null,
+        ipAddress: input.ip ?? null,
         changeOrigin: "admin",
       });
       await recordAudit(trx, {
@@ -368,7 +368,7 @@ export async function createPendingItemsBatch(input: {
         userId: input.actor.id,
         previousValue: current.statusName,
         newValue: "Pendente de informações",
-        note: input.ip ?? null,
+        ipAddress: input.ip ?? null,
         changeOrigin: "system",
       });
     } else {
@@ -379,7 +379,7 @@ export async function createPendingItemsBatch(input: {
         userId: input.actor.id,
         previousValue: null,
         newValue: input.batchId,
-        note: input.ip ?? null,
+        ipAddress: input.ip ?? null,
         changeOrigin: "admin",
       });
     }
@@ -426,7 +426,7 @@ export async function respondPendingItemTx(input: {
       userId: null,
       previousValue: "requested",
       newValue: "responded",
-      note: input.ip ?? null,
+      ipAddress: input.ip ?? null,
       changeOrigin: input.isInternal ? "admin" : "requester",
     });
 
@@ -497,7 +497,7 @@ export async function addPendingItemAttachmentTx(input: {
       userId: null,
       previousValue: null,
       newValue: input.saved.fileName,
-      note: input.ip ?? null,
+      ipAddress: input.ip ?? null,
       changeOrigin: "requester",
     });
   });
@@ -546,7 +546,8 @@ export async function applyReviewDecisionsTx(input: {
           userId: input.actor.id,
           previousValue: "responded",
           newValue: "validated",
-          note: dec.note ?? input.ip ?? null,
+          note: dec.note ?? null,
+          ipAddress: input.ip ?? null,
           changeOrigin: "admin",
         });
       } else {

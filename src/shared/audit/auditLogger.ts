@@ -15,9 +15,12 @@ export interface AuditEntryBase {
   userId: number | null;
   /** Valor anterior (texto livre), ex.: is_active antes. */
   previousValue?: string | null;
-  /** Valor novo (texto livre), ex.: is_active depois. */
   newValue?: string | null;
+  /** Justificativa interna da transição (nunca o retorno público). */
   note?: string | null;
+  /** Snapshot do retorno público submetido na transição (só status público). */
+  lastTechnicalMessage?: string | null;
+  ipAddress?: string | null;
   changeOrigin?: string | null;
 }
 
@@ -63,6 +66,8 @@ export async function recordAudit<E extends AuditEntityName, A extends ComposedA
     previous_value: entry.previousValue ?? null,
     new_value: entry.newValue ?? null,
     note: entry.note ?? null,
+    last_technical_message: entry.lastTechnicalMessage ?? null,
+    ip_address: entry.ipAddress ?? null,
     change_origin: entry.changeOrigin ?? null,
   });
 }

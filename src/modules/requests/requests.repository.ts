@@ -197,6 +197,7 @@ async function insertRequest(
       requester_user_id: requesterUserId,
       category_id: categoryId,
       status_id: statusId,
+      last_public_status_id: statusId,
       priority_id: null,
       professional_id: null,
 
@@ -334,7 +335,7 @@ export async function createRequest(
 }
 
 export async function findStatusByName(name: string): Promise<boolean> {
-  const row = await db("statuses").where({ name }).first("status_id");
+  const row = await db("statuses").where({ name, is_public: true }).first("status_id");
 
   return row !== undefined;
 }
@@ -349,10 +350,18 @@ interface RequestSummaryRow {
   created_at: Date;
 }
 
+const PUBLIC_STATUS_SUMMARY_SQL =
+  "CASE WHEN statuses.is_public = TRUE THEN statuses.name WHEN public_status.is_public = TRUE THEN public_status.name ELSE (SELECT fallback.name FROM statuses AS fallback WHERE fallback.status_id = 1) END";
+
 function baseSummaryQuery(query: ListRequestsQuery) {
   return db("requests")
     .join("requesters", "requesters.requester_id", "requests.requester_id")
     .join("statuses", "statuses.status_id", "requests.status_id")
+    .leftJoin(
+      "statuses as public_status",
+      "public_status.status_id",
+      "requests.last_public_status_id",
+    )
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
     .leftJoin(
       "details_professional",
@@ -363,7 +372,7 @@ function baseSummaryQuery(query: ListRequestsQuery) {
     .where("requesters.corporate_email", query.email)
     .modify((builder) => {
       if (query.status) {
-        builder.where("statuses.name", query.status);
+        builder.whereRaw(`${PUBLIC_STATUS_SUMMARY_SQL} = ?`, [query.status]);
       }
     });
 }
@@ -384,7 +393,7 @@ export async function findRequestsByRequesterEmail(
       protocol: "requests.protocol",
       process_name: "requests.process_name",
       priority: "priorities.level",
-      status: "statuses.name",
+      status: db.raw(`${PUBLIC_STATUS_SUMMARY_SQL} as status`),
       assignee: "assignee_user.full_name",
       requester_name: "requesters.full_name",
       created_at: "requests.created_at",
@@ -428,11 +437,14 @@ export async function findRequestByProtocolWithOwner(
     )
     .leftJoin("users as assignee_user", "assignee_user.user_id", "professional.user_id")
     .leftJoin("statuses as status", "status.status_id", "r.status_id")
+    .leftJoin("statuses as public_status", "public_status.status_id", "r.last_public_status_id")
     .select(
       "r.protocol as protocol",
       "r.title as demandTitle",
       "r.process_name as processName",
-      "status.name as status",
+      db.raw(
+        "CASE WHEN status.is_public = TRUE THEN status.name WHEN public_status.is_public = TRUE THEN public_status.name ELSE (SELECT fallback.name FROM statuses AS fallback WHERE fallback.status_id = 1) END as status",
+      ),
       "assignee_user.full_name as assigneeName",
       "r.created_at as openedAt",
       "r.estimated_completion as estimatedCompletion",
@@ -487,6 +499,11 @@ export async function findInternalRequestByProtocol(protocol: string) {
     .leftJoin("requesters", "requesters.requester_id", "requests.requester_id")
     .leftJoin("categories", "categories.category_id", "requests.category_id")
     .leftJoin("statuses", "statuses.status_id", "requests.status_id")
+    .leftJoin(
+      "statuses as public_status",
+      "public_status.status_id",
+      "requests.last_public_status_id",
+    )
     .leftJoin("priorities", "priorities.priority_id", "requests.priority_id")
     .leftJoin(
       "details_professional as dp_assignee",
@@ -551,10 +568,15 @@ export async function findInternalRequestByProtocol(protocol: string) {
     "requests.internal_notes",
     "requests.meeting_scheduled_for",
     "requests.meeting_link",
+    "requests.last_technical_message",
+    "requests.last_external_update_at",
     "requests.created_at",
     "requests.updated_at",
     "categories.name as category",
     "statuses.name as status",
+    db.raw(
+      "CASE WHEN statuses.is_public = TRUE THEN statuses.name ELSE COALESCE(public_status.name, (SELECT fallback.name FROM statuses AS fallback WHERE fallback.status_id = 1)) END as public_status",
+    ),
     "priorities.level as priority",
     "assignee_user.user_id as assignee_user_id",
     "assignee_user.full_name as professional_name",
@@ -786,6 +808,7 @@ export interface RequestStatusTarget {
   name: string;
   is_active: boolean;
   is_restricted: boolean;
+  isPublic: boolean;
   triage_mode: "none" | "free" | "conclusion_only";
   mapping_mode: "none" | "free" | "conclusion_only";
 }
@@ -839,8 +862,35 @@ export async function findRequestStatusTarget(
       "name",
       "is_active",
       "is_restricted",
+      "is_public",
       "triage_mode",
       "mapping_mode",
+    )
+    .then(
+      (
+        row:
+          | {
+              status_id: number;
+              name: string;
+              is_active: boolean;
+              is_restricted: boolean;
+              is_public: boolean;
+              triage_mode: "none" | "free" | "conclusion_only";
+              mapping_mode: "none" | "free" | "conclusion_only";
+            }
+          | undefined,
+      ) =>
+        row
+          ? {
+              status_id: row.status_id,
+              name: row.name,
+              is_active: row.is_active,
+              is_restricted: row.is_restricted,
+              isPublic: row.is_public,
+              triage_mode: row.triage_mode,
+              mapping_mode: row.mapping_mode,
+            }
+          : undefined,
     ) as Promise<RequestStatusTarget | undefined>;
 }
 

@@ -30,7 +30,7 @@ const TRIAGE_REASSESSMENT = {
   perceivedRisks: "Dependência de aprovação orçamentária da área.",
   suggestedResponsible: "Diego Analista",
   suggestedResponsibleJustification: "Assume a frente após a revisão de escopo.",
-  exitStatus: 18,
+  exitStatus: 9,
   result: "Reavaliada e elegível",
   conclusionJustification: "Escopo revisado com a área; categoria ajustada para Automação.",
 };

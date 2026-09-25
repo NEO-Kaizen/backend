@@ -17,7 +17,8 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import { ASSIGNABLE_PROFILES, updateStatusById } from "../requests/requests.repository.ts";
+import { ASSIGNABLE_PROFILES } from "../requests/requests.repository.ts";
+import { applyStatusTransition } from "../requests/statusTransition.ts";
 import type {
   MappingActor,
   MappingAssignee,
@@ -33,20 +34,23 @@ import type { Knex } from "knex";
 
 /** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
 async function recordMappingAccessDenied(
-  trx: Knex.Transaction,
   protocol: string,
   actorId: number,
   detail: string,
+  ipAddress?: string,
 ): Promise<void> {
-  await recordAudit(trx, {
-    entityType: "request",
-    actionType: "request.access_denied",
-    entityId: protocol,
-    userId: actorId,
-    previousValue: null,
-    newValue: null,
-    note: `Mapping negado: ${detail}`,
-    changeOrigin: "system",
+  await db.transaction(async (trx) => {
+    await recordAudit(trx, {
+      entityType: "request",
+      actionType: "request.access_denied",
+      entityId: protocol,
+      userId: actorId,
+      previousValue: null,
+      newValue: null,
+      note: `Mapping negado: ${detail}`,
+      ipAddress,
+      changeOrigin: "system",
+    });
   });
 }
 
@@ -111,6 +115,7 @@ function toMappingResponse(
   return {
     protocol,
     id: mapping.mapping_id,
+    targetStatus: mapping.target_status_id,
     scheduledFor: toIsoSeconds(mapping.scheduled_for),
     durationMinutes: mapping.duration_minutes,
     modality: mapping.modality,
@@ -134,6 +139,7 @@ function toMappingResponse(
 function mappingResponseFromValues(
   protocol: string,
   mappingId: string,
+  targetStatus: number | null,
   values: MappingValues,
   participants: repository.MappingParticipantRow[],
   mappingAssignee: MappingAssignee | null,
@@ -141,6 +147,7 @@ function mappingResponseFromValues(
   return {
     protocol,
     id: mappingId,
+    targetStatus,
     scheduledFor: toIsoSeconds(values.scheduledFor),
     durationMinutes: values.durationMinutes,
     modality: values.modality,
@@ -160,6 +167,7 @@ function emptyMappingResponse(protocol: string): MappingResponseDTO {
   return {
     protocol,
     id: null,
+    targetStatus: null,
     scheduledFor: null,
     durationMinutes: null,
     modality: null,
@@ -311,10 +319,24 @@ export const upsertMappingService = async (
       throw new AppError("Solicitação não encontrada", 404);
     }
 
+    if (actor.role === "Gestor") {
+      await recordMappingAccessDenied(
+        context.protocol,
+        actor.id,
+        "perfil Gestor é somente leitura",
+        ipAddress,
+      );
+      throw new AppError(
+        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
+
     // Status terminais não aceitam edição (não reabre fluxo encerrado).
     // Motor de Status v4: guard por `isTerminal` (não por lista de nomes).
     if (context.is_terminal) {
-      await recordMappingAccessDenied(trx, context.protocol, actor.id, "demanda encerrada");
+      await recordMappingAccessDenied(context.protocol, actor.id, "demanda encerrada", ipAddress);
       throw new AppError("Solicitação encerrada.", 422);
     }
 
@@ -322,7 +344,7 @@ export const upsertMappingService = async (
     // Admin/designado → movimentação de/r para Priorizado só via `PATCH /status`
     // (delta v4 §3.2: "Priorizado só via override").
     if (context.is_restricted) {
-      await recordMappingAccessDenied(trx, context.protocol, actor.id, "demanda priorizada");
+      await recordMappingAccessDenied(context.protocol, actor.id, "demanda priorizada", ipAddress);
       throw new AppError(
         "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
         403,
@@ -333,6 +355,9 @@ export const upsertMappingService = async (
     const isAdmin = actor.role === "Administrador";
     const isRequestAssignee =
       context.assignee_user_id !== null && Number(context.assignee_user_id) === actor.id;
+    const isRequestMappingAssignee =
+      context.mapping_assignee_user_id !== null &&
+      Number(context.mapping_assignee_user_id) === actor.id;
 
     const mapping = payload.id
       ? await repository.findMappingById(trx, context.request_id, payload.id)
@@ -369,9 +394,15 @@ export const upsertMappingService = async (
     // Decisão: o designado ATUAL edita mesmo com `details_professional.status`
     // inativo — o ator está logado e ativo (authMiddleware revalida por request).
     const canCreateByInheritance =
-      !mapping && isRequestAssignee && (payload.mappingAssigneeId === undefined || isNullOnCreate);
-    const canDesignate = isAdmin || isRequestAssignee || isPriorMappingAssignee;
-    const canEditContent = isAdmin || isPriorMappingAssignee || canCreateByInheritance;
+      !mapping &&
+      (isRequestAssignee || isRequestMappingAssignee) &&
+      (payload.mappingAssigneeId === undefined || isNullOnCreate);
+    const isCurrentMappingAssignee =
+      isPriorMappingAssignee ||
+      (!mapping && isRequestMappingAssignee) ||
+      (mapping?.professional_id === null && isRequestMappingAssignee);
+    const canDesignate = isAdmin || isRequestAssignee || isCurrentMappingAssignee;
+    const canEditContent = isAdmin || isCurrentMappingAssignee || canCreateByInheritance;
 
     // Autorização em DOIS eixos INDEPENDENTES: a presença de `mappingAssigneeId`
     // não isenta a checagem de edição. `contentAction` = tentativa de alterar
@@ -384,16 +415,40 @@ export const upsertMappingService = async (
       payload.location !== undefined ||
       payload.notes !== undefined ||
       payload.participants !== undefined ||
+      payload.targetStatus !== undefined ||
+      payload.justification !== undefined ||
+      payload.lastTechnicalMessage !== undefined ||
       payload.completeMapping === true;
 
+    if (!contentAction && !designationAction) {
+      throw new AppError("Informe ao menos um campo para atualizar o mapeamento.", 400);
+    }
+
     if (designationAction && !canDesignate) {
+      await recordMappingAccessDenied(
+        context.protocol,
+        actor.id,
+        "sem permissão para designar o mapeamento",
+        ipAddress,
+      );
       throw new AppError(
         "Você não tem permissão para designar o mapeamento: apenas o responsável pela solicitação ou Administrador.",
         403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
       );
     }
     if (contentAction && !canEditContent) {
-      throw new AppError("Você não tem permissão para editar este mapeamento.", 403);
+      await recordMappingAccessDenied(
+        context.protocol,
+        actor.id,
+        "sem custódia para editar o mapeamento",
+        ipAddress,
+      );
+      throw new AppError(
+        "Você não tem permissão para editar este mapeamento.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
     }
 
     // Designação efetiva: `mappingAssigneeId` (uuid de details_professional).
@@ -415,39 +470,20 @@ export const upsertMappingService = async (
     } else {
       // Sem designação explícita: mantém o atual; ao CRIAR, herda o responsável
       // pela solicitação (ponto de partida — a delegação vem depois).
-      effectiveProfessionalId = mapping ? mapping.professional_id : context.professional_id;
+      effectiveProfessionalId = mapping
+        ? mapping.professional_id
+        : (context.mapping_professional_id ?? context.professional_id);
     }
 
     const currentValues = mapping ? rowToValues(mapping) : emptyValues();
-    const values = mergeValues(currentValues, payload);
-
-    validateModality(values);
+    let values = mergeValues(currentValues, payload);
 
     const concluding = payload.completeMapping;
-    if (concluding) {
-      const missing = missingFieldForCompletion(values);
-      if (missing) {
-        throw new AppError(`Revise os campos do mapeamento: informe "${missing}".`, 422);
-      }
-    }
-
-    // Destino + justificativa validados ANTES de qualquer escrita (delta v4
-    // §3.2/§3.3): `targetStatus` elegível (mappingMode free/conclusion_only +
-    // isRestricted===false) e `justification` 1..4000 obrigatória ao concluir.
-    let concludeTarget: { status_id: number; name: string } | null = null;
+    let concludeTarget: repository.MappingTargetRow | null = null;
     if (concluding) {
       if (payload.targetStatus === undefined) {
         throw new ValidationError(
           { targetStatus: "Informe o status de destino ao concluir o mapeamento" },
-          "Validação falhou",
-        );
-      }
-      if (payload.justification === undefined) {
-        throw new ValidationError(
-          {
-            justification:
-              "Justificativa obrigatória ao concluir o mapeamento (1..4000 caracteres).",
-          },
           "Validação falhou",
         );
       }
@@ -456,19 +492,49 @@ export const upsertMappingService = async (
       if (!target) {
         throw new ValidationError(
           {
-            targetStatus:
-              "Status deve ter mappingMode free ou conclusion_only e isRestricted=false",
+            targetStatus: "Status deve ter mappingMode conclusion_only e isRestricted=false",
           },
           "Validação falhou",
         );
       }
+      if (target.status_id !== 6) {
+        if (payload.justification === undefined) {
+          throw new ValidationError(
+            {
+              justification:
+                "Justificativa obrigatória ao concluir o mapeamento (1..4000 caracteres).",
+            },
+            "Validação falhou",
+          );
+        }
+        if (target.isPublic && payload.lastTechnicalMessage == null) {
+          throw new ValidationError(
+            {
+              lastTechnicalMessage:
+                "Retorno ao solicitante obrigatório para status público (1..4000 caracteres).",
+            },
+            "Validação falhou",
+          );
+        }
+        values = emptyValues();
+      } else {
+        validateModality(values);
+        const missing = missingFieldForCompletion(values);
+        if (missing) {
+          throw new AppError(`Revise os campos do mapeamento: informe "${missing}".`, 422);
+        }
+      }
       concludeTarget = target;
+    } else {
+      validateModality(values);
     }
 
     const resolvedParticipants =
-      payload.participants !== undefined
-        ? await resolveParticipants(trx, payload.participants)
-        : undefined;
+      concluding && concludeTarget?.status_id !== 6
+        ? []
+        : payload.participants !== undefined
+          ? await resolveParticipants(trx, payload.participants)
+          : undefined;
 
     const designationChanged =
       designationAction && effectiveProfessionalId !== previousProfessionalId;
@@ -481,6 +547,10 @@ export const upsertMappingService = async (
         requestId: context.request_id,
         professionalId: effectiveProfessionalId,
         values,
+        targetStatus: concludeTarget?.status_id ?? null,
+        justification:
+          concludeTarget && concludeTarget.status_id !== 6 ? payload.justification : null,
+        lastTechnicalMessage: concludeTarget?.isPublic ? payload.lastTechnicalMessage : null,
         createdBy: actor.email,
       });
     }
@@ -492,6 +562,9 @@ export const upsertMappingService = async (
       actor.email,
       concluding,
       designationAction ? effectiveProfessionalId : undefined,
+      concludeTarget?.status_id ?? null,
+      concludeTarget && concludeTarget.status_id !== 6 ? payload.justification : null,
+      concludeTarget?.isPublic ? payload.lastTechnicalMessage : null,
     );
 
     if (resolvedParticipants) {
@@ -503,9 +576,21 @@ export const upsertMappingService = async (
     // Diff completo inclui o designado vigente: cada save registra quem executa,
     // além da mudança pontual de designação (`mapping.assign`).
     const previousAuditValues = mapping
-      ? { ...currentValues, mappingAssigneeId: mapping.professional_id }
+      ? {
+          ...currentValues,
+          mappingAssigneeId: mapping.professional_id,
+          targetStatus: mapping.target_status_id ?? null,
+        }
       : null;
-    const nextAuditValues = { ...values, mappingAssigneeId: effectiveProfessionalId };
+    const nextAuditValues = {
+      ...values,
+      mappingAssigneeId: effectiveProfessionalId,
+      targetStatus: concludeTarget?.status_id ?? mapping?.target_status_id ?? null,
+      justification: concludeTarget?.status_id === 6 ? null : (payload.justification ?? null),
+      lastTechnicalMessage: concludeTarget?.isPublic
+        ? (payload.lastTechnicalMessage ?? null)
+        : null,
+    };
 
     await recordAudit(trx, {
       entityType: "mapping",
@@ -514,7 +599,7 @@ export const upsertMappingService = async (
       userId: actor.id,
       previousValue: previousAuditValues ? JSON.stringify(previousAuditValues) : null,
       newValue: JSON.stringify(nextAuditValues),
-      note: ipAddress,
+      ipAddress,
       changeOrigin,
     });
 
@@ -526,13 +611,31 @@ export const upsertMappingService = async (
         userId: actor.id,
         previousValue: previousProfessionalId,
         newValue: effectiveProfessionalId,
-        note: ipAddress,
+        ipAddress,
         changeOrigin,
       });
     }
 
     if (concluding && concludeTarget) {
-      await updateStatusById(trx, context.request_id, concludeTarget.status_id, actor.email);
+      await applyStatusTransition(trx, {
+        requestId: context.request_id,
+        target: {
+          status_id: concludeTarget.status_id,
+          name: concludeTarget.name,
+          isPublic: concludeTarget.isPublic,
+        },
+        updatedBy: actor.email,
+        lastTechnicalMessage: concludeTarget.isPublic ? payload.lastTechnicalMessage : null,
+        expectedStatusId: context.status_id,
+      });
+
+      await trx("requests")
+        .where({ request_id: context.request_id })
+        .update({
+          meeting_scheduled_for: concludeTarget.status_id === 6 ? values.scheduledFor : null,
+          meeting_link: concludeTarget.status_id === 6 ? values.meetingLink : null,
+          last_external_update_at: trx.fn.now(),
+        });
 
       await recordAudit(trx, {
         entityType: "request",
@@ -541,7 +644,13 @@ export const upsertMappingService = async (
         userId: actor.id,
         previousValue: context.status,
         newValue: concludeTarget.name,
-        note: payload.justification as string,
+        // `note` = justificativa interna (id 6 não exige); o retorno público
+        // vira snapshot dedicado apenas quando o destino é público.
+        note: concludeTarget.status_id === 6 ? null : (payload.justification ?? null),
+        lastTechnicalMessage: concludeTarget.isPublic
+          ? (payload.lastTechnicalMessage ?? null)
+          : null,
+        ipAddress,
         changeOrigin: "system",
       });
     }
@@ -564,6 +673,7 @@ export const upsertMappingService = async (
     return mappingResponseFromValues(
       context.protocol,
       mappingId,
+      concludeTarget?.status_id ?? mapping?.target_status_id ?? null,
       values,
       savedParticipants,
       toMappingAssignee(assigneeCandidate),

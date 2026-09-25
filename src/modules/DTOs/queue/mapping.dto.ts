@@ -70,6 +70,7 @@ export interface MappingAssignee {
 export interface MappingResponseDTO {
   protocol: string;
   id: string | null;
+  targetStatus: number | null;
   scheduledFor: string | null;
   durationMinutes: number | null;
   modality: MappingModality | null;
@@ -77,6 +78,8 @@ export interface MappingResponseDTO {
   location: string | null;
   participants: MappingParticipant[];
   notes: string | null;
+  justification?: string | null;
+  lastTechnicalMessage?: string | null;
   mappingAssignee: MappingAssignee | null;
 }
 
@@ -105,6 +108,7 @@ export interface MappingPayloadDTO {
   completeMapping: boolean;
   targetStatus?: number;
   justification?: string;
+  lastTechnicalMessage?: string | null;
 }
 
 /** Ator autenticado com o perfil resolvido (do `authMiddleware`). */

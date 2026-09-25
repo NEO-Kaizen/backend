@@ -59,72 +59,63 @@ const noDuplicateParticipants = (participants: { id?: string; email: string }[])
   return true;
 };
 
-export const mappingPayloadSchema = z
-  .object(
-    {
-      id: z.string().trim().uuid("Identificador do mapeamento inválido.").optional(),
-      mappingAssigneeId: z
-        .string()
-        .trim()
-        .uuid("Identificador do designado inválido.")
-        .nullable()
-        .optional(),
-      scheduledFor: z.iso
-        .datetime({
-          offset: true,
-          error: "Data/hora inválida — envie ISO-8601 com offset (ex.: 2026-10-15T10:30:00-03:00).",
-        })
-        .nullable()
-        .optional(),
-      durationMinutes: z
-        .number()
-        .int("Deve ser um número inteiro.")
-        .min(15, "Mínimo de 15 minutos.")
-        .max(480, "Máximo de 480 minutos.")
-        .nullable()
-        .optional(),
-      modality: z
-        .enum(["REMOTE", "IN_PERSON"], {
-          error: "Modalidade inválida — opções: REMOTE ou IN_PERSON.",
-        })
-        .nullable()
-        .optional(),
-      meetingLink: z.string().trim().max(500, "Máximo de 500 caracteres.").nullable().optional(),
-      location: z.string().trim().max(500, "Máximo de 500 caracteres.").nullable().optional(),
-      notes: z.string().trim().max(2000, "Máximo de 2.000 caracteres.").nullable().optional(),
-      participants: z
-        .array(mappingParticipantSchema, { error: "Informe uma lista de participantes." })
-        .max(20, "Máximo de 20 participantes.")
-        .refine(noDuplicateParticipants, {
-          message: "Participantes duplicados não são permitidos.",
-          path: ["participants"],
-        })
-        .optional(),
-      completeMapping: z.boolean("Informe completeMapping (true ou false)."),
-      // PortalStatus.id do destino ao concluir (delta v4 §3.2). A obrigatoriedade
-      // quando `completeMapping:true` e a elegibilidade (mappingMode
-      // free/conclusion_only + isRestricted===false) são resolvidas no service.
-      targetStatus: z
-        .number()
-        .int("Status de destino inválido.")
-        .positive("Status de destino inválido.")
-        .optional(),
-      // Justificativa da mudança de status (delta v4 §3.3: 1..4000, obrigatória
-      // ao concluir). Obrigatoriedade condicional no `superRefine` abaixo.
-      justification: requiredString(4000).optional(),
-    },
-    {
-      error: "O payload deve ser um objeto JSON com a chave completeMapping.",
-    },
-  )
-  .superRefine((payload, ctx) => {
-    if (payload.completeMapping && payload.justification === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["justification"],
-        message: "Justificativa obrigatória ao concluir o mapeamento (1..4000 caracteres).",
-      });
-    }
-  }) satisfies z.ZodType<MappingPayloadDTO>;
+export const mappingPayloadSchema = z.object(
+  {
+    id: z.string().trim().uuid("Identificador do mapeamento inválido.").optional(),
+    mappingAssigneeId: z
+      .string()
+      .trim()
+      .uuid("Identificador do designado inválido.")
+      .nullable()
+      .optional(),
+    scheduledFor: z.iso
+      .datetime({
+        offset: true,
+        error: "Data/hora inválida — envie ISO-8601 com offset (ex.: 2026-10-15T10:30:00-03:00).",
+      })
+      .nullable()
+      .optional(),
+    durationMinutes: z
+      .number()
+      .int("Deve ser um número inteiro.")
+      .min(15, "Mínimo de 15 minutos.")
+      .max(480, "Máximo de 480 minutos.")
+      .nullable()
+      .optional(),
+    modality: z
+      .enum(["REMOTE", "IN_PERSON"], {
+        error: "Modalidade inválida — opções: REMOTE ou IN_PERSON.",
+      })
+      .nullable()
+      .optional(),
+    meetingLink: z.string().trim().max(500, "Máximo de 500 caracteres.").nullable().optional(),
+    location: z.string().trim().max(500, "Máximo de 500 caracteres.").nullable().optional(),
+    notes: z.string().trim().max(2000, "Máximo de 2.000 caracteres.").nullable().optional(),
+    participants: z
+      .array(mappingParticipantSchema, { error: "Informe uma lista de participantes." })
+      .max(20, "Máximo de 20 participantes.")
+      .refine(noDuplicateParticipants, {
+        message: "Participantes duplicados não são permitidos.",
+        path: ["participants"],
+      })
+      .optional(),
+    completeMapping: z.boolean("Informe completeMapping (true ou false)."),
+    // PortalStatus.id do destino ao concluir (delta v4 §3.2). A obrigatoriedade
+    // quando `completeMapping:true` e a elegibilidade (mappingMode
+    // free/conclusion_only + isRestricted===false) são resolvidas no service.
+    targetStatus: z
+      .number()
+      .int("Status de destino inválido.")
+      .positive("Status de destino inválido.")
+      .optional(),
+    // Justificativa da mudança de status (delta v4 §3.3: 1..4000, obrigatória
+    // ao concluir). Obrigatoriedade condicional no `superRefine` abaixo.
+    justification: requiredString(4000).optional(),
+    lastTechnicalMessage: requiredString(4000).nullable().optional(),
+  },
+  {
+    error: "O payload deve ser um objeto JSON com a chave completeMapping.",
+  },
+) satisfies z.ZodType<MappingPayloadDTO>;
 
 export type MappingPayload = z.infer<typeof mappingPayloadSchema>;

@@ -216,6 +216,7 @@ export const updateStatusSchema = z
       .int("Id do status deve ser inteiro.")
       .positive("Id do status deve ser positivo."),
     justification: requiredString(4000),
+    lastTechnicalMessage: requiredString(4000).nullable().optional(),
   })
   .strict();
 

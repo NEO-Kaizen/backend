@@ -197,14 +197,7 @@ export const updateStatuses = async (req: Request, res: Response): Promise<Respo
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  // `order` é opcional para compatibilidade legada — quando ausente, assume a
-  // posição no array (a ordem do array é a ordem de exibição, contrato v4).
-  const statuses = parsed.data.statuses.map((status, index) => ({
-    ...status,
-    order: status.order ?? index,
-  }));
-
-  const response = await service.updateStatuses(statuses, actorUserId(req));
+  const response = await service.updateStatuses(parsed.data.statuses, actorUserId(req));
   return res.status(200).json(response);
 };
 

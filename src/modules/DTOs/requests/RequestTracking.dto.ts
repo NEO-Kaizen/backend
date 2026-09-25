@@ -59,6 +59,7 @@ export interface PublicRequestDetails {
   status: RequestStatus;
   openedAt: string;
   lastUpdate: string;
+  lastTechnicalMessage: string | null;
   meeting: Meeting | null;
   requester: RequesterBlock;
   demand: DemandBlock;

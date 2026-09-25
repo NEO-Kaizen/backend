@@ -1,21 +1,34 @@
 import { z } from "zod";
 
+export interface TriageAssignee {
+  id: string | null;
+  name: string | null;
+  email: string | null;
+}
+
 export interface TriageAssessment {
-  id: string; // uuid v4 do registro — gerado pelo backend no POST (contract-triage_04.md §1)
+  id: string;
   adherentToScope: "Sim" | "Não" | "";
   adherentJustification: string;
   changeCategory: "Sim" | "Não" | "";
-  newCategory: string; // name-string validado contra o cadastro ativo (ver TODO do contrato §Tipos)
+  newCategory: string;
   preliminaryComplexity: string;
   perceivedRisks: string;
   suggestedResponsible: string;
   suggestedResponsibleJustification: string;
-  exitStatus: number; // PortalStatus.id — deve ter isActive && isRestricted===false && triageMode free|conclusion_only (delta v4 §3.1)
+  exitStatus: number;
   result: string;
   conclusionJustification: string;
+  assignee: TriageAssignee | null;
+  lastTechnicalMessage: string | null;
 }
 
-export type CreateTriagePayload = Omit<TriageAssessment, "id">;
+export type CreateTriagePayload = Omit<
+  TriageAssessment,
+  "id" | "assignee" | "lastTechnicalMessage"
+> & {
+  lastTechnicalMessage?: string | null;
+};
 
 const triageChoice = z.union([z.literal("Sim"), z.literal("Não"), z.literal("")]);
 
@@ -55,7 +68,15 @@ export const createTriagePayloadSchema = z
       .trim()
       .min(1, "Informe a justificativa final")
       .max(4000, "Máximo de 4.000 caracteres."),
+    lastTechnicalMessage: z
+      .string()
+      .trim()
+      .min(1, "Informe o retorno ao solicitante")
+      .max(4000, "Máximo de 4.000 caracteres.")
+      .nullable()
+      .optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     if (value.adherentToScope === "") {
       ctx.addIssue({

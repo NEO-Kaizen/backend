@@ -71,7 +71,9 @@ export interface AuditHistoryDetail {
   actor: AuditActor;
   previous_value: string | null; // valor anterior (texto livre)
   new_value: string | null; // valor novo (texto livre)
-  note: string | null;
+  note: string | null; // justificativa interna da transição
+  last_technical_message: string | null; // snapshot do retorno público da transição
+  ip_address: string | null; // IP do ator no momento do evento
   change_origin: string | null;
   occurred_at: string; // ISO datetime
 }
@@ -293,6 +295,8 @@ HTTP/1.1 200 OK
   "previous_value": "{\"solicitationMode\":\"PUBLIC\"}",
   "new_value": "{\"solicitationMode\":\"PUBLIC\"}",
   "note": null,
+  "last_technical_message": null,
+  "ip_address": null,
   "change_origin": null,
   "occurred_at": "2026-09-21T04:15:49.041Z"
 }

@@ -10,7 +10,7 @@ const protocolParamsSchema = z.object({
   protocol: z.string().trim().min(1, "Protocolo é obrigatório."),
 });
 
-function actorFromRequest(req: Request): { id: number; email: string; role: string } {
+function actorFromRequest(req: Request): { id: number; email: string; name: string; role: string } {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -23,6 +23,7 @@ function actorFromRequest(req: Request): { id: number; email: string; role: stri
   return {
     id,
     email: req.user.email,
+    name: req.user.name,
     role: req.user.role,
   };
 }
@@ -55,7 +56,7 @@ export const saveTriage = async (req: Request, res: Response): Promise<Response>
     throw new ValidationError(fields, message);
   }
 
-  const triage = await service.createTriage(protocol, parsed.data, actor);
+  const triage = await service.createTriage(protocol, parsed.data, actor, req.ip);
 
   return res.status(201).json(triage);
 };

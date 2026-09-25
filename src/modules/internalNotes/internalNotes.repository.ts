@@ -1,5 +1,6 @@
 import db from "../../database/conection.ts";
 import type {
+  AuditTimelineAction,
   InternalNoteReadStateRow,
   InternalNoteRow,
   InternalRole,
@@ -7,7 +8,6 @@ import type {
   MappingHistoryParticipant,
   MappingHistoryRow,
   TimelineCursor,
-  TimelineEventAction,
   TimelineEventRow,
   TriageHistoryRow,
 } from "../../shared/types/internalNotes.ts";
@@ -16,11 +16,15 @@ interface RequestIdentityRow {
   request_id: string;
 }
 
-const REQUEST_EVENT_ACTIONS: TimelineEventAction[] = [
+// `request.override_status_admin` é persistido pelo bypass de Administrador no
+// `PATCH /requests/:protocol/status`; entra no filtro e é normalizado para
+// `request.status_change` na montagem do DTO (issue #124).
+const REQUEST_EVENT_ACTIONS: AuditTimelineAction[] = [
   "request.assign",
   "request.reassign",
   "request.unassign",
   "request.status_change",
+  "request.override_status_admin",
 ];
 
 const MAPPING_RECORD_ACTIONS = ["mapping.save", "mapping.complete", "mapping.assign"];
@@ -118,6 +122,8 @@ export async function listEventsPage(
       "audit.action_type",
       "audit.previous_value",
       "audit.new_value",
+      "audit.note",
+      "audit.last_technical_message",
       "audit.change_origin",
       "audit.occurred_at",
       "audit.user_id as actor_user_id",
@@ -162,6 +168,10 @@ const TRIAGE_HISTORY_COLUMNS = [
   "t.exit_status",
   "t.result",
   "t.conclusion_justification",
+  "t.assignee_user_id",
+  "t.assignee_name",
+  "t.assignee_email",
+  "t.last_technical_message",
   "audit.occurred_at as occurred_at",
 ] as const;
 
@@ -217,6 +227,9 @@ export async function listMappingHistory(requestId: string): Promise<MappingHist
       "m.meeting_link",
       "m.location",
       "m.notes",
+      "m.target_status_id",
+      "m.justification",
+      "m.last_technical_message",
       "audit.occurred_at as occurred_at",
     ])
     .orderBy("audit.occurred_at", "asc")
@@ -289,6 +302,18 @@ export async function resolveUserNames(userIds: number[]): Promise<Map<number, s
     .select("user_id", "full_name");
 
   return new Map(rows.map((row) => [row.user_id, row.full_name]));
+}
+
+export async function resolveStatusNames(statusIds: number[]): Promise<Map<number, string>> {
+  if (statusIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = (await db("statuses")
+    .whereIn("status_id", statusIds)
+    .select("status_id", "name")) as Array<{ status_id: number; name: string }>;
+
+  return new Map(rows.map((row) => [row.status_id, row.name]));
 }
 
 export async function resolveProfessionalNames(

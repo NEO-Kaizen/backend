@@ -1,4 +1,5 @@
 import type { Knex } from "knex";
+import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
@@ -6,6 +7,7 @@ import type { TriageAssessment } from "./triage.schema.ts";
 interface StatusRow {
   status_id: number;
   name: string;
+  isPublic: boolean;
 }
 
 interface CategoryRow {
@@ -18,6 +20,7 @@ interface RequestContextRow {
   protocol: string;
   professional_id: string | null;
   assignee_user_id: number | null;
+  status_id: number;
   status_name: string | null;
   status_is_restricted: boolean;
   status_is_terminal: boolean;
@@ -35,6 +38,7 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       protocol: "r.protocol",
       professional_id: "r.professional_id",
       assignee_user_id: "dp.user_id",
+      status_id: "r.status_id",
       status_name: "s.name",
       status_is_restricted: "s.is_restricted",
       status_is_terminal: "s.is_terminal",
@@ -56,6 +60,10 @@ interface TriageRow {
   exit_status: number;
   result: string;
   conclusion_justification: string;
+  assignee_user_id: number | null;
+  assignee_name: string | null;
+  assignee_email: string | null;
+  last_technical_message: string | null;
 }
 
 const TRIAGE_COLUMNS = [
@@ -71,6 +79,10 @@ const TRIAGE_COLUMNS = [
   "t.exit_status",
   "t.result",
   "t.conclusion_justification",
+  "t.assignee_user_id",
+  "t.assignee_name",
+  "t.assignee_email",
+  "t.last_technical_message",
 ] as const;
 
 function rowToAssessment(row: TriageRow): TriageAssessment {
@@ -87,6 +99,15 @@ function rowToAssessment(row: TriageRow): TriageAssessment {
     exitStatus: row.exit_status,
     result: row.result,
     conclusionJustification: row.conclusion_justification,
+    assignee:
+      row.assignee_user_id === null && row.assignee_name === null
+        ? null
+        : {
+            id: row.assignee_user_id === null ? null : String(row.assignee_user_id),
+            name: row.assignee_name,
+            email: row.assignee_email,
+          },
+    lastTechnicalMessage: row.last_technical_message,
   };
 }
 
@@ -124,9 +145,12 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
   return db("statuses")
     .where({ is_active: true, is_restricted: false })
-    .whereIn("triage_mode", ["free", "conclusion_only"])
+    .where({ triage_mode: "conclusion_only" })
     .where({ status_id: value })
-    .first("status_id as status_id", "name") as Promise<StatusRow | undefined>;
+    .first("status_id as status_id", "name", "is_public")
+    .then((row: { status_id: number; name: string; is_public: boolean } | undefined) =>
+      row ? { status_id: row.status_id, name: row.name, isPublic: row.is_public } : undefined,
+    ) as Promise<StatusRow | undefined>;
 }
 
 /**
@@ -147,6 +171,9 @@ export async function applyRequestOutcome(
   protocol: string,
   categoryId: number | null,
   statusId: number,
+  statusIsPublic: boolean,
+  lastTechnicalMessage: string | null,
+  expectedStatusId: number,
   updatedBy: string,
   trx?: Knex.Transaction,
 ): Promise<void> {
@@ -158,11 +185,27 @@ export async function applyRequestOutcome(
     status_id: statusId,
   };
 
+  if (statusIsPublic) {
+    if (!lastTechnicalMessage) {
+      throw new Error("Retorno ao solicitante obrigatório para status público.");
+    }
+    updates.last_public_status_id = statusId;
+    updates.last_technical_message = lastTechnicalMessage;
+    updates.last_external_update_at = source.fn.now();
+  }
+
   if (categoryId !== null) {
     updates.category_id = categoryId;
   }
 
-  await source("requests").where({ protocol }).update(updates);
+  const updatedRows = await source("requests")
+    .where({ protocol })
+    .andWhere("status_id", expectedStatusId)
+    .update(updates);
+
+  if (updatedRows === 0) {
+    throw new AppError("Solicitação foi atualizada por outra operação.", 409);
+  }
 }
 
 export interface TriageAuditContext {
@@ -170,6 +213,9 @@ export interface TriageAuditContext {
   previousStatus: string | null;
   previousCategory: string | null;
   nextStatus: string;
+  justification: string;
+  ipAddress?: string;
+  changeOrigin: "admin" | "internal";
 }
 
 /**
@@ -197,6 +243,13 @@ export async function insertTriage(
     exit_status: triage.exitStatus,
     result: triage.result,
     conclusion_justification: triage.conclusionJustification,
+    assignee_user_id:
+      triage.assignee?.id === null || triage.assignee?.id === undefined
+        ? null
+        : Number(triage.assignee.id),
+    assignee_name: triage.assignee?.name ?? null,
+    assignee_email: triage.assignee?.email ?? null,
+    last_technical_message: triage.lastTechnicalMessage,
   });
 }
 
@@ -206,12 +259,24 @@ export async function saveTriageDecision(
   triage: TriageAssessment,
   categoryId: number | null,
   statusId: number,
+  statusIsPublic: boolean,
+  lastTechnicalMessage: string | null,
+  expectedStatusId: number,
   updatedBy: string,
   audit: TriageAuditContext,
 ): Promise<void> {
   await db.transaction(async (trx) => {
     await insertTriage(requestId, triage, trx);
-    await applyRequestOutcome(protocol, categoryId, statusId, updatedBy, trx);
+    await applyRequestOutcome(
+      protocol,
+      categoryId,
+      statusId,
+      statusIsPublic,
+      lastTechnicalMessage,
+      expectedStatusId,
+      updatedBy,
+      trx,
+    );
     await recordAudit(trx, {
       entityType: "request",
       entityId: protocol,
@@ -226,7 +291,12 @@ export async function saveTriageDecision(
         exitStatus: triage.exitStatus,
         status: audit.nextStatus,
       }),
-      changeOrigin: "admin",
+      // `note` = justificativa interna (conclusão da triagem); o retorno
+      // público só é persistido quando o status de saída é público.
+      note: audit.justification,
+      lastTechnicalMessage: statusIsPublic ? lastTechnicalMessage : null,
+      ipAddress: audit.ipAddress,
+      changeOrigin: audit.changeOrigin,
     });
   });
 }

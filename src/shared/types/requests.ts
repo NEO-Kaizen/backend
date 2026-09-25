@@ -23,7 +23,7 @@ export const REQUEST_STATUSES = [
   "Cancelado",
 ] as const;
 
-export type RequestStatus = (typeof REQUEST_STATUSES)[number];
+export type RequestStatus = string;
 
 /** Fonte única das prioridades — alimenta a union e a validação (Zod). */
 export const REQUEST_PRIORITIES = ["Baixa", "Média", "Alta", "Crítica"] as const;

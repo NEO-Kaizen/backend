@@ -47,6 +47,7 @@ import {
 } from "../../shared/utils/date.ts";
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
+import { applyStatusTransition } from "./statusTransition.ts";
 
 import type {
   AssignAnalystPayload,
@@ -494,9 +495,13 @@ function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails 
 
   return {
     protocol: row["protocol"] as string,
-    status: row["status"] as RequestStatus,
+    status: (row["public_status"] as string | null) ?? "Solicitação enviada",
     openedAt,
-    lastUpdate: normalizeIsoDate(row["updated_at"]) ?? openedAt,
+    lastUpdate:
+      normalizeIsoDate(row["last_external_update_at"]) ??
+      normalizeIsoDate(row["updated_at"]) ??
+      openedAt,
+    lastTechnicalMessage: (row["last_technical_message"] as string | null) ?? null,
     meeting: mapTrackingMeeting(row),
     requester: mapTrackingRequester(row),
     demand: mapTrackingDemand(row),
@@ -803,7 +808,7 @@ export async function updateInternalRequest(
       userId: actor.id,
       previousValue: JSON.stringify(editableBlocksFromRow(request)),
       newValue: JSON.stringify(payload),
-      note: ipAddress,
+      ipAddress,
       changeOrigin: "admin",
     });
   });
@@ -920,7 +925,7 @@ export async function assignResponsible(
       userId: actor.id,
       previousValue: auditPrev ? String(auditPrev) : null,
       newValue: auditNext ? String(auditNext) : null,
-      note: ipAddress,
+      ipAddress,
       changeOrigin: "admin",
     });
 
@@ -987,7 +992,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: null,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
       });
@@ -1022,7 +1027,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: resolved.id,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
         // Exclusividade: atribuir triagem desatribui mapeamento
@@ -1035,7 +1040,7 @@ export async function assignAnalyst(
             userId: actor.id,
             previousValue: auditPrevMapping ? String(auditPrevMapping) : null,
             newValue: null,
-            note: ipAddress,
+            ipAddress,
             changeOrigin: "admin",
           });
         } else {
@@ -1072,7 +1077,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: null,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
       });
@@ -1104,7 +1109,7 @@ export async function assignAnalyst(
           userId: actor.id,
           previousValue: auditPrev ? String(auditPrev) : null,
           newValue: resolved.id,
-          note: ipAddress,
+          ipAddress,
           changeOrigin: "admin",
         });
         // Exclusividade: atribuir mapeamento desatribui triagem
@@ -1117,7 +1122,7 @@ export async function assignAnalyst(
             userId: actor.id,
             previousValue: auditPrevAssignee ? String(auditPrevAssignee) : null,
             newValue: null,
-            note: ipAddress,
+            ipAddress,
             changeOrigin: "admin",
           });
         } else {
@@ -1174,7 +1179,8 @@ async function recordStatusAccessDeniedAudit(
       userId: actorId,
       previousValue: null,
       newValue: null,
-      note: `Access denied: ${detail} (ip: ${ipAddress ?? "desconhecido"})`,
+      note: `Access denied: ${detail}`,
+      ipAddress,
       changeOrigin: "system",
     });
   });
@@ -1197,6 +1203,19 @@ export async function updateRequestStatus(
   }
 
   const isAdmin = actor.role === "Administrador";
+  if (actor.role === "Gestor") {
+    await recordStatusAccessDeniedAudit(
+      request.protocol,
+      actor.id,
+      ipAddress,
+      "perfil Gestor é somente leitura",
+    );
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
   const isAssignee =
     request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
   const isMappingAssignee =
@@ -1222,23 +1241,17 @@ export async function updateRequestStatus(
     throw new AppError("A solicitação já está neste status.", 422);
   }
 
-  // Fluxo encerrado não reabre: saída de status terminal é bloqueada para
-  // todos os perfis (inclusive Admin) neste endpoint.
-  if (request.current_is_terminal) {
+  if (!target.is_active) {
     await recordStatusAccessDeniedAudit(
       request.protocol,
       actor.id,
       ipAddress,
-      "tentativa de reabrir solicitação encerrada (status terminal)",
+      `tentativa de definir status inativo (id ${target.status_id})`,
     );
-    throw new AppError("Solicitação encerrada — o status terminal não pode ser alterado.", 422);
+    throw new AppError("Status inativo não pode ser alvo.", 409);
   }
 
-  if (isAdmin) {
-    if (!target.is_active) {
-      throw new AppError("Status inativo não pode ser alvo.", 409);
-    }
-  } else {
+  if (!isAdmin) {
     if (target.is_restricted) {
       await recordStatusAccessDeniedAudit(
         request.protocol,
@@ -1252,12 +1265,12 @@ export async function updateRequestStatus(
         "INSUFFICIENT_ROLE_PERMISSIONS",
       );
     }
-    if (!target.is_active || (target.triage_mode !== "free" && target.mapping_mode !== "free")) {
+    if (target.triage_mode !== "free" && target.mapping_mode !== "free") {
       await recordStatusAccessDeniedAudit(
         request.protocol,
         actor.id,
         ipAddress,
-        `tentativa de definir status não-free/inativo (id ${target.status_id})`,
+        `tentativa de definir status não-free (id ${target.status_id})`,
       );
       throw new AppError(
         "Só é possível definir status ativo com triageMode ou mappingMode free.",
@@ -1267,24 +1280,44 @@ export async function updateRequestStatus(
     }
   }
 
+  if (target.isPublic && payload.lastTechnicalMessage == null) {
+    throw new AppError("Retorno ao solicitante obrigatório para status público.", 400);
+  }
+
   const actionType: "request.status_change" | "request.override_status_admin" = isAdmin
     ? "request.override_status_admin"
     : "request.status_change";
   const changeOrigin = isAdmin ? "admin" : "internal";
 
-  await db.transaction(async (trx) => {
-    await repository.updateStatusById(trx, request.request_id, target.status_id, actor.email);
+  const lastUpdate = await db.transaction(async (trx) => {
+    const persistedAt = await applyStatusTransition(trx, {
+      requestId: request.request_id,
+      target: {
+        status_id: target.status_id,
+        name: target.name,
+        isPublic: target.isPublic,
+      },
+      updatedBy: actor.email,
+      lastTechnicalMessage: payload.lastTechnicalMessage,
+      expectedStatusId: request.current_status_id,
+    });
 
     await recordAudit(trx, {
       entityType: "request",
       entityId: request.protocol,
-      actionType: actionType,
+      actionType,
       userId: actor.id,
-      previousValue: request.current_status_id !== null ? String(request.current_status_id) : null,
-      newValue: String(target.status_id),
-      note: payload.justification,
+      previousValue: request.current_status_name,
+      newValue: target.name,
+      // `note` = justificativa interna; o retorno público é snapshot próprio
+      // (nunca concatenado), persistido apenas quando o destino é público.
+      note: payload.justification ?? null,
+      lastTechnicalMessage: target.isPublic ? (payload.lastTechnicalMessage ?? null) : null,
+      ipAddress,
       changeOrigin,
     });
+
+    return persistedAt;
   });
 
   return {
@@ -1292,6 +1325,6 @@ export async function updateRequestStatus(
     status: target.name,
     previous: request.current_status_name ?? "",
     next: target.name,
-    lastUpdate: new Date().toISOString(),
+    lastUpdate,
   };
 }

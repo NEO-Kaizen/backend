@@ -17,6 +17,7 @@ import type {
   ThemeSection,
 } from "../../shared/types/portalConfig.ts";
 import { CRITERION_ID_TO_KEY } from "../../shared/types/criteria.ts";
+import { CORE_STATUS_IDS } from "../../shared/types/portalConfig.ts";
 import type { SystemSettingsRow } from "../../shared/types/systemSettings.ts";
 import { themeFromRow, themeToColumns } from "./portalConfig.mappers.ts";
 import * as repository from "./portalConfig.repository.ts";
@@ -46,9 +47,8 @@ function statusToPortal(st: StatusRow): PortalStatus {
   return {
     id: st.status_id,
     name: st.name,
-    order: st.order_number,
     isCore: st.is_core ?? false,
-    isPublic: (st.visibility ?? "PUBLIC") === "PUBLIC",
+    isPublic: st.is_public ?? false,
     isTerminal: st.is_terminal ?? false,
     triageMode: st.triage_mode ?? "none",
     mappingMode: st.mapping_mode ?? "none",
@@ -263,13 +263,6 @@ export async function updateCategories(
 // R7 — PATCH /portal-config/statuses
 // ---------------------------------------------------------------------------
 
-/**
- * Statuses de núcleo do Anexo A (ids fixos) — não podem ser removidos,
- * renomeados, rebaixados a não-núcleo ou desativados. Substituem o lock por
- * nome da versão pré-v4 (holofote nos ids imutáveis do Motor de Status v4).
- */
-const CORE_STATUS_IDS = new Set([1, 3, 4, 7, 16, 17]);
-
 export async function updateStatuses(
   statuses: PortalStatus[],
   userId: number,
@@ -284,7 +277,13 @@ export async function updateStatuses(
 
     for (const coreId of CORE_STATUS_IDS) {
       const existing = prevById.get(coreId);
-      if (!existing) continue;
+      if (!existing) {
+        throw new AppError(
+          `O status de núcleo com id ${coreId} não existe. Execute a migration de status v4 antes de atualizar a configuração.`,
+          409,
+          "core_status_missing",
+        );
+      }
 
       const incoming = incomingById.get(coreId);
       if (!incoming) {
@@ -301,7 +300,7 @@ export async function updateStatuses(
           "core_status_renamed",
         );
       }
-      if (incoming.isCore === false) {
+      if (!incoming.isCore) {
         throw new AppError(
           `Não é possível redefinir o status de núcleo "${existing.name}" como não-núcleo (id ${coreId}).`,
           409,
@@ -318,6 +317,7 @@ export async function updateStatuses(
       // Flags estruturais do núcleo são imutáveis via PATCH (mudança de modo
       // de um status core quebraria o motor — exige migration versionada).
       if (
+        incoming.isPublic !== (existing.is_public ?? false) ||
         incoming.isTerminal !== existing.is_terminal ||
         incoming.isRestricted !== existing.is_restricted ||
         incoming.triageMode !== existing.triage_mode ||

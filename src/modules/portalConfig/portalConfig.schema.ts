@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  CORE_STATUS_IDS,
   PRIORITIZATION_CRITERIA,
   THEME_TOKEN_KEYS,
   type ThemeTokenKey,
@@ -141,80 +142,35 @@ const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
   error: "Modo inválido — opções: none, free ou conclusion_only.",
 });
 
-/**
- * Normaliza payloads legados (pré-v4) para o shape novo do Motor de Status v4
- * (delta `portal-config-statuses-amend.md`). Leitura de aliases legados é
- * tolerada; ESCRITA legada pura é convertida. MIX (chaves v4 + legadas no
- * mesmo objeto) é rejeitado: o objeto original é devolvido intacto para que o
- * `.strict()` falhe com 400 — sem divergência silenciosa.
- * `visibility→isPublic` (`PUBLIC→true`), `closesRequest→isTerminal`,
- * `isTriageExit→triageMode` (`true→free`, senão `none`), `mappingMode=none` e
- * `isRestricted=false`.
- */
-const LEGACY_STATUS_KEYS = ["visibility", "closesRequest", "isTriageExit"] as const;
-
-function normalizeStatusLegacy(value: unknown): unknown {
-  if (typeof value !== "object" || value === null) return value;
-  const record = value as Record<string, unknown>;
-  const { visibility, closesRequest, isTriageExit, ...rest } = record;
-  const hasV4Fields =
-    "isPublic" in record ||
-    "isTerminal" in record ||
-    "triageMode" in record ||
-    "mappingMode" in record;
-  const hasLegacyFields = LEGACY_STATUS_KEYS.some((key) => key in record);
-
-  if (hasV4Fields) {
-    // Mix v4+legado: devolve intacto para o `.strict()` rejeitar (400).
-    if (hasLegacyFields) return record;
-    return rest;
-  }
-  return {
-    ...rest,
-    isPublic: visibility === "INTERNAL" ? false : true,
-    isTerminal: closesRequest === true,
-    triageMode: isTriageExit === true ? "free" : "none",
-    mappingMode: "none",
-    isRestricted: false,
-  };
-}
-
-/** Ids que podem carregar `isCore:true` (núcleo do Anexo A — imutáveis). */
-const CORE_STATUS_IDS = [1, 3, 4, 7, 16, 17] as const;
-
-export const portalStatusSchema = z.preprocess(
-  normalizeStatusLegacy,
-  z
-    .object({
-      id: z
-        .number()
-        .int("Id deve ser inteiro.")
-        .min(1, "Id mínimo de 1.")
-        .max(50, "Id máximo de 50."),
-      name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
-      order: z.number().int("Ordem deve ser inteiro.").nonnegative("Ordem mínima de 0.").optional(),
-      isCore: z.boolean(),
-      isPublic: z.boolean(),
-      isTerminal: z.boolean(),
-      triageMode: StatusModeSchema,
-      mappingMode: StatusModeSchema,
-      isRestricted: z.boolean(),
-      tone: z.enum(STATUS_TONES, {
-        error: "Tom inválido — opções: error, success, info, warning ou neutral.",
-      }),
-      isActive: z.boolean(),
-    })
-    .strict()
-    .superRefine((status, ctx) => {
-      if (status.isCore && !(CORE_STATUS_IDS as readonly number[]).includes(status.id)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["isCore"],
-          message: "isCore só é permitido nos status de núcleo (ids 1, 3, 4, 7, 16, 17).",
-        });
-      }
+export const portalStatusSchema = z
+  .object({
+    id: z
+      .number()
+      .int("Id deve ser inteiro.")
+      .min(1, "Id mínimo de 1.")
+      .max(50, "Id máximo de 50."),
+    name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
+    isCore: z.boolean(),
+    isPublic: z.boolean(),
+    isTerminal: z.boolean(),
+    triageMode: StatusModeSchema,
+    mappingMode: StatusModeSchema,
+    isRestricted: z.boolean(),
+    tone: z.enum(STATUS_TONES, {
+      error: "Tom inválido — opções: error, success, info, warning ou neutral.",
     }),
-);
+    isActive: z.boolean(),
+  })
+  .strict()
+  .superRefine((status, ctx) => {
+    if (status.isCore && !(CORE_STATUS_IDS as readonly number[]).includes(status.id)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isCore"],
+        message: "isCore só é permitido nos status de núcleo (ids 1, 3, 4, 6, 7, 16, 17).",
+      });
+    }
+  });
 
 export const updateStatusesSchema = z
   .object({
@@ -224,7 +180,6 @@ export const updateStatusesSchema = z
       .max(50, "Máximo de 50 status.")
       .superRefine((statuses, ctx) => {
         const seenNames = new Set<string>();
-        const seenOrders = new Set<number>();
         statuses.forEach((status, index) => {
           const nameKey = status.name.trim().toLowerCase();
           if (seenNames.has(nameKey)) {
@@ -235,17 +190,6 @@ export const updateStatusesSchema = z
             });
           }
           seenNames.add(nameKey);
-
-          if (status.order !== undefined) {
-            if (seenOrders.has(status.order)) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                path: [index, "order"],
-                message: "Ordens de status devem ser únicas.",
-              });
-            }
-            seenOrders.add(status.order);
-          }
 
           if (status.isCore && !status.isActive) {
             ctx.addIssue({

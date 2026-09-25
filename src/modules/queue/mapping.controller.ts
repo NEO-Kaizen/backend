@@ -2,7 +2,8 @@
 // Enxutos: validam a forma do request e delegam as regras ao service.
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { ValidationError } from "../../shared/errors/ValidationError.ts";
+import { buildZodFieldErrors } from "../../shared/validation/zodErrors.ts";
 import type { MappingActor } from "../DTOs/queue/mapping.dto.ts";
 import { mappingPayloadSchema } from "./mapping.schemas.ts";
 import { getMappingService, upsertMappingService } from "./mapping.service.ts";
@@ -52,8 +53,8 @@ export const putMappingController = async (req: Request, res: Response): Promise
 
   const parsed = mappingPayloadSchema.safeParse(body);
   if (!parsed.success) {
-    // 422: validação de campos/estado (contrato §12); 400 fica para payload malformado.
-    throw new AppError(formatZodIssues(parsed.error), 422);
+    const { message, fields } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
   }
 
   const response = await upsertMappingService(protocol, parsed.data, actor, req.ip);

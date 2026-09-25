@@ -28,6 +28,13 @@ export interface TimelineEvent {
   occurredAt: string;
   actor: TimelineActorDTO | null;
   changeOrigin: TimelineChangeOrigin;
+  /** Justificativa interna da transição (nunca o retorno público). */
+  justification?: string | null;
+  /**
+   * Snapshot do retorno público da própria transição — populado **somente**
+   * em `request.status_change` de destino público; `null`/ausente nos demais.
+   */
+  lastTechnicalMessage?: string | null;
 }
 
 export type TimelineItem = TimelineNote | TimelineEvent;

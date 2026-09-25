@@ -135,7 +135,7 @@ export async function createUser(
         actionType: "user.create",
         userId: actorUserId,
         newValue: payload.email,
-        note: ipAddress,
+        ipAddress,
         changeOrigin: CHANGE_ORIGIN_ADMIN,
       });
 
@@ -199,7 +199,7 @@ export async function changeUserStatus(
       userId: actorUserId,
       previousValue: String(user.is_active),
       newValue: String(payload.isActive),
-      note: ipAddress,
+      ipAddress,
       changeOrigin: CHANGE_ORIGIN_ADMIN,
     });
   });
@@ -238,7 +238,7 @@ export async function resetPassword(
       entityId: String(id),
       actionType: "user.reset_password",
       userId: actorUserId,
-      note: ipAddress,
+      ipAddress,
       changeOrigin: CHANGE_ORIGIN_ADMIN,
     });
   });
@@ -546,7 +546,7 @@ export async function updateUser(
         userId: actorUserId,
         previousValue: JSON.stringify(before ?? null),
         newValue: JSON.stringify(payload),
-        note: ipAddress,
+        ipAddress,
         changeOrigin: CHANGE_ORIGIN_ADMIN,
       });
     });

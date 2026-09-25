@@ -59,6 +59,8 @@ function toDetail(
     previous_value: row.previous_value,
     new_value: row.new_value,
     note: row.note,
+    last_technical_message: row.last_technical_message ?? null,
+    ip_address: row.ip_address ?? null,
     change_origin: row.change_origin,
     occurred_at: occurredAt,
   };
