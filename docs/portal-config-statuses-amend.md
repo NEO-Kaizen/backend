@@ -210,6 +210,9 @@ const exit = portalConfig.statuses.find((s) => s.id === exitStatus)!;
 status = exit.name;
 // Retorno ao solicitante — só quando o status de saída é público.
 if (exit.isPublic) request.lastTechnicalMessage = payload.lastTechnicalMessage.trim();
+// Liberação automática do responsável de triagem (custódia encerra aqui):
+// requests.professional_id = null + audit `request.unassign` (changeOrigin system);
+// o snapshot do autor permanece em `triages.assignee_*`.
 lastUpdate = now().toISOString();
 ```
 
@@ -456,6 +459,7 @@ curl -s -X PUT http://localhost:3000/queue/requests/MAAT-8K3P-9X2M/mapping \
 > - `lastTechnicalMessage` (retorno ao solicitante) é obrigatório e gravado em `requests.last_technical_message` somente quando o destino é público; `justification` permanece interna. O texto é lido no `GET /requests/:protocol` público (`RequestDetail.lastTechnicalMessage`).
 > - **Implementação pendente:** a UI do mapeamento (`MappingSection.svelte`) ainda não renderiza `targetStatus`/`justification`/`lastTechnicalMessage`; `mappingConclusionOptions` (`utils/status.ts:89`) segue sem uso; a validação é chamada sem `statuses` (`:146`/`:236`); `saveMappingMock` ignora `targetStatus`. Backend ainda no modelo 0_4 (detalhes em `plans/mapeamento-retorno-usuario.md`).
 > - `MappingDetail` permanece ecoando `targetStatus`; `justification`/`lastTechnicalMessage` são write-only (não retornam no GET).
+> - **Liberação automática:** quando `completeMapping:true` e `targetStatus !== 6`, o designado é removido (`requests.mapping_professional_id = null`) e grava-se `mapping.assign` com `newValue:null` (`changeOrigin: system`); a solicitação volta a ficar órfã. Agendar (`targetStatus === 6`) **mantém** o designado. O snapshot do designado permanece em `mappings.professional_id`.
 
 ### 3.3 PATCH /requests/:protocol/status — create (único, free + admin bypass)
 

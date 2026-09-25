@@ -138,6 +138,14 @@ demais perfis → `403`. (Antes da v4 a atribuição era restrita ao perfil
   restrição — a rastreabilidade fica na auditoria.
 - **Remover**: `professionalId: null`. Não reverte o status alterado pela
   RN-010.
+- **Liberação automática**: concluir a triagem (`POST /triage`) ou concluir de
+  fato o mapeamento (`PUT mapping` com `completeMapping:true` e
+  `targetStatus !== 6`) remove o responsável vinculado na mesma transação
+  (`requests.professional_id` / `requests.mapping_professional_id = null`),
+  gravando `request.unassign`/`mapping.assign(null)` com
+  `change_origin = 'system'`. A solicitação volta a ficar órfã — apenas
+  `Administrador` consegue reatribuir (não há claim órfão). Agendar o
+  mapeamento (`targetStatus === 6`) **mantém** o designado.
 - `requests.updated_by` recebe o e-mail do executor (Administrador ou
   analyst-assignee autorizado); `updated_at` é atualizado.
 

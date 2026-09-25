@@ -343,6 +343,10 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
   - Resolução falha (usuário/profissional removido do join) → sufixo omitido
     (frase sem `: <nome>`); o evento **nunca** é descartado por falha de
     resolução.
+  - **Liberação automática** (conclusão de triagem/mapeamento) reusa as ações
+    `request.unassign` e `mapping.assign` com `changeOrigin: "system"` — entram
+    na timeline normalmente como `Responsável removido` /
+    `Responsável pelo mapeamento removido`.
   - `request.triage`, `mapping.save` e `mapping.complete` **não** têm linha
     nesta tabela — não viram evento (D-N12); a data deles alimenta as
     proveniências dos históricos `triages`/`mappings` (ver abaixo).
