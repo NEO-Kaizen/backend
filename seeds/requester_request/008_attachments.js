@@ -1,4 +1,14 @@
 export async function seed(knex) {
+  // Idempotência parcial: remove apenas os anexos deste lote antes de
+  // reinserir (rerun `--specific` não duplica PK).
+  // Arquivos em `/uploads/...` são metadados fictícios para a timeline de
+  // desenvolvimento — não existem no volume dev.
+  await knex("attachments")
+    .whereIn("attachment_id", [
+      "cc000000-0000-4000-8000-000000000016",
+      "cc000000-0000-4000-8000-000000000017",
+    ])
+    .del();
   await knex("attachments").insert([
     {
       attachment_id: "cc000000-0000-4000-8000-000000000001",
@@ -170,6 +180,30 @@ export async function seed(knex) {
       is_restricted: false,
       uploaded_by: "bruno.ferreira@empresa.com",
       uploaded_at: "2026-08-15 09:00:00",
+    },
+    {
+      attachment_id: "cc000000-0000-4000-8000-000000000016",
+      request_id: 24,
+      pending_item_id: "00000000-0000-4000-8000-000000000091",
+      file_name: "base_inadimplencia_consolidada.xlsx",
+      file_path: "/uploads/MAAT-9X5V-3P1H/base_inadimplencia_consolidada.xlsx",
+      content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      size_bytes: 1048576,
+      is_restricted: false,
+      uploaded_by: "solicitante_teste@email.com",
+      uploaded_at: "2026-09-21 10:00:00",
+    },
+    {
+      attachment_id: "cc000000-0000-4000-8000-000000000017",
+      request_id: 29,
+      pending_item_id: "00000000-0000-4000-8000-000000000098",
+      file_name: "comprovante_volume_mensal.xlsx",
+      file_path: "/uploads/MAAT-1L7G-5P9A/comprovante_volume_mensal.xlsx",
+      content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      size_bytes: 720896,
+      is_restricted: false,
+      uploaded_by: "solicitante_teste@email.com",
+      uploaded_at: "2026-08-27 09:20:00",
     },
   ]);
 }
