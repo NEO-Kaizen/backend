@@ -5,6 +5,7 @@ import cors from "cors";
 import { errorHandler } from "./shared/middleware/errorHandler.ts";
 import Config from "./configs.ts";
 import cookieParser from "cookie-parser";
+import { setupSwagger } from "./docs/swagger.ts";
 
 const app = express();
 
@@ -26,6 +27,9 @@ app.use("/uploads", express.static(path.resolve(Config.UPLOAD_DIR), { fallthroug
 app.use(express.json());
 
 app.use(router);
+
+// Documentação da API (Swagger UI) — disponível em GET /api-docs
+setupSwagger(app);
 
 //rotas sempre acima disso:
 app.use(errorHandler);
