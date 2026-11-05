@@ -29,7 +29,7 @@ export default {
     post: {
       tags: ["Pendências"],
       summary: "Criar Pendências",
-      description: "Cria Pendências para uma solicitação. Exige autenticacao e perfil interno.",
+      description: "Cria Pendências para uma solicitação. Exige autenticação e perfil interno.",
       operationId: "createPendingItems",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -66,7 +66,7 @@ export default {
       tags: ["Pendências"],
       summary: "Revisar Pendências",
       description:
-        "Revisa (aprova/rejeita) Pendências de uma solicitação. Exige autenticacao e perfil interno.",
+        "Revisa (aprova/rejeita) Pendências de uma solicitação. Exige autenticação e perfil interno.",
       operationId: "reviewPendingItems",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -97,7 +97,7 @@ export default {
       tags: ["Pendências"],
       summary: "Responder pendência",
       description:
-        "Responde a uma pendência especifica. Via dual-auth (cookie ou header `X-Requester-Identity`).",
+        "Responde a uma pendência específica. Via dual-auth (cookie ou header `X-Requester-Identity`).",
       operationId: "respondPendingItem",
       security: [],
       parameters: [

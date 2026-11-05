@@ -186,7 +186,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Criar ou atualizar mapeamento",
       description:
-        "Cria ou atualiza o mapeamento da solicitação. Campos ausentes mantem o valor atual; `null` limpa; `participants` substitui a lista.",
+        "Cria ou atualiza o mapeamento da solicitação. Campos ausentes mantêm o valor atual; `null` limpa; `participants` substitui a lista.",
       operationId: "putMapping",
       security: [{ cookieAuth: [] }],
       parameters: [

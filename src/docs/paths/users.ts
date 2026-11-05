@@ -160,7 +160,7 @@ export default {
       },
       responses: {
         "201": {
-          description: "usuário criado com sucesso.",
+          description: "Usuário criado com sucesso.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/UserListItem" },
@@ -235,7 +235,7 @@ export default {
           },
         },
         "404": {
-          description: "usuário nao encontrado.",
+          description: "Usuário não encontrado.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -278,7 +278,7 @@ export default {
       },
       responses: {
         "200": {
-          description: "usuário atualizado com sucesso.",
+          description: "Usuário atualizado com sucesso.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/UserListItem" },
@@ -310,7 +310,7 @@ export default {
           },
         },
         "404": {
-          description: "usuário nao encontrado.",
+          description: "Usuário não encontrado.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -375,7 +375,7 @@ export default {
           },
         },
         "404": {
-          description: "usuário nao encontrado.",
+          description: "Usuário não encontrado.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -389,7 +389,7 @@ export default {
     post: {
       tags: ["Usuários"],
       summary: "Redefinir senha do usuário",
-      description: "Gera uma senha temporaria para o usuário. Exige perfil `Administrador`.",
+      description: "Gera uma senha temporária para o usuário. Exige perfil `Administrador`.",
       operationId: "resetUserPassword",
       security: [{ cookieAuth: [] }],
       parameters: [

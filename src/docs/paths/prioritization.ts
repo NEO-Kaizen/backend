@@ -60,7 +60,36 @@ export default {
           "application/json": {
             schema: {
               type: "object",
-              properties: {},
+              properties: {
+                notes: {
+                  type: "object",
+                  additionalProperties: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 5,
+                  },
+                  description: "Notas de 1 a 5 para cada critério de priorização.",
+                  example: {
+                    impacto_operacional: 4,
+                    risco_operacional: 3,
+                    urgencia: 4,
+                    volumetria: 3,
+                    esforco_manual: 2,
+                    impacto_cliente: 4,
+                    prazo_regulatorio: 3,
+                    areas_impactadas: 3,
+                    alinhamento_estrategico: 4,
+                    complexidade_estimada: 3,
+                  },
+                },
+                justification: {
+                  type: "string",
+                  maxLength: 500,
+                  example:
+                    "Solicitação priorizada com base no impacto operacional e urgência do negócio.",
+                },
+              },
+              required: ["notes"],
             },
           },
         },

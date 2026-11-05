@@ -65,7 +65,7 @@ export default {
       summary: "Criar solicitação",
       description:
         "Cadastra uma nova solicitação, gera o protocolo e persiste os blocos do formulário. " +
-        "público no modo `PUBLIC`; no modo `AUTHENTICATED` exige sessão e a identidade é resolvida " +
+        "Público no modo `PUBLIC`; no modo `AUTHENTICATED` exige sessão e a identidade é resolvida " +
         "pelo usuário logado (campos de identidade do payload são validados, mas sobrescritos).",
       operationId: "postRequest",
       requestBody: {
@@ -104,7 +104,7 @@ export default {
       },
       responses: {
         "201": {
-          description: "solicitação criada com sucesso.",
+          description: "Solicitação criada com sucesso.",
           content: {
             "application/json": {
               schema: {
@@ -112,7 +112,7 @@ export default {
                 required: ["protocol", "status", "createdAt"],
                 properties: {
                   protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-                  status: { type: "string", example: "solicitação enviada" },
+                  status: { type: "string", example: "Solicitação enviada" },
                   createdAt: {
                     type: "string",
                     format: "date-time",
@@ -264,7 +264,7 @@ export default {
     },
     patch: {
       tags: ["Solicitações"],
-      summary: "Atualizacao interna de solicitação",
+      summary: "Atualização interna de solicitação",
       description:
         "Atualiza os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). " +
         "Substituição completa: chave ausente = campo limpo (NULL). " +
@@ -297,7 +297,7 @@ export default {
       },
       responses: {
         "200": {
-          description: "solicitação atualizada.",
+          description: "Solicitação atualizada.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/RequestDetail" },
@@ -395,7 +395,7 @@ export default {
       summary: "Criar triagem da solicitação",
       description:
         "Cria a triagem da solicitação (append — cada chamada gera uma nova row). " +
-        "Perfil permitido: Administrador e Analista. `Gestor` e read-only.",
+        "Perfil permitido: Administrador e Analista. `Gestor` é read-only.",
       operationId: "saveTriage",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -641,7 +641,7 @@ export default {
       },
       responses: {
         "200": {
-          description: "responsável atribuido com sucesso.",
+          description: "Responsável atribuído com sucesso.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/RequestDetail" },

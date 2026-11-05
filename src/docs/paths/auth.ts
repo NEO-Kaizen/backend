@@ -53,7 +53,7 @@ export default {
       operationId: "authLogout",
       responses: {
         "200": {
-          description: "sessão encerrada com sucesso.",
+          description: "Sessão encerrada com sucesso.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/LogoutResponse" },
