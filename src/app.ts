@@ -28,8 +28,11 @@ app.use(express.json());
 
 app.use(router);
 
-// Documentação da API (Swagger UI) — disponível em GET /api-docs
-setupSwagger(app);
+// Documentação da API (Swagger UI) — disponível somente em desenvolvimento
+// e quando SWAGGER_ENABLED=true. Nunca exposto em produção.
+if (Config.NODE_ENV === "development" && Config.SWAGGER_ENABLED) {
+  setupSwagger(app);
+}
 
 //rotas sempre acima disso:
 app.use(errorHandler);
