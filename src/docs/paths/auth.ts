@@ -109,7 +109,7 @@ export default {
       },
       responses: {
         "200": {
-          description: "Senha alterada com sucesso. Novo cookie de sessão definido.",
+          description: "Senha alterada com sucesso.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ChangePasswordResponse" },

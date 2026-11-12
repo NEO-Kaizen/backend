@@ -96,7 +96,7 @@ export default {
       ],
       responses: {
         "200": {
-          description: "página de solicitações da fila.",
+          description: "Lista paginada de solicitações da fila de atendimento.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/QueueResponse" },

@@ -24,6 +24,30 @@ export default {
             },
           },
         },
+        "400": {
+          description: "Parâmetro `protocol` inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Não autenticado ou identidade inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação não encontrada.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
     post: {
@@ -44,6 +68,14 @@ export default {
         "201": {
           description: "Pendências criadas com sucesso.",
         },
+        "400": {
+          description: "Parâmetros inválidos (protocolo ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
         "401": {
           description: "Sem sessão ou token inválido.",
           content: {
@@ -54,6 +86,14 @@ export default {
         },
         "403": {
           description: "Perfil sem acesso.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação não encontrada.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -73,6 +113,14 @@ export default {
         "200": {
           description: "Pendências revisadas com sucesso.",
         },
+        "400": {
+          description: "Parâmetros inválidos (protocolo ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
         "401": {
           description: "Sem sessão ou token inválido.",
           content: {
@@ -83,6 +131,14 @@ export default {
         },
         "403": {
           description: "Perfil sem acesso.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação não encontrada.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -117,6 +173,30 @@ export default {
       responses: {
         "200": {
           description: "Pendência respondida com sucesso.",
+        },
+        "400": {
+          description: "Parâmetros inválidos (protocolo, pendingItemId ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Não autenticado ou identidade inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação ou pendência não encontrada.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
         },
       },
     },
@@ -167,6 +247,22 @@ export default {
             },
           },
         },
+        "401": {
+          description: "Não autenticado ou identidade inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação ou pendência não encontrada.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -188,6 +284,30 @@ export default {
       responses: {
         "200": {
           description: "Verificação realizada com sucesso.",
+        },
+        "400": {
+          description: "Parâmetros inválidos (protocolo ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Identidade inválida ou protocolo não encontrado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Verificação indisponível no modo atual.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
         },
       },
     },
