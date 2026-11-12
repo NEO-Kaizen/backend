@@ -4,6 +4,7 @@ dist
 .gitignore
 .env
 .env.*
+.context7API
 .opencode
 .vscode
 .idea
