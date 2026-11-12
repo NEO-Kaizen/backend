@@ -16,24 +16,6 @@ Apenas `pronto-para-agente` e `pronto-para-humano` são labels de triagem; as de
 
 Contexto único: `GLOSSARY.md` e `docs/adr/` na raiz do repositório. Veja `docs/agents/domain.md`.
 
-### Workflow
-
-As skills de engenharia ficam em `.opencode/skills/`. O fluxo principal é:
-
-`/grill-with-docs` → `/to-spec` → `/to-tickets` → `/implement` → `/code-review`
-
-Use `/pr` para abrir e descrever pull requests e `/triage` para a triagem no GitHub.
-
-## Context7
-
-Use o Context7 MCP durante a sessão para consultar documentação atualizada de bibliotecas quando a resposta depender de API, configuração ou versão.
-
-A chave fica em `.context7API` na raiz, ignorado pelo Git e negado ao agente pelas regras de `read`, `edit` e `shell` em `opencode.jsonc`. O `opencode.jsonc` lê o arquivo com `{file:.context7API}`, sem exportar variável de ambiente.
-
-## Permissões
-
-O `opencode.jsonc` define as permissões de shell, leitura e edição. Por padrão, comandos de shell pedem confirmação; a allowlist cobre operações de leitura, Git e scripts do `package.json`. Arquivos `.env`, `.env.*` (exceto `.env.example`) e `.context7API` são negados ao agente.
-
 ## Convenções de Git
 
 - Branches: `<type>/<issue>-<slug>` — ex.: `docs/131-harness-skills`, `feat/34-sales-report`.
