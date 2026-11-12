@@ -6,8 +6,11 @@ dist/
 
 # Environment
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
+# Local secrets
+.context7API
 
 # Logs
 *.log
@@ -22,10 +25,7 @@ uploads/
 .DS_Store
 
 # Misc
-.opencode/
 opencode.json
-opencode.jsonc
-AGENTS.md
 
 # Documentation for external use (not published to GitHub)
 docs/issue-51.md
