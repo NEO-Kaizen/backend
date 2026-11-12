@@ -38,7 +38,7 @@ export default {
       },
     },
   },
-  "/prioritization/:protocol/score": {
+  "/prioritization/{protocol}/score": {
     put: {
       tags: ["Priorização"],
       summary: "Avaliar pontuação de Priorização",

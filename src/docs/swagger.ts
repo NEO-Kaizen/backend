@@ -29,6 +29,15 @@ export const swaggerOptions = {
   explorer: true,
   customCss: ".swagger-ui .topbar { display: none }",
   customSiteTitle: "MAAT API — Documentação",
+  /**
+   * O backend autentica via cookie HttpOnly (`session_id`).
+   * Sem este interceptor, o Swagger UI não envia cookies nas requisições
+   * do "Try it out" e todos os endpoints protegidos retornam 401.
+   */
+  requestInterceptor: (req) => {
+    req.withCredentials = true;
+    return req;
+  },
 };
 
 /**

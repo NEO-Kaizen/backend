@@ -1,5 +1,5 @@
 export default {
-  "/requests/:protocol/internal-notes": {
+  "/requests/{protocol}/internal-notes": {
     get: {
       tags: ["Notas internas"],
       summary: "Listar notas internas",

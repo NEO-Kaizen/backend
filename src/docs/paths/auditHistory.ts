@@ -35,7 +35,7 @@ export default {
       },
     },
   },
-  "/audit-history/:id": {
+  "/audit-history/{id}": {
     get: {
       tags: ["Auditoria"],
       summary: "Consultar detalhe de auditoria",
@@ -87,7 +87,7 @@ export default {
       },
     },
   },
-  "/audit-logs/:protocol": {
+  "/audit-logs/{protocol}": {
     get: {
       tags: ["Auditoria"],
       summary: "Consultar logs de auditoria por protocolo",

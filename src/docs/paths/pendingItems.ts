@@ -1,5 +1,5 @@
 export default {
-  "/requests/:protocol/pending-items": {
+  "/requests/{protocol}/pending-items": {
     get: {
       tags: ["Pendências"],
       summary: "Listar Pendências",
@@ -92,7 +92,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol/pending-items/:pendingItemId": {
+  "/requests/{protocol}/pending-items/{pendingItemId}": {
     patch: {
       tags: ["Pendências"],
       summary: "Responder pendência",
@@ -170,7 +170,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol/public/verify": {
+  "/requests/{protocol}/public/verify": {
     post: {
       tags: ["Pendências"],
       summary: "Verificação pública de pendência",

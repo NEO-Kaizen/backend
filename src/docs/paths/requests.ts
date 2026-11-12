@@ -174,7 +174,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol": {
+  "/requests/{protocol}": {
     get: {
       tags: ["Solicitações"],
       summary: "Consultar solicitação pelo protocolo",
@@ -210,7 +210,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol/internal": {
+  "/requests/{protocol}/internal": {
     get: {
       tags: ["Solicitações"],
       summary: "Consulta administrativa de solicitação",
@@ -339,7 +339,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol/triage": {
+  "/requests/{protocol}/triage": {
     get: {
       tags: ["Triagem"],
       summary: "Consultar triagem da solicitação",
@@ -488,7 +488,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol/tracking": {
+  "/requests/{protocol}/tracking": {
     get: {
       tags: ["Solicitações"],
       summary: "Acompanhamento público da solicitação",
@@ -524,7 +524,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol/status": {
+  "/requests/{protocol}/status": {
     patch: {
       tags: ["Solicitações"],
       summary: "Trocar status da solicitação",
@@ -608,7 +608,7 @@ export default {
       },
     },
   },
-  "/requests/:protocol/internal/assignee": {
+  "/requests/{protocol}/internal/assignee": {
     patch: {
       tags: ["Solicitações"],
       summary: "Atribuir responsável interno",

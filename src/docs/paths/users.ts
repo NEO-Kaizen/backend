@@ -194,7 +194,7 @@ export default {
       },
     },
   },
-  "/users/:id": {
+  "/users/{id}": {
     get: {
       tags: ["Usuários"],
       summary: "Consultar usuário por ID",
@@ -320,7 +320,7 @@ export default {
       },
     },
   },
-  "/users/:id/status": {
+  "/users/{id}/status": {
     patch: {
       tags: ["Usuários"],
       summary: "Alterar status do usuário",
@@ -385,7 +385,7 @@ export default {
       },
     },
   },
-  "/users/:id/reset-password": {
+  "/users/{id}/reset-password": {
     post: {
       tags: ["Usuários"],
       summary: "Redefinir senha do usuário",

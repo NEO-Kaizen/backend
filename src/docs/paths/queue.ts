@@ -130,7 +130,7 @@ export default {
       },
     },
   },
-  "/queue/requests/:protocol/mapping": {
+  "/queue/requests/{protocol}/mapping": {
     get: {
       tags: ["Fila de atendimento"],
       summary: "Consultar mapeamento da solicitação",
