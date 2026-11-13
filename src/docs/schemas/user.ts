@@ -16,7 +16,7 @@ export const UserListItem = {
     id: { type: "string", example: "101" },
     email: { type: "string", example: "analista_teste@email.com" },
     name: { type: "string", example: "Analista Teste" },
-    role: { type: "string", example: "Analista" },
+    role: { type: "string", example: "analista" },
     isActive: { type: "boolean", example: true },
     avatarUrl: { type: "string", nullable: true },
   },

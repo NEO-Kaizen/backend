@@ -143,15 +143,85 @@ export default {
           "application/json": {
             schema: {
               type: "object",
-              required: ["email", "name", "password", "role"],
+              required: ["fullName", "email", "role", "requester"],
               properties: {
+                fullName: { type: "string", example: "Maria Silva" },
                 email: { type: "string", format: "email", example: "novo@email.com" },
-                name: { type: "string", example: "Novo usuário" },
-                password: { type: "string", format: "password" },
                 role: {
                   type: "string",
-                  enum: ["Solicitante", "Analista", "Gestor", "Administrador"],
-                  example: "Analista",
+                  enum: ["solicitante", "analista", "gestor", "administrador"],
+                  example: "analista",
+                },
+                requester: {
+                  type: "object",
+                  description:
+                    "Dados do solicitante — obrigatórios para todos os perfis.",
+                  properties: {
+                    area: { type: "string", example: "TI" },
+                    department: { type: "string", example: "Desenvolvimento" },
+                    manager: { type: "string", example: "José Silva" },
+                    additionalContact: {
+                      type: "string",
+                      nullable: true,
+                      example: "",
+                    },
+                  },
+                  required: ["area", "manager"],
+                },
+                professional: {
+                  type: "object",
+                  description:
+                    "Dados profissionais — obrigatório apenas quando o perfil é `analista`.",
+                  properties: {
+                    jobTitle: { type: "string", example: "Analista de Sistemas" },
+                    specialties: {
+                      type: "array",
+                      items: { type: "string" },
+                      example: ["Sistemas", "Automação"],
+                    },
+                    attendedCategoryIds: {
+                      type: "array",
+                      items: { type: "integer" },
+                      example: [1, 2],
+                    },
+                    notes: { type: "string", nullable: true, example: "Analista sênior" },
+                  },
+                  required: ["jobTitle", "specialties", "attendedCategoryIds"],
+                },
+              },
+            },
+            examples: {
+              analista: {
+                summary: "Criar usuário analista",
+                value: {
+                  fullName: "Maria Silva",
+                  email: "maria.silva@empresa.com",
+                  role: "analista",
+                  requester: {
+                    area: "TI",
+                    department: "Desenvolvimento",
+                    manager: "José Silva",
+                    additionalContact: "",
+                  },
+                  professional: {
+                    jobTitle: "Analista de Sistemas",
+                    specialties: ["Sistemas", "Automação"],
+                    attendedCategoryIds: [1, 2],
+                    notes: "Analista sênior",
+                  },
+                },
+              },
+              solicitante: {
+                summary: "Criar usuário solicitante",
+                value: {
+                  fullName: "Carlos Souza",
+                  email: "carlos.souza@empresa.com",
+                  role: "solicitante",
+                  requester: {
+                    area: "Administrativo",
+                    manager: "Ana Paula",
+                    additionalContact: "",
+                  },
                 },
               },
             },
@@ -168,7 +238,24 @@ export default {
           },
         },
         "400": {
-          description: "Payload inválido.",
+          description:
+            "Perfil inválido ou dados profissionais obrigatórios/exclusivos do analista.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "E-mail já cadastrado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "422": {
+          description: "Erro de validação com erros por campo (`fields`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
@@ -269,7 +356,7 @@ export default {
                 name: { type: "string" },
                 role: {
                   type: "string",
-                  enum: ["Solicitante", "Analista", "Gestor", "Administrador"],
+                  enum: ["solicitante", "analista", "gestor", "administrador"],
                 },
               },
             },

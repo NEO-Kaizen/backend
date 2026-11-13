@@ -3,13 +3,13 @@ export const AuthenticatedUser = {
   required: ["id", "email", "name", "role", "mustChangePassword"],
   properties: {
     id: { type: "string", example: "101" },
-    email: { type: "string", example: "analista_teste@email.com" },
-    name: { type: "string", example: "Analista Teste" },
+    email: { type: "string", example: "administrador_teste@email.com" },
+    name: { type: "string", example: "administrador" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
     role: {
       type: "string",
-      enum: ["Solicitante", "Analista", "Gestor", "Administrador"],
-      example: "Analista",
+      enum: ["solicitante", "analista", "gestor", "administrador"],
+      example: "administrador",
     },
     mustChangePassword: { type: "boolean", example: false },
   },
@@ -19,7 +19,7 @@ export const LoginRequest = {
   type: "object",
   required: ["email", "password"],
   properties: {
-    email: { type: "string", format: "email", example: "analista_teste@email.com" },
+    email: { type: "string", format: "email", example: "administrador_teste@email.com" },
     password: { type: "string", format: "password", example: "steste123" },
   },
 };
