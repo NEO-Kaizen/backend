@@ -667,6 +667,26 @@ exigem Administrador. Contrato e scripts de teste em
 
 Toda alteração registrada em `audit_history` (entidade `settings`).
 
+## Testes
+
+A suíte usa [Vitest](https://vitest.dev/) em três camadas (`unit`, `integration`
+e `e2e`) e **não** depende do PostgreSQL nem do `.env`. Rode tudo com:
+
+```bash
+npm test
+```
+
+Para uma camada específica:
+
+```bash
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+```
+
+O racional da escolha do Vitest (em vez do Jest), a organização das camadas e
+as convenções estão documentados em [`docs/testing.md`](docs/testing.md).
+
 ## Scripts
 
 | Comando                               | Descrição                                       |
@@ -694,7 +714,12 @@ Toda alteração registrada em `audit_history` (entidade `settings`).
 | `npm run seed:run`                    | Popula os dados de desenvolvimento              |
 | `npm run seed:scenarios:run`          | Acrescenta cenários opcionais de teste/demo     |
 | `npm run db:setup`                    | Aplica migrations e seeds em sequência          |
-| `npm test`                            | Executa os testes                               |
+| `npm test`                            | Executa toda a suíte de testes (Vitest)         |
+| `npm run test:unit`                   | Executa apenas os testes unitários              |
+| `npm run test:integration`            | Executa apenas os testes de integração          |
+| `npm run test:e2e`                    | Executa apenas os testes de ponta a ponta (E2E) |
+| `npm run test:watch`                  | Executa os testes em modo watch                 |
+| `npm run typecheck:tests`             | Checa os tipos dos testes                       |
 
 ## Estrutura do Projeto
 
