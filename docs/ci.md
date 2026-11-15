@@ -60,8 +60,9 @@ npm run seed:scenarios:run
 
 Estes passos não são aplicados pelo workflow e ainda não estão habilitados:
 
-1. Habilitar o CodeQL default setup para o repositório.
-2. Habilitar secret scanning e push protection.
-3. Exigir aprovação para rodar workflows de forks.
-4. Aplicar o ruleset da `main`: checks obrigatórios `quality (24)`, `quality (26)` e `database`; 1 aprovação; resolução de conversas; branch atualizada; force push e deleção bloqueados.
-5. Opcional: tornar `dependency-review` obrigatório depois de observar alguns PRs.
+1. Habilitar o dependency graph: sem ele o `dependency-review` falha com "Dependency review is not supported on this repository".
+2. Habilitar o CodeQL default setup para o repositório.
+3. Habilitar secret scanning e push protection.
+4. Exigir aprovação para rodar workflows de forks.
+5. Aplicar o ruleset da `main`: checks obrigatórios `quality (24)`, `quality (26)` e `database`; 1 aprovação; resolução de conversas; branch atualizada; force push e deleção bloqueados.
+6. Opcional: tornar `dependency-review` obrigatório depois de observar alguns PRs.
