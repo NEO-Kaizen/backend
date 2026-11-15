@@ -9,8 +9,7 @@ import {
   ChangePasswordResponse,
 } from "./auth.ts";
 
-import { UserMetrics, UserListItem } from "./user.ts";
-
+import { UserMetrics, UserListItem, RequesterProfileBlock, ProfessionalProfileBlock, UserProfileResponse } from "./user.ts";
 import { RequestSummary, RequestDetail } from "./request.ts";
 
 import { QueueMetrics, QueueItem, QueueResponse } from "./queue.ts";
@@ -55,6 +54,9 @@ export {
   ChangePasswordResponse,
   UserMetrics,
   UserListItem,
+  RequesterProfileBlock,
+  ProfessionalProfileBlock,
+  UserProfileResponse,
   RequestSummary,
   RequestDetail,
   QueueMetrics,
@@ -93,6 +95,9 @@ export const schemas = {
   ChangePasswordResponse,
   UserMetrics,
   UserListItem,
+  RequesterProfileBlock,
+  ProfessionalProfileBlock,
+  UserProfileResponse,
   RequestSummary,
   RequestDetail,
   QueueMetrics,

@@ -26,6 +26,91 @@ export default {
         },
       },
     },
+    put: {
+      tags: ["Usuários"],
+      summary: "Atualizar meu perfil",
+      description:
+        "Atualiza nome, dados do solicitante e/ou remove a foto do próprio usuário (self-service). Multipart: campo `payload` (JSON) + campo `avatar` (arquivo opcional, JPEG/PNG até 2MB). Somente o Administrador pode alterar área, departamento e gestor pelo self-service.",
+      operationId: "updateMyProfile",
+      security: [{ cookieAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              required: ["payload"],
+              properties: {
+                payload: {
+                  type: "string",
+                  description:
+                    "JSON com os campos a atualizar: fullName, requester (área/departamento/gestor só por Administrador) e removeAvatar.",
+                  example: JSON.stringify({
+                    fullName: "Maria Silva",
+                    requester: { additionalContact: "contato@email.com" },
+                    removeAvatar: false,
+                  }),
+                },
+              },
+            },
+            encoding: {
+              payload: { contentType: "application/json" },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Perfil atualizado com sucesso.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UserProfileResponse" },
+            },
+          },
+        },
+        "400": {
+          description: "Payload inválido (parte `payload` ausente ou JSON malformado).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description:
+            "Perfil sem acesso (área/departamento/gestor só podem ser alterados por Administrador).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "413": {
+          description: "Arquivo de avatar excede 2 MB.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "415": {
+          description: "Campo de arquivo inesperado ou MIME/extensão não permitida (apenas JPEG/PNG).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
   },
   "/users/analysts": {
     get: {
