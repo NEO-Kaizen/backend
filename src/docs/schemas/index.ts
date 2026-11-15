@@ -23,6 +23,11 @@ import { PortalConfig } from "./portal.ts";
 
 import { PrioritizationCriteria } from "./prioritization.ts";
 
+import {
+  ReviewDecisionValidate,
+  ReviewDecisionReopen,
+} from "./pendingItems.ts";
+
 export {
   ErrorResponse,
   ValidationErrorResponse,
@@ -43,6 +48,8 @@ export {
   MappingResponse,
   PortalConfig,
   PrioritizationCriteria,
+  ReviewDecisionValidate,
+  ReviewDecisionReopen,
 };
 
 export const schemas = {
@@ -65,4 +72,6 @@ export const schemas = {
   MappingResponse,
   PortalConfig,
   PrioritizationCriteria,
+  ReviewDecisionValidate,
+  ReviewDecisionReopen,
 } as const;
