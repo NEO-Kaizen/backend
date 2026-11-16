@@ -1,4 +1,5 @@
 import db from "../../database/conection.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 import type {
   AuditTimelineAction,
   InternalNoteReadStateRow,
@@ -358,7 +359,7 @@ export async function insert(
 
   const row = rows[0];
   if (!row) {
-    throw new Error("Falha ao salvar a observação interna.");
+    throw new AppError("Não foi possível salvar a observação interna.", 500);
   }
   return String(row.internal_note_id);
 }

@@ -24,7 +24,7 @@ export function generateToken(payload: TokenPayload): string {
   const expiresIn = Config.JWT_EXPIRES_IN as SignOptions["expiresIn"];
 
   if (!secret) {
-    throw new Error("Variável de ambiente JWT_SECRET não está definida");
+    throw new AppError("Configuração de autenticação indisponível.", 500);
   }
 
   return sign(payload, secret, { expiresIn });
@@ -34,7 +34,7 @@ export function verifyToken(token: string): TokenPayload {
   const secret = Config.JWT_SECRET;
 
   if (!secret) {
-    throw new Error("Variável de ambiente JWT_SECRET não está definida");
+    throw new AppError("Configuração de autenticação indisponível.", 500);
   }
 
   const decoded = verify(token, secret) as unknown as TokenPayload;

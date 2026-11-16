@@ -196,7 +196,7 @@ export async function applyRequestOutcome(
 
   if (statusIsPublic) {
     if (!lastTechnicalMessage) {
-      throw new Error("Retorno ao solicitante obrigatório para status público.");
+      throw new AppError("Retorno ao solicitante obrigatório para status público.", 422);
     }
     updates.last_public_status_id = statusId;
     updates.last_technical_message = lastTechnicalMessage;

@@ -832,7 +832,7 @@ async function resolveAnalystByUserId(
   userId: string,
 ): Promise<{ professionalId: string; id: string; name: string; email: string }> {
   if (userId.trim() === "") {
-    throw new AppError("analystId vazio", 400);
+    throw new AppError("Identificador do analista é obrigatório.", 400);
   }
   const candidate = await repository.findAssignmentCandidateByUserId(userId);
   if (!candidate) {

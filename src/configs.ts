@@ -5,7 +5,7 @@ function resolveProtocolFpeKey(): string {
   if (key) return key;
 
   if (NODE_ENV === "production") {
-    throw new Error("A variável de ambiente PROTOCOL_FPE_KEY é obrigatória em produção.");
+    throw new Error("Configuração do protocolo indisponível em produção.");
   }
 
   return "neo-kaizen-dev-protocol-key";
