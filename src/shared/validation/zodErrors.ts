@@ -1,4 +1,6 @@
 import type { ZodError } from "zod";
+import { AppError } from "../errors/AppError.ts";
+import { ValidationError } from "../errors/ValidationError.ts";
 
 const DEFAULT_TYPE_MESSAGES: Record<string, string> = {
   string: "Deve ser um texto.",
@@ -115,4 +117,18 @@ export function buildZodFieldErrors(
   }
 
   return { message: buildSummary(grouped, fieldKeys, rootLabel), fields };
+}
+
+/**
+ * Converte um erro do Zod em erro de validação padronizado.
+ * Com erros por campo → `ValidationError` (422); sem campos → `AppError` (400).
+ */
+export function zodValidationError(error: ZodError, rootLabel = "payload"): AppError {
+  const { message, fields } = buildZodFieldErrors(error, UI_FIELD_KEYS, rootLabel);
+
+  if (Object.keys(fields).length > 0) {
+    return new ValidationError(fields, message);
+  }
+
+  return new AppError(message, 400);
 }

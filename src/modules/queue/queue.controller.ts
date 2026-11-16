@@ -1,6 +1,5 @@
 import type { Request, Response } from "express";
-import { AppError } from "../../shared/errors/AppError.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import { getQueueMetricsService, listQueueService } from "./queue.service.ts";
 import { queueQuerySchema } from "./queue.schemas.ts";
 
@@ -14,7 +13,7 @@ export const centralizedQueue = async (req: Request, res: Response): Promise<Res
   const parsed = queueQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error, "query"), 400);
+    throw zodValidationError(parsed.error, "query");
   }
 
   const result = await listQueueService(parsed.data, req.user);
