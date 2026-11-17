@@ -9,7 +9,13 @@ import {
   ChangePasswordResponse,
 } from "./auth.ts";
 
-import { UserMetrics, UserListItem, RequesterProfileBlock, ProfessionalProfileBlock, UserProfileResponse } from "./user.ts";
+import {
+  UserMetrics,
+  UserListItem,
+  RequesterProfileBlock,
+  ProfessionalProfileBlock,
+  UserProfileResponse,
+} from "./user.ts";
 import { RequestSummary, RequestDetail } from "./request.ts";
 
 import { QueueMetrics, QueueItem, QueueResponse } from "./queue.ts";
@@ -38,10 +44,7 @@ import {
 
 import { PrioritizationCriteria } from "./prioritization.ts";
 
-import {
-  ReviewDecisionValidate,
-  ReviewDecisionReopen,
-} from "./pendingItems.ts";
+import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
 
 export {
   ErrorResponse,

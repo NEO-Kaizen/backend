@@ -24,7 +24,11 @@ export default {
                 type: "object",
                 required: ["batchId", "requestAttachment", "items"],
                 properties: {
-                  batchId: { type: "string", nullable: true, example: "a6e8923e-7661-4827-9a6d-4898d9c70739" },
+                  batchId: {
+                    type: "string",
+                    nullable: true,
+                    example: "a6e8923e-7661-4827-9a6d-4898d9c70739",
+                  },
                   requestAttachment: { type: "boolean", example: false },
                   items: {
                     type: "array",
@@ -46,8 +50,15 @@ export default {
                       properties: {
                         id: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
                         protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-                        batchId: { type: "string", example: "a6e8923e-7661-4827-9a6d-4898d9c70739" },
-                        type: { type: "string", enum: ["field_edit", "observation"], example: "field_edit" },
+                        batchId: {
+                          type: "string",
+                          example: "a6e8923e-7661-4827-9a6d-4898d9c70739",
+                        },
+                        type: {
+                          type: "string",
+                          enum: ["field_edit", "observation"],
+                          example: "field_edit",
+                        },
                         field: {
                           type: "object",
                           nullable: true,
@@ -55,18 +66,34 @@ export default {
                           properties: {
                             fieldKey: { type: "string", example: "operational.desiredDeadline" },
                             fieldLabel: { type: "string", example: "Prazo desejado" },
-                            currentValue: { type: ["string", "number", "boolean", "null"], example: null },
+                            currentValue: {
+                              type: ["string", "number", "boolean", "null"],
+                              example: null,
+                            },
                           },
                         },
                         comment: { type: "string", example: "Ajustar prazo para próxima segunda." },
-                        status: { type: "string", enum: ["requested", "responded", "validated"], example: "requested" },
-                        correctedValue: { type: ["string", "number", "boolean", "null"], example: null },
+                        status: {
+                          type: "string",
+                          enum: ["requested", "responded", "validated"],
+                          example: "requested",
+                        },
+                        correctedValue: {
+                          type: ["string", "number", "boolean", "null"],
+                          example: null,
+                        },
                         responseText: { type: ["string", "null"], example: null },
                         responseAttachments: {
                           type: "array",
                           items: {
                             type: "object",
-                            required: ["fileName", "mimeType", "sizeBytes", "downloadUrl", "canDownload"],
+                            required: [
+                              "fileName",
+                              "mimeType",
+                              "sizeBytes",
+                              "downloadUrl",
+                              "canDownload",
+                            ],
                             properties: {
                               fileName: { type: "string", example: "comprovante.pdf" },
                               mimeType: { type: "string", example: "application/pdf" },
@@ -77,7 +104,11 @@ export default {
                           },
                         },
                         deadline: { type: ["string", "null"], example: null },
-                        createdAt: { type: "string", format: "date-time", example: "2026-10-15T13:30:00.000Z" },
+                        createdAt: {
+                          type: "string",
+                          format: "date-time",
+                          example: "2026-10-15T13:30:00.000Z",
+                        },
                         respondedAt: { type: ["string", "null"], example: null },
                         validatedAt: { type: ["string", "null"], example: null },
                       },
@@ -149,7 +180,11 @@ export default {
                     required: ["fieldKey", "comment"],
                     properties: {
                       fieldKey: { type: "string", example: "operational.desiredDeadline" },
-                      comment: { type: "string", maxLength: 2000, example: "Ajustar prazo para próxima segunda." },
+                      comment: {
+                        type: "string",
+                        maxLength: 2000,
+                        example: "Ajustar prazo para próxima segunda.",
+                      },
                     },
                   },
                 },
@@ -262,9 +297,17 @@ export default {
                     },
                     properties: {
                       id: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
-                      decision: { type: "string", enum: ["validate", "reopen"], example: "validate" },
+                      decision: {
+                        type: "string",
+                        enum: ["validate", "reopen"],
+                        example: "validate",
+                      },
                       note: { type: "string", maxLength: 2000, example: "Parece correto." },
-                      comment: { type: "string", maxLength: 2000, example: "Precisa de correção no campo X." },
+                      comment: {
+                        type: "string",
+                        maxLength: 2000,
+                        example: "Precisa de correção no campo X.",
+                      },
                     },
                   },
                 },
@@ -398,7 +441,11 @@ export default {
                   id: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
                   protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
                   batchId: { type: "string", example: "a6e8923e-7661-4827-9a6d-4898d9c70739" },
-                  type: { type: "string", enum: ["field_edit", "observation"], example: "field_edit" },
+                  type: {
+                    type: "string",
+                    enum: ["field_edit", "observation"],
+                    example: "field_edit",
+                  },
                   field: {
                     type: "object",
                     nullable: true,
@@ -406,11 +453,18 @@ export default {
                     properties: {
                       fieldKey: { type: "string", example: "operational.desiredDeadline" },
                       fieldLabel: { type: "string", example: "Prazo desejado" },
-                      currentValue: { type: ["string", "number", "boolean", "null"], example: null },
+                      currentValue: {
+                        type: ["string", "number", "boolean", "null"],
+                        example: null,
+                      },
                     },
                   },
                   comment: { type: "string", example: "Ajustar prazo para próxima segunda." },
-                  status: { type: "string", enum: ["requested", "responded", "validated"], example: "responded" },
+                  status: {
+                    type: "string",
+                    enum: ["requested", "responded", "validated"],
+                    example: "responded",
+                  },
                   correctedValue: { type: ["string", "number", "boolean", "null"], example: null },
                   responseText: { type: ["string", "null"], example: null },
                   responseAttachments: {
@@ -428,7 +482,11 @@ export default {
                     },
                   },
                   deadline: { type: ["string", "null"], example: null },
-                  createdAt: { type: "string", format: "date-time", example: "2026-10-15T13:30:00.000Z" },
+                  createdAt: {
+                    type: "string",
+                    format: "date-time",
+                    example: "2026-10-15T13:30:00.000Z",
+                  },
                   respondedAt: { type: ["string", "null"], example: null },
                   validatedAt: { type: ["string", "null"], example: null },
                 },
@@ -578,7 +636,11 @@ export default {
               required: ["name", "email"],
               properties: {
                 name: { type: "string", minLength: 3, maxLength: 150, example: "Maria Oliveira" },
-                email: { type: "string", format: "email", example: "maria.oliveira@instituicao.gov.br" },
+                email: {
+                  type: "string",
+                  format: "email",
+                  example: "maria.oliveira@instituicao.gov.br",
+                },
                 protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
               },
             },

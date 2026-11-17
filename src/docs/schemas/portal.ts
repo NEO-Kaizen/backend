@@ -7,7 +7,11 @@ export const StatusToneTokens = {
   required: ["color", "background", "backgroundLocked"],
   properties: {
     color: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#FF4444" },
-    background: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#FFEEEE" },
+    background: {
+      type: "string",
+      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
+      example: "#FFEEEE",
+    },
     backgroundLocked: { type: "boolean", example: false },
   },
 };
@@ -33,9 +37,21 @@ export const ThemeGradient = {
 export const ThemeTokens = {
   type: "object",
   required: [
-    "background", "surface", "border", "textPrimary", "textSecondary",
-    "heading", "richBlack", "primary", "secondary", "tint",
-    "onPrimary", "onDark", "onGradient", "gradient", "statuses",
+    "background",
+    "surface",
+    "border",
+    "textPrimary",
+    "textSecondary",
+    "heading",
+    "richBlack",
+    "primary",
+    "secondary",
+    "tint",
+    "onPrimary",
+    "onDark",
+    "onGradient",
+    "gradient",
+    "statuses",
   ],
   properties: {
     background: { type: "string", example: "#FFFFFF" },
@@ -93,10 +109,15 @@ export const PortalTheme = {
 export const PortalAssets = {
   type: "object",
   required: [
-    "logoLightUrl", "logoDarkUrl", "logoUsePrimaryColor",
-    "avatarLightUrl", "avatarDarkUrl",
-    "loginImageLightUrl", "loginImageDarkUrl",
-    "faviconLightUrl", "faviconDarkUrl",
+    "logoLightUrl",
+    "logoDarkUrl",
+    "logoUsePrimaryColor",
+    "avatarLightUrl",
+    "avatarDarkUrl",
+    "loginImageLightUrl",
+    "loginImageDarkUrl",
+    "faviconLightUrl",
+    "faviconDarkUrl",
   ],
   properties: {
     logoLightUrl: { type: "string", example: "/uploads/portal/logo-light-abc.png" },
@@ -133,8 +154,16 @@ export const PortalCategory = {
 export const PortalStatus = {
   type: "object",
   required: [
-    "id", "name", "isCore", "isPublic", "isTerminal", "triageMode",
-    "mappingMode", "isRestricted", "tone", "isActive",
+    "id",
+    "name",
+    "isCore",
+    "isPublic",
+    "isTerminal",
+    "triageMode",
+    "mappingMode",
+    "isRestricted",
+    "tone",
+    "isActive",
   ],
   properties: {
     id: { type: "integer", minimum: 1, maximum: 50, example: 1 },
@@ -145,7 +174,11 @@ export const PortalStatus = {
     triageMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
     mappingMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
     isRestricted: { type: "boolean", example: false },
-    tone: { type: "string", enum: ["error", "success", "info", "warning", "neutral"], example: "neutral" },
+    tone: {
+      type: "string",
+      enum: ["error", "success", "info", "warning", "neutral"],
+      example: "neutral",
+    },
     isActive: { type: "boolean", example: true },
   },
 };
@@ -157,9 +190,16 @@ export const PortalStatus = {
 export const PrioritizationWeights = {
   type: "object",
   required: [
-    "operationalImpact", "operationalRisk", "urgency", "volumetry",
-    "manualEffort", "clientImpact", "regulatoryDeadline", "affectedAreas",
-    "strategicAlignment", "estimatedComplexity",
+    "operationalImpact",
+    "operationalRisk",
+    "urgency",
+    "volumetry",
+    "manualEffort",
+    "clientImpact",
+    "regulatoryDeadline",
+    "affectedAreas",
+    "strategicAlignment",
+    "estimatedComplexity",
   ],
   properties: {
     operationalImpact: { type: "integer", minimum: 1, maximum: 10, example: 5 },
@@ -182,8 +222,14 @@ export const PrioritizationWeights = {
 export const PortalConfig = {
   type: "object",
   required: [
-    "platformName", "solicitationMode", "protocolMask", "theme", "assets",
-    "categories", "statuses", "prioritizationWeights",
+    "platformName",
+    "solicitationMode",
+    "protocolMask",
+    "theme",
+    "assets",
+    "categories",
+    "statuses",
+    "prioritizationWeights",
   ],
   properties: {
     platformName: { type: "string", example: "MAAT" },

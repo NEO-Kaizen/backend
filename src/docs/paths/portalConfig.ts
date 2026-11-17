@@ -218,19 +218,51 @@ export default {
                   type: "string",
                   description:
                     "JSON com chaves de asset (URLs diretas), enviado como CAMPO DE TEXTO (não arquivo). " +
-                    "Ex: {\"logoLightUrl\": \"/uploads/portal/logo-light.png\", \"logoUsePrimaryColor\": false}.",
+                    'Ex: {"logoLightUrl": "/uploads/portal/logo-light.png", "logoUsePrimaryColor": false}.',
                   example:
                     '{"logoLightUrl":"/uploads/portal/logo-light.png","logoUsePrimaryColor":false}',
                 },
                 // Arquivos binários individuais (campos de upload, opcionais):
-                logoLightUrl: { type: "string", format: "binary", description: "Imagem PNG/SVG (máx 2MB)." },
-                logoDarkUrl: { type: "string", format: "binary", description: "Imagem PNG/SVG (máx 2MB)." },
-                avatarLightUrl: { type: "string", format: "binary", description: "Imagem JPG/PNG (máx 2MB)." },
-                avatarDarkUrl: { type: "string", format: "binary", description: "Imagem JPG/PNG (máx 2MB)." },
-                loginImageLightUrl: { type: "string", format: "binary", description: "Imagem JPG/PNG/WEBP (máx 5MB)." },
-                loginImageDarkUrl: { type: "string", format: "binary", description: "Imagem JPG/PNG/WEBP (máx 5MB)." },
-                faviconLightUrl: { type: "string", format: "binary", description: "Ícone ICO/SVG/PNG (máx 1MB)." },
-                faviconDarkUrl: { type: "string", format: "binary", description: "Ícone ICO/SVG/PNG (máx 1MB)." },
+                logoLightUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Imagem PNG/SVG (máx 2MB).",
+                },
+                logoDarkUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Imagem PNG/SVG (máx 2MB).",
+                },
+                avatarLightUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Imagem JPG/PNG (máx 2MB).",
+                },
+                avatarDarkUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Imagem JPG/PNG (máx 2MB).",
+                },
+                loginImageLightUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Imagem JPG/PNG/WEBP (máx 5MB).",
+                },
+                loginImageDarkUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Imagem JPG/PNG/WEBP (máx 5MB).",
+                },
+                faviconLightUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Ícone ICO/SVG/PNG (máx 1MB).",
+                },
+                faviconDarkUrl: {
+                  type: "string",
+                  format: "binary",
+                  description: "Ícone ICO/SVG/PNG (máx 1MB).",
+                },
               },
             },
             encoding: {
