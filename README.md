@@ -1,5 +1,7 @@
 # Neo Kaizen — Backend
 
+[![CI](https://github.com/NEO-Kaizen/backend/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/NEO-Kaizen/backend/actions/workflows/ci.yml)
+
 Esqueleto inicial do backend do projeto Neo Kaizen.
 
 ## Requisitos
