@@ -53,6 +53,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
+    "@types/swagger-ui-express": "^4.1.8",
     "eslint": "^10.8.1",
     "globals": "^17.9.0",
     "prettier": "3.9.6",
@@ -69,6 +70,7 @@
     "knex": "^3.3.0",
     "multer": "^2.3.0",
     "pg": "^8.23.0",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^4.5.4"
   },
   "allowScripts": {
