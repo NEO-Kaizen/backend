@@ -16,6 +16,17 @@ import { paths } from "./paths/index.ts";
  * automaticamente nas requisições subsequentes.
  */
 
+/**
+ * Tipo da requisição do interceptor do Swagger UI.
+ * O swagger-ui-express não expõe tipos para o `requestInterceptor`,
+ * então definimos localmente para evitar `any` implícito (strict mode).
+ */
+interface SwaggerInterceptorRequest {
+  withCredentials: boolean;
+  headers: Record<string, string>;
+  [key: string]: unknown;
+}
+
 export const openapiSpec = {
   ...openapiBase,
   components: {
@@ -34,7 +45,7 @@ export const swaggerOptions = {
    * Sem este interceptor, o Swagger UI não envia cookies nas requisições
    * do "Try it out" e todos os endpoints protegidos retornam 401.
    */
-  requestInterceptor: (req) => {
+  requestInterceptor: (req: SwaggerInterceptorRequest) => {
     req.withCredentials = true;
     return req;
   },
