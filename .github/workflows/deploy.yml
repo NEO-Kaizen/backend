@@ -1,0 +1,229 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA to deploy (defaults to main HEAD)"
+        required: false
+        type: string
+      skip_migrations:
+        description: "Skip knex migrate:latest"
+        required: false
+        default: false
+        type: boolean
+      rollback:
+        description: "Roll back to the previously deployed release (no build)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      ${{ !inputs.rollback && (
+            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+            (github.event.workflow_run.event == 'push' &&
+             github.event.workflow_run.conclusion == 'success' &&
+             github.event.workflow_run.head_branch == 'main')
+          ) }}
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - name: Resolve commit
+        id: meta
+        run: echo "sha=${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.meta.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck, lint and format
+        # A workflow_dispatch can bypass CI, so the deploy gate re-runs the
+        # same checks that CI runs on main.
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      - name: Prune dev dependencies
+        run: npm prune --omit=dev
+
+      - name: Pack release
+        run: |
+          tar -czf release.tgz \
+            dist \
+            node_modules \
+            assets \
+            package.json \
+            package-lock.json \
+            knexfile.js \
+            migrations
+          ls -lh release.tgz
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: release.tgz
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    name: deploy
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Secrets and variables are repository-level: this team has no access to
+    # environments, so there is no deployment-branch policy. See docs/cd.md.
+    if: >-
+      ${{ always() &&
+          (github.event_name == 'workflow_run' || github.ref == 'refs/heads/main') &&
+          (needs.package.result == 'success' || inputs.rollback == true) }}
+    steps:
+      - name: Checkout
+        # The remote script is streamed from this checkout, so the deploy job
+        # runs the script that belongs to the commit being deployed.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.package.outputs.sha }}
+          persist-credentials: false
+
+      - name: Download release artifact
+        if: ${{ inputs.rollback != true }}
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: .
+
+      - name: Install OpenVPN
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq openvpn
+
+      - name: Connect to VPN
+        env:
+          OVPN_CONFIG: ${{ secrets.OVPN_CONFIG }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$OVPN_CONFIG" > "$RUNNER_TEMP/client.ovpn"
+          sudo openvpn --config "$RUNNER_TEMP/client.ovpn" \
+            --daemon --writepid /tmp/openvpn.pid --log /tmp/openvpn.log
+          for attempt in $(seq 1 30); do
+            if timeout 3 bash -c "cat < /dev/null > /dev/tcp/$DEPLOY_HOST/$DEPLOY_PORT" 2>/dev/null; then
+              echo "route to $DEPLOY_HOST:$DEPLOY_PORT is up (attempt $attempt)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::VPN did not provide a route to $DEPLOY_HOST:$DEPLOY_PORT"
+          sudo cat /tmp/openvpn.log || true
+          exit 1
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/deploy_key" "$HOME/.ssh/known_hosts"
+          {
+            echo "Host deploy-target"
+            echo "  HostName $DEPLOY_HOST"
+            echo "  Port $DEPLOY_PORT"
+            echo "  User $DEPLOY_USER"
+            echo "  IdentityFile $HOME/.ssh/deploy_key"
+            echo "  IdentitiesOnly yes"
+            echo "  StrictHostKeyChecking yes"
+            echo "  UserKnownHostsFile $HOME/.ssh/known_hosts"
+            echo "  ConnectTimeout 10"
+          } > "$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+          ssh -o BatchMode=yes deploy-target 'echo ssh-ok'
+
+      - name: Deploy release
+        if: ${{ inputs.rollback != true }}
+        env:
+          SHA: ${{ needs.package.outputs.sha }}
+          SKIP_MIGRATIONS: ${{ inputs.skip_migrations }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          APP_PORT: ${{ vars.APP_PORT }}
+          PUBLIC_PATH: ${{ vars.PUBLIC_PATH }}
+        run: |
+          set -euo pipefail
+          skip_flag=""
+          if [ "$SKIP_MIGRATIONS" = "true" ]; then
+            skip_flag="--skip-migrations"
+          fi
+          scp -q release.tgz "deploy-target:/tmp/release-${SHA}.tgz"
+          ssh -o BatchMode=yes deploy-target \
+            "export DEPLOY_PATH='$DEPLOY_PATH' APP_PORT='$APP_PORT' PUBLIC_PATH='$PUBLIC_PATH'; bash -s -- '$SHA' '$skip_flag'" \
+            < deploy/deploy.sh
+
+      - name: Roll back
+        if: ${{ inputs.rollback == true }}
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          APP_PORT: ${{ vars.APP_PORT }}
+          PUBLIC_PATH: ${{ vars.PUBLIC_PATH }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes deploy-target \
+            "export DEPLOY_PATH='$DEPLOY_PATH' APP_PORT='$APP_PORT' PUBLIC_PATH='$PUBLIC_PATH'; bash -s -- --rollback" \
+            < deploy/deploy.sh
+
+      - name: Disconnect VPN and remove credentials
+        if: always()
+        run: |
+          if [ -f /tmp/openvpn.pid ]; then
+            sudo kill "$(cat /tmp/openvpn.pid)" 2>/dev/null || true
+          fi
+          rm -f "$RUNNER_TEMP/client.ovpn" "$HOME/.ssh/deploy_key" "$HOME/.ssh/config" "$HOME/.ssh/known_hosts"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### CD — backend"
+            echo ""
+            echo "| item | value |"
+            echo "| --- | --- |"
+            echo "| commit | \`${{ needs.package.outputs.sha || 'n/a' }}\` |"
+            echo "| rollback | ${{ inputs.rollback || false }} |"
+            echo "| migrations | ${{ (inputs.rollback || inputs.skip_migrations) && 'skipped' || 'applied' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
