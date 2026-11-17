@@ -102,7 +102,8 @@ export default {
           },
         },
         "415": {
-          description: "Campo de arquivo inesperado ou MIME/extensão não permitida (apenas JPEG/PNG).",
+          description:
+            "Campo de arquivo inesperado ou MIME/extensão não permitida (apenas JPEG/PNG).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -239,8 +240,7 @@ export default {
                 },
                 requester: {
                   type: "object",
-                  description:
-                    "Dados do solicitante — obrigatórios para todos os perfis.",
+                  description: "Dados do solicitante — obrigatórios para todos os perfis.",
                   properties: {
                     area: { type: "string", example: "TI" },
                     department: { type: "string", example: "Desenvolvimento" },
@@ -445,8 +445,7 @@ export default {
                 },
                 requester: {
                   type: "object",
-                  description:
-                    "Dados do solicitante (área, departamento e gestor).",
+                  description: "Dados do solicitante (área, departamento e gestor).",
                   properties: {
                     area: { type: "string", example: "TI" },
                     department: { type: "string", example: "Desenvolvimento" },
@@ -460,8 +459,7 @@ export default {
                 },
                 professional: {
                   type: "object",
-                  description:
-                    "Dados profissionais — somente para o perfil `analista`.",
+                  description: "Dados profissionais — somente para o perfil `analista`.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {

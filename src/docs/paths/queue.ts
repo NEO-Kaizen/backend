@@ -217,11 +217,7 @@ export default {
                     type: "object",
                     properties: {
                       id: {
-                        anyOf: [
-                          { type: "string" },
-                          { type: "integer" },
-                          { type: "null" },
-                        ],
+                        anyOf: [{ type: "string" }, { type: "integer" }, { type: "null" }],
                         description:
                           "ID do usuário (número ou string numérica) ou null para participante externo.",
                       },
@@ -235,8 +231,7 @@ export default {
                   type: "string",
                   format: "uuid",
                   nullable: true,
-                  description:
-                    "UUID do profissional designado (details_professional) ou null.",
+                  description: "UUID do profissional designado (details_professional) ou null.",
                 },
                 completeMapping: { type: "boolean" },
                 targetStatus: {
@@ -275,9 +270,7 @@ export default {
                   modality: "REMOTE",
                   meetingLink: "https://meet.exemplo.com/sala",
                   location: null,
-                  participants: [
-                    { id: "123", name: "João Silva", email: "joao@empresa.com" },
-                  ],
+                  participants: [{ id: "123", name: "João Silva", email: "joao@empresa.com" }],
                   notes: "Reunião remota confirmada",
                   mappingAssigneeId: null,
                   completeMapping: false,
