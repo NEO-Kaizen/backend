@@ -338,7 +338,7 @@ export async function createInternalNote(
   const note = await repository.findById(internalNoteId);
 
   if (!note) {
-    throw new Error("Observação interna salva, mas não encontrada para retorno.");
+    throw new AppError("Não foi possível localizar a observação interna.", 404);
   }
   return toNoteDTO(note);
 }

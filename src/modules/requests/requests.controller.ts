@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { ValidationError } from "../../shared/errors/ValidationError.ts";
+
 import type { Role } from "../../shared/types/role.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
-import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import {
   assignAnalystSchema,
   assignRequestSchema,
@@ -103,8 +103,7 @@ export const patchInternalRequestByProtocol = async (
 
   const parsed = updateRequestPayloadSchema.safeParse(req.body);
   if (!parsed.success) {
-    const { message, fields } = buildZodFieldErrors(parsed.error);
-    throw new ValidationError(fields, message);
+    throw zodValidationError(parsed.error);
   }
 
   const updated = await service.updateInternalRequest(
@@ -133,7 +132,7 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
 
   const parsed = createRequestPayloadSchema.safeParse(request);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
   const multerFiles = req.files;
   const attachments =
@@ -159,7 +158,7 @@ export const getRequestsByEmail = async (req: Request, res: Response): Promise<R
     const parsed = listAuthenticatedRequestsQuerySchema.safeParse(req.query);
 
     if (!parsed.success) {
-      throw new AppError(formatZodIssues(parsed.error), 400);
+      throw zodValidationError(parsed.error, "query");
     }
 
     const requests = await service.listRequestsByEmail(
@@ -177,7 +176,7 @@ export const getRequestsByEmail = async (req: Request, res: Response): Promise<R
   const parsed = listRequestsQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error, "query");
   }
 
   const requests = await service.listRequestsByEmail(parsed.data);
@@ -194,7 +193,7 @@ export const patchAssignee = async (req: Request, res: Response): Promise<Respon
 
   const parsed = assignRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.assignResponsible(
@@ -212,7 +211,7 @@ export const patchInternalAssignee = async (req: Request, res: Response): Promis
 
   const parsed = assignAnalystSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.assignAnalyst(
@@ -230,7 +229,7 @@ export const patchRequestStatus = async (req: Request, res: Response): Promise<R
 
   const parsed = updateStatusSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.updateRequestStatus(

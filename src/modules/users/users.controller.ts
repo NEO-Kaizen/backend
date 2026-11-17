@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { ValidationError } from "../../shared/errors/ValidationError.ts";
-import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import {
   changeUserStatusSchema,
   createUserSchema,
@@ -37,7 +36,7 @@ export const listUsers = async (req: Request, res: Response): Promise<Response> 
   const parsed = listUsersQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error, "query");
   }
 
   const users = await service.listUsers(parsed.data);
@@ -49,8 +48,7 @@ export const createUser = async (req: Request, res: Response): Promise<Response>
   const parsed = createUserSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    const { message, fields } = buildZodFieldErrors(parsed.error);
-    throw new ValidationError(fields, message);
+    throw zodValidationError(parsed.error);
   }
 
   const created = await service.createUser(parsed.data, actorUserId(req), req.ip);
@@ -62,8 +60,7 @@ export const updateUser = async (req: Request, res: Response): Promise<Response>
   const parsed = updateUserSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    const { message, fields } = buildZodFieldErrors(parsed.error);
-    throw new ValidationError(fields, message);
+    throw zodValidationError(parsed.error);
   }
 
   const updated = await service.updateUser(
@@ -86,7 +83,7 @@ export const changeUserStatus = async (req: Request, res: Response): Promise<Res
   const parsed = changeUserStatusSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const updated = await service.changeUserStatus(
@@ -161,7 +158,7 @@ export const updateMyProfile = async (req: Request, res: Response): Promise<Resp
 
   const parsed = updateProfileSchema.safeParse(parsedPayload);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const updated = await service.updateMyProfile(

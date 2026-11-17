@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import { evaluateScoreSchema } from "./prioritization.schema.ts";
 import * as service from "./prioritization.service.ts";
 
@@ -30,13 +30,13 @@ export const listCriteria = async (_req: Request, res: Response): Promise<Respon
 export const evaluateScore = async (req: Request, res: Response): Promise<Response> => {
   const parsedParams = protocolParamsSchema.safeParse(req.params);
   if (!parsedParams.success) {
-    throw new AppError(formatZodIssues(parsedParams.error, "params"), 400);
+    throw zodValidationError(parsedParams.error, "params");
   }
 
   const parsed = evaluateScoreSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.evaluateScore(

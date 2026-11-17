@@ -2,6 +2,17 @@ import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { ValidationError } from "../errors/ValidationError.ts";
 
+const PG_ERROR_MAP: Record<string, { statusCode: number; message: string }> = {
+  "23505": { statusCode: 409, message: "Registro já existe." },
+  "23503": { statusCode: 409, message: "Registro relacionado não encontrado." },
+  "23502": { statusCode: 400, message: "Campo obrigatório ausente." },
+};
+
+function isPostgresError(err: Error): boolean {
+  const maybe = err as Partial<AppError> & { code?: string };
+  return typeof maybe.code === "string" && maybe.code.startsWith("23");
+}
+
 export function errorHandler(
   err: Error | AppError,
   req: Request,
@@ -28,6 +39,29 @@ export function errorHandler(
     }
 
     res.status(err.statusCode).json(body);
+    return;
+  }
+
+  if (isPostgresError(err)) {
+    const pgCode = (err as Partial<AppError> & { code?: string }).code ?? "";
+    const mappedError = PG_ERROR_MAP[pgCode];
+
+    if (mappedError) {
+      res.status(mappedError.statusCode).json({
+        status: "error",
+        statusCode: mappedError.statusCode,
+        message: mappedError.message,
+      });
+      return;
+    }
+
+    console.error("[Erro não tratado]", req.method, req.url, err);
+
+    res.status(500).json({
+      status: "error",
+      statusCode: 500,
+      message: "Erro interno do servidor",
+    });
     return;
   }
 

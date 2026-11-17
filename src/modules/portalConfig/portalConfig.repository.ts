@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 import type {
   PortalSolicitationMode,
   SystemSettingsRow,
@@ -23,7 +24,7 @@ export async function getSettingsRow(trx?: Knex.Transaction): Promise<SystemSett
   const row = (await source("system_settings").where({ settings_id: 1 }).first()) as
     SystemSettingsRow | undefined;
   if (!row) {
-    throw new Error("system_settings singleton não encontrado (settings_id=1).");
+    throw new AppError("Configuração do portal não encontrada.", 404);
   }
   return row;
 }

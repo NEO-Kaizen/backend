@@ -66,7 +66,7 @@ async function findStatusId(name: string, trx: Knex.Transaction): Promise<number
     .first("status_id");
 
   if (!row) {
-    throw new Error(`Status não encontrado: ${name}.`);
+    throw new AppError("Status não encontrado.", 404);
   }
 
   return row.status_id;
@@ -93,7 +93,7 @@ async function upsertRequester(requester: RequesterBlock, trx: Knex.Transaction)
     .first();
 
   if (!row) {
-    throw new Error("Failed to save the requester.");
+    throw new AppError("Não foi possível salvar o solicitante.", 500);
   }
 
   return row.requester_id;
@@ -164,7 +164,7 @@ async function nextRequestId(trx: Knex.Transaction): Promise<string> {
   const row = result.rows[0];
 
   if (!row) {
-    throw new Error("Failed to allocate the request id.");
+    throw new AppError("Não foi possível gerar o identificador da solicitação.", 500);
   }
 
   return row.request_id;
@@ -249,7 +249,7 @@ async function insertRequest(
   const row = insertedRows[0];
 
   if (!row) {
-    throw new Error("Failed to save the request.");
+    throw new AppError("Não foi possível salvar a solicitação.", 500);
   }
 
   return row;

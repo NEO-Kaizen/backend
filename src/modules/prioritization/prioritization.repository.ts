@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import type {
   Classification,
@@ -87,7 +88,7 @@ export async function upsertEvaluation(
 
   const row = rows[0];
   if (!row) {
-    throw new Error("Falha ao salvar a avaliação.");
+    throw new AppError("Não foi possível salvar a avaliação.", 500);
   }
   return normalizeRow(row);
 }

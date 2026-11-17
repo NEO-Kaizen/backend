@@ -101,7 +101,7 @@ export async function createUser(
 
   const row = inserted[0];
   if (!row) {
-    throw new Error("Falha ao salvar o usuário.");
+    throw new AppError("Não foi possível salvar o usuário.", 500);
   }
 
   return row;

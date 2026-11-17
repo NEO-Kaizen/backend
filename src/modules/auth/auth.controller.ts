@@ -3,7 +3,7 @@ import * as authService from "./auth.service.ts";
 import { generateToken } from "../../shared/utils/jwtUtil.ts";
 import Config from "../../configs.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import { changePasswordSchema, loginSchema } from "./auth.schema.ts";
 import type { LoginResponseDTO } from "../DTOs/auth/LoginResponse.dto.ts";
 import type { MeResponseDTO } from "../DTOs/auth/MeResponse.dto.ts";
@@ -32,7 +32,7 @@ export const authenticate = async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const foundUser = await authService.authenticate(parsed.data);
@@ -104,7 +104,7 @@ export const changePassword = async (req: Request, res: Response) => {
   const parsed = changePasswordSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const userId = authedUserId(req);

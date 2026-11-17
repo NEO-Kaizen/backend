@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import Config from "../../configs.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { saveFiles, removeFiles, type SavedAttachment } from "../../shared/storage/fileStorage.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import type { AssetKey, PortalAssetsPatch } from "../../shared/types/portalConfig.ts";
 import { portalAssetsPatchSchema } from "./portalConfig.schema.ts";
 import {
@@ -59,7 +59,7 @@ export const getConfig = async (_req: Request, res: Response): Promise<Response>
 export const updateAccess = async (req: Request, res: Response): Promise<Response> => {
   const parsed = updateAccessSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.updateAccess(parsed.data.solicitationMode, actorUserId(req));
@@ -73,7 +73,7 @@ export const updateAccess = async (req: Request, res: Response): Promise<Respons
 export const updateIdentity = async (req: Request, res: Response): Promise<Response> => {
   const parsed = updateIdentitySchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.updateIdentity(parsed.data, actorUserId(req));
@@ -87,7 +87,7 @@ export const updateIdentity = async (req: Request, res: Response): Promise<Respo
 export const updateTheme = async (req: Request, res: Response): Promise<Response> => {
   const parsed = updateThemeSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.updateTheme(parsed.data, actorUserId(req));
@@ -120,7 +120,7 @@ export const updateAssets = async (req: Request, res: Response): Promise<Respons
     }
     const validated = portalAssetsPatchSchema.safeParse(parsed);
     if (!validated.success) {
-      throw new AppError(formatZodIssues(validated.error, "assets"), 400);
+      throw zodValidationError(validated.error, "assets");
     }
     jsonPatch = validated.data;
   }
@@ -180,7 +180,7 @@ export const updateAssets = async (req: Request, res: Response): Promise<Respons
 export const updateCategories = async (req: Request, res: Response): Promise<Response> => {
   const parsed = updateCategoriesSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.updateCategories(parsed.data.categories, actorUserId(req));
@@ -194,7 +194,7 @@ export const updateCategories = async (req: Request, res: Response): Promise<Res
 export const updateStatuses = async (req: Request, res: Response): Promise<Response> => {
   const parsed = updateStatusesSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.updateStatuses(parsed.data.statuses, actorUserId(req));
@@ -211,7 +211,7 @@ export const updatePrioritizationWeights = async (
 ): Promise<Response> => {
   const parsed = updatePrioritizationWeightsSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.updateCriteriaWeights(

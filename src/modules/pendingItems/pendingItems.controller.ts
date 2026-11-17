@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import { createPendingItemsSchema, reviewSchema, verifySchema } from "./pendingItems.schema.ts";
 import * as service from "./pendingItems.service.ts";
 import { createRateLimiter } from "../../shared/middleware/rateLimit.ts";
@@ -35,7 +35,7 @@ function actorFromRequest(req: Request): { id: number; email: string; role: stri
 export async function createPendingItems(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
   const parsed = createPendingItemsSchema.safeParse(req.body);
-  if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
+  if (!parsed.success) throw zodValidationError(parsed.error);
   const result = await service.createPendingItems(
     protocol,
     parsed.data as never,
@@ -55,7 +55,7 @@ export async function respondPendingItem(req: Request, res: Response): Promise<R
   const protocol = assertProtocol(req);
   const pendingItemId = req.params.pendingItemId as string;
   if (!pendingItemId || pendingItemId.trim() === "")
-    throw new AppError("pendingItemId é obrigatório", 400);
+    throw new AppError("Identificador da pendência é obrigatório.", 400);
   const isInternal = !!req.user;
   const actorEmail = req.user?.email;
   const item = await service.respondPendingItem(
@@ -74,9 +74,9 @@ export async function attachPendingItem(req: Request, res: Response): Promise<Re
   const protocol = assertProtocol(req);
   const pendingItemId = req.params.pendingItemId as string;
   if (!pendingItemId || pendingItemId.trim() === "")
-    throw new AppError("pendingItemId é obrigatório", 400);
+    throw new AppError("Identificador da pendência é obrigatório.", 400);
   const file = (req as unknown as { file?: Express.Multer.File }).file;
-  if (!file) throw new AppError("Campos obrigatórios ausentes: file", 400);
+  if (!file) throw new AppError("Arquivo é obrigatório.", 400);
   const result = await service.addAttachment(
     protocol,
     pendingItemId.trim(),
@@ -90,7 +90,7 @@ export async function attachPendingItem(req: Request, res: Response): Promise<Re
 export async function reviewPendingItems(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
   const parsed = reviewSchema.safeParse(req.body);
-  if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
+  if (!parsed.success) throw zodValidationError(parsed.error);
   const result = await service.reviewPendingItems(
     protocol,
     parsed.data as never,
@@ -112,7 +112,7 @@ export async function publicVerify(req: Request, res: Response): Promise<Respons
     throw new AppError("Muitas tentativas. Tente novamente em alguns minutos.", 429);
 
   const parsed = verifySchema.safeParse(body);
-  if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
+  if (!parsed.success) throw zodValidationError(parsed.error);
 
   await service.verifyPublicAccess(
     protocol,

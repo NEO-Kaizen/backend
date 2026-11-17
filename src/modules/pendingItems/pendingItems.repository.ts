@@ -229,7 +229,7 @@ export async function unreadForInternal(
 
 export async function findStatusIdByName(name: string, trx: Knex.Transaction): Promise<number> {
   const row = await trx("statuses").where({ name }).first("status_id");
-  if (!row) throw new Error(`Status não encontrado: ${name}`);
+  if (!row) throw new AppError("Status não encontrado.", 404);
   return row.status_id;
 }
 

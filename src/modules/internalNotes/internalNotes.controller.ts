@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { InternalRole } from "../../shared/types/internalNotes.ts";
-import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
+import { zodValidationError } from "../../shared/validation/zodErrors.ts";
 import {
   createInternalNoteSchema,
   listTimelineQuerySchema,
@@ -13,7 +13,7 @@ import * as service from "./internalNotes.service.ts";
 function protocolFromRequest(req: Request): string {
   const parsed = protocolParamsSchema.safeParse(req.params);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error, "params"), 400);
+    throw zodValidationError(parsed.error, "params");
   }
   return parsed.data.protocol;
 }
@@ -38,7 +38,7 @@ function actorFromRequest(req: Request): { userId: number; role: InternalRole } 
 export const listInternalNotes = async (req: Request, res: Response): Promise<Response> => {
   const parsed = listTimelineQuerySchema.safeParse(req.query);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error, "query"), 400);
+    throw zodValidationError(parsed.error, "query");
   }
 
   const actor = actorFromRequest(req);
@@ -53,7 +53,7 @@ export const listInternalNotes = async (req: Request, res: Response): Promise<Re
 export const createInternalNote = async (req: Request, res: Response): Promise<Response> => {
   const parsed = createInternalNoteSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const response = await service.createInternalNote(
@@ -67,7 +67,7 @@ export const createInternalNote = async (req: Request, res: Response): Promise<R
 export const markInternalNotesRead = async (req: Request, res: Response): Promise<Response> => {
   const parsed = markInternalNotesReadSchema.safeParse(req.body);
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    throw zodValidationError(parsed.error);
   }
 
   const actor = actorFromRequest(req);
