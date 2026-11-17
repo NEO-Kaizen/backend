@@ -203,7 +203,9 @@ export default {
           "application/json": {
             schema: {
               type: "object",
+              required: ["completeMapping"],
               properties: {
+                id: { type: "string", format: "uuid" },
                 scheduledFor: { type: "string", format: "date-time", nullable: true },
                 durationMinutes: { type: "integer", minimum: 15, maximum: 480, nullable: true },
                 modality: { type: "string", enum: ["REMOTE", "IN_PERSON"], nullable: true },
@@ -214,15 +216,72 @@ export default {
                   items: {
                     type: "object",
                     properties: {
-                      id: { type: "string", nullable: true },
+                      id: {
+                        anyOf: [
+                          { type: "string" },
+                          { type: "integer" },
+                          { type: "null" },
+                        ],
+                        description:
+                          "ID do usuário (número ou string numérica) ou null para participante externo.",
+                      },
                       name: { type: "string" },
                       email: { type: "string", format: "email" },
                     },
                   },
                 },
                 notes: { type: "string", nullable: true },
-                mappingAssigneeId: { type: "string", nullable: true },
-                completeMapping: { type: "boolean", nullable: true },
+                mappingAssigneeId: {
+                  type: "string",
+                  format: "uuid",
+                  nullable: true,
+                  description:
+                    "UUID do profissional designado (details_professional) ou null.",
+                },
+                completeMapping: { type: "boolean" },
+                targetStatus: {
+                  type: "integer",
+                  minimum: 1,
+                  description:
+                    "Status de destino ao concluir o mapeamento (obrigatório quando completeMapping for true).",
+                },
+                justification: {
+                  type: "string",
+                  description:
+                    "Justificativa da mudança de status (obrigatória quando completeMapping for true).",
+                },
+              },
+            },
+            examples: {
+              conclusao: {
+                summary: "Concluir mapeamento com designação",
+                value: {
+                  mappingAssigneeId: "550e8400-e29b-41d4-a716-446655440000",
+                  participants: [
+                    { id: "123", name: "João Silva", email: "joao@empresa.com" },
+                    { id: null, name: "Externo", email: "externo@email.com" },
+                  ],
+                  notes: "Ajuste de horário acordado",
+                  completeMapping: true,
+                  targetStatus: 6,
+                  justification: "Conclusão do mapeamento por acordo entre as partes",
+                },
+              },
+              semConclusao: {
+                summary: "Atualizar dados sem concluir",
+                value: {
+                  scheduledFor: "2026-11-20T10:30:00-03:00",
+                  durationMinutes: 60,
+                  modality: "REMOTE",
+                  meetingLink: "https://meet.exemplo.com/sala",
+                  location: null,
+                  participants: [
+                    { id: "123", name: "João Silva", email: "joao@empresa.com" },
+                  ],
+                  notes: "Reunião remota confirmada",
+                  mappingAssigneeId: null,
+                  completeMapping: false,
+                },
               },
             },
           },

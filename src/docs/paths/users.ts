@@ -438,10 +438,44 @@ export default {
               type: "object",
               properties: {
                 email: { type: "string", format: "email" },
-                name: { type: "string" },
+                fullName: { type: "string" },
                 role: {
                   type: "string",
                   enum: ["solicitante", "analista", "gestor", "administrador"],
+                },
+                requester: {
+                  type: "object",
+                  description:
+                    "Dados do solicitante (área, departamento e gestor).",
+                  properties: {
+                    area: { type: "string", example: "TI" },
+                    department: { type: "string", example: "Desenvolvimento" },
+                    manager: { type: "string", example: "José Silva" },
+                    additionalContact: {
+                      type: "string",
+                      nullable: true,
+                      example: "",
+                    },
+                  },
+                },
+                professional: {
+                  type: "object",
+                  description:
+                    "Dados profissionais — somente para o perfil `analista`.",
+                  properties: {
+                    jobTitle: { type: "string", example: "Analista de Sistemas" },
+                    specialties: {
+                      type: "array",
+                      items: { type: "string" },
+                      example: ["Sistemas", "Automação"],
+                    },
+                    attendedCategoryIds: {
+                      type: "array",
+                      items: { type: "integer" },
+                      example: [1, 2],
+                    },
+                    notes: { type: "string", nullable: true, example: "Analista sênior" },
+                  },
                 },
               },
             },
