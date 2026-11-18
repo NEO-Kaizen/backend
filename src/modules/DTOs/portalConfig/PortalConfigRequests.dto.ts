@@ -1,6 +1,6 @@
 import type {
-  AssetKey,
   CategoriesSection,
+  PortalAssetsPatch,
   PrioritizationWeightsSection,
   StatusesSection,
   ThemeSection,
@@ -27,9 +27,7 @@ export interface UpdateThemeRequest {
  * chaves com a URL definida diretamente (reset/URL existente) + flag opcional
  * de cor primária do logo (contrato `portal-config-api2.md`).
  */
-export type PortalAssetsPatchDto = Partial<Record<AssetKey, string>> & {
-  logoUsePrimaryColor?: boolean;
-};
+export type PortalAssetsPatchDto = PortalAssetsPatch;
 
 /** Corpo de `PATCH /portal-config/categories` (Card 5) — lista atômica. */
 export interface UpdateCategoriesRequest {

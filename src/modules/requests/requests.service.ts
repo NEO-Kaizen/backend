@@ -3,11 +3,11 @@ import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type {
   RequestStatus,
-  OperationalImpact,
   RequestPriority,
   RequesterBlock,
   DemandBlock,
   AssignmentContextRow,
+  InternalRequestRow,
 } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
@@ -195,10 +195,7 @@ export async function findInternalByProtocol(
   protocol: string,
   actor?: { id: number; role: Role },
 ): Promise<RequestInternalDetailDTO> {
-  const request = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const request = await repository.findInternalRequestByProtocol(protocol);
 
   if (!request) {
     throw new AppError("Solicitação não encontrada", 404);
@@ -208,28 +205,28 @@ export async function findInternalByProtocol(
   // (read-only) veem qualquer solicitação; Analista apenas as atribuídas
   // (triagem ou mapeamento). Solicitante não chega aqui (router).
   if (actor?.role === "Analista") {
-    const assigneeUserId = request["assignee_user_id"] as number | null;
-    const mappingUserId = request["mapping_user_id"] as number | null;
+    const assigneeUserId = request.assignee_user_id;
+    const mappingUserId = request.mapping_user_id;
     const isAssignee = assigneeUserId === actor.id || mappingUserId === actor.id;
     if (!isAssignee) {
       throw new AppError("Acesso negado a esta solicitação", 403);
     }
   }
 
-  const requestId = request["request_id"] as string;
+  const requestId = request.request_id;
   const [attachments, schedulePreferences, evaluation] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
     repository.findEvaluationByProtocol(protocol),
   ]);
 
-  const meetingScheduledFor: string | null = request["meeting_scheduled_for"]
-    ? new Date(request["meeting_scheduled_for"] as string).toISOString()
+  const meetingScheduledFor: string | null = request.meeting_scheduled_for
+    ? new Date(request.meeting_scheduled_for).toISOString()
     : null;
   const meeting = meetingScheduledFor
     ? {
         scheduledFor: meetingScheduledFor,
-        link: (request["meeting_link"] as string | null) ?? null,
+        link: request.meeting_link ?? null,
       }
     : null;
 
@@ -259,52 +256,51 @@ export async function findInternalByProtocol(
 
   const complementary: ComplementaryBlock = {
     hasProcessDocumentation: toYesNoDetail(
-      request["has_process_documentation"] as boolean | null,
-      request["process_documentation_detail"] as string | null,
+      request.has_process_documentation,
+      request.process_documentation_detail,
     ),
     hasSimilarSolution: toYesNoDetail(
-      request["has_similar_solution"] as boolean | null,
-      request["similar_solution_detail"] as string | null,
+      request.has_similar_solution,
+      request.similar_solution_detail,
     ),
-    dependsOnOtherAreas: toYesNoDetail(
-      request["depends_on_other_areas"] as boolean | null,
-      request["other_areas_detail"] as string | null,
-    ),
+    dependsOnOtherAreas: toYesNoDetail(request.depends_on_other_areas, request.other_areas_detail),
     handlesRestrictedInfo: toYesNoDetail(
-      request["handles_restricted_info"] as boolean | null,
-      request["restricted_info_detail"] as string | null,
+      request.handles_restricted_info,
+      request.restricted_info_detail,
     ),
-    additionalNotes: (request["additional_notes"] as string | null) ?? undefined,
+    additionalNotes: request.additional_notes ?? undefined,
   };
 
-  const openedAt = normalizeIsoDate(request["created_at"]) ?? new Date().toISOString();
-  const lastUpdate = normalizeIsoDate(request["updated_at"]) ?? openedAt;
+  const openedAt = normalizeIsoDate(request.created_at) ?? new Date().toISOString();
+  const lastUpdate = normalizeIsoDate(request.updated_at) ?? openedAt;
 
-  const assigneeUserId = request["assignee_user_id"] as number | null;
-  const mappingUserId = request["mapping_user_id"] as number | null;
+  const assigneeUserId = request.assignee_user_id;
+  const mappingUserId = request.mapping_user_id;
 
   const assignee =
-    assigneeUserId !== null && assigneeUserId !== undefined && request["professional_name"]
+    assigneeUserId !== null && assigneeUserId !== undefined && request.professional_name
       ? {
           id: String(assigneeUserId),
-          name: request["professional_name"] as string,
-          email: (request["professional_email"] as string | null) ?? null,
+          name: request.professional_name,
+          email: request.professional_email ?? null,
         }
       : null;
 
   const mappingAssignee =
-    mappingUserId !== null && mappingUserId !== undefined && request["mapping_name"]
+    mappingUserId !== null && mappingUserId !== undefined && request.mapping_name
       ? {
           id: String(mappingUserId),
-          name: request["mapping_name"] as string,
-          email: (request["mapping_email"] as string | null) ?? null,
+          name: request.mapping_name,
+          email: request.mapping_email ?? null,
         }
       : null;
 
   return {
-    protocol: request["protocol"] as string,
-    status: request["status"] as string,
-    priority: (request["priority"] as string | null) ?? null,
+    protocol: request.protocol,
+    status: request.status,
+    // `priorities.level` é o domínio fechado de REQUEST_PRIORITIES; a coluna é
+    // TEXT no banco, por isso a asserção no mapeador.
+    priority: (request.priority as RequestPriority | null) ?? null,
     prioritization: {
       score: evaluation ? evaluation.score : null,
       maxScore: 50,
@@ -317,41 +313,42 @@ export async function findInternalByProtocol(
     pendingSummary: pendingSummary.summary,
     unread: pendingSummary.unread,
     requester: {
-      fullName: request["requester_name"] as string,
-      corporateEmail: request["requester_email"] as string,
-      area: (request["requester_area"] as string | null) ?? "",
-      department: (request["requester_department"] as string | null) ?? undefined,
-      manager: (request["requester_manager"] as string | null) ?? "",
-      additionalContact: (request["requester_additional_contact"] as string | null) ?? undefined,
+      fullName: request.requester_name,
+      corporateEmail: request.requester_email,
+      area: request.requester_area ?? "",
+      department: request.requester_department ?? undefined,
+      manager: request.requester_manager ?? "",
+      additionalContact: request.requester_additional_contact ?? undefined,
     },
     demand: {
-      title: request["title"] as string,
-      requestType: request["request_type"] as string,
-      category: request["category"] as string,
-      processName: request["process_name"] as string,
-      description: request["need_description"] as string,
-      problem: request["problem_opportunity"] as string,
-      expectedResult: request["expected_result"] as string,
-      justification: request["justification"] as string,
+      title: request.title,
+      requestType: request.request_type,
+      // O join com `categories` é a fonte do nome; o contrato exige string.
+      category: request.category as string,
+      processName: request.process_name,
+      description: request.need_description,
+      problem: request.problem_opportunity,
+      expectedResult: request.expected_result,
+      justification: request.justification,
     },
     operational: {
-      processDescription: request["process_description"] as string,
-      processSteps: request["process_steps"] as string,
-      systemsUsed: request["systems_used"] as string,
-      executionFrequency: request["execution_frequency"] as string,
-      volumetry: request["approximate_volume"] as string,
-      peopleInvolved: request["people_involved"] as number,
-      averageExecutionTime: request["average_duration"] as string,
-      monthlyEffortHours: Number(request["estimated_monthly_effort"]),
+      processDescription: request.process_description,
+      processSteps: request.process_steps,
+      systemsUsed: request.systems_used,
+      executionFrequency: request.execution_frequency,
+      volumetry: request.approximate_volume,
+      peopleInvolved: request.people_involved,
+      averageExecutionTime: request.average_duration,
+      monthlyEffortHours: Number(request.estimated_monthly_effort),
       hasManualControls: toRequiredYesNoDetail(
-        request["has_manual_controls"] as boolean,
-        request["manual_controls_detail"] as string | null,
+        request.has_manual_controls,
+        request.manual_controls_detail,
       ),
-      mainRisks: request["main_risks"] as string,
-      clientImpact: request["client_impact"] as string,
-      operationalImpact: request["operational_impact"] as OperationalImpact,
-      desiredDeadline: toDateOnly(request["desired_deadline"] as string | Date),
-      perceivedCriticality: request["perceived_criticality"] as RequestPriority,
+      mainRisks: request.main_risks,
+      clientImpact: request.client_impact,
+      operationalImpact: request.operational_impact,
+      desiredDeadline: toDateOnly(request.desired_deadline),
+      perceivedCriticality: request.perceived_criticality,
     },
     complementary: hasComplementaryData(complementary) ? complementary : undefined,
     schedulePreferences:
@@ -369,7 +366,7 @@ export async function findInternalByProtocol(
     })),
     openedAt,
     lastUpdate,
-    internalObservations: extractInternalObservations(request["internal_notes"] as string | null),
+    internalObservations: extractInternalObservations(request.internal_notes),
   };
 }
 
@@ -424,84 +421,75 @@ export interface TrackingCaller {
 
 const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitação.";
 
-function mapTrackingMeeting(row: Record<string, unknown>): Meeting | null {
-  const scheduledFor = row["meeting_scheduled_for"]
-    ? new Date(row["meeting_scheduled_for"] as string).toISOString()
+function mapTrackingMeeting(row: InternalRequestRow): Meeting | null {
+  const scheduledFor = row.meeting_scheduled_for
+    ? new Date(row.meeting_scheduled_for).toISOString()
     : null;
 
   if (!scheduledFor) return null;
 
-  return { scheduledFor, link: (row["meeting_link"] as string | null) ?? null };
+  return { scheduledFor, link: row.meeting_link ?? null };
 }
 
-function mapTrackingRequester(row: Record<string, unknown>): RequesterBlock {
+function mapTrackingRequester(row: InternalRequestRow): RequesterBlock {
   return {
-    fullName: (row["requester_name"] as string) ?? "",
-    corporateEmail: (row["requester_email"] as string) ?? "",
-    area: (row["requester_area"] as string | null) ?? "",
-    department: (row["requester_department"] as string | null) ?? undefined,
-    manager: (row["requester_manager"] as string | null) ?? "",
-    additionalContact: (row["requester_additional_contact"] as string | null) ?? undefined,
+    fullName: row.requester_name ?? "",
+    corporateEmail: row.requester_email ?? "",
+    area: row.requester_area ?? "",
+    department: row.requester_department ?? undefined,
+    manager: row.requester_manager ?? "",
+    additionalContact: row.requester_additional_contact ?? undefined,
   };
 }
 
-function mapTrackingDemand(row: Record<string, unknown>): DemandBlock {
+function mapTrackingDemand(row: InternalRequestRow): DemandBlock {
   return {
-    title: row["title"] as string,
-    requestType: row["request_type"] as string,
-    category: (row["category"] as string | null) ?? "",
-    processName: row["process_name"] as string,
-    description: row["need_description"] as string,
-    problem: row["problem_opportunity"] as string,
-    expectedResult: row["expected_result"] as string,
-    justification: row["justification"] as string,
+    title: row.title,
+    requestType: row.request_type,
+    category: row.category ?? "",
+    processName: row.process_name,
+    description: row.need_description,
+    problem: row.problem_opportunity,
+    expectedResult: row.expected_result,
+    justification: row.justification,
   };
 }
 
-function mapTrackingImpacts(row: Record<string, unknown>): PublicOperationalImpacts {
+function mapTrackingImpacts(row: InternalRequestRow): PublicOperationalImpacts {
   return {
-    mainRisks: row["main_risks"] as string,
-    clientImpact: row["client_impact"] as string,
-    operationalImpact: row["operational_impact"] as OperationalImpact,
-    perceivedCriticality: row["perceived_criticality"] as RequestPriority,
-    desiredDeadline: toDateOnly(row["desired_deadline"] as string | Date),
+    mainRisks: row.main_risks,
+    clientImpact: row.client_impact,
+    operationalImpact: row.operational_impact,
+    perceivedCriticality: row.perceived_criticality,
+    desiredDeadline: toDateOnly(row.desired_deadline),
   };
 }
 
-function mapTrackingComplementary(row: Record<string, unknown>): ComplementaryBlock {
+function mapTrackingComplementary(row: InternalRequestRow): ComplementaryBlock {
   return {
     hasProcessDocumentation: toYesNoDetail(
-      row["has_process_documentation"] as boolean | null,
-      row["process_documentation_detail"] as string | null,
+      row.has_process_documentation,
+      row.process_documentation_detail,
     ),
-    hasSimilarSolution: toYesNoDetail(
-      row["has_similar_solution"] as boolean | null,
-      row["similar_solution_detail"] as string | null,
-    ),
-    dependsOnOtherAreas: toYesNoDetail(
-      row["depends_on_other_areas"] as boolean | null,
-      row["other_areas_detail"] as string | null,
-    ),
-    handlesRestrictedInfo: toYesNoDetail(
-      row["handles_restricted_info"] as boolean | null,
-      row["restricted_info_detail"] as string | null,
-    ),
-    additionalNotes: (row["additional_notes"] as string | null) ?? undefined,
+    hasSimilarSolution: toYesNoDetail(row.has_similar_solution, row.similar_solution_detail),
+    dependsOnOtherAreas: toYesNoDetail(row.depends_on_other_areas, row.other_areas_detail),
+    handlesRestrictedInfo: toYesNoDetail(row.handles_restricted_info, row.restricted_info_detail),
+    additionalNotes: row.additional_notes ?? undefined,
   };
 }
 
-function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails {
-  const openedAt = normalizeIsoDate(row["created_at"]) ?? new Date().toISOString();
+function buildPublicDetails(row: InternalRequestRow): PublicRequestDetails {
+  const openedAt = normalizeIsoDate(row.created_at) ?? new Date().toISOString();
 
   return {
-    protocol: row["protocol"] as string,
-    status: (row["public_status"] as string | null) ?? "Solicitação enviada",
+    protocol: row.protocol,
+    status: row.public_status ?? "Solicitação enviada",
     openedAt,
     lastUpdate:
-      normalizeIsoDate(row["last_external_update_at"]) ??
-      normalizeIsoDate(row["updated_at"]) ??
+      normalizeIsoDate(row.last_external_update_at) ??
+      normalizeIsoDate(row.updated_at) ??
       openedAt,
-    lastTechnicalMessage: (row["last_technical_message"] as string | null) ?? null,
+    lastTechnicalMessage: row.last_technical_message ?? null,
     meeting: mapTrackingMeeting(row),
     requester: mapTrackingRequester(row),
     demand: mapTrackingDemand(row),
@@ -510,9 +498,9 @@ function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails 
 }
 
 async function buildAuthenticatedDetails(
-  row: Record<string, unknown>,
+  row: InternalRequestRow,
 ): Promise<RequesterRequestDetails> {
-  const requestId = row["request_id"] as string;
+  const requestId = row.request_id;
   const [attachments, schedulePreferences] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
@@ -528,17 +516,17 @@ async function buildAuthenticatedDetails(
     ...base,
     operational: {
       ...impacts,
-      processDescription: row["process_description"] as string,
-      processSteps: row["process_steps"] as string,
-      systemsUsed: row["systems_used"] as string,
-      executionFrequency: row["execution_frequency"] as string,
-      volumetry: row["approximate_volume"] as string,
-      peopleInvolved: row["people_involved"] as number,
-      averageExecutionTime: row["average_duration"] as string,
-      monthlyEffortHours: Number(row["estimated_monthly_effort"]),
+      processDescription: row.process_description,
+      processSteps: row.process_steps,
+      systemsUsed: row.systems_used,
+      executionFrequency: row.execution_frequency,
+      volumetry: row.approximate_volume,
+      peopleInvolved: row.people_involved,
+      averageExecutionTime: row.average_duration,
+      monthlyEffortHours: Number(row.estimated_monthly_effort),
       hasManualControls: toRequiredYesNoDetail(
-        row["has_manual_controls"] as boolean,
-        row["manual_controls_detail"] as string | null,
+        row.has_manual_controls,
+        row.manual_controls_detail,
       ),
     },
     complementary: hasComplementaryData(complementary) ? complementary : undefined,
@@ -550,9 +538,9 @@ async function buildAuthenticatedDetails(
     // Anexos do acompanhamento: metadados apenas; sem endpoint de download o
     // `downloadUrl` fica vazio e `canDownload` falso (mesma postura do /internal).
     attachments: attachments.map((attachment) => ({
-      id: attachment.attachment_id as string,
-      fileName: attachment.file_name as string,
-      mimeType: attachment.content_type as string,
+      id: attachment.attachment_id,
+      fileName: attachment.file_name,
+      mimeType: attachment.content_type,
       sizeBytes: Number(attachment.size_bytes),
       downloadUrl: "",
       canDownload: false,
@@ -567,8 +555,8 @@ async function buildAuthenticatedDetails(
  * `POST /requests` em modo AUTHENTICATED), imune a uma troca posterior de
  * e-mail/nome no cadastro.
  */
-function isTrackingOwner(row: Record<string, unknown>, user: AuthenticatedUser): boolean {
-  const requesterUserId = row["requester_user_id"] as number | null;
+function isTrackingOwner(row: InternalRequestRow, user: AuthenticatedUser): boolean {
+  const requesterUserId = row.requester_user_id;
 
   if (requesterUserId !== null && requesterUserId !== undefined) {
     return requesterUserId === Number(user.id);
@@ -578,7 +566,7 @@ function isTrackingOwner(row: Record<string, unknown>, user: AuthenticatedUser):
   // modo PUBLIC/anônimo antes da curadoria do 1:1. Compara o e-mail
   // normalizado do snapshot `requesters`; o vínculo é curado progressivamente
   // por `resolveRequesterId` a cada nova solicitação autenticada.
-  return normalizeEmail((row["requester_email"] as string) ?? "") === normalizeEmail(user.email);
+  return normalizeEmail(row.requester_email ?? "") === normalizeEmail(user.email);
 }
 
 async function getAuthenticatedTracking(
@@ -592,10 +580,7 @@ async function getAuthenticatedTracking(
     throw new AppError("Perfis internos devem acompanhar pela consulta interna.", 403);
   }
 
-  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const row = await repository.findInternalRequestByProtocol(protocol);
 
   // Protocolo inexistente ou de terceiro: mesma resposta (404), para não
   // revelar a existência de solicitações alheias (anti-enumeração).
@@ -621,17 +606,12 @@ async function getPublicTracking(
     throw new AppError(TRACKING_INVALID_IDENTITY, 401);
   }
 
-  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const row = await repository.findInternalRequestByProtocol(protocol);
 
   const nameOk =
-    row !== null &&
-    normalizeName((row["requester_name"] as string) ?? "") === normalizeName(identity.name);
+    row !== null && normalizeName(row.requester_name ?? "") === normalizeName(identity.name);
   const emailOk =
-    row !== null &&
-    normalizeEmail((row["requester_email"] as string) ?? "") === normalizeEmail(identity.email);
+    row !== null && normalizeEmail(row.requester_email ?? "") === normalizeEmail(identity.email);
 
   // Inexistente ou divergente → mesmo 401 genérico: não revela qual dado
   // divergiu nem se o protocolo existe.
@@ -669,50 +649,6 @@ export async function getTracking(
 // blocos editáveis (decisão de contrato): o payload descreve o estado final;
 // chave ausente = campo limpo (NULL). `last_external_update_at` não é tocado.
 
-/** Linha crua dos blocos de uma solicitação — mesmo shape de
- * `findInternalRequestByProtocol` (repository), usado pelo PATCH interno. */
-interface InternalRequestRow {
-  request_id: string;
-  requester_id: string;
-  professional_id: string | null;
-  title: string;
-  request_type: string;
-  category: string;
-  process_name: string;
-  need_description: string;
-  problem_opportunity: string;
-  expected_result: string;
-  justification: string;
-  process_description: string;
-  process_steps: string;
-  systems_used: string;
-  execution_frequency: string;
-  approximate_volume: string;
-  people_involved: number;
-  average_duration: string;
-  estimated_monthly_effort: string | number;
-  has_manual_controls: boolean;
-  manual_controls_detail: string | null;
-  main_risks: string;
-  client_impact: string;
-  operational_impact: OperationalImpact;
-  desired_deadline: Date | string;
-  perceived_criticality: RequestPriority;
-  has_process_documentation: boolean | null;
-  process_documentation_detail: string | null;
-  has_similar_solution: boolean | null;
-  similar_solution_detail: string | null;
-  depends_on_other_areas: boolean | null;
-  other_areas_detail: string | null;
-  handles_restricted_info: boolean | null;
-  restricted_info_detail: string | null;
-  additional_notes: string | null;
-  requester_area: string | null;
-  requester_department: string | null;
-  requester_manager: string | null;
-  requester_additional_contact: string | null;
-}
-
 /** Blocos editáveis no estado atual — usado como `previousValue` da auditoria. */
 function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalRequestPayload {
   const complementary: ComplementaryBlock = {
@@ -742,7 +678,8 @@ function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalReque
     demand: {
       title: request.title,
       requestType: request.request_type,
-      category: request.category,
+      // O join com `categories` é a fonte do nome; o contrato exige string.
+      category: request.category as string,
       processName: request.process_name,
       description: request.need_description,
       problem: request.problem_opportunity,

@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { Role } from "../../shared/types/role.ts";
+import type { AuditEntityType, ChangeOrigin } from "../../shared/audit/auditCatalog.ts";
 import type {
   AuditHistoryQuery,
   AuditHistorySummary,
@@ -7,12 +8,12 @@ import type {
   AuditHistoryListResponse,
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
-import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
+import { auditCatalog } from "../../shared/audit/auditCatalog.ts";
 import { findRequestStatusContext } from "../requests/requests.repository.ts";
 
-const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
+const entityLabels: Record<AuditEntityType, string> = Object.fromEntries(
   Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
-) as Record<AuditEntityName, string>;
+) as Record<AuditEntityType, string>;
 
 export async function listAuditHistoryLogs(
   filters: AuditHistoryQuery,
@@ -21,8 +22,10 @@ export async function listAuditHistoryLogs(
 
   const formatted: AuditHistorySummary[] = items.map((row) => ({
     audit_id: Number(row.audit_id),
-    entity_type: row.entity_type,
-    entity_type_label: entityLabels[row.entity_type as AuditEntityName] ?? row.entity_type,
+    // Valores históricos podem estar fora do catálogo atual; o contrato expõe
+    // o valor persistido (o label cai no fallback abaixo).
+    entity_type: row.entity_type as AuditEntityType,
+    entity_type_label: entityLabels[row.entity_type as AuditEntityType] ?? row.entity_type,
     action_type: row.action_type,
     actor: {
       kind: row.user_id === null ? "system" : "user",
@@ -48,7 +51,7 @@ function toDetail(
   const userId = row.user_id === null ? null : Number(row.user_id);
   return {
     audit_id: Number(row.audit_id),
-    entity_type: row.entity_type,
+    entity_type: row.entity_type as AuditEntityType,
     entity_id: row.entity_id,
     action_type: row.action_type,
     actor: {
@@ -61,7 +64,7 @@ function toDetail(
     note: row.note,
     last_technical_message: row.last_technical_message ?? null,
     ip_address: row.ip_address ?? null,
-    change_origin: row.change_origin,
+    change_origin: row.change_origin as ChangeOrigin | null,
     occurred_at: occurredAt,
   };
 }

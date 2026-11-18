@@ -5,6 +5,7 @@ import {
   isAuditEntityName,
   isComposedAuditAction,
   type AuditEntityName,
+  type ChangeOrigin,
   type ComposedAuditAction,
 } from "./auditCatalog.ts";
 
@@ -21,7 +22,8 @@ export interface AuditEntryBase {
   /** Snapshot do retorno público submetido na transição (só status público). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
-  changeOrigin?: string | null;
+  /** Origem da alteração — restrita aos valores gravados pelo sistema. */
+  changeOrigin?: ChangeOrigin | null;
 }
 
 /**

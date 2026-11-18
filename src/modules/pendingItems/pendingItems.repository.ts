@@ -242,7 +242,7 @@ export type PendingItemInsert = {
   type: "field_edit" | "observation";
   field_key: string | null;
   field_label: string | null;
-  current_value: string | null;
+  current_value: string | number | boolean | null;
   comment: string;
   description: string;
   request_attachment: boolean;

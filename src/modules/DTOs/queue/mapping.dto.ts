@@ -4,6 +4,7 @@
 // `id` do participante referencia `users.user_id`; quando ausente, o
 // participante é externo (nome/e-mail enviados no payload). O `id` do
 // mapeamento (`MappingResponse.id`) é o `mapping_id` (uuid).
+import type { Role } from "../../../shared/types/role.ts";
 
 export type MappingModality = "REMOTE" | "IN_PERSON";
 
@@ -97,6 +98,7 @@ export interface MappingResponseDTO {
  */
 export interface MappingPayloadDTO {
   id?: string;
+  /** UUID de `details_professional.professional_id`; validado por `mapping.schemas.ts`. */
   mappingAssigneeId?: string | null;
   scheduledFor?: string | null;
   durationMinutes?: number | null;
@@ -115,5 +117,5 @@ export interface MappingPayloadDTO {
 export interface MappingActor {
   id: number;
   email: string;
-  role: "Solicitante" | "Analista" | "Gestor" | "Administrador";
+  role: Role;
 }

@@ -5,6 +5,11 @@ import {
   THEME_TOKEN_KEYS,
   type ThemeTokenKey,
 } from "../../shared/types/portalConfig.ts";
+import type {
+  AccessSection,
+  CategoriesSection,
+  StatusesSection,
+} from "../../shared/types/portalConfig.ts";
 import { STATUS_TONES, type StatusTone } from "../../shared/types/systemTheme.ts";
 
 /**
@@ -73,7 +78,7 @@ export const updateAccessSchema = z
       error: "Modo de acesso inválido — opções: PUBLIC ou AUTHENTICATED.",
     }),
   })
-  .strict();
+  .strict() satisfies z.ZodType<AccessSection>;
 
 export const updateIdentitySchema = z
   .object({
@@ -136,7 +141,7 @@ export const updateCategoriesSchema = z
         }
       }),
   })
-  .strict();
+  .strict() satisfies z.ZodType<CategoriesSection>;
 
 const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
   error: "Modo inválido — opções: none, free ou conclusion_only.",
@@ -218,7 +223,7 @@ export const updateStatusesSchema = z
         }
       }),
   })
-  .strict();
+  .strict() satisfies z.ZodType<StatusesSection>;
 
 /**
  * Pesos da priorização — objeto atômico completo, sempre com todas as chaves.

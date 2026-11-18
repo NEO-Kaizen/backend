@@ -57,7 +57,32 @@ export const auditCatalog = {
 } as const;
 
 /** Nome de entidade auditável — ex.: "user". */
-export type AuditEntityName = keyof typeof auditCatalog;
+export type AuditEntityType = keyof typeof auditCatalog;
+
+/** @deprecated Use `AuditEntityType` (nome canônico do contrato). */
+export type AuditEntityName = AuditEntityType;
+
+/**
+ * Origens de alteração gravadas em `audit_history.change_origin`.
+ *
+ * Restrito na escrita (via `recordAudit`); na leitura, use `isChangeOrigin`
+ * porque o banco pode conter valores históricos.
+ */
+export const CHANGE_ORIGINS = [
+  "user",
+  "admin",
+  "system",
+  "requester",
+  "manual",
+  "internal",
+  "self",
+] as const;
+
+export type ChangeOrigin = (typeof CHANGE_ORIGINS)[number];
+
+export function isChangeOrigin(value: string): value is ChangeOrigin {
+  return (CHANGE_ORIGINS as readonly string[]).includes(value);
+}
 
 /** Ação curta válida de uma entidade — ex.: "deactivate". */
 export type AuditActionOf<E extends AuditEntityName> = (typeof auditCatalog)[E]["actions"][number];

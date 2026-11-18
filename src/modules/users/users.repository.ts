@@ -10,7 +10,7 @@ import type {
   ListUsersQuery,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
-import type { RequestCategory } from "../../shared/types/requests.ts";
+import type { RequesterTable } from "../../shared/types/requests.ts";
 
 interface UserSummaryRow {
   user_id: number;
@@ -545,13 +545,13 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   }
 
   return rows.map((row) => {
-    const categoriesForAnalyst: RequestCategory[] = [];
+    const categoriesForAnalyst: string[] = [];
     if (row.attended_category_ids) {
       for (const part of row.attended_category_ids.split(",")) {
         const id = Number(part.trim());
         if (!Number.isNaN(id)) {
           const name = categoryMap.get(id);
-          if (name) categoriesForAnalyst.push(name as RequestCategory);
+          if (name) categoriesForAnalyst.push(name);
         }
       }
     }
@@ -606,15 +606,17 @@ export async function mergeRequesterData(
     additionalContact?: string | null;
   },
 ): Promise<void> {
-  const existing = await trx("requesters")
+  const existing:
+    | Pick<RequesterTable, "area" | "department" | "manager_name" | "additional_contact">
+    | undefined = await trx("requesters")
     .where({ user_id: userId })
     .first("area", "department", "manager_name", "additional_contact");
 
   if (existing) {
     const next = {
-      area: (patch.area ?? existing.area) as string | null,
+      area: patch.area ?? existing.area,
       department: patch.department !== undefined ? (patch.department ?? null) : existing.department,
-      manager_name: (patch.manager ?? existing.manager_name) as string | null,
+      manager_name: patch.manager ?? existing.manager_name,
       additional_contact:
         patch.additionalContact !== undefined
           ? (patch.additionalContact ?? null)
@@ -663,6 +665,9 @@ export async function mergeRequesterData(
   });
 }
 
-export async function findRequesterByUserId(userId: number) {
-  return db("requesters").where({ user_id: userId }).first();
+export async function findRequesterByUserId(
+  userId: number,
+): Promise<RequesterTable | undefined> {
+  const row: RequesterTable | undefined = await db("requesters").where({ user_id: userId }).first();
+  return row;
 }

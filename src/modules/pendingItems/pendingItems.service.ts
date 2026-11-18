@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { FIELD_KEY_SET, getFieldSnapshot } from "../../shared/catalog/fieldCatalog.ts";
+import { getFieldSnapshot, isFieldKey, type FieldKey } from "../../shared/catalog/fieldCatalog.ts";
 import * as repo from "./pendingItems.repository.ts";
 import type { PendingItemInsert, ReviewDecisionInput } from "./pendingItems.repository.ts";
 import type {
@@ -8,8 +8,8 @@ import type {
   CreatePendingItemsBody,
   ListPendingItemsResponse,
   ReviewPendingItemsBody,
-  InternalRequestRow,
 } from "../DTOs/pendingItems/PendingItems.dto.ts";
+import type { InternalRequestRow } from "../../shared/types/requests.ts";
 import { findInternalRequestByProtocol } from "../requests/requests.repository.ts";
 import type { RequestStatus } from "../../shared/types/requests.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
@@ -51,7 +51,7 @@ async function buildPendingItems(
     let currentValue = base.field?.currentValue ?? null;
     if (currentValue !== null && typeof currentValue === "string") {
       try {
-        const parsed = JSON.parse(currentValue as unknown as string);
+        const parsed: unknown = JSON.parse(currentValue);
         if (typeof parsed !== "object" || parsed === null)
           currentValue = parsed as string | number | boolean | null;
       } catch {
@@ -63,7 +63,7 @@ async function buildPendingItems(
     let corrected = base.correctedValue;
     if (corrected !== null && typeof corrected === "string") {
       try {
-        const parsed = JSON.parse(corrected as unknown as string);
+        const parsed: unknown = JSON.parse(corrected);
         if (typeof parsed !== "object" || parsed === null)
           corrected = parsed as string | number | boolean | null;
       } catch {
@@ -105,15 +105,13 @@ export async function createPendingItems(
 
   let internalRow: InternalRequestRow | null = null;
   if (hasItems) {
-    const raw = (await findInternalRequestByProtocol(
-      protocol,
-    )) as unknown as InternalRequestRow | null;
+    const raw = await findInternalRequestByProtocol(protocol);
     if (!raw) throw new AppError("Solicitação não encontrada", 404);
     internalRow = raw;
 
     for (const item of items) {
       const fieldKey = normalizeSummaryFieldKey(item.fieldKey);
-      if (!FIELD_KEY_SET.has(fieldKey)) {
+      if (!isFieldKey(fieldKey)) {
         throw new AppError(`Campos inválidos: fieldKey — ${fieldKey} não está no catálogo`, 400);
       }
       if (!item.comment || item.comment.trim().length === 0) {
@@ -157,7 +155,8 @@ export async function createPendingItems(
   for (const item of items) {
     const fieldKey = normalizeSummaryFieldKey(item.fieldKey);
     const snapshot = internalRow
-      ? getFieldSnapshot(fieldKey, internalRow)
+      ? // `fieldKey` foi validado por `isFieldKey` no laço anterior.
+        getFieldSnapshot(fieldKey as FieldKey, internalRow)
       : { label: fieldKey, value: null };
     rows.push({
       request_id: request.request_id,
