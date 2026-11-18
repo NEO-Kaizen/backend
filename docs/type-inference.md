@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **131**.
-- Tipos nomeados: **276** — 189 interfaces, 85 aliases `type`, 2 classes e 0 enums.
-- Declarações sem anotação explícita: **1583** — 1136 variáveis, 228 parâmetros e 219 retornos de funções/métodos.
+- Arquivos-fonte analisados: **156**.
+- Tipos nomeados: **277** — 190 interfaces, 85 aliases `type`, 2 classes e 0 enums.
+- Declarações sem anotação explícita: **1631** — 1180 variáveis, 230 parâmetros e 221 retornos de funções/métodos.
 - Declarações com tipo efetivo `any` detectado pelo checker: **48**; ocorrências com a palavra-chave `any` explícita no código-fonte: **0**.
-- Arquivos com pelo menos uma declaração sem anotação: **98**; arquivos sem ocorrências são omitidos das seções 2 e 3.
+- Arquivos com pelo menos uma declaração sem anotação: **113**; arquivos sem ocorrências são omitidos das seções 2 e 3.
 - A verificação `npm run typecheck` passa com a configuração atual (inclui `strict` e `noImplicitReturns`).
 
 ## Como interpretar
@@ -19,6 +19,18 @@
 - **Linhas:** referem-se ao estado do código no momento da geração. Como os números mudam a cada alteração em `src/`, valide com `npm run docs:types:check` (executado também por `npm run check`).
 
 ## 1. Tipos nomeados e suas definições
+
+### [src/docs/swagger.ts](../src/docs/swagger.ts)
+
+### L24 — interface SwaggerInterceptorRequest
+
+```ts
+interface SwaggerInterceptorRequest {
+  withCredentials: boolean;
+  headers: Record<string, string>;
+  [key: string]: unknown;
+}
+```
 
 ### [src/modules/auditHistory/auditHistory.repository.ts](../src/modules/auditHistory/auditHistory.repository.ts)
 
@@ -3250,7 +3262,7 @@ interface GroupedIssues {
 
 ### [src/app.ts](../src/app.ts)
 
-- L9 — variable: `app`
+- L10 — variable: `app`
 
 ### [src/configs.ts](../src/configs.ts)
 
@@ -3259,12 +3271,105 @@ interface GroupedIssues {
 - L14 — variable: `Config`
 - L19 — parameter: `s`
 - L19 — retorno da função: `<anônima>()`
-- L29 — variable: `num`
-- L30 — variable: `unit`
+- L30 — variable: `num`
+- L31 — variable: `unit`
 
 ### [src/database/conection.ts](../src/database/conection.ts)
 
 - L5 — variable: `db`
+
+### [src/docs/components/security.ts](../src/docs/components/security.ts)
+
+- L1 — variable: `securitySchemes`
+
+### [src/docs/openapi.ts](../src/docs/openapi.ts)
+
+- L1 — variable: `openapiBase`
+
+### [src/docs/paths/index.ts](../src/docs/paths/index.ts)
+
+- L12 — variable: `paths`
+
+### [src/docs/schemas/auth.ts](../src/docs/schemas/auth.ts)
+
+- L1 — variable: `AuthenticatedUser`
+- L18 — variable: `LoginRequest`
+- L27 — variable: `LoginResponse`
+- L40 — variable: `LogoutResponse`
+- L48 — variable: `ChangePasswordRequest`
+- L58 — variable: `ChangePasswordResponse`
+
+### [src/docs/schemas/common.ts](../src/docs/schemas/common.ts)
+
+- L1 — variable: `ErrorResponse`
+- L11 — variable: `ValidationErrorResponse`
+
+### [src/docs/schemas/index.ts](../src/docs/schemas/index.ts)
+
+- L90 — variable: `schemas`
+
+### [src/docs/schemas/mapping.ts](../src/docs/schemas/mapping.ts)
+
+- L1 — variable: `MappingResponse`
+
+### [src/docs/schemas/pendingItems.ts](../src/docs/schemas/pendingItems.ts)
+
+- L1 — variable: `ReviewDecisionValidate`
+- L11 — variable: `ReviewDecisionReopen`
+
+### [src/docs/schemas/portal.ts](../src/docs/schemas/portal.ts)
+
+- L5 — variable: `StatusToneTokens`
+- L23 — variable: `ThemeGradient`
+- L37 — variable: `ThemeTokens`
+- L96 — variable: `PortalTheme`
+- L109 — variable: `PortalAssets`
+- L139 — variable: `PortalCategory`
+- L154 — variable: `PortalStatus`
+- L190 — variable: `PrioritizationWeights`
+- L222 — variable: `PortalConfig`
+- L256 — variable: `PortalAccessPatchBody`
+- L268 — variable: `PortalIdentityPatchBody`
+- L281 — variable: `PortalThemePatchBody`
+- L289 — variable: `PortalCategoriesPatchBody`
+- L302 — variable: `PortalStatusesPatchBody`
+- L315 — variable: `PortalPrioritizationWeightsPatchBody`
+
+### [src/docs/schemas/prioritization.ts](../src/docs/schemas/prioritization.ts)
+
+- L1 — variable: `PrioritizationCriteria`
+
+### [src/docs/schemas/queue.ts](../src/docs/schemas/queue.ts)
+
+- L1 — variable: `QueueMetrics`
+- L12 — variable: `QueueItem`
+- L37 — variable: `QueueResponse`
+
+### [src/docs/schemas/request.ts](../src/docs/schemas/request.ts)
+
+- L1 — variable: `RequestSummary`
+- L13 — variable: `RequestDetail`
+
+### [src/docs/schemas/triage.ts](../src/docs/schemas/triage.ts)
+
+- L1 — variable: `TriagemResponse`
+
+### [src/docs/schemas/user.ts](../src/docs/schemas/user.ts)
+
+- L1 — variable: `UserMetrics`
+- L12 — variable: `UserListItem`
+- L25 — variable: `RequesterProfileBlock`
+- L36 — variable: `ProfessionalProfileBlock`
+- L47 — variable: `UserProfileResponse`
+
+### [src/docs/swagger.ts](../src/docs/swagger.ts)
+
+- L30 — variable: `openapiSpec`
+- L39 — variable: `swaggerOptions`
+- L48 — retorno da função: `<anônima>()`
+- L61 — parameter: `_req`
+- L61 — parameter: `res`
+- L61 — retorno da função: `<anônima>()`
 
 ### [src/modules/auditHistory/auditHistory.controller.ts](../src/modules/auditHistory/auditHistory.controller.ts)
 
