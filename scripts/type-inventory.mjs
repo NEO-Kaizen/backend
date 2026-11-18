@@ -210,8 +210,9 @@ function plural(count, singular, pluralForm) {
 
 /** @param {"variable" | "parameter" | "return"} kind */
 function declarationLabel(kind) {
-  if (kind === "return") return "retorno da função";
-  return kind;
+  if (kind === "variable") return "variável";
+  if (kind === "parameter") return "parâmetro";
+  return "retorno da função";
 }
 
 function render(files, totals) {
@@ -238,7 +239,7 @@ function render(files, totals) {
     `- Arquivos com pelo menos uma declaração sem anotação: **${totals.filesWithDeclarations}**; arquivos sem ocorrências são omitidos das seções 2 e 3.`,
   );
   lines.push(
-    `- A verificação \`npm run typecheck\` passa com a configuração atual (inclui \`strict\` e \`noImplicitReturns\`).`,
+    `- Erros de typecheck no momento da geração: **${totals.typecheckErrors}** (mesmo \`tsconfig.json\`; 0 significa que \`npm run typecheck\` passa).`,
     "",
   );
 
@@ -253,7 +254,7 @@ function render(files, totals) {
     "- **`any`:** o checker determinou tipo efetivo `any` para os itens listados. Em destructuring, o item é marcado quando o padrão ou qualquer elemento tem tipo `any`. A lista deve ser revisada priorizando as fronteiras com bibliotecas e APIs sem tipo suficientemente específico.",
   );
   lines.push(
-    "- **Linhas:** referem-se ao estado do código no momento da geração. Como os números mudam a cada alteração em `src/`, valide com `npm run docs:types:check` (executado também por `npm run check`).",
+    "- **Linhas:** referem-se ao estado do código no momento da geração. Como os números mudam a cada alteração em `src/`, valide com `npm run docs:types:check` antes de publicar mudanças de tipagem.",
     "",
   );
 
@@ -262,7 +263,7 @@ function render(files, totals) {
     if (file.namedTypes.length === 0) continue;
     lines.push(`### [${file.fileName}](../${file.fileName})`, "");
     for (const type of file.namedTypes) {
-      lines.push(`### L${type.line} — ${type.kind} ${type.name}`, "");
+      lines.push(`#### L${type.line} — ${type.kind} ${type.name}`, "");
       lines.push("```ts", type.text, "```", "");
     }
   }
@@ -361,6 +362,11 @@ async function main() {
   );
   totals.explicitAny = countExplicitAny(sourceFiles);
   totals.filesWithDeclarations = files.filter((file) => file.declarations.length > 0).length;
+  totals.typecheckErrors = ts
+    .getPreEmitDiagnostics(program)
+    .filter(
+      (diagnostic) => diagnostic.file && analyzedSet.has(path.resolve(diagnostic.file.fileName)),
+    ).length;
 
   const markdown = await formatDocument(render(files, totals));
 
