@@ -665,9 +665,7 @@ export async function mergeRequesterData(
   });
 }
 
-export async function findRequesterByUserId(
-  userId: number,
-): Promise<RequesterTable | undefined> {
+export async function findRequesterByUserId(userId: number): Promise<RequesterTable | undefined> {
   const row: RequesterTable | undefined = await db("requesters").where({ user_id: userId }).first();
   return row;
 }

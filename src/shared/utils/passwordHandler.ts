@@ -14,10 +14,7 @@ export async function hashPassword(password: string): Promise<string> {
   }
 }
 
-export async function comparePassword(
-  password: string,
-  hashedPassword: string,
-): Promise<boolean> {
+export async function comparePassword(password: string, hashedPassword: string): Promise<boolean> {
   try {
     const match = await compare(password, hashedPassword);
 

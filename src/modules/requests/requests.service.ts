@@ -486,9 +486,7 @@ function buildPublicDetails(row: InternalRequestRow): PublicRequestDetails {
     status: row.public_status ?? "Solicitação enviada",
     openedAt,
     lastUpdate:
-      normalizeIsoDate(row.last_external_update_at) ??
-      normalizeIsoDate(row.updated_at) ??
-      openedAt,
+      normalizeIsoDate(row.last_external_update_at) ?? normalizeIsoDate(row.updated_at) ?? openedAt,
     lastTechnicalMessage: row.last_technical_message ?? null,
     meeting: mapTrackingMeeting(row),
     requester: mapTrackingRequester(row),
@@ -524,10 +522,7 @@ async function buildAuthenticatedDetails(
       peopleInvolved: row.people_involved,
       averageExecutionTime: row.average_duration,
       monthlyEffortHours: Number(row.estimated_monthly_effort),
-      hasManualControls: toRequiredYesNoDetail(
-        row.has_manual_controls,
-        row.manual_controls_detail,
-      ),
+      hasManualControls: toRequiredYesNoDetail(row.has_manual_controls, row.manual_controls_detail),
     },
     complementary: hasComplementaryData(complementary) ? complementary : undefined,
     schedulePreferences:

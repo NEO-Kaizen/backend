@@ -1,7 +1,4 @@
-import type {
-  AuditEntityType,
-  ChangeOrigin,
-} from "../../../shared/audit/auditCatalog.ts";
+import type { AuditEntityType, ChangeOrigin } from "../../../shared/audit/auditCatalog.ts";
 
 export interface AuditHistoryQuery {
   page?: number;
