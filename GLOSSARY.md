@@ -115,11 +115,11 @@ Capability nomeada `recurso:ação` — o que um perfil pode fazer, como `triage
 _Evitar_: direito, autorização (autorização é o processo), regra.
 
 **Posse**:
-Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia interna: autoriza apenas abrir, acompanhar e responder à própria solicitação. No código, as chaves `request:track` e `pending_item:respond` valem sobre esse vínculo em `own`; com sessão, a identidade é o e-mail da conta, e sem sessão a porta pública usa o e-mail declarado e o protocolo. As duas chaves têm custódia fixa em `own`, e responder pendência exige `request:track`.
+Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia interna: nasce ao abrir e autoriza acompanhar e responder à própria solicitação. No código, as chaves `request:track` e `pending_item:respond` valem sobre esse vínculo em `own`; com sessão, a identidade é o e-mail da conta, e sem sessão a porta pública usa o e-mail declarado e o protocolo. As duas chaves têm custódia fixa em `own`, e responder pendência exige `request:track`.
 _Evitar_: propriedade, ownership, dono.
 
 **Custódia**:
-Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `own` (posse), `assigned` (Responsável corrente) ou `all` (sem filtro de linha). As fontes são o _Responsável_ corrente (`requests.responsible_id`); para as chaves de mapeamento, o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, o e-mail do Solicitante (`requests.requester_email`). Os snapshots de triagem e de mapeamento não concedem acesso.
+Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.responsible_id`); para as chaves de mapeamento, o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, o e-mail do Solicitante (`requests.requester_email`). Os snapshots de triagem e de mapeamento não concedem acesso.
 _Evitar_: escopo, abrangência, alcance, dono, ownership.
 
 **Atribuibilidade (atribuível)**:
@@ -135,7 +135,7 @@ Conjunto de permissões atribuído a um usuário. Os cinco perfis base — _Soli
 _Evitar_: papel, cargo, função, role.
 
 **Admin Root**:
-Perfil raiz do sistema, com todas as permissões e presença na matriz de contas acima dos demais _Administradores_. A conta é criada apenas pelo seed: não há auto-registro nem promoção pela API. O perfil é o teto da gestão de contas e o único que edita o perfil Admin Root.
+Perfil raiz do sistema, identificado por `is_root` e único: existe no máximo uma conta com ele, criada apenas pelo seed, sem auto-registro nem promoção pela API e fora das rotas administrativas. Tem todas as permissões, gerencia qualquer conta — inclusive de autoridade igual — e é o único que edita o perfil Admin Root.
 _Evitar_: super-admin, root, administrador mestre.
 
 **Responsável**:

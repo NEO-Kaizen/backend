@@ -17,7 +17,7 @@ Quatro conceitos explicam toda decisão de acesso. Eles não se derivam uns dos 
 
 ### 1.1 Permissão
 
-A permissão é a chave `recurso:ação`, como `triage:write` ou `theme:manage`. O recurso é o nome do domínio em inglês, com `_` como separador interno; a ação é um dos onze verbos da § 2. A chave é contrato: o backend decide com ela, o frontend monta a interface com ela e o RBAC configurável semeia exatamente o mesmo catálogo. Uma chave nova exige código — um ponto de verificação no serviço e uma affordance no frontend. Nenhum perfil inventa uma capability.
+A permissão é a chave `recurso:ação`, como `triage:write` ou `theme:manage`. O recurso é o nome do domínio em inglês, com `_` como separador interno; a ação é um dos verbos da § 2. A chave é contrato: o backend decide com ela, o frontend monta a interface com ela e o RBAC configurável semeia exatamente o mesmo catálogo. Uma chave nova exige código — um ponto de verificação no serviço e uma affordance no frontend. Nenhum perfil inventa uma capability.
 
 ### 1.2 Custódia
 
@@ -40,17 +40,17 @@ Snapshots de triagem e de mapeamento são histórico: eles registram o que acont
 
 Uma chave `custodial` é concedida em um de três vínculos. O valor é o mesmo no documento, no banco e no `GET /auth/me`.
 
-| Vínculo      | Valor no código | Vale sobre                                  | Quem usa nos perfis base                                     |
-| ------------ | --------------- | ------------------------------------------- | ------------------------------------------------------------ |
-| **Posse**    | `own`           | a solicitação em que o ator é o Solicitante | todos os perfis em `request:track` e `pending_item:respond`  |
-| **Custódia** | `assigned`      | linhas em que o ator é o Responsável        | Analista nas chaves internas                                 |
-| **Todas**    | `all`           | qualquer linha, sem filtro                  | Visualizador, Administrador e Admin Root nas chaves internas |
+| Vínculo      | Valor no código | Vale sobre                                  | Quem usa nos perfis base                                                  |
+| ------------ | --------------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| **Posse**    | `own`           | a solicitação em que o ator é o Solicitante | todos os perfis em `request:track` e `pending_item:respond`               |
+| **Custódia** | `assigned`      | linhas em que o ator é o Responsável        | Analista nas chaves internas                                              |
+| **Todas**    | `all`           | qualquer linha, sem filtro                  | Visualizador nas internas de leitura; Administrador e Admin Root em todas |
 
 `own` não significa “dono da fila” nem “dono do sistema”: significa a solicitação em que o ator é o Solicitante. `assigned` é a custódia — o vínculo que o Responsável corrente tem com a linha. `all` dispensa o filtro de linha.
 
-Abrir uma solicitação estabelece a posse: o autor passa a ser o Solicitante daquela linha. As chaves `request:track` e `pending_item:respond` operam sobre esse vínculo em `own`. Autoria **não** concede `request:read`, `queue:read`, `triage:read` nem custódia interna: para ver a solicitação na visão interna, o autor precisa da chave interna e do vínculo `assigned`/`all`, ou de um grant explícito de `request:read` em `own` num perfil customizado.
+Abrir uma solicitação estabelece a posse: o autor passa a ser o Solicitante daquela linha. As chaves `request:track` e `pending_item:respond` operam sobre esse vínculo em `own`. Autoria **não** concede `request:read`, `queue:read`, `triage:read` nem custódia interna: para ver a solicitação na visão interna, o autor precisa da chave interna e do vínculo `assigned`/`all`.
 
-`request:track` e `pending_item:respond` têm **custódia fixa em `own`**: posse é o único vínculo que elas modelam. Não existe `request:track` em `assigned`/`all` — acompanhar a solicitação de outra pessoa é papel da visão interna (`request:read`), e responder à pendência de outra pessoa é papel de `pending_item:review`.
+Só `request:track` e `pending_item:respond` aceitam `own` — nenhuma outra chave custodial usa esse vínculo. As duas têm **custódia fixa em `own`**: posse é o único vínculo que elas modelam. Não existe `request:track` em `assigned`/`all` — acompanhar a solicitação de outra pessoa é papel da visão interna (`request:read`), e responder à pendência de outra pessoa é papel de `pending_item:review`.
 
 Chave `global` não tem vínculo de linha: no código e na API, o valor é `global`.
 
@@ -111,19 +111,19 @@ As demais combinações não têm dependência: `request:create` é independente
 
 Toda chave termina em um destes verbos. O verbo é parte do contrato: `export` não é `read`, `track` não é `read`, e `status_override` não é `status_change`.
 
-| Verbo             | Significado                                                     | Chaves                                                                                                                                                      |
-| ----------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `read`            | ler a linha ou a visão administrativa                           | `request:read`, `queue:read`, `audit:read`, `user:read`, `profile:read`, `theme:read`, `form:read` e as demais leituras                                     |
-| `write`           | criar ou editar o conteúdo                                      | `request:write`, `triage:write`, `mapping:write`, `prioritization:write`, `pending_item:write`, `internal_note:write`                                       |
-| `create`          | abrir uma solicitação                                           | `request:create`                                                                                                                                            |
-| `track`           | acompanhar as próprias solicitações                             | `request:track`                                                                                                                                             |
-| `assign`          | escolher ou trocar o Responsável                                | `request:assign`                                                                                                                                            |
-| `status_change`   | mudar o status dentro do fluxo permitido                        | `request:status_change`                                                                                                                                     |
-| `status_override` | mudar para alvo restrito ou fora do modo da etapa               | `request:status_override`                                                                                                                                   |
-| `export`          | extrair a fila em arquivo                                       | `queue:export`                                                                                                                                              |
-| `review`          | validar um lote de pendências                                   | `pending_item:review`                                                                                                                                       |
-| `respond`         | responder às pendências da própria solicitação                  | `pending_item:respond`                                                                                                                                      |
-| `manage`          | criar, editar, ativar ou desativar uma entidade ou configuração | `user:manage`, `profile:manage`, `theme:manage`, `category:manage`, `status:manage`, `portal_setting:manage`, `prioritization_config:manage`, `form:manage` |
+| Verbo             | Significado                                                     | Exemplos                                   |
+| ----------------- | --------------------------------------------------------------- | ------------------------------------------ |
+| `read`            | ler a linha ou a visão administrativa                           | `request:read`, `queue:read`, `theme:read` |
+| `write`           | criar ou editar o conteúdo                                      | `request:write`, `triage:write`            |
+| `create`          | abrir uma solicitação                                           | `request:create`                           |
+| `track`           | acompanhar as próprias solicitações                             | `request:track`                            |
+| `assign`          | escolher ou trocar o Responsável                                | `request:assign`                           |
+| `status_change`   | mudar o status dentro do fluxo permitido                        | `request:status_change`                    |
+| `status_override` | mudar para alvo restrito ou fora do modo da etapa               | `request:status_override`                  |
+| `export`          | extrair a fila em arquivo                                       | `queue:export`                             |
+| `review`          | validar um lote de pendências                                   | `pending_item:review`                      |
+| `respond`         | responder às pendências da própria solicitação                  | `pending_item:respond`                     |
+| `manage`          | criar, editar, ativar ou desativar uma entidade ou configuração | `user:manage`, `form:manage`               |
 
 ## 3. Catálogo das 39 chaves
 
@@ -178,13 +178,13 @@ A coluna **Custódia** diz se a chave depende da linha. A coluna **O que permite
 
 ### 3.6 Diretório, contas e perfis
 
-| Chave                     | Recurso            | Ação   | Custódia | O que permite                                                 |
-| ------------------------- | ------------------ | ------ | -------- | ------------------------------------------------------------- |
-| `assignee_directory:read` | assignee_directory | read   | `global` | Ler a lista de usuários ativos que podem receber solicitações |
-| `user:read`               | user               | read   | `global` | Ler as contas de usuário                                      |
-| `user:manage`             | user               | manage | `global` | Criar, editar, ativar e redefinir a senha de contas           |
-| `profile:read`            | profile            | read   | `global` | Ler os perfis e as chaves de cada um                          |
-| `profile:manage`          | profile            | manage | `global` | Criar, editar e desativar perfis e atribuir chaves            |
+| Chave                     | Recurso            | Ação   | Custódia | O que permite                                                                           |
+| ------------------------- | ------------------ | ------ | -------- | --------------------------------------------------------------------------------------- |
+| `assignee_directory:read` | assignee_directory | read   | `global` | Ler a lista de usuários ativos que podem receber solicitações                           |
+| `user:read`               | user               | read   | `global` | Ler as contas de usuário                                                                |
+| `user:manage`             | user               | manage | `global` | Criar, editar, ativar e redefinir a senha de contas, dentro da matriz de contas (§ 4.2) |
+| `profile:read`            | profile            | read   | `global` | Ler os perfis e as chaves de cada um                                                    |
+| `profile:manage`          | profile            | manage | `global` | Criar, editar, duplicar e desativar perfis e atribuir chaves                            |
 
 ### 3.7 Portal
 
@@ -216,15 +216,15 @@ Detalhes que costumam gerar bug:
 - `request:track` é a projeção do Solicitante; `request:read` é a visão interna. Uma não substitui a outra. `request:track` devolve status, reunião e pendências, nunca triagem, prioridade ou notas internas.
 - `request:status_override` é `global` porque libera o **alvo protegido**; a solicitação sobre a qual ele incide continua limitada por `request:status_change`. Ele não substitui a outra chave.
 - `prioritization:write` é `custodial` para a avaliação, mas inclui a leitura global dos critérios necessários ao cálculo. Quem só lê a configuração usa `prioritization_config:read`; não reutilize `prioritization:write` para isso.
-- `request:track` e `pending_item:respond` têm custódia fixa em `own`, e `pending_item:respond` exige `request:track`. Responder à pendência de outra pessoa é `pending_item:review`; acompanhar a solicitação de outra pessoa é `request:read`. `pending_item:respond` inclui a leitura das próprias pendências, como `prioritization:write` inclui os critérios; não crie uma chave separada de leitura para o Solicitante.
+- `request:track` e `pending_item:respond` têm custódia fixa em `own` (dependências na § 1.7). Responder à pendência de outra pessoa é `pending_item:review`; acompanhar a solicitação de outra pessoa é `request:read`. `pending_item:respond` inclui a leitura das próprias pendências, como `prioritization:write` inclui os critérios; não crie uma chave separada de leitura para o Solicitante.
 - `assignee_directory:read` não é `user:read`: é o diretório de quem pode receber solicitações — extensão de profissional, flag, predicado e conta ativa —, não a lista de usuários.
-- `queue:read` e `queue:export` são a própria worklist e as métricas sobre ela.
+- `queue:read` e `queue:export` são a própria Fila e as métricas sobre ela.
 - `audit:read` tem uma porta por domínio: `request:read` lê a solicitação; `triage:read`, `mapping:read`, `pending_item:read`, `internal_note:read` e `audit:read` leem as suas.
 - `theme` cobre tema e assets. `portal_setting` cobre modo de acesso e identidade (nome da plataforma e máscara do protocolo).
 
 ## 4. Perfis base
 
-Os cinco perfis base são semeados com `is_system = true` e a matriz abaixo é a referência do seed. `profile:manage` pode alterar a composição dentro das guardas de [`custom-roles.md`](./custom-roles.md); `is_system` marca os perfis que não são desativados nem excluídos.
+Os cinco perfis base são semeados com a matriz de referência; exclusão física não existe para nenhum perfil; a desativação segue a regra comum (bloqueada quando há usuários vinculados). O perfil Admin Root é identificado pela marca `is_root`, nunca pelo nome; existe no máximo uma conta com ele, e é o único com proteções próprias. `profile:manage` pode alterar a composição dentro das guardas de [`custom-roles.md`](./custom-roles.md).
 
 ```text
 Admin Root
@@ -234,19 +234,19 @@ Admin Root
 Solicitante  (perfil autenticado; ator externo, fora da hierarquia)
 ```
 
-A hierarquia define **alcance de leitura**, não herança de permissão: o Visualizador enxerga mais que o Analista e escreve menos. Permissão não se herda por posição.
+A hierarquia define **o que cada perfil enxerga**, não herança de permissão: o Visualizador enxerga mais que o Analista e escreve menos. Permissão não se herda por posição.
 
 O perfil de leitura chama-se **Visualizador** — antes, _Gestor_. A renomeação é uma migration no banco, os seeds fazem lookup pelo nome atual e as trilhas de auditoria antigas preservam o nome da época.
 
 Todos os perfis base recebem as três chaves de autoatendimento (`request:create`, `request:track`, `pending_item:respond`). A tabela abaixo destaca o que distingue cada perfil nas áreas internas.
 
-| Perfil            | Pode                                                                                                              | Não pode                                                                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Solicitante**   | Abrir solicitações, acompanhar as próprias e responder às próprias pendências (as três chaves de autoatendimento) | Acessar as áreas internas; possuir qualquer chave interna                                                                                      |
-| **Analista**      | Triar, mapear, priorizar, colaborar e ler as solicitações sob sua custódia; receber designação                    | Ler solicitações fora da custódia; exportar a fila; ler relatórios; gerenciar contas/perfis                                                    |
-| **Visualizador**  | Ler as áreas internas de qualquer solicitação; escrever nota interna                                              | Alterar solicitação, status ou responsável; ler os critérios de priorização; configurar o portal                                               |
-| **Administrador** | Gerenciar contas de Solicitante, Analista, Visualizador e de perfis customizados; conteúdo, configuração e perfis | Gerenciar conta de Administrador ou Admin Root; criar ou promover Admin Root                                                                   |
-| **Admin Root**    | Todas as permissões; gerenciar Administradores; editar o perfil Admin Root                                        | Atribuir Admin Root por rota; alterar a designação de perfil da própria conta, o próprio status ou a própria senha pelas rotas administrativas |
+| Perfil            | Pode                                                                                                                                                                       | Não pode                                                                                                                                                                           |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Solicitante**   | Abrir solicitações, acompanhar as próprias e responder às próprias pendências (as três chaves de autoatendimento)                                                          | Acessar as áreas internas; possuir qualquer chave interna                                                                                                                          |
+| **Analista**      | Triar, mapear, priorizar, colaborar e ler as solicitações sob sua custódia; receber designação                                                                             | Ler solicitações fora da custódia; exportar a fila; ler relatórios; gerenciar contas/perfis                                                                                        |
+| **Visualizador**  | Ler as áreas internas de qualquer solicitação; escrever nota interna                                                                                                       | Alterar solicitação, status ou responsável; ler os critérios de priorização; configurar o portal                                                                                   |
+| **Administrador** | Gerenciar contas de perfis estritamente abaixo do seu — Solicitante, Analista, Visualizador e customs, inclusive os que têm `user:manage`; conteúdo, configuração e perfis | Gerenciar contas de perfis de autoridade igual ou maior; criar ou promover Admin Root                                                                                              |
+| **Admin Root**    | Todas as permissões; gerenciar qualquer conta, inclusive de autoridade igual; editar o perfil Admin Root                                                                   | Gerenciar contas com o perfil Admin Root (fora de rota, e única); alterar a designação de perfil da própria conta, o próprio status ou a própria senha pelas rotas administrativas |
 
 ### 4.1 A matriz
 
@@ -304,34 +304,35 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | Administrador | 39     | 19          | 20       |
 | Admin Root    | 39     | 19          | 20       |
 
-Todo perfil base recebe `request:track` e `pending_item:respond` em `own`: qualquer usuário autenticado é também um Solicitante. `own` é posse; `assigned` é custódia; autoria nunca vira custódia interna. As duas chaves só existem em `own`; a matriz reflete a custódia fixa.
+Todo perfil base recebe `request:track` e `pending_item:respond` em `own`: qualquer usuário autenticado é também um Solicitante. `own` é posse; `assigned` é custódia; autoria nunca vira custódia interna.
 
 ### 4.2 Admin Root
 
-O Admin Root é o teto da gestão de contas. Ele tem as mesmas 39 chaves do Administrador; a diferença não está no conjunto de chaves, e sim nas guardas de conta e de perfil:
+O Admin Root é o teto da gestão de contas, identificado pela marca `is_root`, nunca pelo nome. Ele tem as mesmas chaves do Administrador; a diferença não está no conjunto de chaves, e sim nas guardas de conta e de perfil:
 
-- a conta é criada apenas pelo seed, nunca por auto-registro ou promoção pela API;
-- gerencia contas de Administrador; o Administrador não gerencia contas de Administrador nem de Admin Root;
-- é o único que edita o perfil Admin Root;
-- não é atribuível: as flags `is_assignable_*` ficam desligadas;
-- o último Admin Root ativo não é desativado nem trocado de perfil.
+- a conta é única: o seed cria apenas se não existir Admin Root, nunca sobrescreve, e nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta;
+- gerencia qualquer conta, inclusive de autoridade igual; contas com o perfil Admin Root ficam fora de rota — e não existe uma segunda;
+- é o único que edita o perfil Admin Root, que não perde `profile:manage` nem é desativado;
+- não é atribuível: as flags `is_assignable_*` ficam desligadas.
 
-Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra comum de escalação — quem a tem pode concedê-la, porque o ator já a possui. As chaves propagam para baixo e nunca excedem o conjunto do concedente. Um Administrador, que tem todas as chaves, pode compor um perfil com todas elas — decisão consciente do modelo, não acidente.
+**Matriz de contas, por autoridade:** quem tem `user:manage` gerencia contas de perfis **estritamente abaixo** do seu — todo par chave+vínculo do alvo está contido no conjunto do ator, e os conjuntos são diferentes. A contenção respeita a custódia: `all` contém `assigned`; `assigned` não contém `all`; `own` só igual a `own`. As flags `is_assignable_*` não entram na comparação. Um Administrador não gerencia outro Administrador (igual), mas gerencia um custom com `user:manage` que esteja abaixo. O Admin Root é a exceção: gerencia qualquer conta, inclusive de autoridade igual, exceto contas com o perfil Admin Root. Ninguém gerencia a própria conta pelas rotas administrativas.
+
+Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra comum de escalação — quem a tem pode concedê-la, porque o ator já a possui. As chaves e os vínculos propagam para baixo e nunca excedem o conjunto do concedente. Um Administrador, que tem todas as chaves, pode compor um perfil com todas elas — decisão consciente do modelo, não acidente.
 
 ## 5. Como a custódia é resolvida
 
-| Chave                                                                      | Fonte do vínculo                                                                      |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                             |
-| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                             |
-| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.responsible_id` do mapeamento corrente     |
-| `prioritization:write`                                                     | `requests.responsible_id`                                                             |
-| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                             |
-| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                             |
-| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                  |
-| `queue:read`, `queue:export`                                               | worklist: `requests.responsible_id = ator.id`; o responsável do mapeamento não amplia |
-| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)  |
-| chaves `global`                                                            | nenhuma verificação de linha                                                          |
+| Chave                                                                      | Fonte do vínculo                                                                          |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                                 |
+| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                                 |
+| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.responsible_id` do mapeamento corrente         |
+| `prioritization:write`                                                     | `requests.responsible_id`                                                                 |
+| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                                 |
+| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                                 |
+| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                      |
+| `queue:read`, `queue:export`                                               | Fila do ator: `requests.responsible_id = ator.id`; o responsável do mapeamento não amplia |
+| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)      |
+| chaves `global`                                                            | nenhuma verificação de linha                                                              |
 
 Regras de aplicação:
 
@@ -386,7 +387,7 @@ As rotas abaixo são a referência de contrato. O que vale é a chave; a rota po
 | `PATCH /requests/:protocol/internal`                                                                  | `request:write` + custódia                                                                               |
 | `PATCH /requests/:protocol/internal/assignee`, `PATCH /requests/:protocol/assignee`                   | `request:assign`; alvo validado pela atribuibilidade                                                     |
 | `PATCH /requests/:protocol/status`                                                                    | `request:status_change`; alvo restrito exige `request:status_override`                                   |
-| `GET /requests/assignees`, `GET /users/analysts`                                                      | `assignee_directory:read`                                                                                |
+| `GET /requests/assignees`, `GET /users/analysts`                                                      | `assignee_directory:read` (`/users/analysts` é nome legado; o diretório é por flag, não por perfil)      |
 | `GET /queue`, `GET /queue/metrics`                                                                    | `queue:read`                                                                                             |
 | `GET /reports/requests.csv`                                                                           | `queue:export`                                                                                           |
 | `GET /reports/dashboard`                                                                              | `reports:read`                                                                                           |
@@ -466,21 +467,17 @@ O perfil `Solicitante` devolve exatamente as três chaves de autoatendimento:
 
 ## 9. Invariantes
 
-Estas regras continuam no código e não viram chave:
+Estas regras não são expressáveis como chave e continuam no código:
 
 - `request:assign` não decorre de `triage:write`: um perfil pode triar sem distribuir e distribuir sem triar.
 - A atribuibilidade exige a flag explícita e o predicado de chaves; ter as chaves não torna o perfil atribuível.
-- Autoria estabelece posse: abrir uma solicitação dá ao autor o vínculo `own`, e `request:track`/`pending_item:respond` operam sobre ele. Autoria não concede `request:read`, `queue:read`, `triage:read` nem custódia interna.
-- O perfil Solicitante tem as três chaves de autoatendimento e nenhuma chave interna.
-- `pending_item:respond` exige `request:track`, e as duas chaves só existem em `own`: não há respondente sem acompanhamento, nem acompanhamento de terceiros pela porta do Solicitante.
+- Autoria estabelece posse; as chaves de posse operam sobre ela e não aceitam outro vínculo (§ 1.3). Autoria não concede `request:read` nem custódia interna.
 - A custódia é por linha e é lida a cada operação. Snapshots e token não concedem acesso.
 - `request:status_override` libera o alvo protegido; não substitui `request:status_change` para decidir sobre qual solicitação o status muda.
-- `queue:read` e `queue:export` são a worklist do ator; o responsável do mapeamento não amplia a fila.
-- O Visualizador é somente-leitura, exceto `internal_note:write`. Ele não altera solicitação, status, responsável ou configuração e não lê os critérios de priorização.
-- O Analista não exporta a fila nem lê relatórios.
-- Contas: o Administrador gerencia Solicitante, Analista, Visualizador e perfis customizados; não gerencia conta de Administrador nem de Admin Root. O Admin Root gerencia Administradores. Ninguém altera a designação de perfil da própria conta, o próprio status ou a própria senha pelas rotas administrativas.
-- O Admin Root é criado apenas pelo seed, não é atribuível e não é promovido por rota. O último Admin Root ativo é protegido.
-- Um perfil não concede uma chave que o ator não possui — `profile:manage` incluída: para quem já a tem, concedê-la não é escalação.
+- `queue:read` e `queue:export` são a própria Fila do ator; o responsável do mapeamento não a amplia.
+- Sem escalação cobre chave e vínculo: o concedente não amplia o que possui (`all` > `assigned`; `own` fixo nas chaves de posse; `profile:manage` incluída).
+- Contas, por autoridade (§ 4.2): quem tem `user:manage` gerencia perfis estritamente abaixo; o Admin Root gerencia qualquer conta, inclusive de autoridade igual; contas com o perfil Admin Root ficam fora de rota; ninguém gerencia a própria conta pelas rotas administrativas.
+- O Admin Root é único: no máximo uma conta `is_root`, criada só pelo seed; o perfil não perde `profile:manage` nem é desativado, e não é atribuível.
 - Snapshots de auditoria guardam o nome do perfil vigente no momento do registro; trilhas antigas continuam exibindo _Gestor_.
 - Toda recusa auditável registra a _Tentativa_ com o motivo, sem revelar a existência de recurso que o ator não pode ver.
 
@@ -488,9 +485,9 @@ Estas regras continuam no código e não viram chave:
 
 Como o contrato de acesso trata dados pessoais:
 
-- **Menor privilégio por composição.** Cada perfil recebe só as chaves que precisa, e a custódia limita a linha: menos alcance, menos exposição dos dados do Solicitante.
+- **Menor privilégio por composição.** Cada perfil recebe só as chaves que precisa, e a custódia limita a linha: menos exposição dos dados do Solicitante.
 - **Rastreabilidade.** Toda criação, edição, duplicação e desativação de perfil grava ator, antes e depois; a troca de designação via `user:manage` também.
 - **Perfis não guardam dados do titular.** A tabela de perfis tem nome, descrição, flags e chaves; os dados pessoais vivem na conta.
 - **Desativação em vez de exclusão.** Perfis não são excluídos fisicamente; a desativação preserva a integridade referencial da trilha. Exclusão e retificação de dados do titular são tratamento da frente de contas, não da de perfis.
-- **Diretório mínimo.** `assignee_directory:read` expõe apenas quem pode receber solicitações — extensão de profissional, flag, predicado e conta ativa —, nunca a lista completa de usuários.
+- **Diretório mínimo.** `assignee_directory:read` expõe apenas quem pode receber solicitações (§ 6.1), nunca a lista completa de usuários.
 - **Porta pública mínima.** O acompanhamento anônimo usa e-mail declarado + protocolo, sem criar conta.
