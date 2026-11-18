@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **155**.
 - Tipos nomeados: **274** — 190 interfaces, 82 aliases `type`, 2 classes e 0 enums.
-- Declarações sem anotação explícita: **1626** — 1177 variáveis, 229 parâmetros e 220 retornos de funções/métodos.
+- Declarações sem anotação explícita: **1625** — 1176 variáveis, 229 parâmetros e 220 retornos de funções/métodos.
 - Declarações com tipo efetivo `any` detectado pelo checker: **48**; ocorrências com a palavra-chave `any` explícita no código-fonte: **0**.
 - Arquivos com pelo menos uma declaração sem anotação: **112**; arquivos sem ocorrências são omitidos das seções 2 e 3.
 - Erros de typecheck no momento da geração: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -2745,19 +2745,19 @@ export interface QueueResponse extends PaginatedResponse<QueueItem> {
 
 ### [src/shared/types/requests.ts](../src/shared/types/requests.ts)
 
-#### L30 — alias RequestStatus
+#### L7 — alias RequestStatus
 
 ```ts
 export type RequestStatus = string;
 ```
 
-#### L35 — alias RequestPriority
+#### L12 — alias RequestPriority
 
 ```ts
 export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
 ```
 
-#### L60 — alias TriageResult
+#### L23 — alias TriageResult
 
 ```ts
 export type TriageResult =
@@ -2770,31 +2770,31 @@ export type TriageResult =
   | "Backlog";
 ```
 
-#### L69 — alias OperationalImpact
+#### L32 — alias OperationalImpact
 
 ```ts
 export type OperationalImpact = "Baixo" | "Médio" | "Alto" | "Crítico";
 ```
 
-#### L71 — alias YesNoDetail
+#### L34 — alias YesNoDetail
 
 ```ts
 export type YesNoDetail = false | string;
 ```
 
-#### L88 — alias RequestCategoryName
+#### L51 — alias RequestCategoryName
 
 ```ts
 export type RequestCategoryName = string;
 ```
 
-#### L91 — alias RequestCategory
+#### L54 — alias RequestCategory
 
 ```ts
 export type RequestCategory = RequestCategoryName;
 ```
 
-#### L93 — interface AttachmentMetadata
+#### L56 — interface AttachmentMetadata
 
 ```ts
 export interface AttachmentMetadata {
@@ -2804,7 +2804,7 @@ export interface AttachmentMetadata {
 }
 ```
 
-#### L99 — interface RequesterBlock
+#### L62 — interface RequesterBlock
 
 ```ts
 export interface RequesterBlock {
@@ -2819,7 +2819,7 @@ export interface RequesterBlock {
 }
 ```
 
-#### L110 — interface DemandBlock
+#### L73 — interface DemandBlock
 
 ```ts
 export interface DemandBlock {
@@ -2836,7 +2836,7 @@ export interface DemandBlock {
 }
 ```
 
-#### L123 — interface OperationalBlock
+#### L86 — interface OperationalBlock
 
 ```ts
 export interface OperationalBlock {
@@ -2858,7 +2858,7 @@ export interface OperationalBlock {
 }
 ```
 
-#### L141 — interface ComplementaryBlock
+#### L104 — interface ComplementaryBlock
 
 ```ts
 export interface ComplementaryBlock {
@@ -2870,13 +2870,13 @@ export interface ComplementaryBlock {
 }
 ```
 
-#### L149 — alias SchedulePreferences
+#### L112 — alias SchedulePreferences
 
 ```ts
 export type SchedulePreferences = string[];
 ```
 
-#### L151 — interface RequesterTable
+#### L114 — interface RequesterTable
 
 ```ts
 export interface RequesterTable {
@@ -2892,7 +2892,7 @@ export interface RequesterTable {
 }
 ```
 
-#### L163 — interface AssignmentContextRow
+#### L126 — interface AssignmentContextRow
 
 ```ts
 export interface AssignmentContextRow {
@@ -2909,7 +2909,7 @@ export interface AssignmentContextRow {
 }
 ```
 
-#### L176 — interface AssignmentCandidateRow
+#### L139 — interface AssignmentCandidateRow
 
 ```ts
 export interface AssignmentCandidateRow {
@@ -2924,7 +2924,7 @@ export interface AssignmentCandidateRow {
 }
 ```
 
-#### L197 — interface InternalRequestRow
+#### L160 — interface InternalRequestRow
 
 ```ts
 export interface InternalRequestRow {
@@ -3011,13 +3011,13 @@ export type ProfileName = string;
 
 ### [src/shared/types/status.ts](../src/shared/types/status.ts)
 
-#### L29 — alias StatusId
+#### L20 — alias StatusId
 
 ```ts
 export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
 ```
 
-#### L42 — alias CoreStatusId
+#### L33 — alias CoreStatusId
 
 ```ts
 export type CoreStatusId = (typeof CORE_STATUS_IDS)[number];
@@ -4202,64 +4202,64 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.service.ts](../src/modules/queue/mapping.service.ts)
 
-- L42 — parâmetro: `trx`
-- L42 — retorno da função: `<anônima>()`
-- L61 — variável: `date`
-- L124 — parâmetro: `participant`
-- L124 — retorno da função: `<anônima>()`
-- L156 — parâmetro: `participant`
-- L156 — retorno da função: `<anônima>()`
-- L187 — variável: `textField`
-- L188 — variável: `next`
-- L189 — variável: `normalized`
-- L236 — parâmetro: `participant`
-- L236 — retorno da função: `<anônima>()`
-- L236 — variável: `userIds`
-- L240 — variável: `usersById`
-- L242 — parâmetro: `participant`
-- L242 — variável: `resolved`
-- L247 — variável: `user`
-- L254 — variável: `seenEmails`
-- L255 — variável: `seenUserIds`
-- L256 — variável: `participant`
-- L257 — variável: `emailKey`
-- L284 — variável: `getMappingService`
-- L285 — variável: `context`
-- L290 — variável: `mapping`
-- L295 — variável: `[participants, assigneeCandidate]`
-- L308 — variável: `upsertMappingService`
-- L314 — parâmetro: `trx`
-- L314 — retorno da função: `<anônima>()`
-- L317 — variável: `context`
-- L355 — variável: `isAdmin`
-- L356 — variável: `isRequestAssignee`
-- L358 — variável: `isRequestMappingAssignee`
-- L362 — variável: `mapping`
-- L373 — variável: `previousProfessionalId`
-- L383 — variável: `explicitDesignation`
-- L384 — variável: `isNullOnCreate`
-- L385 — variável: `designationAction`
-- L387 — variável: `priorDesigneeUserId`
-- L392 — variável: `isPriorMappingAssignee`
-- L396 — variável: `canCreateByInheritance`
-- L400 — variável: `isCurrentMappingAssignee`
-- L404 — variável: `canDesignate`
-- L405 — variável: `canEditContent`
-- L410 — variável: `contentAction`
-- L458 — variável: `candidate`
-- L478 — variável: `currentValues`
-- L479 — variável: `values`
-- L481 — variável: `concluding`
-- L491 — variável: `target`
-- L522 — variável: `missing`
-- L532 — variável: `resolvedParticipants`
-- L539 — variável: `designationChanged`
-- L574 — variável: `changeOrigin`
-- L578 — variável: `previousAuditValues`
-- L585 — variável: `nextAuditValues`
-- L678 — parâmetro: `participant`
-- L678 — retorno da função: `<anônima>()`
-- L685 — variável: `assigneeCandidate`
+- L43 — parâmetro: `trx`
+- L43 — retorno da função: `<anônima>()`
+- L62 — variável: `date`
+- L125 — parâmetro: `participant`
+- L125 — retorno da função: `<anônima>()`
+- L157 — parâmetro: `participant`
+- L157 — retorno da função: `<anônima>()`
+- L188 — variável: `textField`
+- L189 — variável: `next`
+- L190 — variável: `normalized`
+- L237 — parâmetro: `participant`
+- L237 — retorno da função: `<anônima>()`
+- L237 — variável: `userIds`
+- L241 — variável: `usersById`
+- L243 — parâmetro: `participant`
+- L243 — variável: `resolved`
+- L248 — variável: `user`
+- L255 — variável: `seenEmails`
+- L256 — variável: `seenUserIds`
+- L257 — variável: `participant`
+- L258 — variável: `emailKey`
+- L285 — variável: `getMappingService`
+- L286 — variável: `context`
+- L291 — variável: `mapping`
+- L296 — variável: `[participants, assigneeCandidate]`
+- L309 — variável: `upsertMappingService`
+- L315 — parâmetro: `trx`
+- L315 — retorno da função: `<anônima>()`
+- L318 — variável: `context`
+- L356 — variável: `isAdmin`
+- L357 — variável: `isRequestAssignee`
+- L359 — variável: `isRequestMappingAssignee`
+- L363 — variável: `mapping`
+- L374 — variável: `previousProfessionalId`
+- L384 — variável: `explicitDesignation`
+- L385 — variável: `isNullOnCreate`
+- L386 — variável: `designationAction`
+- L388 — variável: `priorDesigneeUserId`
+- L393 — variável: `isPriorMappingAssignee`
+- L397 — variável: `canCreateByInheritance`
+- L401 — variável: `isCurrentMappingAssignee`
+- L405 — variável: `canDesignate`
+- L406 — variável: `canEditContent`
+- L411 — variável: `contentAction`
+- L459 — variável: `candidate`
+- L479 — variável: `currentValues`
+- L480 — variável: `values`
+- L482 — variável: `concluding`
+- L492 — variável: `target`
+- L523 — variável: `missing`
+- L533 — variável: `resolvedParticipants`
+- L540 — variável: `designationChanged`
+- L579 — variável: `changeOrigin`
+- L583 — variável: `previousAuditValues`
+- L590 — variável: `nextAuditValues`
+- L694 — parâmetro: `participant`
+- L694 — retorno da função: `<anônima>()`
+- L701 — variável: `assigneeCandidate`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
@@ -4279,22 +4279,23 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
-- L7 — variável: `fetchQueueMetrics`
-- L8 — variável: `query`
-- L26 — parâmetro: `builder`
-- L26 — retorno da função: `<anônima>()`
-- L33 — variável: `result`
-- L40 — retorno da função: `<anônima>()`
-- L46 — retorno da função: `<anônima>()`
-- L60 — variável: `findQueueRequests`
-- L63 — variável: `{ limit, offset }`
-- L65 — variável: `baseQuery`
-- L84 — variável: `countQuery`
-- L86 — variável: `itemsQuery`
-- L103 — variável: `[countResult, items]`
-- L104 — variável: `total`
-- L109 — variável: `fetchAllAssignees`
-- L110 — variável: `rows`
+- L17 — variável: `IN_PROGRESS_STATUS_NAMES`
+- L25 — variável: `fetchQueueMetrics`
+- L26 — variável: `query`
+- L44 — parâmetro: `builder`
+- L44 — retorno da função: `<anônima>()`
+- L51 — variável: `result`
+- L58 — retorno da função: `<anônima>()`
+- L64 — retorno da função: `<anônima>()`
+- L78 — variável: `findQueueRequests`
+- L81 — variável: `{ limit, offset }`
+- L83 — variável: `baseQuery`
+- L102 — variável: `countQuery`
+- L104 — variável: `itemsQuery`
+- L121 — variável: `[countResult, items]`
+- L122 — variável: `total`
+- L127 — variável: `fetchAllAssignees`
+- L128 — variável: `rows`
 
 ### [src/modules/queue/queue.router.ts](../src/modules/queue/queue.router.ts)
 
@@ -5056,11 +5057,9 @@ interface GroupedIssues {
 
 ### [src/shared/types/requests.ts](../src/shared/types/requests.ts)
 
-- L9 — variável: `REQUEST_STATUSES`
-- L33 — variável: `REQUEST_PRIORITIES`
-- L43 — variável: `IN_PROGRESS_STATUSES`
-- L58 — variável: `TERMINAL_STATUSES`
-- L74 — variável: `BASE_REQUEST_CATEGORIES`
+- L10 — variável: `REQUEST_PRIORITIES`
+- L21 — variável: `TERMINAL_STATUSES`
+- L37 — variável: `BASE_REQUEST_CATEGORIES`
 
 ### [src/shared/types/role.ts](../src/shared/types/role.ts)
 
@@ -5068,8 +5067,8 @@ interface GroupedIssues {
 
 ### [src/shared/types/status.ts](../src/shared/types/status.ts)
 
-- L9 — variável: `STATUS_IDS`
-- L32 — variável: `CORE_STATUS_IDS`
+- L10 — variável: `STATUS_IDS`
+- L23 — variável: `CORE_STATUS_IDS`
 
 ### [src/shared/types/systemTheme.ts](../src/shared/types/systemTheme.ts)
 
@@ -5257,7 +5256,7 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
-- L33 — variável: `result`
+- L51 — variável: `result`
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 

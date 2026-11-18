@@ -1,52 +1,15 @@
 /**
- * Nomes do seed canônico de status (Anexo A do delta v4).
+ * Nome de status carregado de `statuses.name` — configurável, portanto aberto.
  *
- * NÃO é o tipo de `RequestStatus`: o cadastro é configurável pelo Administrador,
- * então o tipo aceito em runtime é `string`. Use esta lista apenas em seeds,
- * testes e mensagens padrão — nunca para decidir regra de negócio. Fluxos
- * internos devem comparar `status_id` (ver `./status.ts`) ou flags da tabela.
+ * A referência do seed vive nas migrations. Nomes não servem para decidir regra
+ * de negócio: use os ids core (`./status.ts`) ou flags da tabela `statuses`.
  */
-export const REQUEST_STATUSES = [
-  "Solicitação enviada",
-  "Aguardando triagem",
-  "Em triagem",
-  "Pendente de informações",
-  "Aguardando mapeamento",
-  "Mapeamento agendado",
-  "Em mapeamento",
-  "Em análise de viabilidade",
-  "Elegível",
-  "Não elegível",
-  "Priorizado",
-  "Backlog",
-  "Direcionado para outra área",
-  "Em desenvolvimento",
-  "Em homologação",
-  "Concluído",
-  "Cancelado",
-] as const;
-
-/** Nome de status carregado de `statuses.name` — configurável, portanto aberto. */
 export type RequestStatus = string;
 
 /** Fonte única das prioridades — alimenta a union e a validação (Zod). */
 export const REQUEST_PRIORITIES = ["Baixa", "Média", "Alta", "Crítica"] as const;
 
 export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
-
-/**
- * Status considerados "em andamento" para as métricas da fila (Home/Fila).
- *
- * @deprecated Nomes de status não-core podem ser renomeados; a consulta da fila
- * ainda compara por nome. Prefira `status_id` ou as flags da tabela `statuses`.
- */
-export const IN_PROGRESS_STATUSES = [
-  "Em triagem",
-  "Em mapeamento",
-  "Em análise de viabilidade",
-  "Em desenvolvimento",
-  "Em homologação",
-] as const;
 
 /**
  * Status terminais sem entrega — excluídos das métricas de atraso da fila.
