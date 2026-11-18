@@ -1,4 +1,4 @@
-import type { AuditEntityType, ChangeOrigin } from "../../../shared/audit/auditCatalog.ts";
+import type { AuditEntityType } from "../../../shared/audit/auditCatalog.ts";
 
 export interface AuditHistoryQuery {
   page?: number;
@@ -14,7 +14,8 @@ export interface AuditActor {
 
 export interface AuditHistorySummary {
   audit_id: number;
-  entity_type: AuditEntityType;
+  /** Valor persistido em `audit_history.entity_type`; histórico pode estar fora do catálogo. */
+  entity_type: string;
   entity_type_label: string;
   action_type: string; // histórico pode conter ações fora do catálogo atual
   actor: AuditActor;
@@ -23,7 +24,8 @@ export interface AuditHistorySummary {
 
 export interface AuditHistoryDetail {
   audit_id: number;
-  entity_type: AuditEntityType;
+  /** Valor persistido em `audit_history.entity_type`; histórico pode estar fora do catálogo. */
+  entity_type: string;
   entity_id: string;
   action_type: string;
   actor: AuditActor;
@@ -34,7 +36,8 @@ export interface AuditHistoryDetail {
   /** Snapshot do retorno público da transição (nunca concatenado em `note`). */
   last_technical_message: string | null;
   ip_address: string | null;
-  change_origin: ChangeOrigin | null;
+  /** Valor persistido em `audit_history.change_origin`; histórico pode estar fora de `ChangeOrigin`. */
+  change_origin: string | null;
   occurred_at: string;
 }
 

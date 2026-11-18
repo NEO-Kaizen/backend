@@ -40,19 +40,3 @@ export const CORE_STATUS_IDS = [
 ] as const satisfies readonly StatusId[];
 
 export type CoreStatusId = (typeof CORE_STATUS_IDS)[number];
-
-/**
- * Status que contam como "em andamento" nas métricas da fila.
- *
- * Definidos por id (estável), não por nome (renomeável). A lista é a mesma
- * atualmente usada por `IN_PROGRESS_STATUSES` em `requests.ts`; a decisão de
- * produto sobre incluir novos status automaticamente exige uma flag no banco
- * (ver Q8 na auditoria de tipagem).
- */
-export const IN_PROGRESS_STATUS_IDS = [
-  STATUS_IDS.inTriage,
-  STATUS_IDS.inMapping,
-  STATUS_IDS.viabilityAnalysis,
-  STATUS_IDS.inDevelopment,
-  STATUS_IDS.inHomologation,
-] as const satisfies readonly StatusId[];

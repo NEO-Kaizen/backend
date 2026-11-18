@@ -103,6 +103,7 @@ export async function createPendingItems(
     throw new AppError("Campos inválidos: observation — Máximo de 2.000 caracteres.", 400);
   }
 
+  const validatedItems: Array<{ item: (typeof items)[number]; fieldKey: FieldKey }> = [];
   let internalRow: InternalRequestRow | null = null;
   if (hasItems) {
     const raw = await findInternalRequestByProtocol(protocol);
@@ -129,6 +130,7 @@ export async function createPendingItems(
           400,
         );
       }
+      validatedItems.push({ item, fieldKey });
     }
   }
 
@@ -152,11 +154,9 @@ export async function createPendingItems(
       created_by: actor.email,
     });
   }
-  for (const item of items) {
-    const fieldKey = normalizeSummaryFieldKey(item.fieldKey);
+  for (const { item, fieldKey } of validatedItems) {
     const snapshot = internalRow
-      ? // `fieldKey` foi validado por `isFieldKey` no laço anterior.
-        getFieldSnapshot(fieldKey as FieldKey, internalRow)
+      ? getFieldSnapshot(fieldKey, internalRow)
       : { label: fieldKey, value: null };
     rows.push({
       request_id: request.request_id,

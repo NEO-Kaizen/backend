@@ -1,6 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { Role } from "../../shared/types/role.ts";
-import type { AuditEntityType, ChangeOrigin } from "../../shared/audit/auditCatalog.ts";
 import type {
   AuditHistoryQuery,
   AuditHistorySummary,
@@ -8,12 +7,13 @@ import type {
   AuditHistoryListResponse,
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
-import { auditCatalog } from "../../shared/audit/auditCatalog.ts";
+import { auditCatalog, isAuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import { findRequestStatusContext } from "../requests/requests.repository.ts";
 
-const entityLabels: Record<AuditEntityType, string> = Object.fromEntries(
-  Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
-) as Record<AuditEntityType, string>;
+/** Rótulo do catálogo; valores históricos fora dele caem no próprio nome persistido. */
+function entityTypeLabel(entityType: string): string {
+  return isAuditEntityName(entityType) ? auditCatalog[entityType].label : entityType;
+}
 
 export async function listAuditHistoryLogs(
   filters: AuditHistoryQuery,
@@ -23,9 +23,9 @@ export async function listAuditHistoryLogs(
   const formatted: AuditHistorySummary[] = items.map((row) => ({
     audit_id: Number(row.audit_id),
     // Valores históricos podem estar fora do catálogo atual; o contrato expõe
-    // o valor persistido (o label cai no fallback abaixo).
-    entity_type: row.entity_type as AuditEntityType,
-    entity_type_label: entityLabels[row.entity_type as AuditEntityType] ?? row.entity_type,
+    // o valor persistido e o label cai no fallback.
+    entity_type: row.entity_type,
+    entity_type_label: entityTypeLabel(row.entity_type),
     action_type: row.action_type,
     actor: {
       kind: row.user_id === null ? "system" : "user",
@@ -51,7 +51,7 @@ function toDetail(
   const userId = row.user_id === null ? null : Number(row.user_id);
   return {
     audit_id: Number(row.audit_id),
-    entity_type: row.entity_type as AuditEntityType,
+    entity_type: row.entity_type,
     entity_id: row.entity_id,
     action_type: row.action_type,
     actor: {
@@ -64,7 +64,7 @@ function toDetail(
     note: row.note,
     last_technical_message: row.last_technical_message ?? null,
     ip_address: row.ip_address ?? null,
-    change_origin: row.change_origin as ChangeOrigin | null,
+    change_origin: row.change_origin,
     occurred_at: occurredAt,
   };
 }

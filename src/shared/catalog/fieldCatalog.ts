@@ -177,8 +177,11 @@ function extractCurrentValue(
     case "complementary.additionalNotes":
       return row.additional_notes ?? null;
     default: {
-      const unreachable: never = fieldKey;
-      return unreachable;
+      // Exaustivo para `FieldKey`. `null` protege chamadas feitas via cast:
+      // sem ele, o snapshot propagaria `undefined` silenciosamente.
+      const _unreachable: never = fieldKey;
+      void _unreachable;
+      return null;
     }
   }
 }

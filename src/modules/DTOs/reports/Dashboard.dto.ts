@@ -10,10 +10,6 @@ export type DashboardSituation = "open" | "closed" | "overdue" | "unassigned";
  */
 export type DashboardPriorityFilter = number | "unassigned";
 
-export function isDashboardPriorityFilter(value: unknown): value is DashboardPriorityFilter {
-  return value === "unassigned" || (typeof value === "number" && Number.isSafeInteger(value));
-}
-
 export interface DashboardQuery {
   from?: string;
   to?: string;

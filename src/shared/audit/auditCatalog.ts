@@ -65,8 +65,8 @@ export type AuditEntityName = AuditEntityType;
 /**
  * Origens de alteração gravadas em `audit_history.change_origin`.
  *
- * Restrito na escrita (via `recordAudit`); na leitura, use `isChangeOrigin`
- * porque o banco pode conter valores históricos.
+ * Restrito na escrita (via `recordAudit`). Na leitura, o contrato expõe
+ * `string` porque o banco pode conter valores históricos fora desta lista.
  */
 export const CHANGE_ORIGINS = [
   "user",
@@ -79,10 +79,6 @@ export const CHANGE_ORIGINS = [
 ] as const;
 
 export type ChangeOrigin = (typeof CHANGE_ORIGINS)[number];
-
-export function isChangeOrigin(value: string): value is ChangeOrigin {
-  return (CHANGE_ORIGINS as readonly string[]).includes(value);
-}
 
 /** Ação curta válida de uma entidade — ex.: "deactivate". */
 export type AuditActionOf<E extends AuditEntityName> = (typeof auditCatalog)[E]["actions"][number];

@@ -26,9 +26,6 @@ export const REQUEST_STATUSES = [
   "Cancelado",
 ] as const;
 
-/** Nome de um status do seed — referência, não domínio fechado. */
-export type SeedRequestStatus = (typeof REQUEST_STATUSES)[number];
-
 /** Nome de status carregado de `statuses.name` — configurável, portanto aberto. */
 export type RequestStatus = string;
 
@@ -40,9 +37,8 @@ export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
 /**
  * Status considerados "em andamento" para as métricas da fila (Home/Fila).
  *
- * @deprecated Prefira `IN_PROGRESS_STATUS_IDS` (`./status.ts`): nomes de status
- * não-core podem ser renomeados. Mantido enquanto a consulta da fila ainda
- * compara por nome.
+ * @deprecated Nomes de status não-core podem ser renomeados; a consulta da fila
+ * ainda compara por nome. Prefira `status_id` ou as flags da tabela `statuses`.
  */
 export const IN_PROGRESS_STATUSES = [
   "Em triagem",
@@ -87,8 +83,6 @@ export const BASE_REQUEST_CATEGORIES = [
   "Estudo de viabilidade",
   "Outros",
 ] as const;
-
-export type BaseRequestCategory = (typeof BASE_REQUEST_CATEGORIES)[number];
 
 /** Nome de categoria do cadastro (`categories.name`) — configurável (1..50). */
 export type RequestCategoryName = string;
