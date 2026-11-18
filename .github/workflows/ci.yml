@@ -97,14 +97,64 @@ jobs:
           fi
       - name: Run migrations (up)
         run: npm run migrate:latest
-      - name: Roll back all migrations
-        # The rollback MUST happen before any seed runs: with seeded data in
-        # place, the audit-mapping migration fails to roll back (see #142).
-        run: npx --no-install knex migrate:rollback --all --env development
-      - name: Run migrations again (up)
-        run: npm run migrate:latest
-      # Seeds only run after the rollback/up cycle above; running them before
-      # the rollback is what triggers the audit-mapping bug tracked in #142.
+      - name: Insert audit history before the rollback
+        # Regression for #142: every `down` in the entity_type CHECK chain must
+        # accept audit rows written before the rollback and keep rejecting
+        # invalid new inserts. Partial rollbacks are exercised because
+        # `rollback --all` drops audit_history at the end.
+        run: |
+          docker exec -i "${{ job.services.postgres.id }}" psql -U neo_test -d neo_test -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO audit_history (entity_type, entity_id, action_type)
+          VALUES ('prioritization', 'ci-rollback', 'prioritization.evaluate'),
+                 ('settings', 'ci-rollback', 'settings.update'),
+                 ('request', 'ci-rollback', 'request.assign'),
+                 ('mapping', 'ci-rollback', 'mapping.assign'),
+                 ('pending_item', 'ci-rollback', 'pending_item.create');
+          SQL
+      - name: Exercise entity_type rollback round-trip
+        run: |
+          set -euo pipefail
+          psql_exec() {
+            docker exec -i "${{ job.services.postgres.id }}" psql -U neo_test -d neo_test -v ON_ERROR_STOP=1 "$@"
+          }
+          assert_rejected() {
+            local entity_type="$1"
+            local action_type="$2"
+            if psql_exec -c "INSERT INTO audit_history (entity_type, entity_id, action_type) VALUES ('${entity_type}', 'ci-rollback-invalid', '${action_type}');" >/tmp/audit-check.out 2>&1; then
+              echo "::error::INSERT of ${entity_type} should have been rejected after rollback"
+              cat /tmp/audit-check.out
+              exit 1
+            fi
+          }
+          assert_accepted() {
+            local entity_type="$1"
+            local action_type="$2"
+            psql_exec -c "INSERT INTO audit_history (entity_type, entity_id, action_type) VALUES ('${entity_type}', 'ci-rollback-valid', '${action_type}');" >/tmp/audit-check.out
+          }
+          # Newest first. Each rollback removes the entity_type from the CHECK;
+          # the step must still reject that type while accepting the adjacent one.
+          while IFS='|' read -r removed accepted action; do
+            [ -n "$removed" ] || continue
+            npx --no-install knex migrate:rollback --env development
+            assert_rejected "$removed" "$action"
+            assert_accepted "$accepted" "$(case "$accepted" in
+              mapping) echo mapping.assign ;;
+              request) echo request.assign ;;
+              settings) echo settings.update ;;
+              prioritization) echo prioritization.evaluate ;;
+              user) echo user.create ;;
+            esac)"
+            npx --no-install knex migrate:latest --env development
+          done <<'CASES'
+          pending_item|mapping|pending_item.create
+          mapping|request|mapping.assign
+          request|settings|request.assign
+          settings|prioritization|settings.update
+          prioritization|user|prioritization.evaluate
+          CASES
+          npx --no-install knex migrate:rollback --all --env development
+          npx --no-install knex migrate:latest --env development
+      # Seeds only run after the rollback/up cycle above.
       - name: Run base seeds (first pass)
         run: npm run seed:run
       - name: Run base seeds (second pass)

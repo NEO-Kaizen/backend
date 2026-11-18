@@ -13,7 +13,8 @@ export async function up(knex) {
   await knex.raw(`
     ALTER TABLE "audit_history"
       ADD CONSTRAINT "chk_audit_history_entity_type"
-      CHECK ("entity_type" IN ('user', 'prioritization', 'settings', 'request', 'mapping'))
+      CHECK ("entity_type" IN ('user', 'prioritization', 'settings', 'request', 'mapping') )
+      NOT VALID
   `);
 }
 
@@ -23,9 +24,13 @@ export async function up(knex) {
  */
 export async function down(knex) {
   await knex.raw('ALTER TABLE "audit_history" DROP CONSTRAINT "chk_audit_history_entity_type"');
+  // `audit_history` é append-only: o rollback pode encontrar linhas `mapping`
+  // gravadas antes (issue #142). `NOT VALID` mantém o CHECK barrando novos
+  // INSERTs sem varrer o histórico já gravado.
   await knex.raw(`
     ALTER TABLE "audit_history"
       ADD CONSTRAINT "chk_audit_history_entity_type"
       CHECK ("entity_type" IN ('user', 'prioritization', 'settings', 'request'))
+      NOT VALID
   `);
 }
