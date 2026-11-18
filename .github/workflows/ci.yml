@@ -97,14 +97,23 @@ jobs:
           fi
       - name: Run migrations (up)
         run: npm run migrate:latest
+      - name: Insert audit history before the rollback
+        # Regression for #142: every `down` in the entity_type CHECK chain must
+        # accept audit rows written before the rollback, not just an empty table.
+        run: |
+          docker exec -i "${{ job.services.postgres.id }}" psql -U neo_test -d neo_test -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO audit_history (entity_type, entity_id, action_type)
+          VALUES ('prioritization', 'ci-rollback', 'prioritization.update'),
+                 ('settings', 'ci-rollback', 'settings.update'),
+                 ('request', 'ci-rollback', 'request.assign'),
+                 ('mapping', 'ci-rollback', 'mapping.schedule'),
+                 ('pending_item', 'ci-rollback', 'pending_item.create');
+          SQL
       - name: Roll back all migrations
-        # The rollback MUST happen before any seed runs: with seeded data in
-        # place, the audit-mapping migration fails to roll back (see #142).
         run: npx --no-install knex migrate:rollback --all --env development
       - name: Run migrations again (up)
         run: npm run migrate:latest
-      # Seeds only run after the rollback/up cycle above; running them before
-      # the rollback is what triggers the audit-mapping bug tracked in #142.
+      # Seeds only run after the rollback/up cycle above.
       - name: Run base seeds (first pass)
         run: npm run seed:run
       - name: Run base seeds (second pass)
