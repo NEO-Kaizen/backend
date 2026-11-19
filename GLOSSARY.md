@@ -19,7 +19,7 @@ Prefixo fixo do protocolo, configurado por portal. Compõe apenas o formato exib
 _Evitar_: máscara de formatação, template.
 
 **Solicitante**:
-Pessoa que registra uma solicitação e acompanha seu andamento. Pode atuar de forma anônima ou autenticada.
+Pessoa que registra uma solicitação e acompanha seu andamento. Pode atuar de forma anônima — a porta pública, sem conta nem perfil — ou autenticada, com uma conta regida pelas chaves `request:create`, `request:track` e `pending_item:respond`. Em ambos os casos, o vínculo com a solicitação é a _Posse_, não a custódia interna.
 _Evitar_: cliente, usuário externo, requisitante.
 
 **Anexo**:
@@ -114,24 +114,28 @@ _Evitar_: erro, negação, log.
 Capability nomeada `recurso:ação` — o que um perfil pode fazer, como `triage:write` ou `audit:read`. A permissão é contrato; o perfil é a composição de permissões. Uma permissão nova exige código, não configuração.
 _Evitar_: direito, autorização (autorização é o processo), regra.
 
-**Escopo**:
-Limite de uma permissão sobre as linhas. Uma permissão é `none` (global) ou `owner`; quando é `owner`, o vínculo escolhe `own` (só a solicitação sob custódia) ou `all` (qualquer uma). Escopo não é uma permissão separada.
-_Evitar_: abrangência, alcance, visibilidade.
+**Posse**:
+Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia interna: nasce ao abrir e autoriza acompanhar e responder à própria solicitação. No código, as chaves `request:track` e `pending_item:respond` valem sobre esse vínculo em `own`; com sessão, a identidade é o e-mail da conta, e sem sessão a porta pública usa o e-mail declarado e o protocolo. As duas chaves têm custódia fixa em `own`, e responder pendência exige `request:track`.
+_Evitar_: propriedade, ownership, dono.
 
 **Custódia**:
-Vínculo entre um usuário e uma solicitação que o autoriza a agir sobre ela. A regra geral é o _Responsável_ corrente (`requests.responsible_id`); para as permissões de mapeamento, o responsável do mapeamento corrente também conta. Os snapshots de triagem e de mapeamento não concedem acesso.
-_Evitar_: posse (posse é do solicitante), dono, ownership.
+Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.responsible_id`); para as chaves de mapeamento, o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, o e-mail do Solicitante (`requests.requester_email`). Os snapshots de triagem e de mapeamento não concedem acesso.
+_Evitar_: escopo, abrangência, alcance, dono, ownership.
 
 **Atribuibilidade (atribuível)**:
-Propriedade do perfil cujos usuários podem ser escolhidos como _Responsável_ e conseguem trabalhar na solicitação. O predicado é derivado das permissões de leitura e escrita da etapa; a participação no pool é uma flag explícita. Não se confunde com a permissão de atribuir.
+Propriedade do perfil cujos usuários podem ser escolhidos como _Responsável_ e conseguem trabalhar na solicitação. O predicado é derivado das chaves de leitura e escrita da etapa; a participação no pool é uma flag explícita. Não se confunde com `request:assign`, que é a permissão de escolher o Responsável.
 _Evitar_: elegível, selecionável, disponível.
 
+**Extensão de profissional**:
+Registro 1:1 com a conta que habilita o usuário a ser designado _Responsável_. Segue a _Atribuibilidade_: nasce com a conta de perfil atribuível, é reprocessada ao ligar a flag ou ao mover a conta, e o diretório de atribuíveis exige extensão, flag, predicado e conta ativa.
+_Evitar_: cadastro de analista, dados profissionais.
+
 **Perfil**:
-Conjunto de permissões atribuído a um usuário. Hoje são cinco perfis fixos: _Solicitante_, _Analista_, _Gestor_, _Administrador_ e _Admin Root_. O _Solicitante_ descreve um ator externo e não ocupa a hierarquia interna. O RBAC configurável permitirá perfis customizados, compostos das mesmas permissões.
+Conjunto de permissões atribuído a um usuário. Os cinco perfis base — _Solicitante_, _Analista_, _Visualizador_, _Administrador_ e _Admin Root_ — são semeados com a matriz de referência. O _Solicitante_ base tem as três chaves de autoatendimento (`request:create`, `request:track` e `pending_item:respond`) e nenhuma chave interna. Perfis customizados são compostos das mesmas permissões por quem tem `profile:manage`; o cliente cria perfis, não capabilities. O _Solicitante_ descreve um ator externo e não ocupa a hierarquia interna.
 _Evitar_: papel, cargo, função, role.
 
 **Admin Root**:
-Perfil raiz do sistema, com todas as permissões e capacidade de gerir os demais _Administradores_. Não é criado por auto-registro.
+Perfil raiz do sistema, identificado por `is_root` e único: existe no máximo uma conta com ele, criada apenas pelo seed, sem auto-registro nem promoção pela API e fora das rotas administrativas. Tem todas as permissões, gerencia qualquer conta — inclusive de autoridade igual — e é o único que edita o perfil Admin Root.
 _Evitar_: super-admin, root, administrador mestre.
 
 **Responsável**:
