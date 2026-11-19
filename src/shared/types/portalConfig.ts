@@ -125,7 +125,6 @@ export type StatusMode = "none" | "free" | "conclusion_only";
  * Reexportados de `./status.ts` (fonte única dos ids do seed).
  */
 export { CORE_STATUS_IDS } from "./status.ts";
-export type { CoreStatusId } from "./status.ts";
 
 /**
  * Status do ciclo de vida — Motor de Status v4. A ordem de exibição é a

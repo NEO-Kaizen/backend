@@ -33,25 +33,15 @@ export type OperationalImpact = "Baixo" | "Médio" | "Alto" | "Crítico";
 
 export type YesNoDetail = false | string;
 
-/** Categorias do seed inicial — referência, NÃO um domínio fechado. */
-export const BASE_REQUEST_CATEGORIES = [
-  "Automação",
-  "Melhoria de processo",
-  "Indicador",
-  "Dashboard ou relatório",
-  "Análise de dados",
-  "Padronização",
-  "Revisão de processo",
-  "Apoio técnico",
-  "Estudo de viabilidade",
-  "Outros",
-] as const;
-
-/** Nome de categoria do cadastro (`categories.name`) — configurável (1..50). */
+/**
+ * Nome de categoria do cadastro (`categories.name`) — configurável (1..50).
+ *
+ * O seed inicial está em
+ * `migrations/requester_request/202609100013_insert_reference_data.js`
+ * (`CATEGORIES`). Não há lista fixa em tipos: o Administrador cria, renomeia e
+ * desativa categorias pelo portal config.
+ */
 export type RequestCategoryName = string;
-
-/** @deprecated O cadastro é configurável. Use `RequestCategoryName`. */
-export type RequestCategory = RequestCategoryName;
 
 export interface AttachmentMetadata {
   fileName: string; // nome original do arquivo — máx. 255
@@ -75,7 +65,7 @@ export interface DemandBlock {
   requestType: string; // obrigatório — Tipo de Solicitação (modalidade macro,
   // ex.: Automação, Manutenção, Nova Demanda), máx. 80
   category: string; // obrigatório — Categoria da Demanda (validada contra o
-  // cadastro ativo; nomes em RequestCategory são a referência base), máx. 80
+  // cadastro ativo de `categories`), máx. 80
   processName: string; // obrigatório — nome formal do processo atual, máx. 150
   description: string; // obrigatório — Descrição da Necessidade, máx. 4.000
   problem: string; // obrigatório — Problema ou Oportunidade Identificada, máx. 4.000

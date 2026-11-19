@@ -5,8 +5,8 @@
 ## Resumo
 
 - Arquivos-fonte analisados: **155**.
-- Tipos nomeados: **274** — 190 interfaces, 82 aliases `type`, 2 classes e 0 enums.
-- Declarações sem anotação explícita: **1625** — 1176 variáveis, 229 parâmetros e 220 retornos de funções/métodos.
+- Tipos nomeados: **272** — 190 interfaces, 80 aliases `type`, 2 classes e 0 enums.
+- Declarações sem anotação explícita: **1624** — 1175 variáveis, 229 parâmetros e 220 retornos de funções/métodos.
 - Declarações com tipo efetivo `any` detectado pelo checker: **48**; ocorrências com a palavra-chave `any` explícita no código-fonte: **0**.
 - Arquivos com pelo menos uma declaração sem anotação: **112**; arquivos sem ocorrências são omitidos das seções 2 e 3.
 - Erros de typecheck no momento da geração: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -2503,7 +2503,7 @@ export interface PortalCategory {
 export type StatusMode = "none" | "free" | "conclusion_only";
 ```
 
-#### L138 — interface PortalStatus
+#### L137 — interface PortalStatus
 
 ```ts
 export interface PortalStatus {
@@ -2520,19 +2520,19 @@ export interface PortalStatus {
 }
 ```
 
-#### L165 — alias PrioritizationCriterion
+#### L164 — alias PrioritizationCriterion
 
 ```ts
 export type PrioritizationCriterion = (typeof PRIORITIZATION_CRITERIA)[number];
 ```
 
-#### L170 — alias PrioritizationWeights
+#### L169 — alias PrioritizationWeights
 
 ```ts
 export type PrioritizationWeights = Record<PrioritizationCriterion, number>;
 ```
 
-#### L173 — interface PortalConfig
+#### L172 — interface PortalConfig
 
 ```ts
 export interface PortalConfig {
@@ -2547,49 +2547,49 @@ export interface PortalConfig {
 }
 ```
 
-#### L184 — alias AccessSection
+#### L183 — alias AccessSection
 
 ```ts
 export type AccessSection = Pick<PortalConfig, "solicitationMode">;
 ```
 
-#### L185 — alias IdentitySection
+#### L184 — alias IdentitySection
 
 ```ts
 export type IdentitySection = Pick<PortalConfig, "platformName" | "protocolMask">;
 ```
 
-#### L186 — alias ThemeSection
+#### L185 — alias ThemeSection
 
 ```ts
 export type ThemeSection = Pick<PortalConfig, "theme">;
 ```
 
-#### L187 — alias AssetsSection
+#### L186 — alias AssetsSection
 
 ```ts
 export type AssetsSection = Pick<PortalConfig, "assets">;
 ```
 
-#### L188 — alias CategoriesSection
+#### L187 — alias CategoriesSection
 
 ```ts
 export type CategoriesSection = Pick<PortalConfig, "categories">;
 ```
 
-#### L189 — alias StatusesSection
+#### L188 — alias StatusesSection
 
 ```ts
 export type StatusesSection = Pick<PortalConfig, "statuses">;
 ```
 
-#### L190 — alias PrioritizationWeightsSection
+#### L189 — alias PrioritizationWeightsSection
 
 ```ts
 export type PrioritizationWeightsSection = Pick<PortalConfig, "prioritizationWeights">;
 ```
 
-#### L193 — interface CategoryRow
+#### L192 — interface CategoryRow
 
 ```ts
 export interface CategoryRow {
@@ -2601,7 +2601,7 @@ export interface CategoryRow {
 }
 ```
 
-#### L202 — interface StatusRow
+#### L201 — interface StatusRow
 
 ```ts
 export interface StatusRow {
@@ -2782,19 +2782,13 @@ export type OperationalImpact = "Baixo" | "Médio" | "Alto" | "Crítico";
 export type YesNoDetail = false | string;
 ```
 
-#### L51 — alias RequestCategoryName
+#### L44 — alias RequestCategoryName
 
 ```ts
 export type RequestCategoryName = string;
 ```
 
-#### L54 — alias RequestCategory
-
-```ts
-export type RequestCategory = RequestCategoryName;
-```
-
-#### L56 — interface AttachmentMetadata
+#### L46 — interface AttachmentMetadata
 
 ```ts
 export interface AttachmentMetadata {
@@ -2804,7 +2798,7 @@ export interface AttachmentMetadata {
 }
 ```
 
-#### L62 — interface RequesterBlock
+#### L52 — interface RequesterBlock
 
 ```ts
 export interface RequesterBlock {
@@ -2819,7 +2813,7 @@ export interface RequesterBlock {
 }
 ```
 
-#### L73 — interface DemandBlock
+#### L63 — interface DemandBlock
 
 ```ts
 export interface DemandBlock {
@@ -2827,7 +2821,7 @@ export interface DemandBlock {
   requestType: string; // obrigatório — Tipo de Solicitação (modalidade macro,
   // ex.: Automação, Manutenção, Nova Demanda), máx. 80
   category: string; // obrigatório — Categoria da Demanda (validada contra o
-  // cadastro ativo; nomes em RequestCategory são a referência base), máx. 80
+  // cadastro ativo de `categories`), máx. 80
   processName: string; // obrigatório — nome formal do processo atual, máx. 150
   description: string; // obrigatório — Descrição da Necessidade, máx. 4.000
   problem: string; // obrigatório — Problema ou Oportunidade Identificada, máx. 4.000
@@ -2836,7 +2830,7 @@ export interface DemandBlock {
 }
 ```
 
-#### L86 — interface OperationalBlock
+#### L76 — interface OperationalBlock
 
 ```ts
 export interface OperationalBlock {
@@ -2858,7 +2852,7 @@ export interface OperationalBlock {
 }
 ```
 
-#### L104 — interface ComplementaryBlock
+#### L94 — interface ComplementaryBlock
 
 ```ts
 export interface ComplementaryBlock {
@@ -2870,13 +2864,13 @@ export interface ComplementaryBlock {
 }
 ```
 
-#### L112 — alias SchedulePreferences
+#### L102 — alias SchedulePreferences
 
 ```ts
 export type SchedulePreferences = string[];
 ```
 
-#### L114 — interface RequesterTable
+#### L104 — interface RequesterTable
 
 ```ts
 export interface RequesterTable {
@@ -2892,7 +2886,7 @@ export interface RequesterTable {
 }
 ```
 
-#### L126 — interface AssignmentContextRow
+#### L116 — interface AssignmentContextRow
 
 ```ts
 export interface AssignmentContextRow {
@@ -2909,7 +2903,7 @@ export interface AssignmentContextRow {
 }
 ```
 
-#### L139 — interface AssignmentCandidateRow
+#### L129 — interface AssignmentCandidateRow
 
 ```ts
 export interface AssignmentCandidateRow {
@@ -2924,7 +2918,7 @@ export interface AssignmentCandidateRow {
 }
 ```
 
-#### L160 — interface InternalRequestRow
+#### L150 — interface InternalRequestRow
 
 ```ts
 export interface InternalRequestRow {
@@ -3015,12 +3009,6 @@ export type ProfileName = string;
 
 ```ts
 export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
-```
-
-#### L33 — alias CoreStatusId
-
-```ts
-export type CoreStatusId = (typeof CORE_STATUS_IDS)[number];
 ```
 
 ### [src/shared/types/systemSettings.ts](../src/shared/types/systemSettings.ts)
@@ -5053,13 +5041,12 @@ interface GroupedIssues {
 
 - L33 — variável: `ASSET_KEYS`
 - L55 — variável: `THEME_TOKEN_KEYS`
-- L152 — variável: `PRIORITIZATION_CRITERIA`
+- L151 — variável: `PRIORITIZATION_CRITERIA`
 
 ### [src/shared/types/requests.ts](../src/shared/types/requests.ts)
 
 - L10 — variável: `REQUEST_PRIORITIES`
 - L21 — variável: `TERMINAL_STATUSES`
-- L37 — variável: `BASE_REQUEST_CATEGORIES`
 
 ### [src/shared/types/role.ts](../src/shared/types/role.ts)
 

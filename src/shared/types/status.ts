@@ -29,5 +29,3 @@ export const CORE_STATUS_IDS = [
   STATUS_IDS.completed,
   STATUS_IDS.canceled,
 ] as const satisfies readonly StatusId[];
-
-export type CoreStatusId = (typeof CORE_STATUS_IDS)[number];
