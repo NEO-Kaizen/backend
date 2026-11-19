@@ -24,6 +24,7 @@ export async function findUserByEmail(email: string): Promise<AuthUserRow | unde
       "u.updated_at",
       "p.name as profile_name",
       "p.is_active as profile_is_active",
+      "p.is_root as profile_is_root",
     );
 }
 
@@ -44,6 +45,7 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "u.updated_at",
       "p.name as profile_name",
       "p.is_active as profile_is_active",
+      "p.is_root as profile_is_root",
     );
 }
 
@@ -66,6 +68,19 @@ export async function getAuthState(id: number): Promise<AuthState | undefined> {
       "p.is_active as profile_is_active",
       "p.name as profile_name",
     );
+}
+
+/** Concessão persistida de um Perfil — a lista efetiva é montada pelo catálogo. */
+export interface ProfilePermissionRow {
+  permission_key: string;
+  custody: string;
+}
+
+/** Concessões do Perfil vigente, relidas a cada requisição que devolve a sessão. */
+export async function listProfilePermissions(profileId: number): Promise<ProfilePermissionRow[]> {
+  return db("profile_permissions")
+    .where({ profile_id: profileId })
+    .select("permission_key", "custody");
 }
 
 /** Altera a senha dentro da transação fornecida (atômico com a auditoria). */

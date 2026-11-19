@@ -23,10 +23,20 @@ interface UserSummaryRow {
   created_at: Date;
 }
 
-export async function findProfileIdByName(name: string): Promise<number | null> {
-  const row = await db("profiles").where({ name }).first("profile_id");
+export interface ProfileLookupRow {
+  profile_id: number;
+  is_root: boolean;
+}
 
-  return row?.profile_id ?? null;
+/** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
+export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
+  return db("profiles").where({ name }).first("profile_id", "is_root");
+}
+
+export async function findProfileIdByName(name: string): Promise<number | null> {
+  const profile = await findProfileByName(name);
+
+  return profile?.profile_id ?? null;
 }
 
 export async function findUserById(id: number): Promise<AuthUserRow | undefined> {
@@ -47,6 +57,7 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "u.updated_at",
       "p.name as profile_name",
       "p.is_active as profile_is_active",
+      "p.is_root as profile_is_root",
     );
 }
 

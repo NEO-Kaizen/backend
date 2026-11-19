@@ -31,12 +31,25 @@ A associação é realizada por meio da chave estrangeira `users.profile_id`, qu
 ```mermaid
 erDiagram
     PROFILES ||--o{ USERS : has
+    PROFILES ||--o{ PROFILE_PERMISSIONS : grants
 
     PROFILES {
         integer profile_id PK
         varchar name UK
         varchar description
         boolean is_active
+        boolean is_root
+        boolean is_assignable_triage
+        boolean is_assignable_mapping
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    PROFILE_PERMISSIONS {
+        integer permission_id PK
+        integer profile_id FK
+        varchar permission_key
+        varchar custody
         timestamp created_at
         timestamp updated_at
     }
@@ -80,14 +93,17 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 
 ### Estrutura
 
-| Campo         | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                   |
-| ------------- | ------------ | ----------- | --------------------------- | -------------------------------------------- |
-| `profile_id`  | INTEGER      | Sim         | Primary Key, auto increment | Identificador único do perfil                |
-| `name`        | VARCHAR(60)  | Sim         | UNIQUE, NOT NULL            | Nome do perfil                               |
-| `description` | VARCHAR(255) | Não         | NULL permitido              | Descrição opcional do perfil                 |
-| `is_active`   | BOOLEAN      | Sim         | DEFAULT TRUE                | Indica se o perfil está ativo                |
-| `created_at`  | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro           |
-| `updated_at`  | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada |
+| Campo                   | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                     |
+| ----------------------- | ------------ | ----------- | --------------------------- | ---------------------------------------------- |
+| `profile_id`            | INTEGER      | Sim         | Primary Key, auto increment | Identificador único do perfil                  |
+| `name`                  | VARCHAR(60)  | Sim         | UNIQUE, NOT NULL            | Nome do perfil                                 |
+| `description`           | VARCHAR(255) | Não         | NULL permitido              | Descrição opcional do perfil                   |
+| `is_active`             | BOOLEAN      | Sim         | DEFAULT TRUE                | Indica se o perfil está ativo                  |
+| `is_root`               | BOOLEAN      | Sim         | DEFAULT FALSE               | Marca o Perfil Admin Root (escrita só do seed) |
+| `is_assignable_triage`  | BOOLEAN      | Sim         | DEFAULT FALSE               | Flag de Atribuibilidade na triagem             |
+| `is_assignable_mapping` | BOOLEAN      | Sim         | DEFAULT FALSE               | Flag de Atribuibilidade no mapeamento          |
+| `created_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro             |
+| `updated_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada   |
 
 ### Restrições
 
@@ -95,6 +111,8 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 - `name` deve possuir valor único;
 - `name` não pode ser nulo;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
+- `is_root`, `is_assignable_triage` e `is_assignable_mapping` não podem ser nulos e possuem valor padrão `FALSE`;
+- o índice parcial `uk_profiles_single_root` permite no máximo um registro com `is_root = TRUE`;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
 ### Regra de atualização
@@ -102,6 +120,33 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 O valor de `updated_at` recebe a data e hora atual na criação do registro.
 
 A atualização posterior desse campo deverá ser realizada pela aplicação quando houver alteração nos dados do perfil.
+
+## Tabela `profile_permissions`
+
+A tabela `profile_permissions` guarda a composição de Permissões de cada Perfil: a chave `recurso:ação` e o vínculo em que ela vale (`global`, `own`, `assigned` ou `all`).
+
+### Estrutura
+
+| Campo            | Tipo        | Obrigatório | Restrição / Default         | Finalidade                                    |
+| ---------------- | ----------- | ----------- | --------------------------- | --------------------------------------------- |
+| `permission_id`  | INTEGER     | Sim         | Primary Key, auto increment | Identificador único da concessão              |
+| `profile_id`     | INTEGER     | Sim         | Foreign Key, NOT NULL       | Perfil que recebe a Permissão                 |
+| `permission_key` | VARCHAR(60) | Sim         | NOT NULL                    | Chave `recurso:ação`                          |
+| `custody`        | VARCHAR(20) | Sim         | NOT NULL, CHECK             | Vínculo: `global`, `own`, `assigned` ou `all` |
+| `created_at`     | TIMESTAMP   | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro            |
+| `updated_at`     | TIMESTAMP   | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada  |
+
+### Restrições
+
+- `permission_id` é a chave primária da tabela;
+- `profile_id` referencia `profiles.profile_id` com `ON DELETE RESTRICT`;
+- a combinação `(profile_id, permission_key)` é única (`uk_profile_permissions_profile_key`): cada Perfil tem no máximo uma concessão por chave;
+- `ck_profile_permissions_custody` restringe `custody` a `global`, `own`, `assigned` e `all`;
+- a validade das chaves e a coerência entre chave e vínculo vivem no catálogo em código (`src/shared/catalog/permissionCatalog.ts`), não em constraint: uma chave nova exige código, e não configuração.
+
+### Composição dos perfis base
+
+A composição dos cinco perfis base é semeada por `013_base_profile_permissions.js`, que lê a matriz de referência de `src/shared/catalog/baseProfiles.ts` — nenhuma cópia das chaves ou dos vínculos na seed. A conta Admin Root é criada por `014_admin_root_account.js`, apenas se não existir Admin Root, a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD` (documentadas em `.env.example`).
 
 ## Tabela `users`
 
@@ -231,9 +276,11 @@ A atualização posterior de `updated_at` será responsabilidade da aplicação.
 
 ### Perfis como dados de referência
 
-Os perfis `solicitante`, `analista`, `administrador` e `gestor` fazem parte do domínio inicial da aplicação e são necessários para o relacionamento com os usuários.
+Os perfis `solicitante`, `analista`, `gestor`, `administrador` e `admin_root` fazem parte do domínio inicial da aplicação e são necessários para o relacionamento com os usuários.
 
-Por esse motivo, esses registros são tratados como **dados de referência versionados por migration**, e não como dados opcionais de carga inicial.
+As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed não reativa nem altera `is_active` de perfil existente e não remove concessões fora da matriz.
+
+A conta Admin Root é única e nasce apenas da seed `014_admin_root_account.js`, a partir das variáveis de ambiente `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME`; nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta.
 
 Essa decisão garante que qualquer ambiente que execute as migrations receba automaticamente os perfis necessários para o funcionamento inicial da aplicação.
 

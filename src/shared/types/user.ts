@@ -30,6 +30,8 @@ export interface UserRow {
 export interface AuthUserRow extends UserRow {
   profile_name: string;
   profile_is_active: boolean;
+  /** Marca de Perfil Admin Root — a conta é única e fora das rotas administrativas. */
+  profile_is_root: boolean;
 }
 
 /** Métricas consolidadas da base de usuários — retorno de `GET /users/metrics`. */
