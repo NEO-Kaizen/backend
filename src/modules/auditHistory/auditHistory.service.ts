@@ -5,6 +5,7 @@ import type {
   AuditHistorySummary,
   AuditHistoryDetail,
   AuditHistoryListResponse,
+  StatusTimeResponse,
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
 import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
@@ -162,6 +163,51 @@ export async function calculateStatusTimeForProtocol(
     transitions,
     now,
   });
+}
+
+export async function getStatusTimesByProtocol(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<StatusTimeResponse> {
+  const normalized = protocol.trim();
+  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
+  const request = await findRequestStatusContext(normalized);
+
+  if (!request) {
+    if (!isManagerLike) {
+      throw new AppError(
+        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  const isAssignee =
+    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
+  const isMappingAssignee =
+    request.mapping_assignee_user_id !== null &&
+    Number(request.mapping_assignee_user_id) === actor.id;
+
+  if (!isManagerLike && !isAssignee && !isMappingAssignee) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
+
+  const calculatedAt = new Date();
+  const summary = await calculateStatusTimeForProtocol(request.protocol, calculatedAt);
+
+  return {
+    protocol: request.protocol,
+    calculatedAt: calculatedAt.toISOString(),
+    intervals: summary.intervals,
+    totalActiveMilliseconds: summary.totalActiveMilliseconds,
+    totalPausedMilliseconds: summary.totalPausedMilliseconds,
+  };
 }
 
 /**

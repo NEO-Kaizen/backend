@@ -6,6 +6,7 @@ import {
   listAuditHistoryLogs,
   getAuditHistoryDetail,
   listAuditLogsByProtocol,
+  getStatusTimesByProtocol,
 } from "./auditHistory.service.ts";
 
 export async function listAuditHistoryController(req: Request, res: Response): Promise<Response> {
@@ -51,4 +52,25 @@ export async function getAuditLogsByProtocolController(
   });
 
   return res.status(200).json(logs);
+}
+
+export async function getStatusTimesByProtocolController(
+  req: Request,
+  res: Response,
+): Promise<Response> {
+  if (!req.user) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+
+  const protocol = String(req.params.protocol ?? "").trim();
+  if (protocol === "") {
+    throw new AppError("Protocolo é obrigatório", 400);
+  }
+
+  const result = await getStatusTimesByProtocol(protocol, {
+    id: Number(req.user.id),
+    role: req.user.role,
+  });
+
+  return res.status(200).json(result);
 }
