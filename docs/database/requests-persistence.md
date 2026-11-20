@@ -135,13 +135,14 @@ Armazena a matriz pública de 17 status visíveis ao solicitante.
 
 ### Estrutura
 
-| Campo          | Tipo         | Obrigatório | Restrição / Default          | Finalidade                |
-| -------------- | ------------ | ----------- | ---------------------------- | ------------------------- |
-| `status_id`    | INTEGER      | Sim         | Primary Key, auto increment  | Identificador do status   |
-| `order_number` | INTEGER      | Sim         | UNIQUE (`uk_statuses_order`) | Ordem de exibição         |
-| `name`         | VARCHAR(100) | Sim         | UNIQUE (`uk_statuses_name`)  | Nome do status            |
-| `description`  | TEXT         | Não         | NULL permitido               | Descrição do status       |
-| `is_final`     | BOOLEAN      | Sim         | DEFAULT FALSE                | Indica se encerra o fluxo |
+| Campo          | Tipo         | Obrigatório | Restrição / Default          | Finalidade                                |
+| -------------- | ------------ | ----------- | ---------------------------- | ----------------------------------------- |
+| `status_id`    | INTEGER      | Sim         | Primary Key, auto increment  | Identificador do status                   |
+| `order_number` | INTEGER      | Sim         | UNIQUE (`uk_statuses_order`) | Ordem de exibição                         |
+| `name`         | VARCHAR(100) | Sim         | UNIQUE (`uk_statuses_name`)  | Nome do status                            |
+| `description`  | TEXT         | Não         | NULL permitido               | Descrição do status                       |
+| `is_final`     | BOOLEAN      | Sim         | DEFAULT FALSE                | Indica se encerra o fluxo                 |
+| `is_paused`    | BOOLEAN      | Sim         | DEFAULT FALSE                | Indica se o Status pausa a contagem ativa |
 
 ### Restrições
 

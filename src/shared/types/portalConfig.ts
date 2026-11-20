@@ -136,6 +136,7 @@ export interface PortalStatus {
   isCore: boolean;
   isPublic: boolean;
   isTerminal: boolean;
+  isPaused?: boolean;
   triageMode: StatusMode;
   mappingMode: StatusMode;
   isRestricted: boolean;
@@ -201,6 +202,7 @@ export interface StatusRow {
   is_core: boolean;
   is_restricted: boolean;
   is_terminal: boolean;
+  is_paused: boolean;
   triage_mode: StatusMode;
   mapping_mode: StatusMode;
   tone: StatusTone;

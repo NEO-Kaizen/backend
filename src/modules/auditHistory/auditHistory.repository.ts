@@ -14,6 +14,16 @@ interface AuditCountRow {
   total: number | string;
 }
 
+export interface StatusTimeRequestRow {
+  created_at: Date | string;
+  current_status: string;
+}
+
+export interface PausedStatusRow {
+  name: string;
+  is_paused: boolean;
+}
+
 interface AuditHistoryDetailRow {
   audit_id: number | string;
   entity_type: string;
@@ -121,4 +131,22 @@ export async function listAuditHistoryByProtocol(
     .orderBy("a.occurred_at", "desc")
     .orderBy("a.audit_id", "desc")
     .then((rows) => rows as AuditHistoryDetailRow[]);
+}
+
+export async function findStatusTimeRequest(
+  protocol: string,
+): Promise<StatusTimeRequestRow | undefined> {
+  return db("requests as r")
+    .join("statuses as s", "s.status_id", "r.status_id")
+    .select("r.created_at", "s.name as current_status")
+    .where("r.protocol", protocol)
+    .first<StatusTimeRequestRow>();
+}
+
+export async function listPausedStatusNames(): Promise<string[]> {
+  const rows = await db("statuses")
+    .select("name")
+    .where({ is_paused: true })
+    .then((items) => items as Array<{ name: string }>);
+  return rows.map((row) => row.name);
 }
