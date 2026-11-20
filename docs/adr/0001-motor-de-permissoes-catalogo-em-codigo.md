@@ -29,5 +29,8 @@ chaves.
   referência a cada execução (upsert por Perfil + chave). Quando o G1 (ticket 07)
   tornar os Perfis base editáveis por `profile:manage`, essa decisão deve ser
   revisada: re-rodar o seed passaria a reverter edições legítimas de composição.
+  Concessões existentes fora da matriz de referência não são removidas pelo seed
+  (os padrões pedem não apagar dados fora do escopo); a composição exata vale
+  para o que a matriz descreve.
 - O CHECK do banco cobre apenas o domínio do vínculo (`global`, `own`,
   `assigned`, `all`); a validade das chaves é do catálogo em código.
