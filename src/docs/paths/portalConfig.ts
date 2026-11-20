@@ -381,7 +381,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar status do ciclo do portal",
       description:
-        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige perfil `Administrador`.",
+        "Substitui a lista completa de status do ciclo de forma atômica. `isPaused` define se o Status é período de pausa no cálculo RF13. Status de núcleo não permite alterar `isPaused`. Exige perfil `Administrador`.",
       operationId: "updatePortalStatuses",
       security: [{ cookieAuth: [] }],
       requestBody: {

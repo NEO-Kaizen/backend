@@ -50,6 +50,7 @@ function statusToPortal(st: StatusRow): PortalStatus {
     isCore: st.is_core ?? false,
     isPublic: st.is_public ?? false,
     isTerminal: st.is_terminal ?? false,
+    isPaused: st.is_paused ?? false,
     triageMode: st.triage_mode ?? "none",
     mappingMode: st.mapping_mode ?? "none",
     isRestricted: st.is_restricted ?? false,
@@ -321,7 +322,8 @@ export async function updateStatuses(
         incoming.isTerminal !== existing.is_terminal ||
         incoming.isRestricted !== existing.is_restricted ||
         incoming.triageMode !== existing.triage_mode ||
-        incoming.mappingMode !== existing.mapping_mode
+        incoming.mappingMode !== existing.mapping_mode ||
+        (incoming.isPaused !== undefined && incoming.isPaused !== (existing.is_paused ?? false))
       ) {
         throw new AppError(
           `Flags/modos do status de núcleo "${existing.name}" (id ${coreId}) são imutáveis.`,

@@ -153,6 +153,7 @@ export const portalStatusSchema = z
     isCore: z.boolean(),
     isPublic: z.boolean(),
     isTerminal: z.boolean(),
+    isPaused: z.boolean().optional(),
     triageMode: StatusModeSchema,
     mappingMode: StatusModeSchema,
     isRestricted: z.boolean(),

@@ -41,6 +41,7 @@ export interface PortalStatus {
   isCore: boolean; // 7 vitais não apagam/renomeiam/desativam (1,3,4,6,7,16,17)
   isPublic: boolean; // true = solicitante vê esse nome; false = interno só equipe, solicitante vê último status público
   isTerminal: boolean; // encerra solicitação (qualquer status pode ser terminal; por padrão só Concluído/Cancelado)
+  isPaused?: boolean; // true = o tempo permanece pausado enquanto a solicitação estiver nesse Status
   triageMode: StatusMode; // none|free(via PATCH /status)|conclusion_only(via POST triage)
   mappingMode: StatusMode; // none|free(via PATCH /status)|conclusion_only(via PUT mapping)
   isRestricted: boolean; // false=assignee|Admin, true=Admin-only via override

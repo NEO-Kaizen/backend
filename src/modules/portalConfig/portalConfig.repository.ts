@@ -222,6 +222,7 @@ export async function upsertStatuses(
       is_core: status.isCore ?? false,
       is_restricted: status.isRestricted ?? false,
       is_terminal: isTerminal,
+      ...(status.isPaused !== undefined ? { is_paused: status.isPaused } : {}),
       triage_mode: triageMode,
       mapping_mode: mappingMode,
       tone: status.tone,

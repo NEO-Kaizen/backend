@@ -45,6 +45,13 @@ import {
 import { PrioritizationCriteria } from "./prioritization.ts";
 
 import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
+import {
+  AuditActor,
+  AuditHistoryDetail,
+  StatusTimeInterval,
+  StatusTimeByStatus,
+  StatusTimeResponse,
+} from "./audit.ts";
 
 export {
   ErrorResponse,
@@ -85,6 +92,11 @@ export {
   PrioritizationCriteria,
   ReviewDecisionValidate,
   ReviewDecisionReopen,
+  AuditActor,
+  AuditHistoryDetail,
+  StatusTimeInterval,
+  StatusTimeByStatus,
+  StatusTimeResponse,
 };
 
 export const schemas = {
@@ -126,4 +138,9 @@ export const schemas = {
   PrioritizationCriteria,
   ReviewDecisionValidate,
   ReviewDecisionReopen,
+  AuditActor,
+  AuditHistoryDetail,
+  StatusTimeInterval,
+  StatusTimeByStatus,
+  StatusTimeResponse,
 } as const;

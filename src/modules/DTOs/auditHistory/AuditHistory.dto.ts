@@ -44,3 +44,28 @@ export interface AuditHistoryListResponse {
   page: number;
   limit: number;
 }
+
+export interface StatusTimeInterval {
+  status: string;
+  enteredAt: string;
+  exitedAt: string | null;
+  activeMilliseconds: number;
+  pausedMilliseconds: number;
+  isPaused: boolean;
+}
+
+export interface StatusTimeResponse {
+  protocol: string;
+  calculatedAt: string;
+  intervals: StatusTimeInterval[];
+  totalsByStatus: StatusTimeByStatus[];
+  totalActiveMilliseconds: number;
+  totalPausedMilliseconds: number;
+}
+
+export interface StatusTimeByStatus {
+  status: string;
+  activeMilliseconds: number;
+  pausedMilliseconds: number;
+  isPaused: boolean;
+}

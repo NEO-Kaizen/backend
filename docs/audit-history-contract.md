@@ -15,6 +15,63 @@ listagem paginada de eventos de auditoria e detalhe de um evento
 
 ---
 
+## 4. GET /audit-logs/:protocol/status-times — Tempos por Status
+
+Retorna os intervalos de tempo ativo e pausado de uma solicitação. O endpoint não
+aplica regras de SLA; apenas calcula períodos a partir das transições auditadas.
+
+```http
+GET /audit-logs/MAAT-8K3P-9X2M/status-times HTTP/1.1
+Cookie: session_id=<jwt>
+```
+
+**Response 200**:
+
+```json
+{
+  "protocol": "MAAT-8K3P-9X2M",
+  "calculatedAt": "2026-11-20T14:00:00.000Z",
+  "intervals": [
+    {
+      "status": "Em triagem",
+      "enteredAt": "2026-11-20T10:00:00.000Z",
+      "exitedAt": "2026-11-20T11:00:00.000Z",
+      "activeMilliseconds": 3600000,
+      "pausedMilliseconds": 0,
+      "isPaused": false
+    },
+    {
+      "status": "Pendente de informações",
+      "enteredAt": "2026-11-20T11:00:00.000Z",
+      "exitedAt": null,
+      "activeMilliseconds": 0,
+      "pausedMilliseconds": 10800000,
+      "isPaused": true
+    }
+  ],
+  "totalsByStatus": [
+    {
+      "status": "Em triagem",
+      "activeMilliseconds": 3600000,
+      "pausedMilliseconds": 0,
+      "isPaused": false
+    },
+    {
+      "status": "Pendente de informações",
+      "activeMilliseconds": 0,
+      "pausedMilliseconds": 10800000,
+      "isPaused": true
+    }
+  ],
+  "totalActiveMilliseconds": 3600000,
+  "totalPausedMilliseconds": 10800000
+}
+```
+
+- `exitedAt: null` indica o Status atual; o período termina em `calculatedAt`.
+- `isPaused` vem da configuração `statuses.is_paused`.
+- A consulta exige `Administrador`, `Gestor` ou responsável da triagem/mapeamento.
+
 ## Tipos compartilhados
 
 ```ts

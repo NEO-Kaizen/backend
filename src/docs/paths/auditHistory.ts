@@ -56,7 +56,7 @@ export default {
           description: "Detalhe do registro de auditoria.",
           content: {
             "application/json": {
-              schema: { type: "object" },
+              schema: { $ref: "#/components/schemas/AuditHistoryDetail" },
             },
           },
         },
@@ -108,7 +108,10 @@ export default {
           description: "Timeline de auditoria da solicitação.",
           content: {
             "application/json": {
-              schema: { type: "array", items: { type: "object" } },
+              schema: {
+                type: "array",
+                items: { $ref: "#/components/schemas/AuditHistoryDetail" },
+              },
             },
           },
         },
@@ -122,6 +125,58 @@ export default {
         },
         "403": {
           description: "Perfil sem acesso.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Protocolo inexistente.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+  },
+  "/audit-logs/{protocol}/status-times": {
+    get: {
+      tags: ["Auditoria"],
+      summary: "Consultar tempo por Status",
+      description:
+        "Retorna os intervalos ativos e pausados por Status de uma solicitação. Exige autenticação e acesso interno à solicitação.",
+      operationId: "getStatusTimesByProtocol",
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Tempo ativo e pausado por Status.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/StatusTimeResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Usuário sem acesso à solicitação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

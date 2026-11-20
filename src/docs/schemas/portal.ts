@@ -171,6 +171,12 @@ export const PortalStatus = {
     isCore: { type: "boolean", example: true },
     isPublic: { type: "boolean", example: true },
     isTerminal: { type: "boolean", example: false },
+    isPaused: {
+      type: "boolean",
+      description:
+        "Indica que o Status é período de pausa: o tempo nesse Status não conta como tempo ativo.",
+      example: false,
+    },
     triageMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
     mappingMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
     isRestricted: { type: "boolean", example: false },

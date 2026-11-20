@@ -5,10 +5,16 @@ import type {
   AuditHistorySummary,
   AuditHistoryDetail,
   AuditHistoryListResponse,
+  StatusTimeResponse,
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
 import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import { findRequestStatusContext } from "../requests/requests.repository.ts";
+import {
+  calculateStatusTime,
+  type StatusTimeSummary,
+  type StatusTimeTransition,
+} from "../../shared/utils/statusTime.ts";
 
 const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
   Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
@@ -72,6 +78,137 @@ export async function getAuditHistoryDetail(auditId: number): Promise<AuditHisto
     throw new AppError("Log não encontrado", 404);
   }
   return toDetail(row);
+}
+
+function parseStatusValue(value: string | null): string | null {
+  if (!value) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "status" in parsed &&
+      typeof parsed.status === "string"
+    ) {
+      return parsed.status;
+    }
+  } catch {
+    return value;
+  }
+
+  return value;
+}
+
+export async function calculateStatusTimeForProtocol(
+  protocol: string,
+  now: Date = new Date(),
+): Promise<StatusTimeSummary> {
+  const normalized = protocol.trim();
+  const [request, pausedStatusNames, auditRows] = await Promise.all([
+    repository.findStatusTimeRequest(normalized),
+    repository.listPausedStatusNames(),
+    repository.listAuditHistoryByProtocol(normalized),
+  ]);
+
+  if (!request) {
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  const chronologicalRows = [...auditRows].reverse();
+  const transitions: StatusTimeTransition[] = [];
+
+  for (const row of chronologicalRows) {
+    if (
+      row.action_type !== "request.status_change" &&
+      row.action_type !== "request.override_status_admin" &&
+      row.action_type !== "request.triage"
+    ) {
+      continue;
+    }
+
+    const status = parseStatusValue(row.new_value);
+    if (!status) continue;
+
+    const occurredAt =
+      row.occurred_at instanceof Date ? row.occurred_at : new Date(String(row.occurred_at));
+    if (Number.isNaN(occurredAt.getTime())) continue;
+
+    transitions.push({ status, occurredAt });
+  }
+
+  const openedAt =
+    request.created_at instanceof Date ? request.created_at : new Date(String(request.created_at));
+  if (Number.isNaN(openedAt.getTime())) {
+    throw new AppError("Data de abertura da solicitação inválida", 500);
+  }
+
+  const firstTransition = transitions[0];
+  const earliestAuditRow = chronologicalRows.find(
+    (row) =>
+      row.action_type === "request.status_change" ||
+      row.action_type === "request.override_status_admin" ||
+      row.action_type === "request.triage",
+  );
+  const initialStatus =
+    parseStatusValue(earliestAuditRow?.previous_value ?? null) ??
+    firstTransition?.status ??
+    request.current_status;
+
+  return calculateStatusTime({
+    openedAt,
+    initialStatus,
+    currentStatus: request.current_status,
+    pausedStatusNames,
+    transitions,
+    now,
+  });
+}
+
+export async function getStatusTimesByProtocol(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<StatusTimeResponse> {
+  const normalized = protocol.trim();
+  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
+  const request = await findRequestStatusContext(normalized);
+
+  if (!request) {
+    if (!isManagerLike) {
+      throw new AppError(
+        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
+    }
+    throw new AppError("Protocolo não encontrado", 404);
+  }
+
+  const isAssignee =
+    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
+  const isMappingAssignee =
+    request.mapping_assignee_user_id !== null &&
+    Number(request.mapping_assignee_user_id) === actor.id;
+
+  if (!isManagerLike && !isAssignee && !isMappingAssignee) {
+    throw new AppError(
+      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      403,
+      "INSUFFICIENT_ROLE_PERMISSIONS",
+    );
+  }
+
+  const calculatedAt = new Date();
+  const summary = await calculateStatusTimeForProtocol(request.protocol, calculatedAt);
+
+  return {
+    protocol: request.protocol,
+    calculatedAt: calculatedAt.toISOString(),
+    intervals: summary.intervals,
+    totalsByStatus: summary.totalsByStatus,
+    totalActiveMilliseconds: summary.totalActiveMilliseconds,
+    totalPausedMilliseconds: summary.totalPausedMilliseconds,
+  };
 }
 
 /**

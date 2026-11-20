@@ -5,6 +5,7 @@ import {
   listAuditHistoryController,
   getAuditHistoryDetailController,
   getAuditLogsByProtocolController,
+  getStatusTimesByProtocolController,
 } from "./auditHistory.controller.ts";
 
 const auditHistoryRoutes = express.Router();
@@ -36,6 +37,13 @@ export default auditHistoryRoutes;
 // uma solicitação. `/:protocol` aqui NÃO conflita com o `/:id` numérico acima
 // (montagens diferentes): `/audit-history/<int>` vs `/audit-logs/<protocol>`.
 export const auditLogsRouter = express.Router();
+
+auditLogsRouter.get(
+  "/:protocol/status-times",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  getStatusTimesByProtocolController,
+);
 
 auditLogsRouter.get(
   "/:protocol",

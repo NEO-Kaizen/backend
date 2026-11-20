@@ -47,6 +47,30 @@ Regras:
 4. `audit_history` é **só INSERT** — não existe endpoint nem repository de edição/exclusão.
 5. Tipos fora do catálogo são erro de compilação; valores dinâmicos são rejeitados pelo guard antes do INSERT.
 
+## Cobertura das transições de Status
+
+- Transições humanas pelo endpoint de Status registram `request.status_change`
+  ou `request.override_status_admin`.
+- Conclusão da triagem registra `request.triage`.
+- Regras automáticas de atribuição, pendência e mapeamento registram
+  `request.status_change`.
+- Tentativas negadas por acesso ou regra registram `request.access_denied`,
+  sem alterar o Status.
+- Uma constraint trigger valida no commit que mudança real em
+  `requests.status_id` possui evento `request.*` na mesma transação.
+- Transições automáticas usam `change_origin = "system"`; ações humanas usam
+  o `user_id` da sessão.
+
+## Testes
+
+Os testes de auditoria de transições ficam em `test/audit-status-transitions.test.ts`
+e cobrem:
+
+- ações humanas de alteração normal e bypass administrativo;
+- ação de triagem e ações automáticas;
+- ação de tentativa negada;
+- entidade `request` no catálogo.
+
 ## Como validar
 
 ```bash
