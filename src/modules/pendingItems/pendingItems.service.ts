@@ -318,6 +318,7 @@ export async function respondPendingItem(
     pendingItemId,
     batchId: row["batch_id"] as string,
     patch,
+    actorId: caller.user?.id !== undefined ? Number(caller.user.id) : null,
     actorEmail,
     isInternal,
     ip,
