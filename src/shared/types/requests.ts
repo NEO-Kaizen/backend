@@ -40,6 +40,8 @@ export type YesNoDetail = false | string;
  * `migrations/requester_request/202609100013_insert_reference_data.js`
  * (`CATEGORIES`). Não há lista fixa em tipos: o Administrador cria, renomeia e
  * desativa categorias pelo portal config.
+ *
+ * Alias apenas documental — não impõe os valores em nível de tipo.
  */
 export type RequestCategoryName = string;
 
@@ -189,10 +191,9 @@ export interface InternalRequestRow {
 
   // joins e aliases
   category: string | null;
-  category_name?: string | null; // opcional: não é selecionado pela query
   status: string;
   public_status: string;
-  priority: string | null;
+  priority: RequestPriority | null;
   assignee_user_id: number | null;
   professional_name: string | null;
   professional_email: string | null;

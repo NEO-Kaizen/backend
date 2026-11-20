@@ -17,6 +17,7 @@ import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts"
 import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
+import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
@@ -24,6 +25,23 @@ const PENDING_INFO_STATUS: RequestStatus = "Pendente de informações";
 
 function normalizeSummaryFieldKey(fieldKey: string): string {
   return fieldKey.trim();
+}
+
+function parsePendingFieldValue(value: unknown): PendingFieldValue {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (typeof parsed !== "object" || parsed === null) {
+        return parsed as PendingFieldValue;
+      }
+    } catch {
+      // mantém string
+    }
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  return null;
 }
 
 async function buildPendingItems(
@@ -48,29 +66,10 @@ async function buildPendingItems(
       canDownload: false,
     }));
 
-    let currentValue = base.field?.currentValue ?? null;
-    if (currentValue !== null && typeof currentValue === "string") {
-      try {
-        const parsed: unknown = JSON.parse(currentValue);
-        if (typeof parsed !== "object" || parsed === null)
-          currentValue = parsed as string | number | boolean | null;
-      } catch {
-        // mantém string
-      }
-    }
+    const currentValue = parsePendingFieldValue(base.field?.currentValue ?? null);
     if (base.field) base.field.currentValue = currentValue;
 
-    let corrected = base.correctedValue;
-    if (corrected !== null && typeof corrected === "string") {
-      try {
-        const parsed: unknown = JSON.parse(corrected);
-        if (typeof parsed !== "object" || parsed === null)
-          corrected = parsed as string | number | boolean | null;
-      } catch {
-        // mantém string
-      }
-    }
-    base.correctedValue = corrected;
+    base.correctedValue = parsePendingFieldValue(base.correctedValue);
 
     result.push({ ...base, responseAttachments: attachments });
   }

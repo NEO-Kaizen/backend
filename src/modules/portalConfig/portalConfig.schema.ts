@@ -3,12 +3,10 @@ import {
   CORE_STATUS_IDS,
   PRIORITIZATION_CRITERIA,
   THEME_TOKEN_KEYS,
+  type AccessSection,
+  type CategoriesSection,
+  type StatusesSection,
   type ThemeTokenKey,
-} from "../../shared/types/portalConfig.ts";
-import type {
-  AccessSection,
-  CategoriesSection,
-  StatusesSection,
 } from "../../shared/types/portalConfig.ts";
 import { STATUS_TONES, type StatusTone } from "../../shared/types/systemTheme.ts";
 
@@ -168,7 +166,7 @@ export const portalStatusSchema = z
   })
   .strict()
   .superRefine((status, ctx) => {
-    if (status.isCore && !(CORE_STATUS_IDS as readonly number[]).includes(status.id)) {
+    if (status.isCore && !CORE_STATUS_IDS.includes(status.id as (typeof CORE_STATUS_IDS)[number])) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["isCore"],

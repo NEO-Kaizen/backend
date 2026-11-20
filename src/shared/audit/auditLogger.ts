@@ -1,10 +1,10 @@
-import type { Knex } from "knex";
+﻿import type { Knex } from "knex";
 import { AppError } from "../errors/AppError.ts";
 import {
   auditCatalog,
   isAuditEntityName,
   isComposedAuditAction,
-  type AuditEntityName,
+  type AuditEntityType,
   type ChangeOrigin,
   type ComposedAuditAction,
 } from "./auditCatalog.ts";
@@ -12,14 +12,14 @@ import {
 export interface AuditEntryBase {
   /** Identificador da entidade afetada. */
   entityId: string;
-  /** Ator (quem executou). Nulo para ações de sistema. */
+  /** Ator (quem executou). Nulo para aÃ§Ãµes de sistema. */
   userId: number | null;
   /** Valor anterior (texto livre), ex.: is_active antes. */
   previousValue?: string | null;
   newValue?: string | null;
-  /** Justificativa interna da transição (nunca o retorno público). */
+  /** Justificativa interna da transiÃ§Ã£o (nunca o retorno pÃºblico). */
   note?: string | null;
-  /** Snapshot do retorno público submetido na transição (só status público). */
+  /** Snapshot do retorno pÃºblico submetido na transiÃ§Ã£o (sÃ³ status pÃºblico). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
@@ -31,22 +31,22 @@ export interface AuditEntryBase {
  * da `entityType` escolhida (veja `auditCatalog`).
  */
 export type AuditEntry<
-  E extends AuditEntityName = AuditEntityName,
+  E extends AuditEntityType = AuditEntityType,
   A extends ComposedAuditAction<E> = ComposedAuditAction<E>,
 > = AuditEntryBase & { entityType: E; actionType: A };
 
 /**
  * Registra um evento de auditoria na `audit_history`, dentro da MESMA
- * transação da operação de negócio (`trx`).
+ * transaÃ§Ã£o da operaÃ§Ã£o de negÃ³cio (`trx`).
  *
- * A gravação é atômica com a operação: se o evento falhar, a exceção é
- * propagada e o service realiza rollback — a alteração nunca fica sem
- * histórico (e o contrário também não ocorre).
+ * A gravaÃ§Ã£o Ã© atÃ´mica com a operaÃ§Ã£o: se o evento falhar, a exceÃ§Ã£o Ã©
+ * propagada e o service realiza rollback â€” a alteraÃ§Ã£o nunca fica sem
+ * histÃ³rico (e o contrÃ¡rio tambÃ©m nÃ£o ocorre).
  *
- * Tipos inválidos (fora do `auditCatalog`) são erro de programação e também
- * lançam exceção para abortar a transação.
+ * Tipos invÃ¡lidos (fora do `auditCatalog`) sÃ£o erro de programaÃ§Ã£o e tambÃ©m
+ * lanÃ§am exceÃ§Ã£o para abortar a transaÃ§Ã£o.
  */
-export async function recordAudit<E extends AuditEntityName, A extends ComposedAuditAction<E>>(
+export async function recordAudit<E extends AuditEntityType, A extends ComposedAuditAction<E>>(
   trx: Knex.Transaction,
   entry: AuditEntryBase & { entityType: E; actionType: A },
 ): Promise<void> {
@@ -75,4 +75,4 @@ export async function recordAudit<E extends AuditEntityName, A extends ComposedA
 }
 
 export { auditCatalog };
-export type { AuditEntityName, ComposedAuditAction } from "./auditCatalog.ts";
+export type { AuditEntityType, ComposedAuditAction } from "./auditCatalog.ts";

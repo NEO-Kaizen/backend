@@ -20,12 +20,4 @@ export const STATUS_IDS = {
 export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
 
 /** Status protegidos contra renomeação, remoção e desativação. */
-export const CORE_STATUS_IDS = [
-  STATUS_IDS.requestSent,
-  STATUS_IDS.inTriage,
-  STATUS_IDS.pendingInformation,
-  STATUS_IDS.mappingScheduled,
-  STATUS_IDS.inMapping,
-  STATUS_IDS.completed,
-  STATUS_IDS.canceled,
-] as const satisfies readonly StatusId[];
+export const CORE_STATUS_IDS = Object.values(STATUS_IDS) as readonly StatusId[];

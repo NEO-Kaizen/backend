@@ -59,40 +59,28 @@ export const auditCatalog = {
 /** Nome de entidade auditável — ex.: "user". */
 export type AuditEntityType = keyof typeof auditCatalog;
 
-/** @deprecated Use `AuditEntityType` (nome canônico do contrato). */
-export type AuditEntityName = AuditEntityType;
-
 /**
  * Origens de alteração gravadas em `audit_history.change_origin`.
  *
  * Restrito na escrita (via `recordAudit`). Na leitura, o contrato expõe
  * `string` porque o banco pode conter valores históricos fora desta lista.
  */
-export const CHANGE_ORIGINS = [
-  "user",
-  "admin",
-  "system",
-  "requester",
-  "manual",
-  "internal",
-  "self",
-] as const;
-
-export type ChangeOrigin = (typeof CHANGE_ORIGINS)[number];
+export type ChangeOrigin =
+  "user" | "admin" | "system" | "requester" | "manual" | "internal" | "self";
 
 /** Ação curta válida de uma entidade — ex.: "deactivate". */
-export type AuditActionOf<E extends AuditEntityName> = (typeof auditCatalog)[E]["actions"][number];
+export type AuditActionOf<E extends AuditEntityType> = (typeof auditCatalog)[E]["actions"][number];
 
 /** `actionType` composto e já restrito — ex.: "user.deactivate". */
-export type ComposedAuditAction<E extends AuditEntityName> = `${E}.${AuditActionOf<E>}`;
+export type ComposedAuditAction<E extends AuditEntityType> = `${E}.${AuditActionOf<E>}`;
 
 /** Guard de runtime para `entityType` (protege valores dinâmicos). */
-export function isAuditEntityName(value: string): value is AuditEntityName {
+export function isAuditEntityName(value: string): value is AuditEntityType {
   return Object.prototype.hasOwnProperty.call(auditCatalog, value);
 }
 
 /** Guard de runtime para `actionType` composto de uma determinada entidade. */
-export function isComposedAuditAction<E extends AuditEntityName>(
+export function isComposedAuditAction<E extends AuditEntityType>(
   entity: E,
   value: string,
 ): value is ComposedAuditAction<E> {

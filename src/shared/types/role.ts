@@ -8,6 +8,8 @@ export type Role = (typeof ROLES)[number];
  *
  * Diferente de `Role`, que é o vocabulário de exibição capitalizado usado nas
  * respostas da API. A resolução entre os dois acontece em `resolveRole`.
+ *
+ * Alias apenas documental — não impõe os valores em nível de tipo.
  */
 export type ProfileName = string;
 

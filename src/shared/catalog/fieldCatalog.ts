@@ -84,12 +84,12 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
   "complementary.additionalNotes": "Observações adicionais",
 };
 
-export function getFieldLabel(fieldKey: FieldKey): string;
-
-export function getFieldLabel(fieldKey: string): string;
-
 export function getFieldLabel(fieldKey: string): string {
   return isFieldKey(fieldKey) ? FIELD_LABELS[fieldKey] : fieldKey;
+}
+
+function assertNever(value: never): never {
+  throw new Error(`FieldKey não tratado: ${String(value)}`);
 }
 
 function toYesNoDetailString(
@@ -123,7 +123,7 @@ function extractCurrentValue(
     case "demand.requestType":
       return row.request_type;
     case "demand.category":
-      return row.category ?? row.category_name ?? "";
+      return row.category ?? "";
     case "demand.processName":
       return row.process_name;
     case "demand.description":
@@ -176,13 +176,8 @@ function extractCurrentValue(
       return toYesNoDetailString(row.handles_restricted_info, row.restricted_info_detail);
     case "complementary.additionalNotes":
       return row.additional_notes ?? null;
-    default: {
-      // Exaustivo para `FieldKey`. `null` protege chamadas feitas via cast:
-      // sem ele, o snapshot propagaria `undefined` silenciosamente.
-      const _unreachable: never = fieldKey;
-      void _unreachable;
-      return null;
-    }
+    default:
+      return assertNever(fieldKey);
   }
 }
 
