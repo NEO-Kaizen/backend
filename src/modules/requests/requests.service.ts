@@ -3,11 +3,13 @@ import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type {
   RequestStatus,
+  RequestPriority,
   RequesterBlock,
   DemandBlock,
   AssignmentContextRow,
   InternalRequestRow,
 } from "../../shared/types/requests.ts";
+import { REQUEST_PRIORITIES } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
   Meeting,
@@ -297,7 +299,7 @@ export async function findInternalByProtocol(
   return {
     protocol: request.protocol,
     status: request.status,
-    priority: request.priority ?? null,
+    priority: parseRequestPriority(request.priority),
     prioritization: {
       score: evaluation ? evaluation.score : null,
       maxScore: 50,
@@ -321,7 +323,7 @@ export async function findInternalByProtocol(
       title: request.title,
       requestType: request.request_type,
       // O join com `categories` Ã© a fonte do nome; o contrato exige string.
-      category: request.category ?? "",
+      category: request.category,
       processName: request.process_name,
       description: request.need_description,
       problem: request.problem_opportunity,
@@ -418,6 +420,13 @@ export interface TrackingCaller {
 
 const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitaÃ§Ã£o.";
 
+function parseRequestPriority(value: string | null): RequestPriority | null {
+  if (value == null) return null;
+  return (REQUEST_PRIORITIES as readonly string[]).includes(value)
+    ? (value as RequestPriority)
+    : null;
+}
+
 function mapTrackingMeeting(row: InternalRequestRow): Meeting | null {
   const scheduledFor = row.meeting_scheduled_for
     ? new Date(row.meeting_scheduled_for).toISOString()
@@ -443,7 +452,7 @@ function mapTrackingDemand(row: InternalRequestRow): DemandBlock {
   return {
     title: row.title,
     requestType: row.request_type,
-    category: row.category ?? "",
+    category: row.category,
     processName: row.process_name,
     description: row.need_description,
     problem: row.problem_opportunity,
@@ -671,7 +680,7 @@ function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalReque
       title: request.title,
       requestType: request.request_type,
       // O join com `categories` Ã© a fonte do nome; o contrato exige string.
-      category: request.category ?? "",
+      category: request.category,
       processName: request.process_name,
       description: request.need_description,
       problem: request.problem_opportunity,

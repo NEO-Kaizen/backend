@@ -190,10 +190,10 @@ export interface InternalRequestRow {
   updated_at: Date | string;
 
   // joins e aliases
-  category: string | null;
+  category: string;
   status: string;
   public_status: string;
-  priority: RequestPriority | null;
+  priority: string | null;
   assignee_user_id: number | null;
   professional_name: string | null;
   professional_email: string | null;

@@ -155,13 +155,6 @@ function collectFile(fileName, sourceFile, checker) {
         singleLine(node.name.getText(sourceFile)),
         bindingNameHasAnyType(checker, node.name),
       );
-    } else if (ts.isCatchClause(node) && node.variableDeclaration) {
-      addDeclaration(
-        node,
-        "variable",
-        singleLine(node.variableDeclaration.name.getText(sourceFile)),
-        bindingNameHasAnyType(checker, node.variableDeclaration.name),
-      );
     } else if (ts.isParameter(node) && node.type === undefined) {
       addDeclaration(
         node,
