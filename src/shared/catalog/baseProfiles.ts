@@ -29,7 +29,7 @@ export interface BaseProfile {
 /** Vínculo aplicado às chaves custodiais que não têm posse fixa. */
 type CustodialPolicy = Extract<Custody, "assigned" | "all">;
 
-function custodyFor(key: PermissionKey, policy: CustodialPolicy): Custody {
+function resolveCustody(key: PermissionKey, policy: CustodialPolicy): Custody {
   const entry = getPermissionEntry(key);
 
   if (entry.custodyType === "global") {
@@ -44,14 +44,14 @@ function grantPermissions(
   keys: readonly PermissionKey[],
   policy: CustodialPolicy,
 ): BaseProfilePermission[] {
-  return keys.map((key) => ({ key, custody: custodyFor(key, policy) }));
+  return keys.map((key) => ({ key, custody: resolveCustody(key, policy) }));
 }
 
 /** Composição "todas as chaves": globais em `global`, custodiais em `all`, posse fixa em `own`. */
 function grantEveryPermission(): BaseProfilePermission[] {
   return PERMISSION_CATALOG.map((entry) => ({
     key: entry.key,
-    custody: custodyFor(entry.key, "all"),
+    custody: resolveCustody(entry.key, "all"),
   }));
 }
 
