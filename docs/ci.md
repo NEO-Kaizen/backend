@@ -20,11 +20,12 @@ O Dependabot abre PRs semanais para `npm` e `github-actions`, agrupando minor/pa
 Sequência executada contra o service container `postgres:18-alpine` (mesmo digest de `docker-compose.yml`):
 
 1. as 55 migrations sobem com `npm run migrate:latest`;
-2. todas são revertidas com `npx knex migrate:rollback --all --env development` e reaplicadas;
-3. as seeds-base rodam duas vezes e as seeds de cenário rodam duas vezes, validando idempotência;
-4. a API sobe com `node src/server.ts` e o smoke test chama `GET /portal-config` (rota pública) por até 30 tentativas.
+2. o job insere em `audit_history` uma linha de cada `entity_type` da cadeia de CHECK (`prioritization`, `settings`, `request`, `mapping` e `pending_item`) e reverte todas as migrations com `npx knex migrate:rollback --all --env development`;
+3. as migrations sobem de novo;
+4. as seeds-base rodam duas vezes e as seeds de cenário rodam duas vezes, validando idempotência;
+5. a API sobe com `node src/server.ts` e o smoke test chama `GET /portal-config` (rota pública) por até 30 tentativas.
 
-O rollback precisa acontecer **antes** de qualquer seed: com dados semeados, a migration de auditoria de mapping falha ao reverter. O bug está registrado na issue #142.
+O rollback roda **com** auditoria já gravada de propósito: os `down` das migrations de `entity_type` recriam o CHECK anterior como `NOT VALID`, que continua barrando novos `INSERT`s mas não rejeita o histórico existente (issue #142). Antes da correção, `migrate:rollback --all` falhava depois das seeds.
 
 Não existe `.env` no runner de propósito: `knexfile.js` carrega o arquivo com `dotenv` e `override: true`, o que sobrescreveria as variáveis do job. Por isso o workflow falha se encontrar um `.env`.
 
@@ -55,6 +56,8 @@ npm run migrate:latest
 npm run seed:run
 npm run seed:scenarios:run
 ```
+
+Para reproduzir o cenário da CI, insira ao menos uma linha em `audit_history` antes de rodar o `migrate:rollback --all`: o rollback precisa aceitar auditoria já gravada.
 
 ## Depois do merge (manual, admin)
 
