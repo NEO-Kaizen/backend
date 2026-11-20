@@ -118,12 +118,18 @@ function positiveIntOrNull(value: string | null): number | null {
  * distinguindo a origem. A gravação permanece intocada.
  */
 function normalizeEventAction(action: AuditTimelineAction): TimelineEventAction {
-  return action === "request.override_status_admin" ? "request.status_change" : action;
+  return action === "request.override_status_admin" || action === "request.status_override"
+    ? "request.status_change"
+    : action;
 }
 
 /** `request.status_change` e seu override de Admin compartilham render/payload. */
 function isStatusChangeAction(action: AuditTimelineAction): boolean {
-  return action === "request.status_change" || action === "request.override_status_admin";
+  return (
+    action === "request.status_change" ||
+    action === "request.override_status_admin" ||
+    action === "request.status_override"
+  );
 }
 
 function composeEventText(
@@ -134,7 +140,8 @@ function composeEventText(
 ): string {
   switch (row.action_type) {
     case "request.status_change":
-    case "request.override_status_admin": {
+    case "request.override_status_admin":
+    case "request.status_override": {
       if (!row.new_value) return "Status alterado";
       const numericId = positiveIntOrNull(row.new_value);
       const statusName = numericId === null ? row.new_value : statusNames.get(numericId);

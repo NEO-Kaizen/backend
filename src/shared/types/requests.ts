@@ -158,7 +158,10 @@ export interface AssignmentCandidateRow {
   email: string;
   professional_status: "active" | "inactive";
   user_is_active: boolean;
-  profile_name: string;
+  profile_id: number;
+  profile_is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
 }
 
 export interface InternalRequestRow {

@@ -38,9 +38,10 @@ portador.
 enviado automaticamente após `POST /auth/login`. Sem cookie ou com token
 inválido/expirado → `401`.
 
-**Autorização:** `Administrador` e `Gestor` (read-only) veem qualquer
-solicitação; `Analista` apenas as atribuídas por triagem (`assignee`) ou
-mapeamento (`mappingAssignee`) — escopo #102. Fora do escopo → `403`.
+**Autorização:** exige `request:read`. A Custódia `assigned` permite ler
+somente solicitações cujo Responsável corrente (`requests.professional_id`)
+seja o ator; `all` permite ler qualquer solicitação. Custódia fora da linha
+responde 404 igual a um protocolo inexistente, sem revelar sua existência.
 
 **Path param:** `protocol` — o código de rastreio da solicitação
 (URL-encoded), ex.: `MAAT-8K3P-9X2M`.
@@ -252,11 +253,17 @@ HTTP/1.1 404 Not Found
 { "status": "error", "statusCode": 404, "message": "Solicitação não encontrada" }
 ```
 
+## PATCH /requests/:protocol/internal — edição interna
+
+A operação exige request:write e a mesma Custódia assigned/all resolvida no
+service. Quando o ator também tem request:read e Custódia de leitura sobre a
+linha, a resposta mantém RequestInternalDetailDTO. Sem essa leitura, responde
+200 com { protocol, updated: true }, sem devolver o conteúdo interno.
+
 ## Limitações conhecidas desta implementação
 
-- **`403` implementado.** Acesso restrito aos perfis internos
-  `Analista`, `Gestor` e `Administrador` (decisão P2). O perfil `Solicitante`
-  autenticado recebe `403` e deve usar a consulta pública.
+- A autorização interna é baseada em request:read e na Custódia efetiva
+  carregada para cada requisição; o nome do Perfil não decide a visibilidade.
 - **`meeting` e `mappingDate` sempre `null`.** Não existe tabela de reunião
   de mapeamento agendada no schema atual (`request_time_preferences` só
   guarda as preferências de horário do solicitante, não a reunião

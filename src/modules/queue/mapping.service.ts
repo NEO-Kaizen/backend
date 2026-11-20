@@ -17,7 +17,6 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import { ASSIGNABLE_PROFILES } from "../requests/requests.repository.ts";
 import { applyStatusTransition } from "../requests/statusTransition.ts";
 import type {
   MappingActor,
@@ -31,6 +30,8 @@ import type { MappingPayload } from "./mapping.schemas.ts";
 import * as repository from "./mapping.repository.ts";
 import type { MappingRow } from "./mapping.repository.ts";
 import type { Knex } from "knex";
+
+const LEGACY_ASSIGNABLE_PROFILES = ["analista"] as const;
 
 /** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
 async function recordMappingAccessDenied(
@@ -276,7 +277,7 @@ function assertCandidateEligible(candidate: repository.MappingAssigneeCandidate)
   if (candidate.professional_status !== "active" || !candidate.user_is_active) {
     throw new AppError("Designado inativo.", 422);
   }
-  if (!(ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
+  if (!(LEGACY_ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
     throw new AppError("Perfil do designado não permite executar o mapeamento.", 422);
   }
 }
