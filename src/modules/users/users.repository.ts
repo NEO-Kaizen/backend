@@ -601,5 +601,3 @@ export async function mergeRequesterData(
     additional_contact: patch.additionalContact ?? null,
   });
 }
-
-
