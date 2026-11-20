@@ -14,8 +14,16 @@ export interface StatusTimeInterval {
 
 export interface StatusTimeSummary {
   intervals: StatusTimeInterval[];
+  totalsByStatus: StatusTimeByStatus[];
   totalActiveMilliseconds: number;
   totalPausedMilliseconds: number;
+}
+
+export interface StatusTimeByStatus {
+  status: string;
+  activeMilliseconds: number;
+  pausedMilliseconds: number;
+  isPaused: boolean;
 }
 
 export interface StatusTimeCalculationInput {
@@ -85,13 +93,28 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
 
   let totalActiveMilliseconds = 0;
   let totalPausedMilliseconds = 0;
+  const totalsByStatus = new Map<
+    string,
+    { status: string; activeMilliseconds: number; pausedMilliseconds: number; isPaused: boolean }
+  >();
+
   for (const interval of intervals) {
     totalActiveMilliseconds += interval.activeMilliseconds;
     totalPausedMilliseconds += interval.pausedMilliseconds;
+    const total = totalsByStatus.get(interval.status) ?? {
+      status: interval.status,
+      activeMilliseconds: 0,
+      pausedMilliseconds: 0,
+      isPaused: interval.isPaused,
+    };
+    total.activeMilliseconds += interval.activeMilliseconds;
+    total.pausedMilliseconds += interval.pausedMilliseconds;
+    totalsByStatus.set(interval.status, total);
   }
 
   return {
     intervals,
+    totalsByStatus: [...totalsByStatus.values()],
     totalActiveMilliseconds,
     totalPausedMilliseconds,
   };

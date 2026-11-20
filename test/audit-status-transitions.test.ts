@@ -43,4 +43,13 @@ test("status time separates active and paused periods", () => {
   assert.equal(result.totalActiveMilliseconds, 2 * 60 * 60 * 1000);
   assert.equal(result.totalPausedMilliseconds, 2 * 60 * 60 * 1000);
   assert.equal(result.intervals.at(-1)?.exitedAt, null);
+  assert.deepEqual(
+    result.totalsByStatus.find((total) => total.status === "Em triagem"),
+    {
+      status: "Em triagem",
+      activeMilliseconds: 2 * 60 * 60 * 1000,
+      pausedMilliseconds: 0,
+      isPaused: false,
+    },
+  );
 });

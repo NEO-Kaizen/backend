@@ -58,6 +58,14 @@ export interface StatusTimeResponse {
   protocol: string;
   calculatedAt: string;
   intervals: StatusTimeInterval[];
+  totalsByStatus: StatusTimeByStatus[];
   totalActiveMilliseconds: number;
   totalPausedMilliseconds: number;
+}
+
+export interface StatusTimeByStatus {
+  status: string;
+  activeMilliseconds: number;
+  pausedMilliseconds: number;
+  isPaused: boolean;
 }

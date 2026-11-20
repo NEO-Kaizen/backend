@@ -179,6 +179,18 @@ export default {
                       },
                     },
                   },
+                  totalsByStatus: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        status: { type: "string", example: "Pendente de informações" },
+                        activeMilliseconds: { type: "integer", minimum: 0 },
+                        pausedMilliseconds: { type: "integer", minimum: 0 },
+                        isPaused: { type: "boolean" },
+                      },
+                    },
+                  },
                   totalActiveMilliseconds: { type: "integer", minimum: 0 },
                   totalPausedMilliseconds: { type: "integer", minimum: 0 },
                 },

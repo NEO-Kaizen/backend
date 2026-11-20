@@ -49,6 +49,20 @@ Cookie: session_id=<jwt>
       "isPaused": true
     }
   ],
+  "totalsByStatus": [
+    {
+      "status": "Em triagem",
+      "activeMilliseconds": 3600000,
+      "pausedMilliseconds": 0,
+      "isPaused": false
+    },
+    {
+      "status": "Pendente de informações",
+      "activeMilliseconds": 0,
+      "pausedMilliseconds": 10800000,
+      "isPaused": true
+    }
+  ],
   "totalActiveMilliseconds": 3600000,
   "totalPausedMilliseconds": 10800000
 }

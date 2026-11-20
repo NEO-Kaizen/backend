@@ -205,6 +205,7 @@ export async function getStatusTimesByProtocol(
     protocol: request.protocol,
     calculatedAt: calculatedAt.toISOString(),
     intervals: summary.intervals,
+    totalsByStatus: summary.totalsByStatus,
     totalActiveMilliseconds: summary.totalActiveMilliseconds,
     totalPausedMilliseconds: summary.totalPausedMilliseconds,
   };
