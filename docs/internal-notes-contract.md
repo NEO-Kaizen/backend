@@ -20,6 +20,11 @@ Cada registro pertence a uma solicitação e a um usuário autor. O campo
 `author_role_at_creation` preserva o perfil que o autor possuía no momento da
 publicação, mesmo que seu perfil seja alterado posteriormente.
 
+O campo é um snapshot em texto livre pelo nome do Perfil na época: a constraint
+que o travava em nomes fixos foi removida na migration
+`20261119120200_drop_internal_notes_author_role_check`, e os snapshots
+históricos permanecem como estão — renomear um Perfil não reescreve o passado.
+
 O nome exibido vem de `users.full_name`. Usuários e solicitações referenciados
 não podem ser excluídos enquanto possuírem observações.
 

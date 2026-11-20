@@ -314,6 +314,9 @@ As migrations devem ser executadas na seguinte ordem:
 1. `20260812234318_create_profiles.js`
 2. `20260812234600_insert_initial_profiles.js`
 3. `20260812235002_create_users.js`
+4. `20261119120000_add_rbac_flags_to_profiles.js`
+5. `20261119120100_create_profile_permissions.js`
+6. `20261119120200_drop_internal_notes_author_role_check.js`
 
 Essa ordem garante que a tabela `profiles` exista antes da inserção dos perfis iniciais e que os perfis estejam disponíveis antes da criação e utilização da relação com `users`.
 
@@ -434,7 +437,7 @@ Ainda precisam ser realizadas as seguintes validações:
 - configurar as credenciais reais no arquivo `.env`;
 - executar `npm run migrate:latest`;
 - confirmar a criação das tabelas `profiles` e `users`;
-- confirmar a criação dos quatro perfis iniciais na tabela `profiles`;
+- confirmar a criação dos cinco perfis base na tabela `profiles`;
 - confirmar que não foram criados perfis duplicados;
 - conferir os tipos das colunas;
 - validar as chaves primárias;
