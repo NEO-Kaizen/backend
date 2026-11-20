@@ -56,7 +56,7 @@ export default {
           description: "Detalhe do registro de auditoria.",
           content: {
             "application/json": {
-              schema: { type: "object" },
+              schema: { $ref: "#/components/schemas/AuditHistoryDetail" },
             },
           },
         },
@@ -108,7 +108,10 @@ export default {
           description: "Timeline de auditoria da solicitação.",
           content: {
             "application/json": {
-              schema: { type: "array", items: { type: "object" } },
+              schema: {
+                type: "array",
+                items: { $ref: "#/components/schemas/AuditHistoryDetail" },
+              },
             },
           },
         },
@@ -160,41 +163,7 @@ export default {
           description: "Tempo ativo e pausado por Status.",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-                  calculatedAt: { type: "string", format: "date-time" },
-                  intervals: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        status: { type: "string", example: "Pendente de informações" },
-                        enteredAt: { type: "string", format: "date-time" },
-                        exitedAt: { type: "string", format: "date-time", nullable: true },
-                        activeMilliseconds: { type: "integer", minimum: 0 },
-                        pausedMilliseconds: { type: "integer", minimum: 0 },
-                        isPaused: { type: "boolean" },
-                      },
-                    },
-                  },
-                  totalsByStatus: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        status: { type: "string", example: "Pendente de informações" },
-                        activeMilliseconds: { type: "integer", minimum: 0 },
-                        pausedMilliseconds: { type: "integer", minimum: 0 },
-                        isPaused: { type: "boolean" },
-                      },
-                    },
-                  },
-                  totalActiveMilliseconds: { type: "integer", minimum: 0 },
-                  totalPausedMilliseconds: { type: "integer", minimum: 0 },
-                },
-              },
+              schema: { $ref: "#/components/schemas/StatusTimeResponse" },
             },
           },
         },
