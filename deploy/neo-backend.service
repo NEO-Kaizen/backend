@@ -1,0 +1,27 @@
+# User-level systemd unit for the NEO Kaizen backend.
+#
+# Installed once, by hand, before the first deploy:
+#   install -Dm 0644 deploy/neo-backend.service ~/.config/systemd/user/neo-backend.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable neo-backend
+#
+# %h is the home directory of the user running this unit, so the same file works
+# for `desafio03` or for a dedicated `deploy` account. The service is started by
+# the first deploy. If the nvm Node path changes, update ExecStart here,
+# reinstall, and run `systemctl --user daemon-reload`.
+[Unit]
+Description=NEO Kaizen backend
+Documentation=https://github.com/NEO-Kaizen/backend
+
+[Service]
+Type=simple
+WorkingDirectory=%h/NEO/backend
+ExecStart=%h/.nvm/versions/node/v24.21.0/bin/node --env-file-if-exists=.env dist/server.js
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target
