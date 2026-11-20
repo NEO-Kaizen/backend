@@ -175,6 +175,7 @@ Cada usuário possui um identificador único, um e-mail utilizado para identific
 - `password_hash` não pode ser nulo;
 - `profile_id` não pode ser nulo;
 - `profile_id` referencia `profiles.profile_id`;
+- no máximo uma conta pode usar o Perfil marcado com `is_root`: o trigger `trg_users_single_root` recusa a segunda conta, inclusive em `INSERT`/`UPDATE` diretos;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
