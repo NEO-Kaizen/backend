@@ -75,6 +75,7 @@ auditoria "coringa".
 | `attachments`                | `attachment_id`              | `uuid`               | `gen_random_uuid()`    | 1                      |
 | `request_time_preferences`   | `request_time_preference_id` | `serial` (int)       | `increments()`         | 2                      |
 | `criteria`                   | `criterion_id`               | `varchar(50)`        | slug                   | 3 (exceção de seed)    |
+| `notifications`              | `notification_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
 
 ## Decisão aplicada: `mappings`
 

@@ -149,3 +149,33 @@ _Evitar_: modo de portal, visibilidade, tipo de acesso.
 **Aparência**:
 Conjunto de cores e estilos que o portal apresenta. Há mais de uma; duas são vigentes ao mesmo tempo, uma para o slot claro e outra para o slot escuro, e o solicitante escolhe entre as oferecidas.
 _Evitar_: tema, theme, skin, paleta.
+
+## Notificações e Eventos
+
+**Notificação**:
+Projeção gravada por destinatário na mesma transação de um evento de negócio, permitindo acompanhar atualizações de solicitações de forma síncrona ou em tempo real.
+_Evitar_: alerta, aviso, push, pop-up.
+
+**Evento**:
+Fato de negócio imutável que desencadeia reações e notificações no sistema, validado estruturalmente por contrato.
+_Evitar_: mensagem, trigger, ação.
+
+**Payload**:
+Conteúdo restrito associado a um Evento ou Notificação, limitado à Allowlist para omitir dados confidenciais ou técnicos.
+_Evitar_: body, dados completos, json bruto.
+
+**Allowlist**:
+Lista fechada de campos permitidos em um Payload, garantindo que o destinatário receba apenas ponteiros e informações públicas essenciais.
+_Evitar_: whitelist, lista permitida.
+
+**Destinatário**:
+Usuário que recebe uma Notificação (na v1, vinculado ao `requester_user_id` da solicitação).
+_Evitar_: usuário notificado, receptor.
+
+**Canal**:
+Mecanismo de entrega de Notificações (na v1, canal in-app; preparado para e-mail no RF31).
+_Evitar_: meio, adaptador de envio.
+
+**Stream**:
+Canal contínuo de entrega de Notificações em tempo real via Server-Sent Events (SSE).
+_Evitar_: websocket, conexão aberta, canal ao vivo.

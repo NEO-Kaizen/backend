@@ -43,11 +43,14 @@ export type AuditEntry<
  *
  * Tipos inválidos (fora do `auditCatalog`) são erro de programação e também
  * lançam exceção para abortar a transação.
+ *
+ * Retorna o `audit_id` gerado — chave natural para correlacionar o evento de
+ * negócio com outras projeções gravadas na mesma transação (ex.: Notificação).
  */
 export async function recordAudit<E extends AuditEntityName, A extends ComposedAuditAction<E>>(
   trx: Knex.Transaction,
   entry: AuditEntryBase & { entityType: E; actionType: A },
-): Promise<void> {
+): Promise<string> {
   if (
     !isAuditEntityName(entry.entityType) ||
     !isComposedAuditAction(entry.entityType, entry.actionType)
@@ -58,18 +61,27 @@ export async function recordAudit<E extends AuditEntityName, A extends ComposedA
     );
   }
 
-  await trx("audit_history").insert({
-    entity_type: entry.entityType,
-    entity_id: entry.entityId,
-    action_type: entry.actionType,
-    user_id: entry.userId,
-    previous_value: entry.previousValue ?? null,
-    new_value: entry.newValue ?? null,
-    note: entry.note ?? null,
-    last_technical_message: entry.lastTechnicalMessage ?? null,
-    ip_address: entry.ipAddress ?? null,
-    change_origin: entry.changeOrigin ?? null,
-  });
+  const rows = await trx("audit_history")
+    .insert({
+      entity_type: entry.entityType,
+      entity_id: entry.entityId,
+      action_type: entry.actionType,
+      user_id: entry.userId,
+      previous_value: entry.previousValue ?? null,
+      new_value: entry.newValue ?? null,
+      note: entry.note ?? null,
+      last_technical_message: entry.lastTechnicalMessage ?? null,
+      ip_address: entry.ipAddress ?? null,
+      change_origin: entry.changeOrigin ?? null,
+    })
+    .returning("audit_id");
+
+  const row = rows[0] as { audit_id: string | number } | undefined;
+  if (!row) {
+    throw new AppError("Não foi possível registrar o evento de auditoria.", 500);
+  }
+
+  return String(row.audit_id);
 }
 
 export { auditCatalog };

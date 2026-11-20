@@ -792,6 +792,8 @@ export async function updateStatus(
 export interface RequestStatusContext {
   request_id: string;
   protocol: string;
+  title: string;
+  requester_user_id: number | null;
   current_status_id: number | null;
   current_status_name: string | null;
   current_is_terminal: boolean;
@@ -821,6 +823,8 @@ export async function findRequestStatusContext(
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
+    title: "requests.title",
+    requester_user_id: "requests.requester_user_id",
     current_status_id: "requests.status_id",
     current_status_name: "statuses.name",
     current_is_terminal: "statuses.is_terminal",

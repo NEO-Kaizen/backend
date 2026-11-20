@@ -33,6 +33,7 @@ export const openapiBase = {
     { name: "Auditoria", description: "Histórico de auditoria e logs" },
     { name: "Notas internas", description: "Notas internas de solicitações" },
     { name: "Pendências", description: "Pendências e verificação pública" },
+    { name: "Notificações", description: "Notificações in-app e entrega SSE" },
   ],
   security: [
     {

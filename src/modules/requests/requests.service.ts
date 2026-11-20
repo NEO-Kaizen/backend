@@ -48,6 +48,8 @@ import {
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 import { applyStatusTransition } from "./statusTransition.ts";
+import { emitNotification } from "../../shared/notifications/emitNotification.ts";
+import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 
 import type {
   AssignAnalystPayload,
@@ -1289,7 +1291,7 @@ export async function updateRequestStatus(
     : "request.status_change";
   const changeOrigin = isAdmin ? "admin" : "internal";
 
-  const lastUpdate = await db.transaction(async (trx) => {
+  const { lastUpdate, committed } = await db.transaction(async (trx) => {
     const persistedAt = await applyStatusTransition(trx, {
       requestId: request.request_id,
       target: {
@@ -1302,7 +1304,7 @@ export async function updateRequestStatus(
       expectedStatusId: request.current_status_id,
     });
 
-    await recordAudit(trx, {
+    const auditId = await recordAudit(trx, {
       entityType: "request",
       entityId: request.protocol,
       actionType,
@@ -1317,8 +1319,34 @@ export async function updateRequestStatus(
       changeOrigin,
     });
 
-    return persistedAt;
+    // Notificação do solicitante apenas em Status público. Transições internas
+    // ou restritas são ruído (e informação que não pertence ao solicitante);
+    // solicitante anônimo não tem canal in-app na v1.
+    const requesterUserId = request.requester_user_id;
+
+    const committedNotifications =
+      target.isPublic && !target.is_restricted && requesterUserId !== null
+        ? await emitNotification(trx, {
+            type: "status_changed",
+            eventKey: `request.status_change:${auditId}`,
+            requestId: request.request_id,
+            actorUserId: actor.id,
+            recipientUserIds: [requesterUserId],
+            payload: {
+              type: "status_changed",
+              protocol: request.protocol,
+              title: request.title,
+              newStatus: target.name,
+            },
+          })
+        : [];
+
+    return { lastUpdate: persistedAt, committed: committedNotifications };
   });
+
+  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
+  // fonte de verdade para quem reconectar via `Last-Event-ID`.
+  publishCommittedNotifications(committed);
 
   return {
     protocol: request.protocol,
