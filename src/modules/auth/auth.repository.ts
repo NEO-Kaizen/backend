@@ -70,17 +70,21 @@ export async function getAuthState(id: number): Promise<AuthState | undefined> {
     );
 }
 
-/** Concessão persistida de um Perfil — a lista efetiva é montada pelo catálogo. */
-export interface ProfilePermissionRow {
+/** Concessão persistida do Perfil — a lista efetiva é montada pelo catálogo. */
+export interface UserPermissionRow {
   permission_key: string;
   custody: string;
 }
 
-/** Concessões do Perfil vigente, relidas a cada requisição que devolve a sessão. */
-export async function listProfilePermissions(profileId: number): Promise<ProfilePermissionRow[]> {
-  return db("profile_permissions")
-    .where({ profile_id: profileId })
-    .select("permission_key", "custody");
+/**
+ * Concessões do Perfil vigente do usuário. Lida a cada requisição que devolve a
+ * sessão e pelo gate de chave — o Perfil vem do banco, nunca do token.
+ */
+export async function listUserPermissions(userId: number): Promise<UserPermissionRow[]> {
+  return db("users as u")
+    .join("profile_permissions as pp", "pp.profile_id", "u.profile_id")
+    .where("u.user_id", userId)
+    .select("pp.permission_key", "pp.custody");
 }
 
 /** Altera a senha dentro da transação fornecida (atômico com a auditoria). */

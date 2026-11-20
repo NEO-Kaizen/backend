@@ -77,7 +77,7 @@ export async function getSessionUser(userId: number): Promise<SessionUserWithPer
     throw new AppError("Token inválido ou expirado", 401);
   }
 
-  const grants = await authRepository.listProfilePermissions(user.profile_id);
+  const grants = await authRepository.listUserPermissions(user.user_id);
 
   return {
     id: String(user.user_id),
