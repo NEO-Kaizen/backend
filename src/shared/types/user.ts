@@ -9,6 +9,7 @@ export interface User {
 }
 
 export type AuthenticatedUser = Omit<User, "password">;
+export type UserRequestDTO = Omit<User, "id">;
 
 /** Linha da tabela `users` — retorno direto do Knex. */
 export interface UserRow {

@@ -898,6 +898,19 @@ export async function findRequestStatusTarget(
     ) as Promise<RequestStatusTarget | undefined>;
 }
 
+export async function updateStatusById(
+  trx: Knex.Transaction,
+  requestId: string,
+  statusId: number,
+  updatedBy: string,
+): Promise<void> {
+  await trx("requests").where({ request_id: requestId }).update({
+    status_id: statusId,
+    updated_by: updatedBy,
+    updated_at: trx.fn.now(),
+  });
+}
+
 // --- Atualização interna dos blocos (issue #88) -----------------------------
 // PATCH /requests/:protocol/internal — semântica de SUBSTITUIÇÃO COMPLETA dos
 // blocos editáveis: chave ausente no payload = campo limpo (NULL), inclusive

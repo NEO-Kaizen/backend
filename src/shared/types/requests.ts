@@ -67,6 +67,12 @@ export type RequestCategory =
   | "Estudo de viabilidade"
   | "Outros";
 
+export interface AttachmentMetadata {
+  fileName: string; // nome original do arquivo — máx. 255
+  mimeType: string; // PDF, DOCX, XLSX, PNG ou JPG
+  sizeBytes: number; // máximo 10 * 1024 * 1024 (10MB)
+}
+
 export interface RequesterBlock {
   fullName: string; // obrigatório — máx. 150
   corporateEmail: string; // obrigatório — e-mail corporativo, máx. 254 (RFC 5321)
