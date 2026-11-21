@@ -44,10 +44,57 @@ const NOTIFICATIONS = [
     read_at: null,
     created_at: "2026-11-19 10:00:00",
   },
+  {
+    notification_id: "f0000000-0000-4000-8000-000000000004",
+    recipient_user_id: 104, // Solicitante Teste
+    event_type: "pending_item_created",
+    request_id: 3,
+    payload: {
+      type: "pending_item_created",
+      protocol: "MAAT-2R7Q-4M1C",
+      title: "Analisar inadimplência por região",
+    },
+    dedup_key: "seed:pending_item.create:3:104",
+    read_at: null,
+    created_at: "2026-11-19 10:05:00",
+  },
+  {
+    notification_id: "f0000000-0000-4000-8000-000000000005",
+    recipient_user_id: 104, // Solicitante Teste
+    event_type: "pending_item_reopened",
+    request_id: 3,
+    payload: {
+      type: "pending_item_reopened",
+      protocol: "MAAT-2R7Q-4M1C",
+      title: "Analisar inadimplência por região",
+    },
+    dedup_key: "seed:pending_item.reopen:3:104",
+    read_at: null,
+    created_at: "2026-11-19 11:20:00",
+  },
+  {
+    notification_id: "f0000000-0000-4000-8000-000000000006",
+    recipient_user_id: 104, // Solicitante Teste
+    event_type: "pending_item_validated",
+    request_id: 3,
+    payload: {
+      type: "pending_item_validated",
+      protocol: "MAAT-2R7Q-4M1C",
+      title: "Analisar inadimplência por região",
+    },
+    dedup_key: "seed:pending_item.validate:3:104",
+    read_at: null,
+    created_at: "2026-11-20 09:40:00",
+  },
 ];
 
 /**
- * Massa fictícia do Evento de status (RF20 — issue #157).
+ * Massa fictícia dos Eventos de status e do ciclo de Pendência (RF20 —
+ * issues #157 e #158).
+ *
+ * A massa é histórica: os Eventos de Pendência não replicam o estado atual de
+ * `pending_items` (um lote aberto pode conviver com Notificações antigas de
+ * criação, reabertura e validação).
  *
  * Pré-requisitos: seeds 004_users e 006_requests (as FKs de destinatário e
  * solicitação precisam existir). Idempotente: apaga apenas as Notificações com

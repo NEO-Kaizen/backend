@@ -1,26 +1,30 @@
 # Contrato HTTP — Notificações (RF20)
 
-Issue: #157. Issue pai: #156.
+Issues: #157, #158. Issue pai: #156.
 
 ## Escopo desta entrega
 
-A plataforma de Notificações in-app e o primeiro Evento ponta a ponta: a
-mudança de Status feita pelo analista no `PATCH /requests/:protocol/status` ou
-pelo veredito da Triagem gera uma Notificação para o solicitante autenticado,
-entregue por SSE em até 5 segundos.
+A plataforma de Notificações in-app e os primeiros Eventos ponta a ponta:
 
-Eventos de Pendência, Mapeamento e Designação entram nas issues filhas do
-RF20 e reutilizam a mesma seam de emissão.
+- a mudança de Status feita pelo analista no `PATCH /requests/:protocol/status`
+  ou pelo veredito da Triagem;
+- a criação, a reabertura e a validação de uma Pendência.
+
+Todos geram uma Notificação para o solicitante autenticado, entregue por SSE em
+até 5 segundos. Eventos de Mapeamento, Designação e a resposta de Pendência
+entram nas demais issues filhas do RF20 e reutilizam a mesma seam de emissão.
 
 ## Modelo
 
 - **Notificação**: projeção por destinatário criada na mesma transação do
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
-  emissão. A v1 tem apenas `status_changed`.
+  emissão. Tipos atuais: `status_changed`, `pending_item_created`,
+  `pending_item_reopened` e `pending_item_validated`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
-  `type`, `protocol`, `title` e `newStatus` — nunca mensagem técnica, scores,
-  notas internas ou campos de triagem.
+  `type`, `protocol`, `title` e `newStatus`; para os Eventos de Pendência,
+  somente `type`, `protocol` e `title` — nunca mensagem técnica, scores, notas
+  internas ou campos de triagem.
 - **Canal**: `NotificationChannel`. O canal in-app grava a Notificação na
   transação; o canal de e-mail do RF31 entra como outra implementação.
 - **Idempotência**: `notifications.dedup_key` é única. A chave é
@@ -45,6 +49,31 @@ RF20 e reutilizam a mesma seam de emissão.
 - Se a transação falhar, nem o Status nem a Notificação são gravados.
 - Após o commit, a publicação ocorre no `EventEmitter` tipado com
   `{ userId, notificationIds }`.
+
+## Regras dos Eventos de Pendência
+
+- `pending_item_created` é emitido pelo `POST /requests/:protocol/pending-items`,
+  uma vez por lote, na mesma transação da criação dos itens e da auditoria.
+- `pending_item_reopened` é emitido pelo `PATCH /requests/:protocol/pending-items/review`
+  quando ao menos um item é reaberto, uma vez por chamada (não por item).
+- `pending_item_validated` é emitido pela mesma revisão quando ao menos um item
+  é validado, uma vez por chamada (não por item).
+- Uma mesma revisão pode gerar as duas Notificações quando decide reabrir e
+  validar itens distintos; cada tipo é uma ação.
+- A revisão parcial (D-P23) é uma ação por chamada: decidir outros itens depois
+  gera nova Notificação; itens omitidos não notificam.
+- O destinatário é o `requests.requester_user_id`. Solicitação sem solicitante
+  autenticado não gera Notificação in-app na v1.
+- O ator não recebe Notificação da própria ação; o emissor o remove da
+  audiência.
+- `eventKey`: `pending_item.create:<audit_id>`, `pending_item.reopen:<audit_id>`
+  ou `pending_item.validate:<audit_id>`, usando o `audit_id` da primeira
+  transição daquele tipo na chamada. Reenvio idempotente não gera nova
+  Notificação.
+- Os dominós de Status disparados pela criação e pela reabertura **não** geram
+  Evento `status_changed`; o Evento dominante é o da Pendência.
+- Se a transação falhar, nem a alteração de negócio nem a Notificação são
+  gravadas.
 
 ## Autenticação
 
@@ -80,6 +109,17 @@ antiga, com estado de leitura.
       },
       "readAt": null,
       "createdAt": "2026-11-18T12:15:00.000Z"
+    },
+    {
+      "id": "f0000000-0000-4000-8000-000000000004",
+      "type": "pending_item_created",
+      "payload": {
+        "type": "pending_item_created",
+        "protocol": "MAAT-2R7Q-4M1C",
+        "title": "Analisar inadimplência por região"
+      },
+      "readAt": null,
+      "createdAt": "2026-11-19T10:05:00.000Z"
     }
   ],
   "nextCursor": null
@@ -165,7 +205,7 @@ O schema e os índices estão em
 
 ## Fora de escopo nesta entrega
 
-- Notificações de Pendência, Mapeamento e Designação (issues filhas do RF20).
+- Notificação de Pendência respondida (issue #159), Mapeamento e Designação.
 - Canal de e-mail (RF31).
 - WebSocket e outbox durável.
 - Poda e retenção automática.
