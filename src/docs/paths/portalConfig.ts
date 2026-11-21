@@ -444,7 +444,8 @@ export default {
           },
         },
         "409": {
-          description: "Conflito (status núcleo faltando, renomeado, desativado, etc.).",
+          description:
+            "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

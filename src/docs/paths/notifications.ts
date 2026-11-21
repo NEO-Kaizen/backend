@@ -102,8 +102,8 @@ export default {
       tags: ["Notificações"],
       summary: "Stream SSE de notificações",
       description:
-        "Server-Sent Events autenticado pelo cookie. Evento `notification` com o mesmo item da lista; `id` = id da notificação. " +
-        "Ao reconectar, reenvia notificações posteriores à âncora (`Last-Event-ID` ou query `lastEventId`); eventos ao vivo são enfileirados durante o replay.",
+        "Server-Sent Events autenticado pelo cookie. Formato: `retry: 3000`, comentário `: connected`, eventos `event: notification` com o mesmo item da lista em `data`, `id` da notificação e `: keep-alive` a cada 25 segundos. " +
+        "Ao reconectar, reenvia notificações posteriores à âncora (`Last-Event-ID` ou query `lastEventId`) em ordem cronológica; a âncora precisa pertencer ao usuário. Eventos ao vivo são enfileirados durante o replay para não se perderem entre a consulta e a assinatura; o cliente deduplica por `id`.",
       operationId: "streamNotifications",
       security: [{ cookieAuth: [] }],
       parameters: [

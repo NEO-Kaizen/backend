@@ -374,7 +374,7 @@ A extensão de profissional (`details_professional`, 1:1 com a conta) habilita o
 
 ## 7. Mapa rota → chave
 
-As rotas abaixo são a referência de **autorização**. O formato do fio está na OpenAPI em `src/docs/`; o que vale é a chave e a custódia.
+As rotas abaixo são a referência de contrato. O que vale é a chave; a rota pode variar sem mudar a permissão.
 
 | Rota                                                                                                  | Chave / regra                                                                                            |
 | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |

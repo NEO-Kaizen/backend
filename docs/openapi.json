@@ -4567,7 +4567,7 @@
             }
           },
           "409": {
-            "description": "Conflito (status núcleo faltando, renomeado, desativado, etc.).",
+            "description": "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4803,7 +4803,7 @@
       "get": {
         "tags": ["Relatórios"],
         "summary": "Exportar solicitações em CSV",
-        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador. O arquivo é UTF-8 com BOM, separador `;`, `Content-Disposition: attachment` e `Cache-Control: no-store`.",
+        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas no fuso `America/Sao_Paulo`.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`.",
         "operationId": "exportRequestsCsv",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4845,8 +4845,10 @@
             "headers": {
               "Content-Disposition": {
                 "schema": { "type": "string" },
-                "description": "`attachment; filename=\"...\"`."
-              }
+                "description": "`attachment; filename=\"solicitacoes-AAAA-MM-DD.csv\"`."
+              },
+              "Cache-Control": { "schema": { "type": "string", "enum": ["no-store"] } },
+              "X-Content-Type-Options": { "schema": { "type": "string", "enum": ["nosniff"] } }
             },
             "content": { "text/csv": { "schema": { "type": "string", "format": "binary" } } }
           },
@@ -5706,7 +5708,7 @@
       "get": {
         "tags": ["Notificações"],
         "summary": "Stream SSE de notificações",
-        "description": "Server-Sent Events autenticado pelo cookie. Evento `notification` com o mesmo item da lista; `id` = id da notificação. Ao reconectar, reenvia notificações posteriores à âncora (`Last-Event-ID` ou query `lastEventId`); eventos ao vivo são enfileirados durante o replay.",
+        "description": "Server-Sent Events autenticado pelo cookie. Formato: `retry: 3000`, comentário `: connected`, eventos `event: notification` com o mesmo item da lista em `data`, `id` da notificação e `: keep-alive` a cada 25 segundos. Ao reconectar, reenvia notificações posteriores à âncora (`Last-Event-ID` ou query `lastEventId`) em ordem cronológica; a âncora precisa pertencer ao usuário. Eventos ao vivo são enfileirados durante o replay para não se perderem entre a consulta e a assinatura; o cliente deduplica por `id`.",
         "operationId": "streamNotifications",
         "security": [{ "cookieAuth": [] }],
         "parameters": [

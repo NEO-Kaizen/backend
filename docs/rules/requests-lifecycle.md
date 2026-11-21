@@ -1,133 +1,93 @@
 # Ciclo de vida da solicitação
 
-A solicitação percorre um catálogo de **Status** administrável
-(`statuses`), exposto em `GET /portal-config` e editável em
-`PATCH /portal-config/statuses`. Nenhuma regra de negócio pode depender do
-**nome** de um Status não-core: use as flags da tabela. Os ids core são fixos
-(`src/shared/types/status.ts`).
+A solicitação percorre um catálogo de **Status** administrável. Nenhuma regra
+pode depender do **nome** de um Status não-core: use as flags. Os ids core são
+fixos (`src/shared/types/status.ts`); os valores semeados de referência estão em
+[`docs/database/requests-persistence.md`](../database/requests-persistence.md).
 
-## Catálogo base (17 Status)
-
-| id  | Nome                        | Core | Público | Terminal | triageMode      | mappingMode     | Restrito |
-| --- | --------------------------- | ---- | ------- | -------- | --------------- | --------------- | -------- |
-| 1   | Solicitação enviada         | sim  | sim     | não      | none            | none            | não      |
-| 2   | Aguardando triagem          | não  | sim     | não      | none            | none            | não      |
-| 3   | Em triagem                  | sim  | sim     | não      | free            | none            | não      |
-| 4   | Pendente de informações     | sim  | sim     | não      | free            | free            | não      |
-| 5   | Aguardando mapeamento       | não  | sim     | não      | conclusion_only | none            | não      |
-| 6   | Mapeamento agendado         | sim  | não     | não      | none            | conclusion_only | não      |
-| 7   | Em mapeamento               | sim  | sim     | não      | none            | free            | não      |
-| 8   | Em análise de viabilidade   | não  | não     | não      | free            | free            | não      |
-| 9   | Elegível                    | não  | não     | não      | conclusion_only | conclusion_only | não      |
-| 10  | Não elegível                | não  | não     | não      | conclusion_only | conclusion_only | não      |
-| 11  | Priorizado                  | não  | não     | não      | none            | none            | sim      |
-| 12  | Backlog                     | não  | não     | não      | conclusion_only | conclusion_only | não      |
-| 13  | Direcionado para outra área | não  | não     | não      | conclusion_only | conclusion_only | não      |
-| 14  | Em desenvolvimento          | não  | não     | não      | free            | none            | não      |
-| 15  | Em homologação              | não  | não     | não      | free            | none            | não      |
-| 16  | Concluído                   | sim  | sim     | sim      | conclusion_only | conclusion_only | não      |
-| 17  | Cancelado                   | sim  | sim     | sim      | conclusion_only | conclusion_only | não      |
+## Núcleo do catálogo
 
 **Core** = ids `1, 3, 4, 6, 7, 16, 17`. Não podem ser removidos, renomeados,
 rebaixados, desativados nem ter flags/modos alterados. A ordem de exibição é a
-posição do array no PATCH, não um campo `order`.
+posição do array na configuração, não um campo `order`.
 
-## Significado das flags
-
-- `isPublic` — o nome do Status pode ser mostrado ao solicitante. Transições
-  para Status interno mantêm o último Status público como retrato externo.
-- `isTerminal` — encerra a solicitação (`Concluído`/`Cancelado`).
-- `isRestricted` — só o Administrador pode definir (hoje: `Priorizado`).
+- `isPublic` — o nome pode ser mostrado ao solicitante. Transições para Status
+  interno mantêm o último Status público como retrato externo.
+- `isTerminal` — encerra a solicitação.
+- `isRestricted` — só o Administrador pode definir como destino.
 - `triageMode` / `mappingMode` — em que fase o Status pode ser **alvo**:
   - `none`: nunca é alvo daquela fase;
   - `free`: alvo livre pelo agente da fase;
   - `conclusion_only`: alvo apenas na conclusão da fase.
-- `tone` — tom visual (`error`, `success`, `info`, `warning`, `neutral`).
 
 ## Criação
 
 Toda solicitação nasce em `Solicitação enviada` (id 1), que também é o primeiro
 retrato público. O protocolo é gerado na criação e não é reutilizado.
 
-## Transições
+## Triagem
 
-### Triagem (`POST /requests/:protocol/triage`)
-
-- Grava a triagem e aplica `exitStatus` como novo Status na mesma transação.
-- O destino precisa ser **ativo**, **não restrito** e ter modo de triagem de
-  conclusão. Hoje o código aceita apenas `triage_mode = conclusion_only`
-  (`src/modules/requests/triage/triage.repository.ts`).
+- Cada triagem é um registro novo; nunca há duas simultâneas. A vigente é a
+  última.
+- O destino precisa ser ativo, não restrito e ter modo de conclusão. Hoje o
+  código aceita apenas `conclusion_only`.
 - `changeCategory: "Sim"` troca a categoria da solicitação pelo nome ativo
   informado.
-- Status de destino público exige `lastTechnicalMessage`.
+- Status de destino público exige retorno ao solicitante.
 
-> ⚠ **Decisão pendente:** o catálogo marca `Em triagem`, `Pendente de
-informações`, `Em análise de viabilidade`, `Em desenvolvimento` e `Em
-homologação` como `free`. Os contratos antigos divergiam sobre aceitar `free`
-> na conclusão. O código atual **não** aceita. Até a decisão, trate
-> `conclusion_only` como a regra efetiva.
+> O catálogo marca alguns Status como `free`. Aceitá-los na conclusão é uma
+> decisão pendente; ver [`README.md`](README.md).
 
-### Mapeamento (`PUT /queue/requests/:protocol/mapping`)
+## Mapeamento
 
-- Salvar rascunho (`completeMapping: false`) mantém o Status atual. A validação
-  de modalidade (REMOTE exige `meetingLink`, IN_PERSON exige `location`) vale
-  também para rascunho.
-- Mapeamento já concluído é imutável → `422`; payload vazio → `400`.
-- Concluir (`completeMapping: true`) exige `targetStatus` ativo, não restrito e
-  com `mapping_mode = conclusion_only`; destino **restrito** é bloqueado para
-  todos (inclusive Administrador).
-- Destino **6 — Mapeamento agendado**: exige reunião completa (modalidade,
-  data, duração e link remoto ou local presencial). `justification` e
-  `lastTechnicalMessage` são ignorados nesse destino; a reunião é mantida.
-- Qualquer outro destino: exige `justification` (1..4000); se público, exige
-  também `lastTechnicalMessage`. Reunião, participantes e designado são
-  limpos.
-- Ao criar um mapeamento sem `mappingAssigneeId`, o executor herda o
-  responsável de triagem.
-- Concluir sempre atualiza `last_external_update_at`, inclusive no destino
+- Rascunho mantém o Status atual. A validação de modalidade vale também para
+  rascunho: remoto exige link, presencial exige local.
+- Mapeamento já concluído é imutável.
+- Concluir exige destino ativo, não restrito e com modo de mapeamento de
+  conclusão. Destino restrito é bloqueado para todos, inclusive Administrador.
+- Destino **Mapeamento agendado** (id 6): exige reunião completa (modalidade,
+  data, duração e link/local). Justificativa e retorno público são ignorados
+  nesse destino; a reunião é mantida.
+- Qualquer outro destino: exige justificativa interna e, se público, retorno ao
+  solicitante. Reunião, participantes e designado são limpos.
+- Ao criar sem executor, o mapeamento herda o responsável de triagem.
+- Concluir sempre atualiza a data de atualização externa, inclusive no destino
   interno 6.
 
-### Troca direta (`PATCH /requests/:protocol/status`)
+## Troca direta de status
 
-- Exige `targetStatus` + `justification` (1..4000).
-- Destino igual ao atual → `422`; destino inativo → `409`.
-- Administrador tem bypass de perfil/restrição; os demais precisam ser o
+- Exige status de destino e justificativa interna.
+- Destino igual ao atual é inválido; destino inativo também.
+- Administrador tem bypass de perfil/restrição. Os demais precisam ser o
   Analista responsável (triagem **ou** mapeamento) e só podem ir para Status com
   `triageMode = free` **ou** `mappingMode = free`, nunca restrito.
-- Gestor é somente leitura → `403`.
-- Status público exige `lastTechnicalMessage` (1..4000) para qualquer ator; o
-  bypass do Administrador **não** dispensa campos obrigatórios.
-- O evento de auditoria do Administrador é `request.override_status_admin`; na
-  timeline interna ele é normalizado para `request.status_change`.
+- Gestor é somente leitura.
+- Status público exige retorno ao solicitante para qualquer ator; o bypass do
+  Administrador **não** dispensa campos obrigatórios.
+- A auditoria do Administrador usa `request.override_status_admin`; na timeline
+  interna o evento é normalizado para `request.status_change`.
 
 ## Restrição e status terminal
 
-- `isRestricted` (hoje `Priorizado`): triagem bloqueia Analista e permite
-  Administrador; mapeamento bloqueia **todos**, inclusive Administrador;
-  `PATCH /status` bloqueia não-Administrador como **destino**, mas não impede um
-  responsável de **sair** de um Status restrito para um destino `free`. O
-  `current_is_restricted` é carregado e não usado.
-- Status terminal (`is_terminal = true`) não recebe novas pendências nem
-  mapeamentos (triagem e mapeamento bloqueiam a origem). A checagem de
+- `isRestricted` (hoje `Priorizado`): a triagem bloqueia Analista e permite
+  Administrador; o mapeamento bloqueia todos; a troca direta bloqueia
+  não-Administrador como **destino**, mas não impede um responsável de **sair**
+  de um Status restrito para um destino `free`.
+- Status terminal não recebe novas pendências nem mapeamentos. A checagem de
   pendência ainda usa os nomes `Concluído`/`Cancelado`, não a flag; um Status
-  terminal customizado escaparia da regra. O `PATCH /status`
-  **não** bloqueia a saída de terminal hoje, embora o comentário do serviço
-  diga o contrário; reabrir está previsto na issue #148.
-- A mesma linha do tempo acima vale para as três entradas (triagem, mapeamento
-  e troca direta); a checagem de `current_is_terminal` é uma pendência de
-  código.
+  terminal customizado escaparia da regra.
+- A troca direta **não** bloqueia a saída de um Status terminal hoje. Reabrir
+  solicitações encerradas está previsto na issue #148.
 
 ## Regras transversais
 
-- As transições do Motor v4 (triagem, mapeamento e `PATCH /status`) rodam em
+- As três entradas do Motor (triagem, mapeamento e troca direta) rodam em
   transação com auditoria.
-- A **Notificação** do solicitante só é emitida no `PATCH /status`, quando o
-  destino é público e não restrito. Triagem e mapeamento **não** notificam.
-- Mudanças diretas de `status_id` fora do Motor (RN-010, pendências) atualizam
-  apenas o estado atual, sem notificação e sem atualizar o retrato público.
-- `lastTechnicalMessage` é **snapshot da transição**: fica em
-  `audit_history.last_technical_message` e nunca é concatenado à justificativa
-  interna.
-- `requests.status_id` é o estado atual; `last_public_status_id` é o retrato
-  externo. O solicitante só vê o último Status público atualizado pelo Motor.
-- Status core não podem ter flags/modos alterados (ver `portal-config.md`).
+- A notificação do solicitante só é emitida na troca direta de status, quando o
+  destino é público e não restrito. Triagem e mapeamento não notificam.
+- Mudanças diretas de status fora do Motor (RN-010, pendências) atualizam apenas
+  o estado atual, sem notificação e sem atualizar o retrato público.
+- O retorno ao solicitante é **snapshot da transição**: fica na auditoria e
+  nunca é concatenado à justificativa interna.
+- O estado atual e o retrato público são conceitos distintos; o solicitante só
+  vê o último Status público atualizado pelo Motor.

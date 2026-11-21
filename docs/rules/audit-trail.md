@@ -1,32 +1,19 @@
 # Trilha de auditoria
 
-`audit_history` é o registro imutável das ações administrativas e de negócio.
-A timeline interna e as telas de auditoria derivam dela.
+A auditoria registra as ações administrativas e de negócio. A timeline interna e
+as telas de auditoria derivam dela.
 
-## Modelo
+## Invariantes
 
-| Coluna                   | Papel                                                          |
-| ------------------------ | -------------------------------------------------------------- |
-| `audit_id`               | PK sequencial                                                  |
-| `entity_type`            | entidade do catálogo (`user`, `request`, …)                    |
-| `entity_id`              | identificador da entidade (protocolo, id, uuid)                |
-| `action_type`            | `<entidade>.<ação>` — ex.: `request.status_change`             |
-| `user_id`                | executor (`NULL` = sistema); FK com `ON DELETE RESTRICT`       |
-| `previous_value`         | snapshot anterior (texto)                                      |
-| `new_value`              | snapshot novo (texto)                                          |
-| `note`                   | justificativa **interna** da transição                         |
-| `last_technical_message` | snapshot do **retorno público** da transição                   |
-| `ip_address`             | IP do ator                                                     |
-| `change_origin`          | origem (`user`, `admin`, `system`, `requester`, `internal`, …) |
-| `occurred_at`            | instante do evento                                             |
+- A tabela é **append-only**: não há `UPDATE`, `DELETE` nem `TRUNCATE`.
+- Cada evento é gravado na **mesma transação** da mudança de estado; se a
+  transação falhar, nem o estado nem o evento existem.
+- `note` é a justificativa **interna**; o retorno ao solicitante é um snapshot
+  separado e nunca é concatenado à nota.
+- Linhas antigas sem ator após `SET NULL` legado são indistinguíveis de ações de
+  sistema na leitura.
 
-A tabela é **append-only** por triggers: não há `UPDATE`, `DELETE` nem
-`TRUNCATE` de linhas. Linhas antigas com `user_id` nulo após `SET NULL` legado
-são indistinguíveis de ações de sistema na leitura.
-
-## Catálogo em código
-
-`src/shared/audit/auditCatalog.ts` é a fonte única das entidades e ações:
+## Catálogo
 
 | Entidade         | Ações                                                                                                           |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -37,58 +24,27 @@ são indistinguíveis de ações de sistema na leitura.
 | `settings`       | `update`                                                                                                        |
 | `pending_item`   | `create`, `respond`, `attach`, `validate`, `reopen`                                                             |
 
-Duas listas precisam andar juntas:
+Entidade nova exige atualização do catálogo em código **e** do `CHECK` do banco
+no mesmo PR.
 
-1. o catálogo em código (tipos + guard de runtime);
-2. o `CHECK chk_audit_history_entity_type` no banco.
+## Origens
 
-Entidade nova = mudança no catálogo **e** migration ampliando o CHECK, no mesmo
-PR.
-
-## Origens (`change_origin`)
-
-Valores escritos pelo código: `user`, `admin`, `system`, `requester`, `manual`,
-`internal`, `self`. A leitura expõe `string` porque o banco pode conter valores
-históricos.
-
-Regras práticas:
-
-- ação do próprio usuário no autoatendimento → `self`;
-- ação de Administrador → `admin`;
-- ação automática (RN-010, transição de pendência) → `system`;
-- ação feita pelo Analista na operação interna → `internal` ou `admin`,
-  conforme o serviço.
-
-## O que sempre entra na mesma transação
-
-Toda mudança relevante grava o evento junto da mudança de estado:
-
-- criação/edição de usuário e senha;
-- atribuição/desatribuição (triagem e mapeamento);
-- troca de Status (inclusive o bypass do Administrador);
-- triagem;
-- criação/resposta/revisão de pendência;
-- salvamento/conclusão de mapeamento;
-- avaliação de priorização;
-- configuração do portal.
-
-Se a transação falhar, nem o estado nem a auditoria são gravados.
+- `self` — ação do próprio usuário no autoatendimento.
+- `admin` — ação de Administrador.
+- `system` — ação automática (RN-010, transição de pendência, liberação de
+  responsável).
+- `requester`, `manual`, `internal` — conforme o fluxo que originou a ação.
 
 ## Consulta
 
-- `GET /audit-history` — Administrador/Gestor, paginado (`page`, `limit` 1..100,
-  `entityType`), envelope `{ items, total, page, limit }`, ordenado por
-  `occurred_at DESC`. `total` é a contagem antes da paginação; `page`/`limit`
-  ecoam os valores aplicados. A query é estrita: parâmetro desconhecido →
-  `400`.
-- `GET /audit-history/{id}` — detalhe completo.
-- `GET /audit-logs/{protocol}` — timeline da solicitação. Administrador/Gestor
-  veem qualquer uma; Analista só as que lhe são atribuídas (triagem ou
-  mapeamento). Respostas com `Cache-Control: private, no-store`.
+- Administrador e Gestor leem a listagem administrativa; Analista lê a timeline
+  de uma solicitação apenas se for responsável (triagem ou mapeamento).
+- A listagem é ordenada do evento mais recente para o mais antigo.
+- Respostas administrativas não devem ser armazenadas por navegador ou
+  intermediários.
 
 ## Privacidade
 
-- Não grave senhas, tokens ou PII desnecessária em `previous_value`/`new_value`.
-- Em `user.change_password` e `user.reset_password`, o hash nunca é registrado.
-- O texto de erro devolvido ao cliente não revela existência de recurso de
-  terceiros.
+- Não grave senhas, tokens ou PII desnecessária nos valores anterior/novo.
+- Em troca/redefinição de senha, o hash nunca é registrado.
+- Mensagens de erro não revelam existência de recurso de terceiros.

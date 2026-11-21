@@ -77,8 +77,15 @@ export default {
       tags: ["Relatórios"],
       summary: "Exportar solicitações em CSV",
       description:
-        "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador. " +
-        "O arquivo é UTF-8 com BOM, separador `;`, `Content-Disposition: attachment` e `Cache-Control: no-store`.",
+        "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n" +
+        "**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. " +
+        "Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. " +
+        "Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n" +
+        "**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; " +
+        "Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. " +
+        "Datas no fuso `America/Sao_Paulo`.\n\n" +
+        "`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; " +
+        "`unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`.",
       operationId: "exportRequestsCsv",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -120,7 +127,13 @@ export default {
           headers: {
             "Content-Disposition": {
               schema: { type: "string" },
-              description: '`attachment; filename="..."`.',
+              description: '`attachment; filename="solicitacoes-AAAA-MM-DD.csv"`.',
+            },
+            "Cache-Control": {
+              schema: { type: "string", enum: ["no-store"] },
+            },
+            "X-Content-Type-Options": {
+              schema: { type: "string", enum: ["nosniff"] },
             },
           },
           content: {

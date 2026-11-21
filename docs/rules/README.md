@@ -44,7 +44,6 @@ vez de inventar uma regra nova:
   `conclusion_only` é aceito).
 - Gestor como responsável técnico (hoje só `analista` é atribuível).
 - Identificador público do responsável (`professional_id` × `user_id`).
-- Shape de `correctionAlert` (`batchId` × `message`).
 - Código único para erro de validação (`400` × `422`).
 - Escopo de autoatendimento de `PUT /users/me`.
 - RN-010 depende de `requests.screening_result`, coluna que o fluxo atual de

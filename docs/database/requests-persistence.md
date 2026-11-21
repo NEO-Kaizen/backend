@@ -160,6 +160,28 @@ lista fechada.
   desativados nem ter flags/modos alterados;
 - o `CHECK` de `entity_type` da auditoria é independente deste catálogo.
 
+Valores semeados (referência, não invariante):
+
+| id  | Nome                        | Core | Público | Terminal | triageMode      | mappingMode     | Restrito |
+| --- | --------------------------- | ---- | ------- | -------- | --------------- | --------------- | -------- |
+| 1   | Solicitação enviada         | sim  | sim     | não      | none            | none            | não      |
+| 2   | Aguardando triagem          | não  | sim     | não      | none            | none            | não      |
+| 3   | Em triagem                  | sim  | sim     | não      | free            | none            | não      |
+| 4   | Pendente de informações     | sim  | sim     | não      | free            | free            | não      |
+| 5   | Aguardando mapeamento       | não  | sim     | não      | conclusion_only | none            | não      |
+| 6   | Mapeamento agendado         | sim  | não     | não      | none            | conclusion_only | não      |
+| 7   | Em mapeamento               | sim  | sim     | não      | none            | free            | não      |
+| 8   | Em análise de viabilidade   | não  | não     | não      | free            | free            | não      |
+| 9   | Elegível                    | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 10  | Não elegível                | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 11  | Priorizado                  | não  | não     | não      | none            | none            | sim      |
+| 12  | Backlog                     | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 13  | Direcionado para outra área | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 14  | Em desenvolvimento          | não  | não     | não      | free            | none            | não      |
+| 15  | Em homologação              | não  | não     | não      | free            | none            | não      |
+| 16  | Concluído                   | sim  | sim     | sim      | conclusion_only | conclusion_only | não      |
+| 17  | Cancelado                   | sim  | sim     | sim      | conclusion_only | conclusion_only | não      |
+
 As regras de transição estão em
 [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
 
