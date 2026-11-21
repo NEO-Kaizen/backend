@@ -939,6 +939,8 @@ export async function assignResponsible(
         userId: actor.id,
         previousValue: RN010_FROM_STATUS,
         newValue: RN010_TO_STATUS,
+        previousStatusId: 3,
+        statusId: 5,
         note: "RN-010",
         changeOrigin: "system",
       });
@@ -1055,6 +1057,8 @@ export async function assignAnalyst(
             userId: actor.id,
             previousValue: RN010_FROM_STATUS,
             newValue: RN010_TO_STATUS,
+            previousStatusId: 3,
+            statusId: 5,
             note: "RN-010",
             changeOrigin: "system",
           });
@@ -1309,6 +1313,8 @@ export async function updateRequestStatus(
       userId: actor.id,
       previousValue: request.current_status_name,
       newValue: target.name,
+      previousStatusId: request.current_status_id ?? undefined,
+      statusId: target.status_id,
       // `note` = justificativa interna; o retorno público é snapshot próprio
       // (nunca concatenado), persistido apenas quando o destino é público.
       note: payload.justification ?? null,

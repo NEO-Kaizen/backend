@@ -25,15 +25,19 @@ test("status time separates active and paused periods", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T10:00:00Z"),
     initialStatus: "Em triagem",
+    initialStatusId: 3,
     currentStatus: "Em triagem",
-    pausedStatusNames: ["Pendente de informações"],
+    currentStatusId: 3,
+    pausedStatusIds: [4],
     transitions: [
       {
         status: "Pendente de informações",
+        statusId: 4,
         occurredAt: new Date("2026-11-20T11:00:00Z"),
       },
       {
         status: "Em triagem",
+        statusId: 3,
         occurredAt: new Date("2026-11-20T13:00:00Z"),
       },
     ],
@@ -58,15 +62,19 @@ test("completed request closes each audited interval and the final status", () =
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T09:00:00Z"),
     initialStatus: "Em triagem",
+    initialStatusId: 3,
     currentStatus: "Concluída",
-    pausedStatusNames: ["Pendente de informações"],
+    currentStatusId: 19,
+    pausedStatusIds: [4],
     transitions: [
       {
         status: "Pendente de informações",
+        statusId: 4,
         occurredAt: new Date("2026-11-20T10:00:00Z"),
       },
       {
         status: "Concluída",
+        statusId: 19,
         occurredAt: new Date("2026-11-20T12:00:00Z"),
       },
     ],
@@ -83,11 +91,14 @@ test("in-progress request keeps the current status open", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T09:00:00Z"),
     initialStatus: "Em triagem",
+    initialStatusId: 3,
     currentStatus: "Em atendimento",
-    pausedStatusNames: [],
+    currentStatusId: 7,
+    pausedStatusIds: [],
     transitions: [
       {
         status: "Em atendimento",
+        statusId: 7,
         occurredAt: new Date("2026-11-20T10:00:00Z"),
       },
     ],
@@ -106,7 +117,7 @@ test("divergent audit and database status fails instead of inventing a period", 
         openedAt: new Date("2026-11-20T09:00:00Z"),
         initialStatus: "Em triagem",
         currentStatus: "Concluída",
-        pausedStatusNames: [],
+        pausedStatusIds: [],
         transitions: [
           {
             status: "Em atendimento",

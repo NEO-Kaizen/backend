@@ -644,6 +644,8 @@ export const upsertMappingService = async (
         userId: actor.id,
         previousValue: context.status,
         newValue: concludeTarget.name,
+        previousStatusId: context.status_id,
+        statusId: concludeTarget.status_id,
         // `note` = justificativa interna (id 6 não exige); o retorno público
         // vira snapshot dedicado apenas quando o destino é público.
         note: concludeTarget.status_id === 6 ? null : (payload.justification ?? null),

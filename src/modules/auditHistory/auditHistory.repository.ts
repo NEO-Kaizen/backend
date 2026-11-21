@@ -33,6 +33,8 @@ interface AuditHistoryDetailRow {
   ip_address: string | null;
   change_origin: string | null;
   occurred_at: Date | string;
+  status_id: number | string | null;
+  previous_status_id: number | string | null;
 }
 
 export async function listAuditHistory(
@@ -91,6 +93,8 @@ export async function findAuditHistoryById(
       "a.ip_address",
       "a.change_origin",
       "a.occurred_at",
+      "a.status_id",
+      "a.previous_status_id",
     )
     .where("a.audit_id", auditId)
     .first<AuditHistoryDetailRow>();
@@ -120,6 +124,8 @@ export async function listAuditHistoryByProtocol(
       "a.ip_address",
       "a.change_origin",
       "a.occurred_at",
+      "a.status_id",
+      "a.previous_status_id",
     )
     .where("a.entity_type", "request")
     .andWhere("a.entity_id", protocol)

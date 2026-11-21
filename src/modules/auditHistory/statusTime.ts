@@ -30,9 +30,10 @@ export interface StatusTimeByStatus {
 export interface StatusTimeCalculationInput {
   openedAt: Date;
   initialStatus: string;
+  initialStatusId?: number;
   currentStatus: string;
-  pausedStatusNames: readonly string[];
-  pausedStatusIds?: readonly number[];
+  currentStatusId?: number;
+  pausedStatusIds: readonly number[];
   transitions: readonly StatusTimeTransition[];
   now: Date;
 }
@@ -42,19 +43,17 @@ function positiveMilliseconds(start: Date, end: Date): number {
 }
 
 export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTimeSummary {
-  const pausedStatusNames = new Set(input.pausedStatusNames);
-  const pausedStatusIds = new Set(input.pausedStatusIds ?? []);
+  const pausedStatusIds = new Set(input.pausedStatusIds);
   const intervals: StatusTimeInterval[] = [];
   let status = input.initialStatus;
-  let statusId: number | undefined;
+  let statusId = input.initialStatusId;
   let enteredAt = input.openedAt;
 
   for (const transition of input.transitions) {
     if (transition.status === status) continue;
 
     const duration = positiveMilliseconds(enteredAt, transition.occurredAt);
-    const isPaused =
-      (statusId !== undefined && pausedStatusIds.has(statusId)) || pausedStatusNames.has(status);
+    const isPaused = statusId !== undefined && pausedStatusIds.has(statusId);
     intervals.push({
       status,
       enteredAt: enteredAt.toISOString(),
@@ -73,10 +72,16 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
   if (status !== input.currentStatus) {
     throw new Error("A auditoria não corresponde ao Status atual da solicitação.");
   }
+  if (
+    input.currentStatusId !== undefined &&
+    statusId !== undefined &&
+    statusId !== input.currentStatusId
+  ) {
+    throw new Error("A auditoria não corresponde ao Status atual da solicitação.");
+  }
 
   const currentDuration = positiveMilliseconds(enteredAt, now);
-  const currentIsPaused =
-    (statusId !== undefined && pausedStatusIds.has(statusId)) || pausedStatusNames.has(status);
+  const currentIsPaused = statusId !== undefined && pausedStatusIds.has(statusId);
 
   intervals.push({
     status,

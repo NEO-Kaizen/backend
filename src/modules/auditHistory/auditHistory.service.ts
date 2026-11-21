@@ -104,10 +104,20 @@ function parseStatusValue(value: string | null): string | null {
   return null;
 }
 
-function parseStatusTransition(value: string | null): { status: string; statusId?: number } | null {
+function parseStatusTransition(
+  value: string | null,
+  snapshotStatusId: number | string | null,
+): { status: string; statusId?: number } | null {
   if (!value) return null;
   const status = parseStatusValue(value);
   if (!status) return null;
+
+  const statusId =
+    typeof snapshotStatusId === "number"
+      ? snapshotStatusId
+      : typeof snapshotStatusId === "string" && Number.isInteger(Number(snapshotStatusId))
+        ? Number(snapshotStatusId)
+        : undefined;
 
   try {
     const parsed: unknown = JSON.parse(value);
@@ -120,7 +130,7 @@ function parseStatusTransition(value: string | null): { status: string; statusId
   } catch {
     // Plain status names remain valid for historical audit rows.
   }
-  return { status };
+  return statusId !== undefined ? { status, statusId } : { status };
 }
 
 async function calculateStatusTimeForRequest(
@@ -144,7 +154,7 @@ async function calculateStatusTimeForRequest(
       continue;
     }
 
-    const statusTransition = parseStatusTransition(row.new_value);
+    const statusTransition = parseStatusTransition(row.new_value, row.status_id);
     if (!statusTransition) continue;
 
     const occurredAt =
@@ -168,6 +178,13 @@ async function calculateStatusTimeForRequest(
       row.action_type === "request.triage",
   );
   const previousStatus = parseStatusValue(earliestAuditRow?.previous_value ?? null);
+  const previousStatusId =
+    typeof earliestAuditRow?.previous_status_id === "number"
+      ? earliestAuditRow.previous_status_id
+      : typeof earliestAuditRow?.previous_status_id === "string" &&
+          Number.isInteger(Number(earliestAuditRow.previous_status_id))
+        ? Number(earliestAuditRow.previous_status_id)
+        : undefined;
   const currentStatus = request.current_status_name;
   if (!currentStatus) {
     throw new AppError("Status atual da solicitação inválido", 500);
@@ -184,8 +201,9 @@ async function calculateStatusTimeForRequest(
   return calculateStatusTime({
     openedAt,
     initialStatus,
+    initialStatusId: previousStatusId,
     currentStatus,
-    pausedStatusNames: pausedStatuses.map((status) => status.name),
+    currentStatusId: request.current_status_id !== null ? request.current_status_id : undefined,
     pausedStatusIds: pausedStatuses.map((status) => status.status_id),
     transitions,
     now,

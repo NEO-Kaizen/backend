@@ -517,6 +517,7 @@ export async function reviewPendingItems(
     actor,
     ip,
     currentStatusName: request.status,
+    currentStatusId: request.status_id,
     decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
   });
 

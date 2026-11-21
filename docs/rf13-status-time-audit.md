@@ -44,6 +44,7 @@ Cookie: session_id=<jwt>
 - `Administrador`: qualquer solicitação.
 - `Gestor`: qualquer solicitação.
 - `Analista`: somente solicitações em que é responsável da triagem ou designado do mapeamento.
+- `Solicitante`: não possui acesso a esta rota.
 
 ### Response 200
 
@@ -202,6 +203,7 @@ Body:
 - `true`: o Status é considerado período pausado;
 - `false`: o Status conta como tempo ativo;
 - Status de núcleo não podem ter `isPaused` alterado por esta rota.
+- A classificação histórica usa o `status_id` snapshotado; renomear um Status não reclassifica períodos anteriores.
 
 ---
 

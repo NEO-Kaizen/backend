@@ -22,6 +22,9 @@ export interface AuditEntryBase {
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
   changeOrigin?: string | null;
+  /** Snapshot estável do Status de destino em transições auditadas. */
+  statusId?: number | null;
+  previousStatusId?: number | null;
 }
 
 /**
@@ -69,6 +72,9 @@ export async function recordAudit<E extends AuditEntityName, A extends ComposedA
     last_technical_message: entry.lastTechnicalMessage ?? null,
     ip_address: entry.ipAddress ?? null,
     change_origin: entry.changeOrigin ?? null,
+    status_id: entry.statusId ?? null,
+    previous_status_id: entry.previousStatusId ?? null,
+    transaction_id: trx.raw("pg_current_xact_id()"),
   });
 }
 

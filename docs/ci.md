@@ -22,7 +22,8 @@ Sequência executada contra o service container `postgres:18-alpine` (mesmo dige
 1. as 55 migrations sobem com `npm run migrate:latest`;
 2. todas são revertidas com `npx knex migrate:rollback --all --env development` e reaplicadas;
 3. as seeds-base rodam duas vezes e as seeds de cenário rodam duas vezes, validando idempotência;
-4. a API sobe com `node src/server.ts` e o smoke test chama `GET /portal-config` (rota pública) por até 30 tentativas.
+4. `npm test` roda os testes unitários e o caso de integração contra o PostgreSQL semeado;
+5. a API sobe com `node src/server.ts` e o smoke test chama `GET /portal-config` (rota pública) por até 30 tentativas.
 
 O rollback precisa acontecer **antes** de qualquer seed: com dados semeados, a migration de auditoria de mapping falha ao reverter. O bug está registrado na issue #142.
 
@@ -32,7 +33,6 @@ Não existe `.env` no runner de propósito: `knexfile.js` carrega o arquivo com 
 
 - Sem imagem Docker da aplicação e sem build/push: a imagem não faz parte da CI.
 - Sem CD: deploy está fora do escopo desta issue.
-- Sem job de testes: `npm test` ainda é um no-op na `main` e a suíte está em andamento na issue #135. O esqueleto do job está comentado em `ci.yml` com `TODO(#135)`.
 - Sem `npm audit` bloqueante: as 5 vulnerabilidades de produção pré-existentes são tratadas separadamente. O `dependency-review` cobre só o diff do PR e começa como não obrigatório.
 
 ## Reproduzindo localmente

@@ -113,6 +113,8 @@ jobs:
         run: npm run seed:scenarios:run
       - name: Run scenario seeds (second pass)
         run: npm run seed:scenarios:run
+      - name: Run tests
+        run: npm test
       - name: Start API
         # Node 24 runs src/server.ts directly via native type stripping.
         run: |
