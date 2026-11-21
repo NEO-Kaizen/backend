@@ -7,6 +7,7 @@ import type {
   RequestPriority,
   RequesterBlock,
   DemandBlock,
+  AssignmentCandidateRow,
 } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
@@ -898,11 +899,10 @@ const RN010_FROM_STATUS: RequestStatus = "Em triagem";
 const RN010_TO_STATUS: RequestStatus = "Aguardando mapeamento";
 const RN010_ELIGIBLE_SCREENING = "elegivel";
 
-async function resolveAssigneeByUserId(
-  userId: string,
+async function validateAssigneeCandidate(
+  candidate: AssignmentCandidateRow | undefined,
   stage: "triage" | "mapping",
-): Promise<{ professionalId: string; id: string; name: string; email: string }> {
-  const candidate = await repository.findAssignmentCandidateByUserId(userId);
+): Promise<AssignmentCandidateRow> {
   const invalidTarget = () =>
     new AppError("O alvo não pode ser escolhido como Responsável.", 400, "assignee_not_assignable");
 
@@ -922,28 +922,36 @@ async function resolveAssigneeByUserId(
   ) {
     throw invalidTarget();
   }
+
+  return candidate;
+}
+
+async function resolveAssigneeByUserId(
+  userId: string,
+  stage: "triage" | "mapping",
+): Promise<{ professionalId: string; id: string; name: string; email: string }> {
+  const candidate = await repository.findAssignmentCandidateByUserId(userId);
+  const assignable = await validateAssigneeCandidate(candidate, stage);
   return {
-    professionalId: candidate.professional_id,
-    id: String(candidate.user_id),
-    name: candidate.name,
-    email: candidate.email,
+    professionalId: assignable.professional_id,
+    id: String(assignable.user_id),
+    name: assignable.name,
+    email: assignable.email,
   };
 }
 
 async function resolveAssignee(
   professionalId: string,
   stage: "triage" | "mapping",
-): Promise<{ id: string; name: string; email: string }> {
+): Promise<{ professionalId: string; id: string; name: string; email: string }> {
   const candidate = await repository.findAssignmentCandidateById(professionalId);
-  if (!candidate) {
-    throw new AppError(
-      "O alvo não pode ser escolhido como Responsável.",
-      400,
-      "assignee_not_assignable",
-    );
-  }
-  const resolved = await resolveAssigneeByUserId(String(candidate.user_id), stage);
-  return { id: resolved.id, name: resolved.name, email: resolved.email };
+  const assignable = await validateAssigneeCandidate(candidate, stage);
+  return {
+    professionalId: assignable.professional_id,
+    id: String(assignable.user_id),
+    name: assignable.name,
+    email: assignable.email,
+  };
 }
 
 async function validateAssignmentTarget<T>(
@@ -998,11 +1006,7 @@ export async function assignResponsible(
         );
 
   const previousId = request.professional_id;
-  const nextId = assignee
-    ? await repository
-        .findAssignmentCandidateByUserId(assignee.id)
-        .then((c) => c?.professional_id ?? null)
-    : null;
+  const nextId = assignee?.professionalId ?? null;
   // Para legado mantemos professional_id como valor de auditoria
   const auditNext = assignee?.id ?? null;
   const auditPrev = previousId
