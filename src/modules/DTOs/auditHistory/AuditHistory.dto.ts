@@ -1,4 +1,4 @@
-import type { AuditEntityName, AuditEntityType } from "../../../shared/audit/auditCatalog.ts";
+import type { AuditEntityType } from "../../../shared/audit/auditCatalog.ts";
 import type {
   StatusTimeInterval,
   StatusTimeByStatus,

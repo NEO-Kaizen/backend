@@ -8,7 +8,7 @@ import type {
   StatusTimeResponse,
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
-import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
+import { auditCatalog, isAuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import {
   findRequestStatusContext,
   type RequestStatusContext,
