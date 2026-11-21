@@ -36,9 +36,9 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 ## Regras
 
-- `dedup_key` = `<eventKey>:<recipient_user_id>`. O `eventKey` do Evento de
-  status é `request.status_change:<audit_id>`, o que preserva transições
-  distintas do mesmo Status ao longo do ciclo de vida.
+- `dedup_key` = `<eventKey>:<recipient_user_id>`. O formato de `eventKey` por
+  Evento está em `docs/notifications-contract.md`; a chave de negócio preserva
+  eventos distintos ao longo do ciclo de vida.
 - O emissor valida o Evento com Zod antes do INSERT. Payload fora da Allowlist
   é erro de programação e aborta a transação.
 - O ator é removido da lista de destinatários na emissão.
