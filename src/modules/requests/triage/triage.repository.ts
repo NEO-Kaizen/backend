@@ -3,10 +3,11 @@ import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
-interface StatusRow {
+export interface StatusRow {
   status_id: number;
   name: string;
   isPublic: boolean;
+  isRestricted: boolean;
 }
 
 interface CategoryRow {
@@ -14,7 +15,7 @@ interface CategoryRow {
   name: string;
 }
 
-interface RequestContextRow {
+export interface RequestContextRow {
   request_id: string;
   protocol: string;
   professional_id: string | null;
@@ -145,7 +146,8 @@ export async function findLatestTriage(protocol: string): Promise<TriageAssessme
  * com 422 (`contract-triage_04.md` §Observações).
  *
  * O filtro `is_restricted=false` garante que a saída da triagem nunca seja
- * restrita; o call site repassa essa garantia ao emissor de Notificação.
+ * restrita; o valor é projetado e repassado ao emissor de Notificação, sem
+ * depender de um literal no call site.
  */
 export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
@@ -153,15 +155,21 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
     .where({ is_active: true, is_restricted: false })
     .where({ triage_mode: "conclusion_only" })
     .where({ status_id: value })
-    .first("status_id as status_id", "name", "is_public")
-    .then((row: { status_id: number; name: string; is_public: boolean } | undefined) =>
-      row
-        ? {
-            status_id: row.status_id,
-            name: row.name,
-            isPublic: row.is_public,
-          }
-        : undefined,
+    .first("status_id as status_id", "name", "is_public", "is_restricted")
+    .then(
+      (
+        row:
+          | { status_id: number; name: string; is_public: boolean; is_restricted: boolean }
+          | undefined,
+      ) =>
+        row
+          ? {
+              status_id: row.status_id,
+              name: row.name,
+              isPublic: row.is_public,
+              isRestricted: row.is_restricted,
+            }
+          : undefined,
     );
 }
 
