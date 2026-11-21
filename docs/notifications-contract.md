@@ -1,24 +1,24 @@
 # Contrato HTTP — Notificações (RF20)
 
-Issues: #157 e #159. Issue pai: #156.
+Issues: #157, #159 e #161. Issue pai: #156.
 
 ## Escopo desta entrega
 
 A plataforma de Notificações in-app, a mudança de Status feita pelo analista no
-`PATCH /requests/:protocol/status` ou pelo veredito da Triagem e a resposta de
-Pendência. As Notificações são entregues por SSE em até 5 segundos.
+`PATCH /requests/:protocol/status` ou pelo veredito da Triagem, a resposta de
+Pendência e a Designação de Responsável. As Notificações são entregues por SSE
+em até 5 segundos.
 
-Os demais Eventos de Pendência (criação, reabertura e validação), Mapeamento e
-Designação entram nas issues filhas do RF20 e reutilizam a mesma seam de
-emissão.
+Os demais Eventos de Pendência (criação, reabertura e validação) e do Mapeamento
+entram nas issues filhas do RF20 e reutilizam a mesma seam de emissão.
 
 ## Modelo
 
 - **Notificação**: projeção por destinatário criada na mesma transação do
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
-  emissão. A v1 tem `status_changed`, `pending_item_responded` e
-  `pending_item_responded_unassigned`.
+  emissão. A v1 tem `status_changed`, `pending_item_responded`,
+  `pending_item_responded_unassigned` e `responsible_assigned`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
   `type`, `protocol`, `title` e `newStatus`; para os Eventos de Pendência, os
   campos da seção própria — nunca mensagem técnica, scores, notas internas ou
@@ -68,6 +68,28 @@ emissão.
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de
   Status.
+
+## Regras do Evento `responsible_assigned` (issue #161)
+
+- Emitido nas rotas interna (`PATCH /requests/:protocol/internal/assignee`) e
+  legada (`PATCH /requests/:protocol/assignee`) quando um analista é
+  designado na triagem ou no mapeamento da solicitação, na mesma transação da
+  designação e da auditoria.
+- `eventKey`: `request.assigned:<audit_id>` — cada designação é um Evento
+  distinto.
+- Audiência: apenas o analista designado. O Administrador que designou não
+  recebe. Sem troca de designado — designar o mesmo analista já designado —
+  não há Notificação duplicada.
+- Payload: `type`, `protocol`, `title`, `category` e `status` — a Allowlist da
+  designação, com a categoria e o Status atual da solicitação na emissão.
+
+## Payload do Evento `responsible_assigned`
+
+| Evento                 | Campos obrigatórios                                |
+| ---------------------- | -------------------------------------------------- |
+| `responsible_assigned` | `type`, `protocol`, `title`, `category`, `status`  |
+
+Nenhum outro campo entra no Payload deste Evento.
 
 ## Payload dos Eventos de Pendência
 
@@ -210,8 +232,8 @@ O schema e os índices estão em
 
 ## Fora de escopo nesta entrega
 
-- Notificações de criação, reabertura e validação de Pendência, Mapeamento e
-  Designação (demais issues filhas do RF20).
+- Notificações de criação, reabertura e validação de Pendência e do Mapeamento
+  (demais issues filhas do RF20).
 - Canal de e-mail (RF31).
 - WebSocket e outbox durável.
 - Poda e retenção automática.

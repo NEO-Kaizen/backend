@@ -37,10 +37,21 @@ export const pendingItemRespondedUnassignedPayloadSchema = requestPointerPayload
   })
   .strict();
 
+export const responsibleAssignedPayloadSchema = requestPointerPayloadSchema
+  .extend({
+    type: z.literal("responsible_assigned"),
+    /** Categoria da solicitação no momento da designação. */
+    category: z.string().trim().min(1).max(100),
+    /** Status atual da solicitação no momento da designação. */
+    status: z.string().trim().min(1).max(100),
+  })
+  .strict();
+
 export const notificationPayloadSchema = z.discriminatedUnion("type", [
   statusChangedPayloadSchema,
   pendingItemRespondedPayloadSchema,
   pendingItemRespondedUnassignedPayloadSchema,
+  responsibleAssignedPayloadSchema,
 ]);
 
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
@@ -49,6 +60,9 @@ export type PendingItemRespondedNotificationPayload = z.infer<
 >;
 export type PendingItemRespondedUnassignedNotificationPayload = z.infer<
   typeof pendingItemRespondedUnassignedPayloadSchema
+>;
+export type ResponsibleAssignedNotificationPayload = z.infer<
+  typeof responsibleAssignedPayloadSchema
 >;
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 
@@ -92,16 +106,31 @@ export const pendingItemRespondedUnassignedEventSchema = pendingItemEventBaseSch
   })
   .strict();
 
+export const responsibleAssignedEventSchema = z
+  .object({
+    type: z.literal("responsible_assigned"),
+    eventKey: z.string().trim().min(1).max(120),
+    requestId: z.string().trim().min(1).max(32),
+    actorUserId: z.number().int().positive(),
+    recipientUserIds: z.array(z.number().int().positive()).min(1),
+    payload: responsibleAssignedPayloadSchema,
+  })
+  .strict();
+
 export const notificationEventSchema = z.discriminatedUnion("type", [
   statusChangedEventSchema,
   pendingItemRespondedEventSchema,
   pendingItemRespondedUnassignedEventSchema,
+  responsibleAssignedEventSchema,
 ]);
 
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
 export type PendingItemRespondedNotificationEvent = z.infer<typeof pendingItemRespondedEventSchema>;
 export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
   typeof pendingItemRespondedUnassignedEventSchema
+>;
+export type ResponsibleAssignedNotificationEvent = z.infer<
+  typeof responsibleAssignedEventSchema
 >;
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationEventType = NotificationEvent["type"];

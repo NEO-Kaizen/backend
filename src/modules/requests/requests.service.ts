@@ -54,6 +54,7 @@ import {
   emitStatusChangedNotification,
   type StatusTarget,
 } from "../../shared/notifications/statusChangedNotification.ts";
+import { emitResponsibleAssignedNotification } from "../../shared/notifications/responsibleAssignedNotification.ts";
 
 import type {
   AssignAnalystPayload,
@@ -861,7 +862,7 @@ export async function assignResponsible(
   await db.transaction(async (trx) => {
     await repository.updateAssignee(trx, request.request_id, nextId, actor.email);
 
-    await recordAudit(trx, {
+    const auditId = await recordAudit(trx, {
       entityType: "request",
       entityId: request.protocol,
       actionType: `request.${action}`,
@@ -884,6 +885,22 @@ export async function assignResponsible(
         newValue: RN010_TO_STATUS,
         note: "RN-010",
         changeOrigin: "system",
+      });
+    }
+
+    // Designação de Responsável (issue #161): notifica o analista designado —
+    // o Administrador que designou não recebe. Sem troca de designado, não
+    // há Notificação duplicada.
+    if (assignee !== null && hasDesignationChanged(auditPrev, Number(assignee.id))) {
+      await emitResponsibleAssignedNotification(trx, {
+        auditId,
+        requestId: request.request_id,
+        actorUserId: actor.id,
+        recipientUserId: Number(assignee.id),
+        protocol: request.protocol,
+        title: request.title,
+        category: request.category,
+        status: shouldAdvanceStatus ? RN010_TO_STATUS : request.status,
       });
     }
   });
@@ -963,7 +980,7 @@ export async function assignAnalyst(
           resolved.professionalId,
           actor.email,
         );
-        await recordAudit(trx, {
+        const auditId = await recordAudit(trx, {
           entityType: "request",
           entityId: request.protocol,
           actionType: `request.${action}`,
@@ -1000,6 +1017,21 @@ export async function assignAnalyst(
             newValue: RN010_TO_STATUS,
             note: "RN-010",
             changeOrigin: "system",
+          });
+        }
+        // Designação de Responsável (issue #161): notifica o analista
+        // designado — o Administrador que designou não recebe. Sem troca de
+        // designado, não há Notificação duplicada.
+        if (hasDesignationChanged(auditPrev, Number(resolved.id))) {
+          await emitResponsibleAssignedNotification(trx, {
+            auditId,
+            requestId: request.request_id,
+            actorUserId: actor.id,
+            recipientUserId: Number(resolved.id),
+            protocol: request.protocol,
+            title: request.title,
+            category: request.category,
+            status: shouldAdvance ? RN010_TO_STATUS : request.status,
           });
         }
       });
@@ -1045,7 +1077,7 @@ export async function assignAnalyst(
           resolved.professionalId,
           actor.email,
         );
-        await recordAudit(trx, {
+        const auditId = await recordAudit(trx, {
           entityType: "request",
           entityId: request.protocol,
           actionType: `request.${action}`,
@@ -1071,11 +1103,34 @@ export async function assignAnalyst(
         } else {
           await repository.updateAssignee(trx, request.request_id, null, actor.email);
         }
+        // Designação de Responsável (issue #161): notifica o analista
+        // designado — o Administrador que designou não recebe. Sem troca de
+        // designado, não há Notificação duplicada.
+        if (hasDesignationChanged(auditPrev, Number(resolved.id))) {
+          await emitResponsibleAssignedNotification(trx, {
+            auditId,
+            requestId: request.request_id,
+            actorUserId: actor.id,
+            recipientUserId: Number(resolved.id),
+            protocol: request.protocol,
+            title: request.title,
+            category: request.category,
+            status: request.status,
+          });
+        }
       });
     }
   }
 
   return findInternalByProtocol(protocol.trim());
+}
+
+/**
+ * Designação real (primeira designação ou troca de designado) — a única
+ * condição em que a emissão de "Designação de Responsável" (issue #161) acontece.
+ */
+function hasDesignationChanged(previousUserId: number | null, nextUserId: number): boolean {
+  return previousUserId === null || previousUserId !== nextUserId;
 }
 
 // issue #124 â€” atribuiÃ§Ã£o (internal/assignee + legado /assignee):

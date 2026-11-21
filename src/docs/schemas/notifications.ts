@@ -48,11 +48,30 @@ export const NotificationPendingItemRespondedUnassignedPayload = {
   },
 };
 
+export const NotificationResponsibleAssignedPayload = {
+  type: "object",
+  description:
+    "Payload do Evento de Designação de Responsável: categoria e Status atual da solicitação no momento da designação. Aponta para a solicitação sem expor dados internos.",
+  required: ["type", "protocol", "title", "category", "status"],
+  properties: {
+    type: {
+      type: "string",
+      enum: ["responsible_assigned"],
+      example: "responsible_assigned",
+    },
+    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    title: { type: "string", example: "Automatizar conciliação bancária" },
+    category: { type: "string", example: "Automação" },
+    status: { type: "string", example: "Aguardando mapeamento" },
+  },
+};
+
 export const NotificationPayload = {
   oneOf: [
     { $ref: "#/components/schemas/NotificationStatusChangedPayload" },
     { $ref: "#/components/schemas/NotificationPendingItemRespondedPayload" },
     { $ref: "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },
+    { $ref: "#/components/schemas/NotificationResponsibleAssignedPayload" },
   ],
   discriminator: { propertyName: "type" },
   description:
@@ -66,7 +85,12 @@ export const NotificationItem = {
     id: { type: "string", example: "f0000000-0000-4000-8000-000000000001" },
     type: {
       type: "string",
-      enum: ["status_changed", "pending_item_responded", "pending_item_responded_unassigned"],
+      enum: [
+        "status_changed",
+        "pending_item_responded",
+        "pending_item_responded_unassigned",
+        "responsible_assigned",
+      ],
       example: "status_changed",
     },
     payload: { $ref: "#/components/schemas/NotificationPayload" },

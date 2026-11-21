@@ -118,9 +118,13 @@ export interface RequesterTable {
 export interface AssignmentContextRow {
   request_id: string;
   protocol: string;
+  /** Título da solicitação — carrega o campo da Allowlist do Evento de Designação. */
+  title: string;
   professional_id: string | null;
   mapping_professional_id: string | null;
   status: RequestStatus;
+  /** Categoria da solicitação (`categories.name`) — campo da Allowlist do Evento de Designação. */
+  category: string;
   screening_result: string | null;
   /** `details_professional.user_id` do responsável da triagem (issue #124). */
   assignee_user_id: number | null;

@@ -103,6 +103,38 @@ const NOTIFICATIONS = [
     read_at: null,
     created_at: "2026-11-19 16:42:00",
   },
+  {
+    notification_id: "f0000000-0000-4000-8000-000000000008",
+    recipient_user_id: 101, // Analista Teste — designado da request 1 (issue #161)
+    event_type: "responsible_assigned",
+    request_id: 1,
+    payload: {
+      type: "responsible_assigned",
+      protocol: "MAAT-8K3P-9X2M",
+      title: "Automatizar conciliação bancária",
+      category: "Automação",
+      status: "Aguardando mapeamento",
+    },
+    dedup_key: "seed:request.assigned:1:101",
+    read_at: null,
+    created_at: "2026-11-19 17:00:00",
+  },
+  {
+    notification_id: "f0000000-0000-4000-8000-000000000009",
+    recipient_user_id: 107, // Roberta Analista — redesignado da request 1 (troca, issue #161)
+    event_type: "responsible_assigned",
+    request_id: 1,
+    payload: {
+      type: "responsible_assigned",
+      protocol: "MAAT-8K3P-9X2M",
+      title: "Automatizar conciliação bancária",
+      category: "Automação",
+      status: "Aguardando mapeamento",
+    },
+    dedup_key: "seed:request.assigned:1:107",
+    read_at: null,
+    created_at: "2026-11-19 17:05:00",
+  },
 ];
 
 /**
@@ -111,7 +143,9 @@ const NOTIFICATIONS = [
  * - issue #157: `status_changed` para os solicitantes dos seeds 004 e 006;
  * - issue #159: `pending_item_responded` na request 1 (com Responsável) e
  *   `pending_item_responded_unassigned` na request 3 (sem Responsável), com o
- *   aviso explícito e os Administradores ativos do seed 004 como destinatários.
+ *   aviso explícito e os Administradores ativos do seed 004 como destinatários;
+ * - issue #161: `responsible_assigned` na request 1 — designação do Analista
+ *   Teste e redesignação do Roberta Analista.
  *
  * Pré-requisitos: seeds 004_users e 006_requests (as FKs de destinatário e
  * solicitação precisam existir). Idempotente: apaga apenas as Notificações com

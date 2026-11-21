@@ -1,6 +1,6 @@
 # Persistência de Notificações (RF20)
 
-Issues: #157 e #159. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
+Issues: #157, #159 e #161. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
 
 ## Objetivo
 
@@ -51,10 +51,11 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 `seeds/requester_request/013_notifications.js` cria massa fictícia dos Eventos:
 `status_changed` para os solicitantes dos seeds 004 e 006;
-`pending_item_responded` para o Responsável da request 1; e
+`pending_item_responded` para o Responsável da request 1;
 `pending_item_responded_unassigned` para os Administradores ativos da request 3,
-com o aviso explícito. O seed é idempotente: apaga apenas os ids fixos que ele
-mesmo cria e os recria.
+com o aviso explícito; e `responsible_assigned` para a request 1 — designação do
+Analista Teste e redesignação do Roberta Analista. O seed é idempotente: apaga
+apenas os ids fixos que ele mesmo cria e os recria.
 
 ## Migration
 
