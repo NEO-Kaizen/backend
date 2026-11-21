@@ -2,6 +2,10 @@ import type { Knex } from "knex";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
+import {
+  emitNotification,
+  type CommittedNotification,
+} from "../../../shared/notifications/emitNotification.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
 interface StatusRow {
@@ -25,6 +29,8 @@ interface RequestContextRow {
   status_is_restricted: boolean;
   status_is_terminal: boolean;
   category_name: string | null;
+  requester_user_id: number | null;
+  title: string;
 }
 
 export async function findRequestContext(protocol: string): Promise<RequestContextRow | undefined> {
@@ -43,6 +49,8 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       status_is_restricted: "s.is_restricted",
       status_is_terminal: "s.is_terminal",
       category_name: "c.name",
+      requester_user_id: "r.requester_user_id",
+      title: "r.title",
     });
 }
 
@@ -274,8 +282,9 @@ export async function saveTriageDecision(
   updatedBy: string,
   previousAssignee: { professionalId: string | null; userId: number | null },
   audit: TriageAuditContext,
-): Promise<void> {
-  await db.transaction(async (trx) => {
+  notificationContext: { requesterUserId: number | null; requestTitle: string },
+): Promise<CommittedNotification[]> {
+  return db.transaction(async (trx) => {
     await insertTriage(requestId, triage, trx);
     await applyRequestOutcome(
       protocol,
@@ -288,7 +297,7 @@ export async function saveTriageDecision(
       true,
       trx,
     );
-    await recordAudit(trx, {
+    const triageAuditId = await recordAudit(trx, {
       entityType: "request",
       entityId: protocol,
       actionType: "request.triage",
@@ -325,5 +334,28 @@ export async function saveTriageDecision(
         changeOrigin: "system",
       });
     }
+
+    // O veredito da Triagem também muda o Status (issue #156: "PATCH manual ou
+    // veredito da Triagem"). Mesma regra do PATCH: só Status público notifica,
+    // e solicitante anônimo não tem canal in-app na v1.
+    const requesterUserId = notificationContext.requesterUserId;
+
+    if (!statusIsPublic || requesterUserId === null) {
+      return [];
+    }
+
+    return emitNotification(trx, {
+      type: "status_changed",
+      eventKey: `request.triage:${triageAuditId}`,
+      requestId,
+      actorUserId: audit.actorId,
+      recipientUserIds: [requesterUserId],
+      payload: {
+        type: "status_changed",
+        protocol,
+        title: notificationContext.requestTitle,
+        newStatus: audit.nextStatus,
+      },
+    });
   });
 }

@@ -5,9 +5,9 @@ Issue: #157. Issue pai: #156.
 ## Escopo desta entrega
 
 A plataforma de Notificações in-app e o primeiro Evento ponta a ponta: a
-mudança de Status feita pelo analista no `PATCH /requests/:protocol/status`
-gera uma Notificação para o solicitante autenticado, entregue por SSE em até
-5 segundos.
+mudança de Status feita pelo analista no `PATCH /requests/:protocol/status` ou
+pelo veredito da Triagem gera uma Notificação para o solicitante autenticado,
+entregue por SSE em até 5 segundos.
 
 Eventos de Pendência, Mapeamento e Designação entram nas issues filhas do
 RF20 e reutilizam a mesma seam de emissão.
@@ -30,8 +30,11 @@ RF20 e reutilizam a mesma seam de emissão.
 
 ## Regras do Evento `status_changed`
 
-- Emitido no `PATCH /requests/:protocol/status`, na mesma transação da
-  mudança de Status e da auditoria.
+- Emitido no `PATCH /requests/:protocol/status` e no veredito da Triagem, na
+  mesma transação da mudança de Status e da auditoria.
+- `eventKey`: `request.status_change:<audit_id>` no PATCH e
+  `request.triage:<audit_id>` no veredito — transições distintas do mesmo
+  Status não se deduplicam entre si.
 - Só notifica quando o Status de destino é público (`is_public = true`) e não
   restrito (`is_restricted = false`).
 - Transições para Status interno ou restrito não geram Notificação.

@@ -3,6 +3,7 @@ import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
+import { publishCommittedNotifications } from "../../../shared/notifications/notificationEmitter.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import * as repository from "./triage.repository.ts";
 
@@ -157,7 +158,7 @@ export async function createTriage(
         : null,
   };
 
-  await repository.saveTriageDecision(
+  const committedNotifications = await repository.saveTriageDecision(
     protocol,
     request.request_id,
     triage,
@@ -177,7 +178,10 @@ export async function createTriage(
       ipAddress,
       changeOrigin: actor.role === "Administrador" ? "admin" : "internal",
     },
+    { requesterUserId: request.requester_user_id, requestTitle: request.title },
   );
+
+  publishCommittedNotifications(committedNotifications);
 
   return triage;
 }
