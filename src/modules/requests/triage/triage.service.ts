@@ -165,11 +165,11 @@ export async function createTriage(
       protocol,
       categoryId,
       statusId: exitStatus.status_id,
-      statusIsPublic: exitStatus.isPublic,
+      isStatusPublic: exitStatus.isPublic,
       lastTechnicalMessage: triage.lastTechnicalMessage,
       expectedStatusId: request.status_id,
       updatedBy: actor.email,
-      releaseAssignee: true,
+      shouldReleaseAssignee: true,
       trx,
     });
 
@@ -211,12 +211,10 @@ export async function createTriage(
       });
     }
 
-    // "Status mudou" só é Evento quando o Status muda de fato; a elegibilidade
-    // (público e não restrito) é decidida por `emitStatusChangedNotification`.
-    if (exitStatus.status_id === request.status_id) return [];
-
+    // A mudança efetiva e a elegibilidade (público e não restrito) são
+    // decididas por `emitStatusChangedNotification`.
     return emitStatusChangedNotification(trx, {
-      flow: "triage_verdict",
+      source: "triage_verdict",
       auditId: triageAuditId,
       requestId: request.request_id,
       protocol: request.protocol,
@@ -224,9 +222,12 @@ export async function createTriage(
       newStatus: exitStatus.name,
       actorUserId: actor.id,
       requesterUserId: request.requester_user_id,
-      destination: {
+      previousStatusId: request.status_id,
+      targetStatus: {
+        statusId: exitStatus.status_id,
         isPublic: exitStatus.isPublic,
-        isRestricted: exitStatus.isRestricted,
+        // `resolveExitStatus` só devolve Status com `is_restricted=false`.
+        isRestricted: false,
       },
     });
   });

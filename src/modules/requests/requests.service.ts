@@ -1261,7 +1261,7 @@ export async function updateRequestStatus(
     // é decidida por `emitStatusChangedNotification`; transições internas ou
     // restritas continuam sem Notificação.
     const committedNotifications = await emitStatusChangedNotification(trx, {
-      flow: "manual_patch",
+      source: "status_patch",
       auditId,
       requestId: request.request_id,
       protocol: request.protocol,
@@ -1269,7 +1269,9 @@ export async function updateRequestStatus(
       newStatus: target.name,
       actorUserId: actor.id,
       requesterUserId: request.requester_user_id,
-      destination: {
+      previousStatusId: request.current_status_id,
+      targetStatus: {
+        statusId: target.status_id,
         isPublic: target.isPublic,
         isRestricted: target.is_restricted,
       },

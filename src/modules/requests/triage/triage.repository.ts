@@ -7,7 +7,6 @@ interface StatusRow {
   status_id: number;
   name: string;
   isPublic: boolean;
-  isRestricted: boolean;
 }
 
 interface CategoryRow {
@@ -146,8 +145,7 @@ export async function findLatestTriage(protocol: string): Promise<TriageAssessme
  * com 422 (`contract-triage_04.md` §Observações).
  *
  * O filtro `is_restricted=false` garante que a saída da triagem nunca seja
- * restrita; `isRestricted` é devolvido para a checagem de audiência
- * compartilhada com o PATCH manual.
+ * restrita; o call site repassa essa garantia ao emissor de Notificação.
  */
 export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
@@ -155,21 +153,15 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
     .where({ is_active: true, is_restricted: false })
     .where({ triage_mode: "conclusion_only" })
     .where({ status_id: value })
-    .first("status_id as status_id", "name", "is_public", "is_restricted")
-    .then(
-      (
-        row:
-          | { status_id: number; name: string; is_public: boolean; is_restricted: boolean }
-          | undefined,
-      ) =>
-        row
-          ? {
-              status_id: row.status_id,
-              name: row.name,
-              isPublic: row.is_public,
-              isRestricted: row.is_restricted,
-            }
-          : undefined,
+    .first("status_id as status_id", "name", "is_public")
+    .then((row: { status_id: number; name: string; is_public: boolean } | undefined) =>
+      row
+        ? {
+            status_id: row.status_id,
+            name: row.name,
+            isPublic: row.is_public,
+          }
+        : undefined,
     );
 }
 
@@ -191,11 +183,11 @@ export interface ApplyRequestOutcomeInput {
   protocol: string;
   categoryId: number | null;
   statusId: number;
-  statusIsPublic: boolean;
+  isStatusPublic: boolean;
   lastTechnicalMessage: string | null;
   expectedStatusId: number;
   updatedBy: string;
-  releaseAssignee: boolean;
+  shouldReleaseAssignee: boolean;
   trx?: Knex.Transaction;
 }
 
@@ -204,11 +196,11 @@ export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Prom
     protocol,
     categoryId,
     statusId,
-    statusIsPublic,
+    isStatusPublic,
     lastTechnicalMessage,
     expectedStatusId,
     updatedBy,
-    releaseAssignee,
+    shouldReleaseAssignee,
     trx,
   } = input;
   const source = trx ?? db;
@@ -223,11 +215,11 @@ export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Prom
   // release automático): a solicitação volta a ficar sem responsável de
   // triagem e depende de nova atribuição. O snapshot do autor permanece em
   // `triages.assignee_*`.
-  if (releaseAssignee) {
+  if (shouldReleaseAssignee) {
     updates.professional_id = null;
   }
 
-  if (statusIsPublic) {
+  if (isStatusPublic) {
     if (!lastTechnicalMessage) {
       throw new Error("Retorno ao solicitante obrigatório para status público.");
     }
