@@ -7,6 +7,7 @@ const PROFILE_NAME_TO_ROLE: Record<string, Role> = {
   analista: "Analista",
   gestor: "Gestor",
   administrador: "Administrador",
+  admin_root: "Admin Root",
 };
 
 /** Converte `profiles.name` do banco na `Role` do sistema, validando o valor.

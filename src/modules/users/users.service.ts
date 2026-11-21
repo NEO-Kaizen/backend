@@ -65,6 +65,20 @@ function assertRoleIsManageable(role: Role): void {
   }
 }
 
+/**
+ * A conta Admin Root existe no máximo uma vez e é criada apenas pelo seed
+ * (variáveis de ambiente): nenhuma rota administrativa a cria, promove,
+ * desativa, troca de perfil ou redefine (contrato RBAC § 4.2).
+ */
+function assertNotRootAccount(isRoot: boolean): void {
+  if (isRoot) {
+    throw new AppError(
+      "A conta Admin Root é criada apenas pelo seed e não pode ser gerenciada pelas rotas administrativas.",
+      403,
+    );
+  }
+}
+
 export async function listUsers(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
   if (query.profile) {
     const profileId = await repository.findProfileIdByName(query.profile);
@@ -92,10 +106,15 @@ export async function createUser(
   // Perfil é algo do banco (fonte de verdade), não um enum do código: perfis
   // futuros entram via `profiles` sem mudança de rota/schema — a validação
   // fica em aberto até cruzar a tabela (mesma regra do filtro da listagem).
-  const profileId = await repository.findProfileIdByName(payload.role);
-  if (profileId === null) {
+  const profile = await repository.findProfileByName(payload.role);
+  if (!profile) {
     throw new AppError("Perfil inválido.", 400);
   }
+
+  // A conta Admin Root nasce apenas do seed: nenhuma rota cria conta com ele.
+  assertNotRootAccount(profile.is_root);
+
+  const profileId = profile.profile_id;
 
   // Hierarquia ANTES de criar: nenhum perfil cria contas de Administrador.
   assertRoleIsManageable(resolveRole(payload.role));
@@ -185,6 +204,7 @@ export async function changeUserStatus(
     throw new AppError("Usuário não encontrado", 404);
   }
 
+  assertNotRootAccount(user.profile_is_root);
   assertRoleIsManageable(resolveRole(user.profile_name));
 
   // Update e evento de auditoria na MESMA transação: se o evento falhar,
@@ -223,6 +243,7 @@ export async function resetPassword(
     throw new AppError("Usuário não encontrado", 404);
   }
 
+  assertNotRootAccount(user.profile_is_root);
   assertRoleIsManageable(resolveRole(user.profile_name));
 
   const temporaryPassword = generateTemporaryPassword();
@@ -463,6 +484,8 @@ export async function updateUser(
     throw new AppError("Usuário não encontrado", 404);
   }
 
+  assertNotRootAccount(target.profile_is_root);
+
   const isTargetAdmin = resolveRole(target.profile_name) === "Administrador";
   const hasNonRequesterPatch =
     payload.fullName !== undefined ||
@@ -474,16 +497,18 @@ export async function updateUser(
     throw new AppError("Não é possível gerenciar contas de Administradores", 403);
   }
 
-  // Valida novo role se informado, bloqueando criação/promoção para Administrador.
+  // Valida novo role se informado, bloqueando criação/promoção para Administrador
+  // e a designação do Perfil Admin Root (conta criada apenas pelo seed).
   let newProfileId: number | undefined;
   if (payload.role !== undefined) {
-    const pid = await repository.findProfileIdByName(payload.role);
-    if (pid === null) {
+    const profile = await repository.findProfileByName(payload.role);
+    if (!profile) {
       throw new AppError("Perfil inválido.", 400);
     }
+    assertNotRootAccount(profile.is_root);
     const role = resolveRole(payload.role);
     assertRoleIsManageable(role);
-    newProfileId = pid;
+    newProfileId = profile.profile_id;
   }
 
   const finalRoleName = payload.role ?? target.profile_name;

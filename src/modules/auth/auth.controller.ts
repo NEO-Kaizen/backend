@@ -95,6 +95,7 @@ export const me = async (req: Request, res: Response) => {
     avatarUrl: sessionUser.avatarUrl,
     role: sessionUser.role,
     mustChangePassword: sessionUser.mustChangePassword,
+    permissions: sessionUser.permissions,
   };
 
   return res.status(200).json(response);
