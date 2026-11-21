@@ -35,7 +35,8 @@ devolve o detalhe público só com o protocolo. O fluxo que exige identidade é 
 O solicitante comprova identidade com **protocolo + nome + e-mail**, sem criar
 sessão:
 
-1. `POST /requests/:protocol/public/verify` recebe `{ name, email, protocol }`.
+1. `POST /requests/:protocol/public/verify` recebe `{ name, email, protocol? }`
+   (`protocol` opcional; quando ausente assume o `:protocol` da URL).
 2. O backend revalida contra o cadastro da solicitação.
 3. A resposta é `{ protocol, canAccess: true }` — **sem novo JWT, sem novo
    cookie**.

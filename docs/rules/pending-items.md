@@ -39,7 +39,9 @@ lote:  requested ──nenhum item "requested" restante──▶ responded ─�
   chave. `requester.fullName` e `requester.corporateEmail` só podem ser pedidos
   em solicitação pública (sem `requester_user_id`).
 - Na mesma transação, a solicitação passa para **Pendente de informações**.
-- Solicitação terminal ou lote já aberto → `409`.
+- Solicitação terminal ou lote já aberto → `409`. Hoje o terminal é
+  detectado pelos nomes `Concluído`/`Cancelado`, não pela flag `is_terminal`;
+  um Status terminal customizado ainda aceitaria pendência (dívida).
 
 ## Resposta do solicitante
 

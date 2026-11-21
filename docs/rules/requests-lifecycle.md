@@ -108,7 +108,9 @@ homologação` como `free`. Os contratos antigos divergiam sobre aceitar `free`
   responsável de **sair** de um Status restrito para um destino `free`. O
   `current_is_restricted` é carregado e não usado.
 - Status terminal (`is_terminal = true`) não recebe novas pendências nem
-  mapeamentos (triagem e mapeamento bloqueiam a origem). O `PATCH /status`
+  mapeamentos (triagem e mapeamento bloqueiam a origem). A checagem de
+  pendência ainda usa os nomes `Concluído`/`Cancelado`, não a flag; um Status
+  terminal customizado escaparia da regra. O `PATCH /status`
   **não** bloqueia a saída de terminal hoje, embora o comentário do serviço
   diga o contrário; reabrir está previsto na issue #148.
 - A mesma linha do tempo acima vale para as três entradas (triagem, mapeamento
