@@ -679,12 +679,16 @@ export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
     .orderBy("u.full_name", "asc");
 }
 
-export async function profileHasAssignablePermissions(
+/**
+ * Verifica se o perfil detém todas as chaves de permissão informadas.
+ * Única fonte da contagem de chaves de atribuibilidade — evita duplicar a
+ * lógica entre listagem em massa (findAssignableProfileIds) e verificação
+ * individual (profileHasAssignablePermissions).
+ */
+async function profileHasAllPermissions(
   profileId: number,
-  stage: "triage" | "mapping",
+  keys: readonly string[],
 ): Promise<boolean> {
-  const keys =
-    stage === "triage" ? ASSIGNABILITY_PREDICATES.triage : ASSIGNABILITY_PREDICATES.mapping;
   const row = (await db("profile_permissions")
     .where({ profile_id: profileId })
     .whereIn("permission_key", keys)
@@ -692,6 +696,16 @@ export async function profileHasAssignablePermissions(
     .first()) as { total: string | number } | undefined;
 
   return Number(row?.total ?? 0) === keys.length;
+}
+
+export async function profileHasAssignablePermissions(
+  profileId: number,
+  stage: "triage" | "mapping",
+): Promise<boolean> {
+  const keys =
+    stage === "triage" ? ASSIGNABILITY_PREDICATES.triage : ASSIGNABILITY_PREDICATES.mapping;
+
+  return profileHasAllPermissions(profileId, keys);
 }
 
 /** Candidato a responsável por user_id (contrato usa users.user_id string). */
