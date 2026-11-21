@@ -49,8 +49,8 @@ import {
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 import { applyStatusTransition } from "./statusTransition.ts";
-import { emitNotification } from "../../shared/notifications/emitNotification.ts";
 import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
+import { emitStatusChangedNotification } from "../../shared/notifications/statusChangedNotification.ts";
 
 import type {
   AssignAnalystPayload,
@@ -1260,22 +1260,17 @@ export async function updateRequestStatus(
     // Notificação do solicitante apenas em Status público. Transições internas
     // ou restritas são ruído (e informação que não pertence ao solicitante);
     // solicitante anônimo não tem canal in-app na v1.
-    const requesterUserId = request.requester_user_id;
-
     const committedNotifications =
-      target.isPublic && !target.is_restricted && requesterUserId !== null
-        ? await emitNotification(trx, {
-            type: "status_changed",
-            eventKey: `request.status_change:${auditId}`,
+      target.isPublic && !target.is_restricted
+        ? await emitStatusChangedNotification(trx, {
+            source: "status_change",
+            auditId,
             requestId: request.request_id,
+            protocol: request.protocol,
+            title: request.title,
+            newStatus: target.name,
             actorUserId: actor.id,
-            recipientUserIds: [requesterUserId],
-            payload: {
-              type: "status_changed",
-              protocol: request.protocol,
-              title: request.title,
-              newStatus: target.name,
-            },
+            requesterUserId: request.requester_user_id,
           })
         : [];
 
