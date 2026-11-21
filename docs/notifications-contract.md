@@ -1,32 +1,34 @@
 # Contrato HTTP — Notificações (RF20)
 
-Issue: #157. Issue pai: #156.
+Issues: #157 e #159. Issue pai: #156.
 
 ## Escopo desta entrega
 
-A plataforma de Notificações in-app e o primeiro Evento ponta a ponta: a
-mudança de Status feita pelo analista no `PATCH /requests/:protocol/status` ou
-pelo veredito da Triagem gera uma Notificação para o solicitante autenticado,
-entregue por SSE em até 5 segundos.
+A plataforma de Notificações in-app, a mudança de Status feita pelo analista no
+`PATCH /requests/:protocol/status` ou pelo veredito da Triagem e a resposta de
+Pendência. As Notificações são entregues por SSE em até 5 segundos.
 
-Eventos de Pendência, Mapeamento e Designação entram nas issues filhas do
-RF20 e reutilizam a mesma seam de emissão.
+Os demais Eventos de Pendência (criação, reabertura e validação), Mapeamento e
+Designação entram nas issues filhas do RF20 e reutilizam a mesma seam de
+emissão.
 
 ## Modelo
 
 - **Notificação**: projeção por destinatário criada na mesma transação do
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
-  emissão. A v1 tem apenas `status_changed`.
+  emissão. A v1 tem `status_changed`, `pending_item_responded` e
+  `pending_item_responded_unassigned`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
-  `type`, `protocol`, `title` e `newStatus` — nunca mensagem técnica, scores,
-  notas internas ou campos de triagem.
+  `type`, `protocol`, `title` e `newStatus`; para os Eventos de Pendência, os
+  campos da seção própria — nunca mensagem técnica, scores, notas internas ou
+  campos de triagem.
 - **Canal**: `NotificationChannel`. O canal in-app grava a Notificação na
   transação; o canal de e-mail do RF31 entra como outra implementação.
 - **Idempotência**: `notifications.dedup_key` é única. A chave é
   `evento:destinatário`; repetir a mesma emissão não duplica a linha.
-- **Audiência**: o ator nunca recebe Notificação da própria ação. Nesta
-  entrega, o destinatário é o `requests.requester_user_id`.
+- **Audiência**: o ator nunca recebe Notificação da própria ação; o
+  destinatário de cada Evento segue a matriz da seção correspondente.
 
 ## Regras do Evento `status_changed`
 
@@ -45,6 +47,37 @@ RF20 e reutilizam a mesma seam de emissão.
 - Se a transação falhar, nem o Status nem a Notificação são gravados.
 - Após o commit, a publicação ocorre no `EventEmitter` tipado com
   `{ userId, notificationIds }`.
+
+## Regras do Evento `pending_item_responded`
+
+- Emitido no `PATCH /requests/:protocol/pending-items/:pendingItemId` quando o
+  item transita `requested → responded`, na mesma transação da resposta, do
+  dominó de Status e da auditoria.
+- `eventKey`: `request.pending_responded:<audit_id>` — cada resposta é um Evento
+  distinto; reabrir e responder de novo gera nova Notificação.
+- Uma Notificação por item respondido e por destinatário. O upload isolado de
+  anexo (`POST .../attachments`) não emite: o Evento é a confirmação da
+  resposta, e o anexo aparece no detalhe da solicitação apontada.
+- Com `requests.professional_id` definido, o destinatário é o usuário do
+  Responsável (`details_professional.user_id`).
+- Sem Responsável designado, os destinatários são os usuários ativos com perfil
+  `administrador` (conta e perfil ativos), com o aviso explícito no payload.
+- O ator nunca recebe. Sem sessão, a identidade pública é associada ao
+  `requests.requester_user_id` (quando houver) para a exclusão.
+- Se a transação falhar, nem a resposta, nem o Status, nem a Notificação são
+  gravados.
+- Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de
+  Status.
+
+## Payload dos Eventos de Pendência
+
+| Evento                              | Campos obrigatórios                                                   |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `pending_item_responded`            | `type`, `protocol`, `title`                                           |
+| `pending_item_responded_unassigned` | `type`, `protocol`, `title`, `notice` (`"Sem responsável designado"`) |
+
+Nenhum outro campo entra no Payload, em especial scores, notas internas,
+campos de triagem, riscos, próximos passos ou a identidade do solicitante.
 
 ## Autenticação
 
@@ -69,6 +102,18 @@ antiga, com estado de leitura.
 ```json
 {
   "items": [
+    {
+      "id": "f0000000-0000-4000-8000-000000000005",
+      "type": "pending_item_responded_unassigned",
+      "payload": {
+        "type": "pending_item_responded_unassigned",
+        "protocol": "MAAT-2R7Q-4M1C",
+        "title": "Analisar inadimplência por região",
+        "notice": "Sem responsável designado"
+      },
+      "readAt": null,
+      "createdAt": "2026-11-19T16:42:00.000Z"
+    },
     {
       "id": "f0000000-0000-4000-8000-000000000001",
       "type": "status_changed",
@@ -165,7 +210,8 @@ O schema e os índices estão em
 
 ## Fora de escopo nesta entrega
 
-- Notificações de Pendência, Mapeamento e Designação (issues filhas do RF20).
+- Notificações de criação, reabertura e validação de Pendência, Mapeamento e
+  Designação (demais issues filhas do RF20).
 - Canal de e-mail (RF31).
 - WebSocket e outbox durável.
 - Poda e retenção automática.

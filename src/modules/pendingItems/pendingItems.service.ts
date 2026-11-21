@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { getFieldSnapshot, isFieldKey, type FieldKey } from "../../shared/catalog/fieldCatalog.ts";
 import * as repo from "./pendingItems.repository.ts";
@@ -18,6 +19,9 @@ import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
+import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
+import { emitPendingItemRespondedNotification } from "../../shared/notifications/pendingItemRespondedNotification.ts";
+import { findActiveAdminUserIds } from "../users/users.repository.ts";
 
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
@@ -189,6 +193,12 @@ export type PendingCaller = {
   requesterIdentity?: { name: string; email: string } | null;
 };
 
+/** Ator da resposta: sessão (id preenchido) ou identidade pública (id nulo). */
+export interface PendingResponseActor {
+  userId: number | null;
+  email: string | undefined;
+}
+
 /**
  * Criar/revisar exige Administrador ou o assignee atual (contrato 03 §3,
  * mesma regra do botão "Editar" / `canTriage`). Gestor é read-only.
@@ -263,8 +273,7 @@ export async function respondPendingItem(
   protocol: string,
   pendingItemId: string,
   body: Record<string, unknown>,
-  actorEmail: string | undefined,
-  isInternal: boolean,
+  actor: PendingResponseActor,
   ip: string | undefined,
   caller: PendingCaller,
 ): Promise<PendingItem> {
@@ -310,24 +319,51 @@ export async function respondPendingItem(
     patch = { response_text: response.trim() };
   }
 
-  const updated = await repo.respondPendingItemTx({
-    requestId: request.request_id,
-    protocol,
-    pendingItemId,
-    batchId: row["batch_id"] as string,
-    patch,
-    actorEmail,
-    isInternal,
-    ip,
-    decideStatus: (facts) =>
-      facts.requestedRemaining === 0 &&
-      facts.attachmentSatisfied &&
-      facts.currentStatusName !== IN_TRIAGE_STATUS
-        ? IN_TRIAGE_STATUS
-        : null,
+  // Sem sessão, a identidade pública ainda representa o solicitante vinculado:
+  // ele não deve receber a Notificação da própria resposta.
+  const actorUserId = actor.userId ?? request.requester_user_id;
+
+  const { row: updated, committedNotifications } = await db.transaction(async (trx) => {
+    const result = await repo.applyPendingItemResponse(trx, {
+      requestId: request.request_id,
+      protocol: request.protocol,
+      pendingItemId,
+      batchId: row["batch_id"] as string,
+      patch,
+      actorEmail: actor.email,
+      isInternal: actor.userId !== null,
+      ip,
+      decideStatus: (facts) =>
+        facts.requestedRemaining === 0 &&
+        facts.attachmentSatisfied &&
+        facts.currentStatusName !== IN_TRIAGE_STATUS
+          ? IN_TRIAGE_STATUS
+          : null,
+    });
+
+    const assigneeUserId = await repo.findAssigneeUserIdByRequestId(trx, request.request_id);
+    const audience =
+      assigneeUserId !== null
+        ? { assigneeUserId }
+        : { activeAdminUserIds: await findActiveAdminUserIds(trx) };
+
+    const committed = await emitPendingItemRespondedNotification(trx, {
+      auditId: result.auditId,
+      requestId: request.request_id,
+      protocol: request.protocol,
+      title: request.title,
+      actorUserId,
+      audience,
+    });
+
+    return { row: result.row, committedNotifications: committed };
   });
 
-  const list = await buildPendingItems(protocol, [updated]);
+  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
+  // fonte de verdade para quem reconectar via `Last-Event-ID`.
+  publishCommittedNotifications(committedNotifications);
+
+  const list = await buildPendingItems(request.protocol, [updated]);
   return list[0] as PendingItem;
 }
 

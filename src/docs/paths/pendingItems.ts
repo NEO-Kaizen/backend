@@ -383,7 +383,7 @@ export default {
       tags: ["Pendências"],
       summary: "Responder pendência",
       description:
-        "Responde a uma pendência específica. Via dual-auth (cookie ou header `X-Requester-Identity`). Para `field_edit` envia `correctedValue`; para `observation` envia `response`.",
+        "Responde a uma pendência específica. Via dual-auth (cookie ou header `X-Requester-Identity`). Para `field_edit` envia `correctedValue`; para `observation` envia `response`. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos Administradores ativos (RF20 — issue #159).",
       operationId: "respondPendingItem",
       security: [],
       parameters: [

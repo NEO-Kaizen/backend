@@ -9,6 +9,7 @@ import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 export interface RequestRef {
   request_id: string;
   protocol: string;
+  title: string;
   status: string;
   status_id: number;
   requester_user_id: number | null;
@@ -28,6 +29,7 @@ export async function findRequestByProtocol(
     .first({
       request_id: "requests.request_id",
       protocol: "requests.protocol",
+      title: "requests.title",
       status: "statuses.name",
       status_id: "statuses.status_id",
       requester_user_id: "requests.requester_user_id",
@@ -49,6 +51,7 @@ export async function findRequestById(
     .first({
       request_id: "requests.request_id",
       protocol: "requests.protocol",
+      title: "requests.title",
       status: "statuses.name",
       status_id: "statuses.status_id",
       requester_user_id: "requests.requester_user_id",
@@ -56,6 +59,26 @@ export async function findRequestById(
       requester_email: "requesters.corporate_email",
     });
   return (row as RequestRef | undefined) ?? null;
+}
+
+/**
+ * Usuário do Responsável corrente (`requests.professional_id`), dentro da
+ * transação da resposta. `null` quando a solicitação não tem Responsável.
+ */
+export async function findAssigneeUserIdByRequestId(
+  trx: Knex.Transaction,
+  requestId: string,
+): Promise<number | null> {
+  const row = (await trx("requests")
+    .join(
+      "details_professional",
+      "details_professional.professional_id",
+      "requests.professional_id",
+    )
+    .where("requests.request_id", requestId)
+    .first("details_professional.user_id")) as { user_id: number } | undefined;
+
+  return row ? Number(row.user_id) : null;
 }
 
 export async function hasOpenPending(requestId: string, trx?: Knex.Transaction): Promise<boolean> {
@@ -392,7 +415,7 @@ export async function createPendingItemsBatch(input: {
   });
 }
 
-export async function respondPendingItemTx(input: {
+export interface PendingItemResponseInput {
   requestId: string;
   protocol: string;
   pendingItemId: string;
@@ -402,74 +425,89 @@ export async function respondPendingItemTx(input: {
   isInternal: boolean;
   ip: string | undefined;
   decideStatus: (facts: RespondFacts) => string | null;
-}): Promise<Record<string, unknown>> {
-  return db.transaction(async (trx) => {
-    const row = (await trx("pending_items")
-      .where({ pending_item_id: input.pendingItemId })
-      .first("*")) as Record<string, unknown> | undefined;
-    if (!row) throw new AppError("Solicitação não encontrada", 404);
-    if ((row.status as string) !== "requested") {
-      throw new AppError("Esta pendência já foi respondida.", 409);
-    }
+}
 
-    await trx("pending_items")
-      .where({ pending_item_id: input.pendingItemId })
-      .update({
-        ...input.patch,
-        status: "responded",
-        responded_at: trx.fn.now(),
-      });
+export interface PendingItemResponseResult {
+  row: Record<string, unknown>;
+  /** `audit_id` da resposta; base da `eventKey` do Evento de Notificação. */
+  auditId: string;
+}
 
-    await recordAudit(trx, {
-      entityType: "pending_item",
-      actionType: "pending_item.respond",
-      entityId: input.pendingItemId,
-      userId: null,
-      previousValue: "requested",
-      newValue: "responded",
-      ipAddress: input.ip ?? null,
-      changeOrigin: input.isInternal ? "admin" : "requester",
+/**
+ * Aplica a resposta do item dentro da transação aberta pelo service, que
+ * também emite a Notificação do Evento antes do commit.
+ */
+export async function applyPendingItemResponse(
+  trx: Knex.Transaction,
+  input: PendingItemResponseInput,
+): Promise<PendingItemResponseResult> {
+  const row = (await trx("pending_items")
+    .where({ pending_item_id: input.pendingItemId })
+    .first("*")) as Record<string, unknown> | undefined;
+  if (!row) throw new AppError("Solicitação não encontrada", 404);
+  if ((row.status as string) !== "requested") {
+    throw new AppError("Esta pendência já foi respondida.", 409);
+  }
+
+  await trx("pending_items")
+    .where({ pending_item_id: input.pendingItemId })
+    .update({
+      ...input.patch,
+      status: "responded",
+      responded_at: trx.fn.now(),
     });
 
-    const requestedCount = (await trx("pending_items")
-      .where({ request_id: input.requestId, batch_id: input.batchId, status: "requested" })
-      .count<{ count: string }>("* as count")
-      .first()) as { count: string } | undefined;
-    const requestedRemaining = Number(requestedCount?.count ?? 0);
-
-    const requiresAttachment = await trx("pending_items")
-      .where({ request_id: input.requestId, batch_id: input.batchId, request_attachment: true })
-      .first("pending_item_id");
-    const attachmentSatisfied =
-      !requiresAttachment ||
-      (await countAttachmentsByBatchId(input.batchId, input.requestId, trx)) > 0;
-
-    const current = await currentRequestStatus(trx, input.requestId);
-    const nextStatusName = input.decideStatus({
-      requestedRemaining,
-      attachmentSatisfied,
-      currentStatusName: current.statusName,
-    });
-
-    if (nextStatusName) {
-      const statusId = await findStatusIdByName(nextStatusName, trx);
-      await updateRequestStatusId(trx, input.requestId, statusId, input.actorEmail ?? "requester");
-      await recordAudit(trx, {
-        entityType: "request",
-        actionType: "request.status_change",
-        entityId: input.protocol,
-        userId: null,
-        previousValue: current.statusName,
-        newValue: nextStatusName,
-        note: "pendencia respondida completa",
-        changeOrigin: "system",
-      });
-    }
-
-    return (await trx("pending_items")
-      .where({ pending_item_id: input.pendingItemId })
-      .first("*")) as Record<string, unknown>;
+  const auditId = await recordAudit(trx, {
+    entityType: "pending_item",
+    actionType: "pending_item.respond",
+    entityId: input.pendingItemId,
+    userId: null,
+    previousValue: "requested",
+    newValue: "responded",
+    ipAddress: input.ip ?? null,
+    changeOrigin: input.isInternal ? "admin" : "requester",
   });
+
+  const requestedCount = (await trx("pending_items")
+    .where({ request_id: input.requestId, batch_id: input.batchId, status: "requested" })
+    .count<{ count: string }>("* as count")
+    .first()) as { count: string } | undefined;
+  const requestedRemaining = Number(requestedCount?.count ?? 0);
+
+  const requiresAttachment = await trx("pending_items")
+    .where({ request_id: input.requestId, batch_id: input.batchId, request_attachment: true })
+    .first("pending_item_id");
+  const attachmentSatisfied =
+    !requiresAttachment ||
+    (await countAttachmentsByBatchId(input.batchId, input.requestId, trx)) > 0;
+
+  const current = await currentRequestStatus(trx, input.requestId);
+  const nextStatusName = input.decideStatus({
+    requestedRemaining,
+    attachmentSatisfied,
+    currentStatusName: current.statusName,
+  });
+
+  if (nextStatusName) {
+    const statusId = await findStatusIdByName(nextStatusName, trx);
+    await updateRequestStatusId(trx, input.requestId, statusId, input.actorEmail ?? "requester");
+    await recordAudit(trx, {
+      entityType: "request",
+      actionType: "request.status_change",
+      entityId: input.protocol,
+      userId: null,
+      previousValue: current.statusName,
+      newValue: nextStatusName,
+      note: "pendencia respondida completa",
+      changeOrigin: "system",
+    });
+  }
+
+  const updated = (await trx("pending_items")
+    .where({ pending_item_id: input.pendingItemId })
+    .first("*")) as Record<string, unknown>;
+
+  return { row: updated, auditId };
 }
 
 export async function addPendingItemAttachmentTx(input: {

@@ -1,6 +1,6 @@
 # Persistência de Notificações (RF20)
 
-Issue: #157. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
+Issues: #157 e #159. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
 
 ## Objetivo
 
@@ -14,16 +14,16 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 ## Estrutura
 
-| Campo               | Tipo         | Obrigatório | Restrição / Default                           | Finalidade                              |
-| ------------------- | ------------ | ----------- | --------------------------------------------- | --------------------------------------- |
-| `notification_id`   | UUID         | Sim         | Primary Key, `gen_random_uuid()`              | Identificador exposto na API e no SSE   |
-| `recipient_user_id` | INTEGER      | Sim         | FK `users.user_id`, `ON DELETE CASCADE`       | Destinatário da Notificação             |
-| `event_type`        | VARCHAR(50)  | Sim         | NOT NULL                                      | Tipo do Evento (`status_changed` na v1) |
-| `request_id`        | BIGINT       | Sim         | FK `requests.request_id`, `ON DELETE CASCADE` | Solicitação associada                   |
-| `payload`           | JSONB        | Sim         | NOT NULL                                      | Allowlist do Evento                     |
-| `dedup_key`         | VARCHAR(255) | Sim         | UNIQUE (`uk_notifications_dedup_key`)         | Idempotência por evento + destinatário  |
-| `read_at`           | TIMESTAMPTZ  | Não         | NULL até a leitura                            | Registro da leitura                     |
-| `created_at`        | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                   | Data e hora da emissão                  |
+| Campo               | Tipo         | Obrigatório | Restrição / Default                           | Finalidade                             |
+| ------------------- | ------------ | ----------- | --------------------------------------------- | -------------------------------------- |
+| `notification_id`   | UUID         | Sim         | Primary Key, `gen_random_uuid()`              | Identificador exposto na API e no SSE  |
+| `recipient_user_id` | INTEGER      | Sim         | FK `users.user_id`, `ON DELETE CASCADE`       | Destinatário da Notificação            |
+| `event_type`        | VARCHAR(50)  | Sim         | NOT NULL                                      | Tipo do Evento da matriz de audiência  |
+| `request_id`        | BIGINT       | Sim         | FK `requests.request_id`, `ON DELETE CASCADE` | Solicitação associada                  |
+| `payload`           | JSONB        | Sim         | NOT NULL                                      | Allowlist do Evento                    |
+| `dedup_key`         | VARCHAR(255) | Sim         | UNIQUE (`uk_notifications_dedup_key`)         | Idempotência por evento + destinatário |
+| `read_at`           | TIMESTAMPTZ  | Não         | NULL até a leitura                            | Registro da leitura                    |
+| `created_at`        | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                   | Data e hora da emissão                 |
 
 ## Índices
 
@@ -49,9 +49,12 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 ## Seed
 
-`seeds/requester_request/013_notifications.js` cria massa fictícia do Evento
-`status_changed` para os solicitantes dos seeds 004 e 006. O seed é
-idempotente: apaga apenas os ids fixos que ele mesmo cria e os recria.
+`seeds/requester_request/013_notifications.js` cria massa fictícia dos Eventos:
+`status_changed` para os solicitantes dos seeds 004 e 006;
+`pending_item_responded` para o Responsável da request 1; e
+`pending_item_responded_unassigned` para os Administradores ativos da request 3,
+com o aviso explícito. O seed é idempotente: apaga apenas os ids fixos que ele
+mesmo cria e os recria.
 
 ## Migration
 

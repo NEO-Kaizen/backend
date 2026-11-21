@@ -12,6 +12,9 @@ import type {
 import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequesterTable } from "../../shared/types/requests.ts";
 
+/** Nome do perfil de Administrador em `profiles.name`. */
+const ADMIN_PROFILE_NAME = "administrador";
+
 interface UserSummaryRow {
   user_id: number;
   full_name: string;
@@ -48,6 +51,23 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "p.name as profile_name",
       "p.is_active as profile_is_active",
     );
+}
+
+/**
+ * Usuários ativos com perfil Administrador — destinatários do Evento de
+ * Pendência respondida sem Responsável designado (RF20 — issue #159).
+ */
+export async function findActiveAdminUserIds(trx?: Knex.Transaction): Promise<number[]> {
+  const conn = trx ?? db;
+  const rows = (await conn("users as u")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .where("p.name", ADMIN_PROFILE_NAME)
+    .andWhere("p.is_active", true)
+    .andWhere("u.is_active", true)
+    .select("u.user_id")
+    .orderBy("u.user_id", "asc")) as Array<{ user_id: number }>;
+
+  return rows.map((row) => Number(row.user_id));
 }
 
 /** Perfis que ganham a extensÃ£o de profissional (1:1 user â†’ details_professional)
@@ -578,7 +598,7 @@ export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
       db.raw('COUNT(u.*)::int as "total"'),
       db.raw('COUNT(CASE WHEN u.is_active THEN 1 END)::int as "active"'),
       db.raw('COUNT(CASE WHEN u.must_change_password THEN 1 END)::int as "pending"'),
-      db.raw("COUNT(CASE WHEN p.name = 'administrador' THEN 1 END)::int as \"admins\""),
+      db.raw('COUNT(CASE WHEN p.name = ? THEN 1 END)::int as "admins"', [ADMIN_PROFILE_NAME]),
     )
     .first();
 
