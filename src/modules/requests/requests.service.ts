@@ -986,8 +986,8 @@ export async function assignResponsible(
     (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
   );
 
-  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
-  // ou Administrador — sem justificativa (não é troca de status).
+  // A atribuição é autorizada por request:assign e Custódia, sem decisão por
+  // Perfil. A validação do alvo ocorre no service para definir ou reatribuir.
   const assignee =
     payload.professionalId === null || payload.professionalId === undefined
       ? null
@@ -1061,8 +1061,8 @@ export async function assignAnalyst(
     (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
   );
 
-  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
-  // ou Administrador — sem justificativa (não é troca de status).
+  // A atribuição é autorizada por request:assign e Custódia, sem decisão por
+  // Perfil. A validação do alvo ocorre no service para definir ou reatribuir.
   const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
   const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
 
@@ -1234,17 +1234,10 @@ export async function assignAnalyst(
   return { protocol: protocol.trim(), updated: true };
 }
 
-// --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
-// Rota única de troca de status (delta `portal-config-statuses-amend.md` §3.3):
-// - `Administrador`: bypass de triageMode/mappingMode/isRestricted — pode ir a
-//   qualquer status `isActive` (inativo → 409);
-// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
-//   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
-//   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
-// - status terminais (`isTerminal`) nunca são saída — fluxo encerrado não
-//   reabre por este endpoint (→ 422).
-// Auditoria: bypass → `request.override_status_admin`; normal →
-// `request.status_change`; negado → `request.access_denied`.
+// --- PATCH /requests/:protocol/status (Motor de Status v4) -------------------
+// request:status_change + Custódia libera alvos ativos não restritos no modo
+// free. Alvos restritos ou fora desse modo exigem request:status_override
+// global. As recusas são auditadas sem revelar solicitações fora da Custódia.
 
 export async function updateRequestStatus(
   protocol: string,
