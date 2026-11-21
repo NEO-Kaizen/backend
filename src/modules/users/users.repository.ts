@@ -242,11 +242,72 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
 }
 
 /**
- * Upsert da extensÃ£o profissional por `user_id` (1:1).
- * Garante presenÃ§a no "Meus dados" para analistas legados.
- * `status`/`capacity` NÃƒO sÃ£o alterados (defaults do schema).
- * `specialties`/`attended_category_ids` sÃ£o serializados como texto
- * separado por vÃ­rgula (mesmo formato do seed/`createProfessionalData`).
+ * Upsert da extensão de solicitante por `user_id` (1:1).
+ * Garante a presença da linha para o "Meus dados" — três cenários:
+ * 1. Linha existente para este `user_id` → apenas atualiza campos editáveis.
+ * 2. Linha anônima com o mesmo e-mail (`user_id = NULL`) → adota (vincula
+ *    o `user_id`); mantém `area`/`manager_name` existentes até o
+ *    `resolveRequesterId` do fluxo de solicitação.
+ * 3. Nenhuma linha → insere nova (requer `fullName`/`corporateEmail`
+ *    do usuário, que são NOT NULL no banco).
+ * `uk_requesters_email` jamais é violado (adoção guardada por
+ * `user_id IS NULL`).
+ */
+export async function upsertRequesterData(
+  trx: Knex.Transaction,
+  userId: number,
+  data: {
+    fullName: string; // para INSERT; não é atualizado nos demais cenários (imutável)
+    corporateEmail: string; // idem
+    area: string;
+    department?: string;
+    managerName: string;
+    additionalContact?: string | null;
+  },
+): Promise<void> {
+  // 1. Linha existente para este usuário.
+  const updated = await trx("requesters")
+    .where({ user_id: userId })
+    .update({
+      area: data.area,
+      department: data.department ?? null,
+      manager_name: data.managerName,
+      additional_contact: data.additionalContact ?? null,
+    });
+  if (updated > 0) return;
+
+  // 2. Adota linha anônima com o mesmo e-mail (jamais reatribui extensão de terceiros).
+  const adopted = await trx("requesters")
+    .where({ corporate_email: data.corporateEmail })
+    .whereNull("user_id")
+    .update({
+      user_id: userId,
+      full_name: data.fullName,
+      area: data.area,
+      department: data.department ?? null,
+      manager_name: data.managerName,
+      additional_contact: data.additionalContact ?? null,
+    });
+  if (adopted > 0) return;
+
+  // 3. Nova linha.
+  await trx("requesters").insert({
+    user_id: userId,
+    full_name: data.fullName,
+    corporate_email: data.corporateEmail,
+    area: data.area,
+    department: data.department ?? null,
+    manager_name: data.managerName,
+    additional_contact: data.additionalContact ?? null,
+  });
+}
+
+/**
+ * Upsert da extensão profissional por `user_id` (1:1).
+ * Garante presença no "Meus dados" para analistas legados.
+ * `status`/`capacity` NÃO são alterados (defaults do schema).
+ * `specialties`/`attended_category_ids` são serializados como texto
+ * separado por vírgula (mesmo formato do seed/`createProfessionalData`).
  */
 export async function upsertProfessionalData(
   trx: Knex.Transaction,
@@ -602,4 +663,8 @@ export async function mergeRequesterData(
     manager_name: patch.manager ?? null,
     additional_contact: patch.additionalContact ?? null,
   });
+}
+
+export async function findRequesterByUserId(userId: number) {
+  return db("requesters").where({ user_id: userId }).first();
 }

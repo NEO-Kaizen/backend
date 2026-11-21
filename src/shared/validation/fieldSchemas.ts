@@ -35,6 +35,9 @@ export function isValidText(value: string): boolean {
   return TEXT_PATTERN.test(value);
 }
 
+export const PROFILE_AREA_MAX_LENGTH = 100;
+export const PROFILE_DEPARTMENT_MAX_LENGTH = 100;
+export const PROFILE_MANAGER_MAX_LENGTH = 150;
 export const PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH = 100;
 
 export const requiredText = (maxChars: number) =>
