@@ -859,9 +859,15 @@ export async function updateInternalRequest(
     });
   });
 
-  // A resposta reutiliza o mapeador do GET interno — formato idêntico ao
-  // contrato `RequestInternalDetailDTO`.
-  return findInternalByProtocol(protocol.trim(), actor, ipAddress);
+  // Quando o ator também tem request:read com custódia sobre a linha, devolve
+  // o DTO completo. Caso contrário (ex.: request:write sem request:read), cumpre
+  // o contrato com 200 { protocol, updated: true } sem exigir leitura da linha.
+  const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
+  if (updatedRequest && hasRequestCustody(actor, "request:read", updatedRequest.assignee_user_id)) {
+    return findInternalByProtocol(protocol.trim(), actor, ipAddress);
+  }
+
+  return { protocol: protocol.trim(), updated: true };
 }
 
 export async function listAssignees(): Promise<AssigneeSummary[]> {
