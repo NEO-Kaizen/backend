@@ -19,7 +19,7 @@ O Dependabot abre PRs semanais para `npm` e `github-actions`, agrupando minor/pa
 
 Sequência executada contra o service container `postgres:18-alpine` (mesmo digest de `docker-compose.yml`):
 
-1. as 55 migrations sobem com `npm run migrate:latest`;
+1. as 59 migrations sobem com `npm run migrate:latest`;
 2. todas são revertidas com `npx knex migrate:rollback --all --env development` e reaplicadas;
 3. as seeds-base rodam duas vezes e as seeds de cenário rodam duas vezes, validando idempotência;
 4. `npm test` roda os testes unitários e o caso de integração contra o PostgreSQL semeado;

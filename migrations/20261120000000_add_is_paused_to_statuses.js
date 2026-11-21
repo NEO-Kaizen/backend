@@ -10,7 +10,7 @@ export async function up(knex) {
     table.boolean("is_paused").notNullable().defaultTo(false);
   });
 
-  await knex("statuses").where({ status_id: 4 }).update({ is_paused: true });
+  await knex("statuses").where({ name: "Pendente de informações" }).update({ is_paused: true });
 }
 
 /**

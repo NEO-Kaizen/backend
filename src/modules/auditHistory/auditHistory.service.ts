@@ -11,10 +11,12 @@ import * as repository from "./auditHistory.repository.ts";
 import { auditCatalog, isAuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import {
   findRequestStatusContext,
+  INITIAL_REQUEST_STATUS,
   type RequestStatusContext,
 } from "../requests/requests.repository.ts";
 import {
   calculateStatusTime,
+  StatusTimeHistoryDivergenceError,
   type StatusTimeSummary,
   type StatusTimeTransition,
 } from "./statusTime.ts";
@@ -86,64 +88,66 @@ export async function getAuditHistoryDetail(auditId: number): Promise<AuditHisto
   return toDetail(row);
 }
 
-function parseStatusValue(value: string | null): string | null {
-  if (!value) return null;
-
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (typeof parsed === "string") return parsed;
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "status" in parsed &&
-      typeof parsed.status === "string"
-    ) {
-      return parsed.status;
-    }
-  } catch {
-    return value;
-  }
-
-  return null;
-}
-
 function parseStatusTransition(
   value: string | null,
   snapshotStatusId: number | string | null,
-): { status: string; statusId?: number } | null {
-  if (!value) return null;
-  const status = parseStatusValue(value);
-  if (!status) return null;
-
-  const statusId =
-    typeof snapshotStatusId === "number"
-      ? snapshotStatusId
-      : typeof snapshotStatusId === "string" && Number.isInteger(Number(snapshotStatusId))
-        ? Number(snapshotStatusId)
-        : undefined;
+  statusIdByName: ReadonlyMap<string, number>,
+  statusNameById: ReadonlyMap<number, string>,
+): { status: string | null; statusId: number | undefined } {
+  if (!value) return { status: null, statusId: undefined };
 
   try {
     const parsed: unknown = JSON.parse(value);
-    if (typeof parsed === "object" && parsed !== null && "status_id" in parsed) {
-      const statusId = parsed.status_id;
-      if (typeof statusId === "number" && Number.isInteger(statusId)) {
-        return { status, statusId };
-      }
+    if (typeof parsed === "string") {
+      const statusId = readStatusId(snapshotStatusId) ?? statusIdByName.get(parsed);
+      return {
+        status: statusId !== undefined ? (statusNameById.get(statusId) ?? parsed) : parsed,
+        statusId,
+      };
     }
+    if (typeof parsed !== "object" || parsed === null || !("status" in parsed)) {
+      return { status: null, statusId: undefined };
+    }
+    if (typeof parsed.status !== "string") {
+      return { status: null, statusId: undefined };
+    }
+    const embeddedStatusId =
+      "status_id" in parsed && typeof parsed.status_id === "number" ? parsed.status_id : undefined;
+    const statusId =
+      embeddedStatusId ?? readStatusId(snapshotStatusId) ?? statusIdByName.get(parsed.status);
+    return {
+      status:
+        statusId !== undefined ? (statusNameById.get(statusId) ?? parsed.status) : parsed.status,
+      statusId,
+    };
   } catch {
-    // Plain status names remain valid for historical audit rows.
+    const statusId = readStatusId(snapshotStatusId) ?? statusIdByName.get(value);
+    return {
+      status: statusId !== undefined ? (statusNameById.get(statusId) ?? value) : value,
+      statusId,
+    };
   }
-  return statusId !== undefined ? { status, statusId } : { status };
+}
+
+function readStatusId(value: number | string | null): number | undefined {
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  if (typeof value === "string" && Number.isInteger(Number(value))) return Number(value);
+  return undefined;
 }
 
 async function calculateStatusTimeForRequest(
   request: NonNullable<Awaited<ReturnType<typeof findRequestStatusContext>>>,
   now: Date,
 ): Promise<StatusTimeSummary> {
-  const [pausedStatuses, auditRows] = await Promise.all([
-    repository.listPausedStatuses(),
+  const [statuses, auditRows] = await Promise.all([
+    repository.listStatuses(),
     repository.listAuditHistoryByProtocol(request.protocol),
   ]);
+  const statusIdByName = new Map(statuses.map((status) => [status.name, status.status_id]));
+  const statusNameById = new Map(statuses.map((status) => [status.status_id, status.name]));
+  const pausedStatusIds = statuses
+    .filter((status) => status.is_paused)
+    .map((status) => status.status_id);
 
   const chronologicalRows = [...auditRows].reverse();
   const transitions: StatusTimeTransition[] = [];
@@ -157,14 +161,35 @@ async function calculateStatusTimeForRequest(
       continue;
     }
 
-    const statusTransition = parseStatusTransition(row.new_value, row.status_id);
-    if (!statusTransition) continue;
+    const statusTransition = parseStatusTransition(
+      row.new_value,
+      row.status_id,
+      statusIdByName,
+      statusNameById,
+    );
+    if (!statusTransition.status) {
+      throw new AppError(
+        "A transição não contém um Status válido na auditoria.",
+        409,
+        "STATUS_HISTORY_DIVERGENCE",
+      );
+    }
 
     const occurredAt =
       row.occurred_at instanceof Date ? row.occurred_at : new Date(String(row.occurred_at));
-    if (Number.isNaN(occurredAt.getTime())) continue;
+    if (Number.isNaN(occurredAt.getTime())) {
+      throw new AppError(
+        "A transição contém uma data inválida na auditoria.",
+        409,
+        "STATUS_HISTORY_DIVERGENCE",
+      );
+    }
 
-    transitions.push({ ...statusTransition, occurredAt });
+    transitions.push({
+      status: statusTransition.status,
+      statusId: statusTransition.statusId,
+      occurredAt,
+    });
   }
 
   const openedAt =
@@ -173,27 +198,24 @@ async function calculateStatusTimeForRequest(
     throw new AppError("Data de abertura da solicitação inválida", 500);
   }
 
-  const firstTransition = transitions[0];
   const earliestAuditRow = chronologicalRows.find(
     (row) =>
       row.action_type === "request.status_change" ||
       row.action_type === "request.override_status_admin" ||
       row.action_type === "request.triage",
   );
-  const previousStatus = parseStatusValue(earliestAuditRow?.previous_value ?? null);
-  const previousStatusId =
-    typeof earliestAuditRow?.previous_status_id === "number"
-      ? earliestAuditRow.previous_status_id
-      : typeof earliestAuditRow?.previous_status_id === "string" &&
-          Number.isInteger(Number(earliestAuditRow.previous_status_id))
-        ? Number(earliestAuditRow.previous_status_id)
-        : undefined;
+  const previousStatus = parseStatusTransition(
+    earliestAuditRow?.previous_value ?? null,
+    earliestAuditRow?.previous_status_id ?? null,
+    statusIdByName,
+    statusNameById,
+  );
   const currentStatus = request.current_status_name;
   if (!currentStatus) {
     throw new AppError("Status atual da solicitação inválido", 500);
   }
-  const initialStatus = previousStatus ?? currentStatus;
-  if (!previousStatus && firstTransition) {
+  const initialStatus = previousStatus.status ?? INITIAL_REQUEST_STATUS;
+  if (!previousStatus.status && earliestAuditRow) {
     throw new AppError(
       "Não foi possível reconstruir o Status inicial a partir da auditoria.",
       409,
@@ -201,16 +223,27 @@ async function calculateStatusTimeForRequest(
     );
   }
 
-  return calculateStatusTime({
-    openedAt,
-    initialStatus,
-    initialStatusId: previousStatusId,
-    currentStatus,
-    currentStatusId: request.current_status_id !== null ? request.current_status_id : undefined,
-    pausedStatusIds: pausedStatuses.map((status) => status.status_id),
-    transitions,
-    now,
-  });
+  try {
+    return calculateStatusTime({
+      openedAt,
+      initialStatus,
+      initialStatusId: previousStatus.statusId ?? statusIdByName.get(INITIAL_REQUEST_STATUS),
+      currentStatus,
+      currentStatusId: request.current_status_id !== null ? request.current_status_id : undefined,
+      pausedStatusIds,
+      transitions,
+      now,
+    });
+  } catch (error) {
+    if (error instanceof StatusTimeHistoryDivergenceError) {
+      throw new AppError(
+        "A trilha de auditoria diverge do Status atual da solicitação.",
+        409,
+        "STATUS_HISTORY_DIVERGENCE",
+      );
+    }
+    throw error;
+  }
 }
 
 function assertRequestCustody(

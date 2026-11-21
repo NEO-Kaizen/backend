@@ -38,6 +38,13 @@ export interface StatusTimeCalculationInput {
   now: Date;
 }
 
+export class StatusTimeHistoryDivergenceError extends Error {
+  constructor() {
+    super("A auditoria não corresponde ao Status atual da solicitação.");
+    this.name = "StatusTimeHistoryDivergenceError";
+  }
+}
+
 function positiveMilliseconds(start: Date, end: Date): number {
   return Math.max(0, end.getTime() - start.getTime());
 }
@@ -70,14 +77,14 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
 
   const now = input.now.getTime() >= enteredAt.getTime() ? input.now : enteredAt;
   if (status !== input.currentStatus) {
-    throw new Error("A auditoria não corresponde ao Status atual da solicitação.");
+    throw new StatusTimeHistoryDivergenceError();
   }
   if (
     input.currentStatusId !== undefined &&
     statusId !== undefined &&
     statusId !== input.currentStatusId
   ) {
-    throw new Error("A auditoria não corresponde ao Status atual da solicitação.");
+    throw new StatusTimeHistoryDivergenceError();
   }
 
   const currentDuration = positiveMilliseconds(enteredAt, now);

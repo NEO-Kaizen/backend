@@ -171,10 +171,8 @@ export async function createTriage(
     {
       actorId: actor.id,
       previousStatus: request.status_name,
-      previousStatusId: request.status_id,
       previousCategory: request.category_name,
       nextStatus: exitStatus.name,
-      nextStatusId: exitStatus.status_id,
       justification: triage.conclusionJustification,
       ipAddress,
       changeOrigin: actor.role === "Administrador" ? "admin" : "internal",

@@ -24,9 +24,43 @@ export interface AuditEntryBase {
   ipAddress?: string | null;
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
   changeOrigin?: ChangeOrigin | null;
-  /** Snapshot estável do Status de destino em transições auditadas. */
-  statusId?: number | null;
-  previousStatusId?: number | null;
+}
+
+const requestStatusTransitionActions = new Set([
+  "request.status_change",
+  "request.override_status_admin",
+  "request.triage",
+]);
+
+function extractStatusName(value: string | null | undefined): string | null {
+  if (value == null) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed === "string") return parsed;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "status" in parsed &&
+      typeof parsed.status === "string"
+    ) {
+      return parsed.status;
+    }
+    return null;
+  } catch {
+    return value;
+  }
+}
+
+async function findStatusIdByName(
+  trx: Knex.Transaction,
+  statusName: string | null,
+): Promise<number | null> {
+  if (!statusName) return null;
+  const row = await trx("statuses")
+    .where({ name: statusName })
+    .first<{ status_id: number }>("status_id");
+  return row?.status_id ?? null;
 }
 
 /**
@@ -66,6 +100,19 @@ export async function recordAudit<E extends AuditEntityType, A extends ComposedA
     );
   }
 
+  const isStatusTransition =
+    entry.entityType === "request" && requestStatusTransitionActions.has(entry.actionType);
+  const [statusId, previousStatusId] = isStatusTransition
+    ? await Promise.all([
+        findStatusIdByName(trx, extractStatusName(entry.newValue)),
+        findStatusIdByName(trx, extractStatusName(entry.previousValue)),
+      ])
+    : [null, null];
+
+  if (isStatusTransition && statusId === null) {
+    throw new AppError("Status de destino da transição não encontrado.", 500);
+  }
+
   const rows = await trx("audit_history")
     .insert({
       entity_type: entry.entityType,
@@ -78,8 +125,8 @@ export async function recordAudit<E extends AuditEntityType, A extends ComposedA
       last_technical_message: entry.lastTechnicalMessage ?? null,
       ip_address: entry.ipAddress ?? null,
       change_origin: entry.changeOrigin ?? null,
-      status_id: entry.statusId ?? null,
-      previous_status_id: entry.previousStatusId ?? null,
+      status_id: statusId,
+      previous_status_id: previousStatusId,
       transaction_id: trx.raw("pg_current_xact_id()"),
     })
     .returning("audit_id");

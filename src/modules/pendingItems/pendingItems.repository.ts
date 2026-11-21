@@ -254,7 +254,6 @@ export type RespondFacts = {
   requestedRemaining: number;
   attachmentSatisfied: boolean;
   currentStatusName: string;
-  currentStatusId: number;
 };
 
 export type ReviewDecisionInput =
@@ -360,8 +359,6 @@ export async function createPendingItemsBatch(input: {
         userId: input.actor.id,
         previousValue: current.statusName,
         newValue: "Pendente de informações",
-        previousStatusId: current.statusId,
-        statusId: pendingStatusId,
         ipAddress: input.ip ?? null,
         changeOrigin: "admin",
       });
@@ -453,7 +450,6 @@ export async function respondPendingItemTx(input: {
       requestedRemaining,
       attachmentSatisfied,
       currentStatusName: current.statusName,
-      currentStatusId: current.statusId,
     });
 
     if (nextStatusName) {
@@ -463,11 +459,9 @@ export async function respondPendingItemTx(input: {
         entityType: "request",
         actionType: "request.status_change",
         entityId: input.protocol,
-        userId: input.actorId,
+        userId: null,
         previousValue: current.statusName,
         newValue: nextStatusName,
-        previousStatusId: current.statusId,
-        statusId,
         note: "pendencia respondida completa",
         changeOrigin: "system",
       });
@@ -520,7 +514,6 @@ export async function applyReviewDecisionsTx(input: {
   actor: { id: number; email: string };
   ip: string | undefined;
   currentStatusName: string;
-  currentStatusId: number;
   decideStatus: (facts: ReviewFacts) => string | null;
 }): Promise<Record<string, unknown>[]> {
   return db.transaction(async (trx) => {
@@ -594,8 +587,6 @@ export async function applyReviewDecisionsTx(input: {
         userId: input.actor.id,
         previousValue: input.currentStatusName,
         newValue: nextStatusName,
-        previousStatusId: input.currentStatusId,
-        statusId,
         note: "reopen pending",
         changeOrigin: "system",
       });

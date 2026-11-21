@@ -127,6 +127,7 @@ Cada item de `totalsByStatus`:
 | `401`  | Sem sessão ou sessão inválida.                                                      |
 | `403`  | Perfil sem custódia; também usado por Analista para mascarar protocolo inexistente. |
 | `404`  | Protocolo inexistente para Administrador ou Gestor.                                 |
+| `409`  | Trilha de auditoria inválida ou divergente do Status atual.                         |
 
 ### Uso no frontend
 
@@ -203,7 +204,21 @@ Body:
 - `true`: o Status é considerado período pausado;
 - `false`: o Status conta como tempo ativo;
 - Status de núcleo não podem ter `isPaused` alterado por esta rota.
-- A classificação histórica usa o `status_id` snapshotado; renomear um Status não reclassifica períodos anteriores.
+- Transições novas snapshotam `status_id`; renomear um Status não reclassifica esses períodos.
+- Eventos anteriores ao snapshot permanecem append-only, com IDs nulos, e são resolvidos pelo nome
+  persistido ao consultar. Portanto, renomeações anteriores à migration não podem ser reconstruídas
+  de forma estável.
+
+### Integridade da linha do tempo
+
+- O Status inicial é o `previous_value` da transição auditada mais antiga; sem transições, é
+  `Solicitação enviada`.
+- A consulta retorna `409 STATUS_HISTORY_DIVERGENCE` quando a auditoria não pode ser reconstruída
+  ou não termina no Status atual do banco. Não é criado um intervalo sintético para corrigir a
+  divergência.
+- A trigger exige exatamente um evento correspondente ao protocolo e ao Status de destino na mesma
+  transação. Savepoints compartilham o mesmo identificador de transação; a garantia não distingue
+  operações lógicas dentro dela.
 
 ---
 

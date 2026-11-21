@@ -220,10 +220,8 @@ export async function applyRequestOutcome(
 export interface TriageAuditContext {
   actorId: number;
   previousStatus: string | null;
-  previousStatusId: number | null;
   previousCategory: string | null;
   nextStatus: string;
-  nextStatusId: number;
   justification: string;
   ipAddress?: string;
   changeOrigin: "admin" | "internal";
@@ -304,8 +302,6 @@ export async function saveTriageDecision(
         exitStatus: triage.exitStatus,
         status: audit.nextStatus,
       }),
-      previousStatusId: audit.previousStatusId ?? undefined,
-      statusId: audit.nextStatusId,
       // `note` = justificativa interna (conclusão da triagem); o retorno
       // público só é persistido quando o status de saída é público.
       note: audit.justification,

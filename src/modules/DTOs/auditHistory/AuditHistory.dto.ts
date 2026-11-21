@@ -1,9 +1,5 @@
 import type { AuditEntityType } from "../../../shared/audit/auditCatalog.ts";
-import type {
-  StatusTimeInterval,
-  StatusTimeByStatus,
-  StatusTimeSummary,
-} from "../../auditHistory/statusTime.ts";
+import type { StatusTimeInterval, StatusTimeByStatus } from "../../auditHistory/statusTime.ts";
 
 export interface AuditHistoryQuery {
   page?: number;
@@ -63,4 +59,3 @@ export type StatusTimeResponse = {
 };
 
 export type { StatusTimeInterval, StatusTimeByStatus };
-export type StatusTimeSummaryResponse = StatusTimeSummary;

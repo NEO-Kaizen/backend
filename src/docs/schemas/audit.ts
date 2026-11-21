@@ -1,3 +1,10 @@
+import { auditCatalog } from "../../shared/audit/auditCatalog.ts";
+
+const auditEntityTypes = Object.keys(auditCatalog);
+const auditActionTypes = Object.entries(auditCatalog).flatMap(([entity, definition]) =>
+  definition.actions.map((action) => `${entity}.${action}`),
+);
+
 export const AuditActor = {
   type: "object",
   required: ["kind", "userId", "displayName"],
@@ -28,39 +35,13 @@ export const AuditHistoryDetail = {
     audit_id: { type: "integer", minimum: 1, example: 17 },
     entity_type: {
       type: "string",
-      enum: ["request", "user", "mapping", "pending_item", "settings"],
+      enum: auditEntityTypes,
       example: "request",
     },
     entity_id: { type: "string", example: "MAAT-8K3P-9X2M" },
     action_type: {
       type: "string",
-      enum: [
-        "request.status_change",
-        "request.override_status_admin",
-        "request.triage",
-        "request.access_denied",
-        "user.create",
-        "user.activate",
-        "user.deactivate",
-        "user.reset_password",
-        "user.change_password",
-        "user.update_profile",
-        "user.update",
-        "prioritization.evaluate",
-        "request.assign",
-        "request.reassign",
-        "request.unassign",
-        "request.update",
-        "mapping.assign",
-        "mapping.save",
-        "mapping.complete",
-        "settings.update",
-        "pending_item.create",
-        "pending_item.respond",
-        "pending_item.attach",
-        "pending_item.validate",
-        "pending_item.reopen",
-      ],
+      enum: auditActionTypes,
       example: "request.status_change",
     },
     actor: { $ref: "#/components/schemas/AuditActor" },
