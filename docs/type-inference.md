@@ -5,8 +5,8 @@
 ## Resumo
 
 - Arquivos-fonte analisados: **169**.
-- Tipos nomeados: **296** â€” 206 interfaces, 88 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1719** â€” 1260 variÃ¡veis, 233 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
+- Tipos nomeados: **297** â€” 207 interfaces, 88 aliases `type`, 2 classes e 0 enums.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1721** â€” 1262 variÃ¡veis, 233 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **123**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -1427,7 +1427,7 @@ export interface NotificationCursor {
 }
 ```
 
-#### L115 â€” interface MarkReadRow
+#### L134 â€” interface MarkReadRow
 
 ```ts
 export interface MarkReadRow {
@@ -1946,14 +1946,15 @@ export interface StatusTransitionInput {
 #### L6 â€” interface StatusRow
 
 ```ts
-interface StatusRow {
+export interface StatusRow {
   status_id: number;
   name: string;
   isPublic: boolean;
+  isRestricted: boolean;
 }
 ```
 
-#### L12 â€” interface CategoryRow
+#### L13 â€” interface CategoryRow
 
 ```ts
 interface CategoryRow {
@@ -1962,10 +1963,10 @@ interface CategoryRow {
 }
 ```
 
-#### L17 â€” interface RequestContextRow
+#### L18 â€” interface RequestContextRow
 
 ```ts
-interface RequestContextRow {
+export interface RequestContextRow {
   request_id: string;
   protocol: string;
   professional_id: string | null;
@@ -1980,7 +1981,7 @@ interface RequestContextRow {
 }
 ```
 
-#### L53 â€” interface TriageRow
+#### L54 â€” interface TriageRow
 
 ```ts
 interface TriageRow {
@@ -2003,7 +2004,7 @@ interface TriageRow {
 }
 ```
 
-#### L182 â€” interface ApplyRequestOutcomeInput
+#### L190 â€” interface ApplyRequestOutcomeInput
 
 ```ts
 export interface ApplyRequestOutcomeInput {
@@ -2064,7 +2065,7 @@ export type CreateTriagePayload = Omit<
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-#### L14 â€” interface Actor
+#### L16 â€” interface Actor
 
 ```ts
 interface Actor {
@@ -2072,6 +2073,20 @@ interface Actor {
   email: string;
   name: string;
   role: string;
+}
+```
+
+#### L50 â€” interface CommitTriageDecisionInput
+
+```ts
+interface CommitTriageDecisionInput {
+  protocol: string;
+  request: RequestContextRow;
+  triage: TriageAssessment;
+  categoryId: number | null;
+  exitStatus: StatusRow;
+  actor: Actor;
+  ipAddress?: string;
 }
 ```
 
@@ -3889,14 +3904,15 @@ interface GroupedIssues {
 ### [src/modules/notifications/notifications.repository.ts](../src/modules/notifications/notifications.repository.ts)
 
 - L16 â€” variÃ¡vel: `NOTIFICATION_COLUMNS`
-- L29 â€” variÃ¡vel: `query`
-- L44 â€” variÃ¡vel: `anchor`
-- L86 â€” variÃ¡vel: `anchor`
-- L106 â€” variÃ¡vel: `row`
-- L124 â€” variÃ¡vel: `updated`
-- L133 â€” variÃ¡vel: `row`
-- L137 â€” variÃ¡vel: `existing`
-- L148 â€” variÃ¡vel: `updated`
+- L34 â€” variÃ¡vel: `row`
+- L50 â€” variÃ¡vel: `query`
+- L63 â€” variÃ¡vel: `anchorCreatedAt`
+- L106 â€” variÃ¡vel: `anchorCreatedAt`
+- L125 â€” variÃ¡vel: `row`
+- L143 â€” variÃ¡vel: `updated`
+- L152 â€” variÃ¡vel: `row`
+- L156 â€” variÃ¡vel: `existing`
+- L167 â€” variÃ¡vel: `updated`
 
 ### [src/modules/notifications/notifications.router.ts](../src/modules/notifications/notifications.router.ts)
 
@@ -4992,13 +5008,13 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L72 â€” variÃ¡vel: `TRIAGE_COLUMNS`
-- L125 â€” variÃ¡vel: `row`
-- L157 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L174 â€” variÃ¡vel: `raw`
-- L194 â€” variÃ¡vel: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
-- L204 â€” variÃ¡vel: `source`
-- L231 â€” variÃ¡vel: `updatedRows`
+- L73 â€” variÃ¡vel: `TRIAGE_COLUMNS`
+- L126 â€” variÃ¡vel: `row`
+- L160 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L182 â€” variÃ¡vel: `raw`
+- L202 â€” variÃ¡vel: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
+- L212 â€” variÃ¡vel: `source`
+- L239 â€” variÃ¡vel: `updatedRows`
 
 ### [src/modules/requests/triage/triage.router.ts](../src/modules/requests/triage/triage.router.ts)
 
@@ -5016,19 +5032,20 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-- L33 â€” parÃ¢metro: `trx`
-- L33 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L49 â€” variÃ¡vel: `request`
-- L56 â€” variÃ¡vel: `canAccess`
-- L71 â€” variÃ¡vel: `request`
-- L92 â€” variÃ¡vel: `canAccess`
-- L107 â€” variÃ¡vel: `exitStatus`
-- L128 â€” variÃ¡vel: `categoryName`
-- L130 â€” variÃ¡vel: `newCategory`
-- L165 â€” parÃ¢metro: `trx`
-- L165 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L165 â€” variÃ¡vel: `committedNotifications`
-- L178 â€” variÃ¡vel: `triageAuditId`
+- L35 â€” parÃ¢metro: `trx`
+- L35 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L68 â€” variÃ¡vel: `{ protocol, request, triage, categoryId, exitStatus, actor, ipAddress }`
+- L70 â€” parÃ¢metro: `trx`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L83 â€” variÃ¡vel: `triageAuditId`
+- L147 â€” variÃ¡vel: `request`
+- L154 â€” variÃ¡vel: `canAccess`
+- L169 â€” variÃ¡vel: `request`
+- L190 â€” variÃ¡vel: `canAccess`
+- L205 â€” variÃ¡vel: `exitStatus`
+- L226 â€” variÃ¡vel: `categoryName`
+- L228 â€” variÃ¡vel: `newCategory`
+- L263 â€” variÃ¡vel: `committedNotifications`
 
 ### [src/modules/users/users.controller.ts](../src/modules/users/users.controller.ts)
 
@@ -5627,7 +5644,7 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L125 â€” variÃ¡vel: `row`
+- L126 â€” variÃ¡vel: `row`
 
 ### [src/modules/users/users.repository.ts](../src/modules/users/users.repository.ts)
 
