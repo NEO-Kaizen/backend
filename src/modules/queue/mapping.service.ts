@@ -31,6 +31,11 @@ import * as repository from "./mapping.repository.ts";
 import type { MappingRow } from "./mapping.repository.ts";
 import type { Knex } from "knex";
 
+// TODO(#167): Remover LEGACY_ASSIGNABLE_PROFILES e a comparação por nome de perfil.
+// A validação de alvo de mapeamento deve usar flag is_assignable_mapping + predicado
+// de chaves (mapping:read, mapping:write, request:read), conforme docs/rbac.md § 1.4.
+// A issue #167 (Contração: fim do guard por nome) é responsável por eliminar
+// essa referência viva a nome de Perfil.
 const LEGACY_ASSIGNABLE_PROFILES = ["analista"] as const;
 
 /** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
