@@ -96,7 +96,11 @@ function hasRequestCustody(
   );
 }
 
-async function recordRequestAccessDeniedAudit(
+/**
+ * Registra a tentativa de acesso negado na auditoria. Usado em todos os
+ * guards de custódia de requests.
+ */
+async function recordAccessDeniedAudit(
   protocol: string,
   actorId: number,
   ipAddress: string | undefined,
@@ -115,6 +119,20 @@ async function recordRequestAccessDeniedAudit(
       changeOrigin: "system",
     });
   });
+}
+
+/**
+ * Registra a tentativa de acesso negado na auditoria e lança 404 sem revelar
+ * a existência do recurso. Usado em todos os guards de custódia de requests.
+ */
+async function recordAccessDeniedAndThrow(
+  protocol: string,
+  actorId: number,
+  ipAddress: string | undefined,
+  detail: string,
+): Promise<never> {
+  await recordAccessDeniedAudit(protocol, actorId, ipAddress, detail);
+  throw inaccessibleRequestError();
 }
 
 function inaccessibleRequestError(): AppError {
@@ -260,7 +278,7 @@ export async function findInternalByProtocol(
   > | null;
 
   if (!request || !hasRequestCustody(actor, "request:read", request["assignee_user_id"])) {
-    await recordRequestAccessDeniedAudit(
+    await recordAccessDeniedAudit(
       protocol,
       actor.id,
       ipAddress,
@@ -834,7 +852,7 @@ export async function updateInternalRequest(
   const request = await repository.findInternalRequestByProtocol(protocol.trim());
 
   if (!request || !hasRequestCustody(actor, "request:write", request.assignee_user_id)) {
-    await recordRequestAccessDeniedAudit(
+    await recordAccessDeniedAudit(
       protocol.trim(),
       actor.id,
       ipAddress,
@@ -938,7 +956,7 @@ async function validateAssignmentTarget<T>(
     return await resolve();
   } catch (error) {
     if (error instanceof AppError && error.code === "assignee_not_assignable") {
-      await recordRequestAccessDeniedAudit(
+      await recordAccessDeniedAudit(
         protocol,
         actor.id,
         ipAddress,
@@ -963,7 +981,7 @@ export async function assignResponsible(
   // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
   // ou Administrador — sem justificativa (não é troca de status).
   if (!hasRequestCustody(actor, "request:assign", request.assignee_user_id)) {
-    await recordRequestAccessDeniedAudit(
+    await recordAccessDeniedAudit(
       protocol.trim(),
       actor.id,
       ipAddress,
@@ -1048,7 +1066,7 @@ export async function assignAnalyst(
   // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
   // ou Administrador — sem justificativa (não é troca de status).
   if (!hasRequestCustody(actor, "request:assign", request.assignee_user_id)) {
-    await recordRequestAccessDeniedAudit(
+    await recordAccessDeniedAudit(
       protocol.trim(),
       actor.id,
       ipAddress,
@@ -1240,27 +1258,6 @@ export async function assignAnalyst(
 // Auditoria: bypass → `request.override_status_admin`; normal →
 // `request.status_change`; negado → `request.access_denied`.
 
-async function recordStatusAccessDeniedAudit(
-  protocol: string,
-  actorId: number,
-  ipAddress: string | undefined,
-  detail: string,
-): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      entityId: protocol,
-      actionType: "request.access_denied",
-      userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: `Access denied: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
-  });
-}
-
 export async function updateRequestStatus(
   protocol: string,
   payload: UpdateStatusPayload,
@@ -1269,7 +1266,7 @@ export async function updateRequestStatus(
 ): Promise<UpdateStatusResponse> {
   const request = await repository.findRequestStatusContext(protocol.trim());
   if (!request || !hasRequestCustody(actor, "request:status_change", request.assignee_user_id)) {
-    await recordRequestAccessDeniedAudit(
+    await recordAccessDeniedAudit(
       protocol.trim(),
       actor.id,
       ipAddress,
@@ -1288,7 +1285,7 @@ export async function updateRequestStatus(
   }
 
   if (!target.is_active) {
-    await recordStatusAccessDeniedAudit(
+    await recordAccessDeniedAndThrow(
       request.protocol,
       actor.id,
       ipAddress,
@@ -1301,7 +1298,7 @@ export async function updateRequestStatus(
     target.is_restricted || (target.triage_mode !== "free" && target.mapping_mode !== "free");
   const hasStatusOverride = custodyFor(actor, "request:status_override") === "global";
   if (requiresOverride && !hasStatusOverride) {
-    await recordStatusAccessDeniedAudit(
+    await recordAccessDeniedAndThrow(
       request.protocol,
       actor.id,
       ipAddress,
