@@ -126,6 +126,22 @@ function inaccessibleRequestError(): AppError {
   return new AppError("Solicitação não encontrada", 404, "request_not_found");
 }
 
+async function requireRequestCustody<T>(
+  request: T | null | undefined,
+  actor: RequestActor,
+  protocol: string,
+  ipAddress: string | undefined,
+  detail: string,
+  canAccess: (request: T) => boolean,
+): Promise<T> {
+  if (request === null || request === undefined || !canAccess(request)) {
+    await recordAccessDeniedAudit(protocol, actor.id, ipAddress, detail);
+    throw inaccessibleRequestError();
+  }
+
+  return request;
+}
+
 /**
  * Resolve a identidade do usuário autenticado direto do banco (fonte fresca):
  * `name`/`email` do payload do JWT podem estar obsoletos após uma edição de
@@ -259,20 +275,17 @@ export async function findInternalByProtocol(
   actor: RequestActor,
   ipAddress?: string,
 ): Promise<RequestInternalDetailDTO> {
-  const request = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
-
-  if (!request || !hasRequestCustody(actor, "request:read", request["assignee_user_id"])) {
-    await recordAccessDeniedAudit(
-      protocol,
-      actor.id,
-      ipAddress,
-      "request:read sem custódia",
-    );
-    throw inaccessibleRequestError();
-  }
+  const request = await requireRequestCustody(
+    (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
+      string,
+      unknown
+    > | null,
+    actor,
+    protocol,
+    ipAddress,
+    "request:read sem custódia",
+    (row) => hasRequestCustody(actor, "request:read", row["assignee_user_id"]),
+  );
 
   const requestId = request["request_id"] as string;
   const [attachments, schedulePreferences, evaluation] = await Promise.all([
@@ -836,17 +849,14 @@ export async function updateInternalRequest(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
-  const request = await repository.findInternalRequestByProtocol(protocol.trim());
-
-  if (!request || !hasRequestCustody(actor, "request:write", request.assignee_user_id)) {
-    await recordAccessDeniedAudit(
-      protocol.trim(),
-      actor.id,
-      ipAddress,
-      "request:write sem custódia",
-    );
-    throw inaccessibleRequestError();
-  }
+  const request = await requireRequestCustody(
+    await repository.findInternalRequestByProtocol(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:write sem custódia",
+    (row) => hasRequestCustody(actor, "request:write", row.assignee_user_id),
+  );
 
   await db.transaction(async (trx) => {
     await repository.updateRequestBlocks(trx, request.request_id, payload, actor.email);
@@ -967,23 +977,17 @@ export async function assignResponsible(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<AssignRequestResponse> {
-  const request = await repository.findAssignmentContextByProtocol(protocol.trim());
-  if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
+  const request = await requireRequestCustody(
+    await repository.findAssignmentContextByProtocol(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:assign sem custódia",
+    (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
+  );
 
   // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
   // ou Administrador — sem justificativa (não é troca de status).
-  if (!hasRequestCustody(actor, "request:assign", request.assignee_user_id)) {
-    await recordAccessDeniedAudit(
-      protocol.trim(),
-      actor.id,
-      ipAddress,
-      "request:assign sem custódia",
-    );
-    throw inaccessibleRequestError();
-  }
-
   const assignee =
     payload.professionalId === null || payload.professionalId === undefined
       ? null
@@ -1048,23 +1052,17 @@ export async function assignAnalyst(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
-  const request = await repository.findAssignmentContextByProtocol(protocol.trim());
-  if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
+  const request = await requireRequestCustody(
+    await repository.findAssignmentContextByProtocol(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:assign sem custódia",
+    (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
+  );
 
   // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
   // ou Administrador — sem justificativa (não é troca de status).
-  if (!hasRequestCustody(actor, "request:assign", request.assignee_user_id)) {
-    await recordAccessDeniedAudit(
-      protocol.trim(),
-      actor.id,
-      ipAddress,
-      "request:assign sem custódia",
-    );
-    throw inaccessibleRequestError();
-  }
-
   const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
   const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
 
@@ -1254,16 +1252,14 @@ export async function updateRequestStatus(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<UpdateStatusResponse> {
-  const request = await repository.findRequestStatusContext(protocol.trim());
-  if (!request || !hasRequestCustody(actor, "request:status_change", request.assignee_user_id)) {
-    await recordAccessDeniedAudit(
-      protocol.trim(),
-      actor.id,
-      ipAddress,
-      "request:status_change sem custódia",
-    );
-    throw inaccessibleRequestError();
-  }
+  const request = await requireRequestCustody(
+    await repository.findRequestStatusContext(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:status_change sem custódia",
+    (row) => hasRequestCustody(actor, "request:status_change", row.assignee_user_id),
+  );
 
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
   if (!target) {
