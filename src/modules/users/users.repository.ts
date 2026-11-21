@@ -64,7 +64,7 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
 /** Perfis que ganham a extensão de profissional (1:1 user → details_professional)
  *  na criação de conta. Apenas `analista`: a extensão é o card do analista e a
  *  elegibilidade de atribuição também é restrita a `analista`
- *  (ASSIGNABLE_PROFILES em requests.repository). */
+ *  (regra legada do subfluxo de Mapeamento). */
 export const PROFESSIONAL_PROFILES = ["analista"] as const;
 
 /** True quando o perfil informado deve nascer com a extensão details_professional. */

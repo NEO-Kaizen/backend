@@ -25,6 +25,7 @@ const REQUEST_EVENT_ACTIONS: AuditTimelineAction[] = [
   "request.unassign",
   "request.status_change",
   "request.override_status_admin",
+  "request.status_override",
 ];
 
 const MAPPING_RECORD_ACTIONS = ["mapping.save", "mapping.complete", "mapping.assign"];

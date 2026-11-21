@@ -33,7 +33,8 @@ export type TimelineEventAction =
  * `PATCH /requests/:protocol/status` e **normalizada na leitura** para
  * `request.status_change` (issue #124). A gravação permanece intocada.
  */
-export type AuditTimelineAction = TimelineEventAction | "request.override_status_admin";
+export type AuditTimelineAction =
+  TimelineEventAction | "request.override_status_admin" | "request.status_override";
 
 export type TimelineChangeOrigin = "admin" | "system" | "internal" | null;
 

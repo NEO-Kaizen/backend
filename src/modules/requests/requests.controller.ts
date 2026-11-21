@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
-import type { Role } from "../../shared/types/role.ts";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
@@ -81,7 +81,11 @@ function assertProtocolParam(req: Request): string {
 }
 
 /** Ator autenticado (id numérico + e-mail + papel) — `req.user` vem do authMiddleware. */
-function actorFromRequest(req: Request): { id: number; email: string; role: Role } {
+function actorFromRequest(req: Request): {
+  id: number;
+  email: string;
+  permissions: EffectivePermission[];
+} {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -89,7 +93,10 @@ function actorFromRequest(req: Request): { id: number; email: string; role: Role
   if (!Number.isInteger(id)) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return { id, email: req.user.email, role: req.user.role };
+  if (!req.permissions) {
+    throw new AppError("Permissões não carregadas para esta operação", 403);
+  }
+  return { id, email: req.user.email, permissions: req.permissions };
 }
 
 // Atualização interna dos blocos editáveis (issue #88) — modo de edição inline
