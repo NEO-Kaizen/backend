@@ -16,6 +16,9 @@ inventário consolidado e o registro das decisões.
 - **Migration** `20260928000000_database_review_schema_cleanup.js`: unicidade
   case-insensitive de e-mails, CHECK de conclusão de mapeamento, índice de
   timeline de auditoria e remoção das colunas legadas inventariadas abaixo.
+- **Migration** `20260929000000_database_review_integrity_tuning.js`: defaults,
+  largura de colunas de auditoria, índices redundantes/ausentes, CHECKs de
+  domínio e FK de participante interno.
 - **Documentação**: este inventário + correção de documentos desatualizados
   (`requests-persistence.md`, `authentication-persistence.md` e
   `identifier-patterns.md`).
@@ -24,33 +27,33 @@ inventário consolidado e o registro das decisões.
 
 ### Autenticação e configuração
 
-| Tabela                       | PK                                  | FKs                                                                      | Índices principais                                                                                           |
-| ---------------------------- | ----------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `profiles`                   | `profile_id` (serial)               | —                                                                        | PK, UK `name`                                                                                                |
-| `users`                      | `user_id` (serial)                  | `profile_id` → `profiles` (RESTRICT)                                     | PK, UK `email`, UK `uk_users_email_ci` (novo), `idx_users_profile` (novo)                                    |
-| `system_themes`              | `theme_id` (smallint, singleton)    | —                                                                        | PK + CHECK `theme_id = 1`                                                                                    |
-| `system_settings`            | `settings_id` (smallint, singleton) | `theme_id` → `system_themes` (SET NULL); `updated_by` → `users`          | PK + CHECK `settings_id = 1`                                                                                 |
-| `audit_history`              | `audit_id` (bigserial)              | `user_id` → `users` (RESTRICT)                                           | `idx_audit_history_entity`, `_action_type`, `_occurred_at`, `_user`, `_request_timeline` (novo); append-only |
-| `prioritization_evaluations` | `protocol` (varchar)                | `protocol` → `requests` (RESTRICT); `calculated_by` → `users` (RESTRICT) | PK, `idx_prioritization_evaluations_calculated_by` (novo)                                                    |
+| Tabela                       | PK                                  | FKs                                                                      | Índices / constraints principais                                                                                                                            |
+| ---------------------------- | ----------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profiles`                   | `profile_id` (serial)               | —                                                                        | PK, UK `name`                                                                                                                                               |
+| `users`                      | `user_id` (serial)                  | `profile_id` → `profiles` (RESTRICT)                                     | PK, UK `email`, UK `uk_users_email_ci` (novo), `idx_users_profile` (novo)                                                                                   |
+| `system_themes`              | `theme_id` (smallint, singleton)    | —                                                                        | PK + CHECK `theme_id = 1`                                                                                                                                   |
+| `system_settings`            | `settings_id` (smallint, singleton) | `theme_id` → `system_themes` (SET NULL); `updated_by` → `users`          | PK + CHECK `settings_id = 1`                                                                                                                                |
+| `audit_history`              | `audit_id` (bigserial)              | `user_id` → `users` (RESTRICT)                                           | `idx_audit_history_entity`, `_action_type`, `_occurred_at`, `_user`, `_request_timeline` (novo); CHECK `ck_audit_history_change_origin` (novo); append-only |
+| `prioritization_evaluations` | `protocol` (varchar)                | `protocol` → `requests` (RESTRICT); `calculated_by` → `users` (RESTRICT) | PK, `idx_prioritization_evaluations_calculated_by` (novo)                                                                                                   |
 
 ### Domínio de solicitações
 
-| Tabela                              | PK                                    | FKs                                                                                                                                                   | Índices principais                                                                                                                                                                           |
-| ----------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requesters`                        | `requester_id` (uuid)                 | `user_id` → `users` (SET NULL)                                                                                                                        | PK, UK `corporate_email`, UK `user_id`, UK `uk_requesters_email_ci` (novo), `idx_requesters_area`                                                                                            |
-| `categories`                        | `category_id` (serial)                | —                                                                                                                                                     | PK, UK `name`, UK `lower(name)`, `idx_categories_status`                                                                                                                                     |
-| `priorities`                        | `priority_id` (serial)                | —                                                                                                                                                     | PK, UK `level`                                                                                                                                                                               |
-| `statuses`                          | `status_id` (serial)                  | —                                                                                                                                                     | PK, UK `name`, UK `order_number` (DEFERRABLE)                                                                                                                                                |
-| `details_professional`              | `professional_id` (uuid)              | `user_id` → `users` (RESTRICT)                                                                                                                        | PK, UK `user_id`, `idx_details_professional_status`                                                                                                                                          |
-| `requests`                          | `request_id` (bigint, sequence)       | `requester_id`, `category_id`, `status_id`, `priority_id`, `professional_id`, `requester_user_id`, `mapping_professional_id`, `last_public_status_id` | `idx_requests_created_at`, `_status`, `_category`, `_priority`, `_professional`, `_requester`, `_requester_user`, `_mapping_professional`, `_last_public_status` (novo)                      |
-| `pending_items`                     | `pending_item_id` (uuid)              | `request_id` → `requests` (CASCADE)                                                                                                                   | `idx_pending_items_request`, `_status`, `_request_status`, `_batch`                                                                                                                          |
-| `attachments`                       | `attachment_id` (uuid)                | `request_id` → `requests` (CASCADE); `pending_item_id` → `pending_items` (SET NULL)                                                                   | `idx_attachments_request`, `_pending_item`, `_uploaded_at`                                                                                                                                   |
-| `request_time_preferences`          | `request_time_preference_id` (serial) | `request_id` → `requests` (CASCADE)                                                                                                                   | PK, UK (`request_id`, `scheduled_for`)                                                                                                                                                       |
-| `mappings`                          | `mapping_id` (uuid)                   | `request_id` → `requests` (CASCADE); `professional_id` → `details_professional` (SET NULL); `target_status_id` → `statuses` (RESTRICT)                | `idx_mappings_request`, `_request_concluded`, `_professional` (novo), `_target_status` (novo), UK parcial `uk_mappings_one_open_per_request` (novo), CHECK `ck_mappings_concluded_at` (novo) |
-| `mapping_participants`              | `participant_id` (uuid)               | `mapping_id` → `mappings` (CASCADE); `user_id` → `users` (SET NULL)                                                                                   | UK (`mapping_id`, `user_id`), UK (`mapping_id`, `lower(email)`), `idx_mapping_participants_mapping`, `_user` (novo), CHECK `ck_mapping_participants_internal_or_external` (novo)             |
-| `triages`                           | `triage_id` (uuid)                    | `request_id` → `requests` (CASCADE); `exit_status` → `statuses` (RESTRICT); `assignee_user_id` → `users` (SET NULL)                                   | `idx_triages_request_triage`, `_exit_status` (novo), `_assignee_user` (novo)                                                                                                                 |
-| `request_internal_notes`            | `internal_note_id` (bigserial)        | `request_id` → `requests` (RESTRICT); `author_user_id` → `users` (RESTRICT)                                                                           | UK (`request_id`, `internal_note_id`), `idx_request_internal_notes_timeline`, `_author`                                                                                                      |
-| `request_internal_note_read_states` | (`request_id`, `user_id`)             | `user_id` → `users` (RESTRICT); (`request_id`, `last_read_note_id`) → `request_internal_notes`                                                        | PK composta, `idx_internal_note_read_states_last_note`, `_user` (novo)                                                                                                                       |
+| Tabela                              | PK                                    | FKs                                                                                                                                                   | Índices / constraints principais                                                                                                                                                                                                          |
+| ----------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requesters`                        | `requester_id` (uuid)                 | `user_id` → `users` (SET NULL)                                                                                                                        | PK, UK `corporate_email`, UK `user_id`, UK `uk_requesters_email_ci` (novo), `idx_requesters_area`                                                                                                                                         |
+| `categories`                        | `category_id` (serial)                | —                                                                                                                                                     | PK, UK `name`, UK `lower(name)`, `idx_categories_status`                                                                                                                                                                                  |
+| `priorities`                        | `priority_id` (serial)                | —                                                                                                                                                     | PK, UK `level`                                                                                                                                                                                                                            |
+| `statuses`                          | `status_id` (serial)                  | —                                                                                                                                                     | PK, UK `name`, UK `order_number` (DEFERRABLE); `is_active` DEFAULT `true` (novo)                                                                                                                                                          |
+| `details_professional`              | `professional_id` (uuid)              | `user_id` → `users` (RESTRICT)                                                                                                                        | PK, UK `user_id`, `idx_details_professional_status`                                                                                                                                                                                       |
+| `requests`                          | `request_id` (bigint, sequence)       | `requester_id`, `category_id`, `status_id`, `priority_id`, `professional_id`, `requester_user_id`, `mapping_professional_id`, `last_public_status_id` | `idx_requests_created_at`, `_status`, `_category`, `_priority`, `_professional`, `_requester`, `_requester_user`, `_mapping_professional`, `_last_public_status`, `_desired_deadline` (novo); CHECK `ck_requests_screening_result` (novo) |
+| `pending_items`                     | `pending_item_id` (uuid)              | `request_id` → `requests` (CASCADE)                                                                                                                   | `idx_pending_items_status`, `_request_status`, `_batch`                                                                                                                                                                                   |
+| `attachments`                       | `attachment_id` (uuid)                | `request_id` → `requests` (CASCADE); `pending_item_id` → `pending_items` (SET NULL)                                                                   | `idx_attachments_request`, `_pending_item`, `_uploaded_at`, `_request_uploaded` (novo)                                                                                                                                                    |
+| `request_time_preferences`          | `request_time_preference_id` (serial) | `request_id` → `requests` (CASCADE)                                                                                                                   | PK, UK (`request_id`, `scheduled_for`)                                                                                                                                                                                                    |
+| `mappings`                          | `mapping_id` (uuid)                   | `request_id` → `requests` (CASCADE); `professional_id` → `details_professional` (SET NULL); `target_status_id` → `statuses` (RESTRICT)                | `idx_mappings_request_concluded`, `_professional` (novo), `_target_status` (novo), `_request_created` (novo), UK parcial `uk_mappings_one_open_per_request` (novo), CHECK `ck_mappings_concluded_at` (novo)                               |
+| `mapping_participants`              | `participant_id` (uuid)               | `mapping_id` → `mappings` (CASCADE); `user_id` → `users` (RESTRICT)                                                                                   | UK (`mapping_id`, `user_id`), UK (`mapping_id`, `lower(email)`), `_user` (novo), CHECK `ck_mapping_participants_internal_or_external` (novo)                                                                                              |
+| `triages`                           | `triage_id` (uuid)                    | `request_id` → `requests` (CASCADE); `exit_status` → `statuses` (RESTRICT); `assignee_user_id` → `users` (SET NULL)                                   | `idx_triages_request_triage`, `_exit_status` (novo), `_assignee_user` (novo)                                                                                                                                                              |
+| `request_internal_notes`            | `internal_note_id` (bigserial)        | `request_id` → `requests` (RESTRICT); `author_user_id` → `users` (RESTRICT)                                                                           | UK (`request_id`, `internal_note_id`), `idx_request_internal_notes_timeline`, `_author`                                                                                                                                                   |
+| `request_internal_note_read_states` | (`request_id`, `user_id`)             | `user_id` → `users` (RESTRICT); (`request_id`, `last_read_note_id`) → `request_internal_notes`                                                        | PK composta, `idx_internal_note_read_states_last_note`, `_user` (novo)                                                                                                                                                                    |
 
 ## Achados
 
@@ -97,6 +100,10 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
 - **Participante interno ou externo**: a aplicação grava `user_id` para
   internos e `name`/`email` para externos, mas o banco aceitava uma linha sem
   nenhum dos dois.
+- **Domínio de `audit_history.change_origin`**: `admin`, `system`, `internal` e
+  `requester`, sem CHECK no banco.
+- **Domínio de `requests.screening_result`**: `elegivel` e `nao_elegivel` (ou
+  `NULL`), sem CHECK no banco. Um typo virava "não elegível" silenciosamente.
 
 ### 4. Timezone
 
@@ -117,10 +124,44 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
   normalizava para lowercase; agora o banco também garante a regra.
 - `mapping_participants` já tem `UK (mapping_id, lower(email))`.
 
-### 6. Índice ocioso — resolvido
+### 6. Índices ociosos e redundantes — resolvido
 
 - `idx_attachments_restricted` foi removido junto da coluna
   `attachments.is_restricted`, que a aplicação nunca filtra nem lê.
+- `idx_mappings_request`, `idx_pending_items_request` e
+  `idx_mapping_participants_mapping` foram removidos: seus prefixos já são
+  atendidos, respectivamente, por `idx_mappings_request_concluded`,
+  `idx_pending_items_request_status` e pelas duas UKs de `mapping_participants`.
+
+### 7. Defaults divergentes da aplicação — resolvido
+
+- `users.must_change_password` nascia `false`, embora a criação pela API sempre
+  grave `true`. Inserções diretas (seed, script, integração) conseguiam login
+  sem troca obrigatória de senha.
+- `statuses.is_active` nascia `false`, embora a aplicação só exiba status ativos.
+  Já houve correção reativa (`20260920000001_activate_triage_exit_statuses.js`);
+  o default continua sendo a origem do problema.
+
+### 8. Colunas de auditoria curtas — resolvido
+
+`mappings.created_by`/`updated_by` e `pending_items.created_by` eram
+`varchar(100)`, mas recebem e-mail e o validador aceita até 254 caracteres. Um
+e-mail válido de 101–254 caracteres gerava `22001 value too long` (500). Todas
+as colunas que recebem e-mail agora são `varchar(254)`.
+
+### 9. Índices para padrões de consulta — resolvido
+
+- `requests.desired_deadline` — cálculo de atraso no dashboard/fila.
+- `mappings (request_id, created_at DESC, updated_at DESC)` — busca do
+  mapeamento mais recente.
+- `attachments (request_id, uploaded_at)` — listagem de anexos do detalhe.
+
+### 10. Proveniência de participante interno — resolvido
+
+`mapping_participants.user_id` usava `ON DELETE SET NULL`. Como participantes
+internos também gravam `name`/`email`, o CHECK
+`ck_mapping_participants_internal_or_external` continuava válido após a remoção
+do usuário, escondendo a perda de proveniência. A FK passou a `ON DELETE RESTRICT`.
 
 ## Melhorias aplicadas
 
@@ -161,19 +202,37 @@ occurred_at DESC, audit_id DESC)`, usado pela timeline de auditoria de uma
 
 O `down` recria as colunas com os tipos/defaults originais e o índice removido.
 
+Migration `20260929000000_database_review_integrity_tuning.js`:
+
+1. Ajusta os defaults de `users.must_change_password` e `statuses.is_active`
+   para `true`.
+2. Alarga para `varchar(254)` as colunas de e-mail que ainda eram `varchar(100)`
+   (`mappings.created_by`/`updated_by` e `pending_items.created_by`).
+3. Remove os três índices redundantes e cria os três índices de consulta do
+   item 9.
+4. Cria `ck_audit_history_change_origin` e `ck_requests_screening_result`,
+   ambos com `NOT VALID` + `VALIDATE`. Os valores distintos foram conferidos
+   antes da criação; a aplicação também grava `requester` em `change_origin`,
+   que não aparecia nos seeds.
+5. Recria a FK `mapping_participants_user_id_foreign` com `ON DELETE RESTRICT`.
+
+O `down` restaura defaults, larguras, índices, CHECKs e a FK originais.
+
 ## Validação
 
 Executada contra PostgreSQL 18 em Docker:
 
-- `npm run migrate:latest` — 57 migrations no batch 1;
+- `npm run migrate:latest` — 58 migrations no total;
 - `npm run seed:run` — 11 seeds;
-- rollback e reaplicação das duas migrations da revisão;
+- rollback e reaplicação das três migrations da revisão;
 - conferência via `psql` dos índices, das CHECKs, da ausência das colunas
-  legadas e do tipo `timestamp with time zone` em
+  legadas, dos defaults e do tipo `timestamp with time zone` em
   `audit_history.occurred_at`;
 - testes negativos: e-mail duplicado em caixa diferente, `concluded_at`
-  divergente de `is_concluded`, participante sem `user_id`/nome/e-mail e
-  segundo mapeamento aberto — todos rejeitados;
+  divergente de `is_concluded`, participante sem `user_id`/nome/e-mail, segundo
+  mapeamento aberto, `change_origin` fora do domínio, `screening_result`
+  inválido e remoção de usuário referenciado por participante — todos
+  rejeitados; teste positivo: e-mail de 150 caracteres em `mappings.created_by`;
 - `npm run typecheck`, `npm run lint` e Prettier nos arquivos alterados.
 
 ## Recomendações (fora deste escopo)

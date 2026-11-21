@@ -125,7 +125,7 @@ o dos 17 status de referência (IDs 1–17).
 | `name`          | VARCHAR(100) | Sim         | UK `uk_statuses_name`                 | Nome                                 |
 | `description`   | TEXT         | Não         | NULL permitido                        | Descrição                            |
 | `tone`          | ENUM         | Sim         | `status_tone`; DEFAULT `info`         | Tom visual                           |
-| `is_active`     | BOOLEAN      | Sim         | DEFAULT FALSE                         | Status disponível para uso           |
+| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)           | Status disponível para uso           |
 | `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                         | Status central do fluxo              |
 | `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                         | Exige administrador para transição   |
 | `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                         | Encerra a solicitação                |
@@ -233,7 +233,7 @@ Cada linha é uma solicitação, identificada pelo protocolo público e pelo
 | `professional_id`         | UUID         | Não         | FK `details_professional` (SET NULL)           | Responsável técnico                                |
 | `mapping_professional_id` | UUID         | Não         | FK `details_professional` (SET NULL); indexado | Designado para executar o mapeamento               |
 | `requester_user_id`       | INTEGER      | Não         | FK `users` (SET NULL); indexado                | Conta autenticada que criou (NULL no modo público) |
-| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido                                 | Resultado da triagem (em uso)                      |
+| `screening_result`        | VARCHAR(50)  | Não         | CHECK `ck_requests_screening_result`           | Resultado da triagem: `elegivel`/`nao_elegivel`    |
 | `internal_notes`          | TEXT         | Não         | NULL permitido                                 | Notas internas (campo texto legado, em uso)        |
 | `next_steps`              | TEXT         | Não         | NULL permitido                                 | Próximos passos                                    |
 | `last_technical_message`  | TEXT         | Não         | NULL permitido                                 | Última mensagem pública do responsável             |
@@ -248,9 +248,11 @@ Cada linha é uma solicitação, identificada pelo protocolo público e pelo
 
 - Índices: `idx_requests_created_at`, `_status`, `_category`, `_priority`,
   `_professional`, `_requester`, `_requester_user`, `_mapping_professional`,
-  `_last_public_status`.
+  `_last_public_status`, `_desired_deadline`.
 - `people_involved > 0` (`ck_requests_people_involved`);
   `estimated_monthly_effort >= 0` (`ck_requests_estimated_monthly_effort`).
+- `screening_result` aceita apenas `elegivel`, `nao_elegivel` ou `NULL`
+  (`ck_requests_screening_result`).
 
 ### Respostas "Sim/Não (+ detalhamento)"
 
@@ -281,11 +283,13 @@ Pendências por campo abertas por analistas durante a triagem, no contrato
 | `validated_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Validada em                       |
 | `request_attachment` | BOOLEAN      | Sim         | DEFAULT FALSE                                            | Exige anexo do solicitante        |
 | `deadline`           | DATE         | Não         | NULL permitido                                           | Prazo                             |
-| `created_by`         | VARCHAR(100) | Sim         | NOT NULL                                                 | Usuário/e-mail de criação         |
+| `created_by`         | VARCHAR(254) | Sim         | NOT NULL                                                 | Usuário/e-mail de criação         |
 | `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                              | Criação                           |
 | `description`        | TEXT         | Sim         | NOT NULL                                                 | **Legado** — espelho de `comment` |
 
-- Índices: `idx_pending_items_request`, `_status`, `_request_status`, `_batch`.
+- Índices: `idx_pending_items_status`, `_request_status`, `_batch`. O índice
+  simples `idx_pending_items_request` foi removido na revisão #130 (prefixo já
+  coberto por `_request_status`).
 - As colunas `requested_fields`, `requires_attachment`,
   `expected_attachment_type`, `resolution`, `resolved_by` e `resolved_at`
   foram removidas pela revisão do banco (substituídas pelo contrato 03).
@@ -310,7 +314,8 @@ Metadados dos anexos derivados no servidor.
 
 - `content_type` restrito a PDF, DOCX, XLSX, PNG e JPG
   (`ck_attachments_content_type`).
-- Índices: `idx_attachments_request`, `_pending_item`, `_uploaded_at`. A coluna
+- Índices: `idx_attachments_request`, `_pending_item`, `_uploaded_at`,
+  `_request_uploaded` (novo, para a listagem ordenada por envio). A coluna
   `is_restricted` e seu índice ocioso foram removidos pela revisão do banco.
 
 ## Tabela `request_time_preferences`
@@ -351,14 +356,15 @@ solicitação.
 | `target_status_id`       | INTEGER       | Não         | FK `statuses` (RESTRICT); indexado             | Status de destino na conclusão |
 | `justification`          | TEXT          | Não         | NULL permitido                                 | Justificativa da conclusão     |
 | `last_technical_message` | TEXT          | Não         | NULL permitido                                 | Última mensagem pública        |
-| `created_by`             | VARCHAR(100)  | Sim         | NOT NULL                                       | Criado por                     |
+| `created_by`             | VARCHAR(254)  | Sim         | NOT NULL                                       | Criado por                     |
 | `created_at`             | TIMESTAMPTZ   | Sim         | DEFAULT `CURRENT_TIMESTAMP`                    | Criação                        |
-| `updated_by`             | VARCHAR(100)  | Não         | NULL permitido                                 | Atualizado por                 |
+| `updated_by`             | VARCHAR(254)  | Não         | NULL permitido                                 | Atualizado por                 |
 | `updated_at`             | TIMESTAMPTZ   | Não         | NULL permitido                                 | Última atualização             |
 
 - `duration_minutes` usa `ck_mappings_duration_minutes` (15 a 480).
-- Índices: `idx_mappings_request`, `_request_concluded`, `_professional`,
-  `_target_status`.
+- Índices: `_request_concluded`, `_professional`, `_target_status`,
+  `_request_created` (novo). O índice simples `idx_mappings_request` foi removido
+  na revisão #130 (prefixo já coberto por `_request_concluded`).
 - **Invariante:** `uk_mappings_one_open_per_request` — índice único parcial em
   `request_id` `WHERE is_concluded = false`.
 - **CHECK** `ck_mappings_concluded_at`: `concluded_at` é preenchido se e somente
@@ -373,16 +379,19 @@ externos (nome/e-mail informados no payload).
 | ---------------- | ------------ | ----------- | ------------------------------- | ----------------------------------- |
 | `participant_id` | UUID         | Sim         | PK, `gen_random_uuid()`         | Identificador                       |
 | `mapping_id`     | UUID         | Sim         | FK `mappings` (CASCADE)         | Mapeamento                          |
-| `user_id`        | INTEGER      | Não         | FK `users` (SET NULL); indexado | Participante interno                |
+| `user_id`        | INTEGER      | Não         | FK `users` (RESTRICT); indexado | Participante interno                |
 | `name`           | VARCHAR(255) | Não         | NULL permitido                  | Nome (interno herdado ou externo)   |
 | `email`          | VARCHAR(255) | Não         | NULL permitido                  | E-mail (interno herdado ou externo) |
 | `created_at`     | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`     | Criação                             |
 
 - `uk_mapping_participants_user` → único (`mapping_id`, `user_id`).
 - `uk_mapping_participants_email` → único (`mapping_id`, `lower(email)`).
-- `idx_mapping_participants_mapping`, `idx_mapping_participants_user`.
+- `idx_mapping_participants_user`. O índice `idx_mapping_participants_mapping`
+  foi removido na revisão #130 (prefixo já coberto pelas duas UKs).
 - **CHECK** `ck_mapping_participants_internal_or_external`:
   `user_id IS NOT NULL OR (name IS NOT NULL AND email IS NOT NULL)`.
+- A FK com `ON DELETE RESTRICT` impede que a remoção de um usuário transforme
+  um participante interno em aparente participante externo.
 
 ## Tabela `triages`
 
@@ -520,6 +529,9 @@ Marcos relevantes do domínio:
     e `audit_history.occurred_at` como `timestamptz`).
 11. `20260928000000`: limpeza de legados, unicidade case-insensitive de e-mails,
     CHECK de conclusão de mapeamento e índice de timeline de auditoria.
+12. `20260929000000`: defaults alinhados à aplicação, `varchar(254)` nas colunas
+    de e-mail, índices redundantes removidos, índices de consulta, CHECKs de
+    domínio e FK de participante interno com `RESTRICT`.
 
 ### Execução
 
@@ -531,10 +543,10 @@ npm run migrate:make -- migration-name
 
 ## Validações
 
-- `npm run migrate:latest` em banco novo — 57 migrations;
+- `npm run migrate:latest` em banco novo — 58 migrations;
 - `npm run seed:run` — 11 seeds;
-- `npm run migrate:rollback` / reaplicação das migrations da revisão;
-- `npm run check` (typecheck + lint + Prettier).
+- rollback/reaplicação das três migrations da revisão;
+- `npm run typecheck`, `npm run lint` e Prettier nos arquivos alterados.
 
 O detalhamento dos achados e das melhorias da revisão está em
 [`schema-review-130.md`](schema-review-130.md).
