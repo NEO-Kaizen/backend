@@ -49,10 +49,17 @@ export async function up(knex) {
     WHERE "is_concluded" = false
   `);
 
+  // `NOT VALID` + `VALIDATE` evita ACCESS EXCLUSIVE durante a varredura das
+  // linhas antigas; a regra passa a valer para escritas novas já no ADD.
   await knex.raw(`
     ALTER TABLE "mapping_participants"
     ADD CONSTRAINT "ck_mapping_participants_internal_or_external"
     CHECK ("user_id" IS NOT NULL OR ("name" IS NOT NULL AND "email" IS NOT NULL))
+    NOT VALID
+  `);
+  await knex.raw(`
+    ALTER TABLE "mapping_participants"
+    VALIDATE CONSTRAINT "ck_mapping_participants_internal_or_external"
   `);
 
   // O valor foi gravado a partir de `now()` convertido para `timestamp`; usar a

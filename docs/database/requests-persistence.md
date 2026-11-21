@@ -75,24 +75,25 @@ erDiagram
 Armazena os dados do solicitante informados no bloco `requester` do formulário.
 Opcionalmente estende uma conta de `users` (1:1).
 
-| Campo                | Tipo         | Obrigatório | Restrição / Default                                    | Finalidade                           |
-| -------------------- | ------------ | ----------- | ------------------------------------------------------ | ------------------------------------ |
-| `requester_id`       | UUID         | Sim         | PK, `gen_random_uuid()`                                | Identificador interno do solicitante |
-| `full_name`          | VARCHAR(150) | Sim         | NOT NULL                                               | Nome completo — limite 150           |
-| `corporate_email`    | VARCHAR(254) | Sim         | NOT NULL; UK `uk_requesters_email`                     | E-mail corporativo — limite 254      |
-| `area`               | VARCHAR(100) | Não         | NULL permitido; indexado                               | Área do solicitante — limite 100     |
-| `department`         | VARCHAR(100) | Não         | NULL permitido                                         | Departamento — limite 100            |
-| `manager_name`       | VARCHAR(150) | Não         | NULL permitido                                         | Gestor responsável — limite 150      |
-| `additional_contact` | VARCHAR(100) | Não         | NULL permitido                                         | Contato adicional — limite 100       |
-| `user_id`            | INTEGER      | Não         | FK `users.user_id` (SET NULL); UK `uk_requesters_user` | Conta correspondente (1:1)           |
-| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                            | Data e hora de criação               |
+| Campo                | Tipo         | Obrigatório | Restrição / Default                                             | Finalidade                           |
+| -------------------- | ------------ | ----------- | --------------------------------------------------------------- | ------------------------------------ |
+| `requester_id`       | UUID         | Sim         | PK, `gen_random_uuid()`                                         | Identificador interno do solicitante |
+| `full_name`          | VARCHAR(150) | Sim         | NOT NULL                                                        | Nome completo — limite 150           |
+| `corporate_email`    | VARCHAR(254) | Sim         | NOT NULL; UK `uk_requesters_email`, UK `uk_requesters_email_ci` | E-mail corporativo — limite 254      |
+| `area`               | VARCHAR(100) | Não         | NULL permitido; indexado                                        | Área do solicitante — limite 100     |
+| `department`         | VARCHAR(100) | Não         | NULL permitido                                                  | Departamento — limite 100            |
+| `manager_name`       | VARCHAR(150) | Não         | NULL permitido                                                  | Gestor responsável — limite 150      |
+| `additional_contact` | VARCHAR(100) | Não         | NULL permitido                                                  | Contato adicional — limite 100       |
+| `user_id`            | INTEGER      | Não         | FK `users.user_id` (SET NULL); UK `uk_requesters_user`          | Conta correspondente (1:1)           |
+| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                                     | Data e hora de criação               |
 
 - `area` e `manager_name` passaram a ser nuláveis na migration
   `20260921000000_add_requesters_user_id.js` (extensão criada antes da primeira
   solicitação autenticada); o `POST /requests` continua exigindo ambos no
   payload.
-- `corporate_email` é único case-sensitive; a aplicação normaliza para lowercase
-  antes de gravar/consultar.
+- `corporate_email` tem unicidade case-insensitive (`uk_requesters_email_ci`,
+  sobre `lower(corporate_email)`); a aplicação normaliza para lowercase antes
+  de gravar/consultar.
 
 ## Tabela `categories`
 
@@ -223,30 +224,27 @@ Cada linha é uma solicitação, identificada pelo protocolo público e pelo
 
 ### Colunas de fluxo, triagem e acompanhamento
 
-| Campo                     | Tipo         | Obrigatório | Restrição / Default                            | Finalidade                                                      |
-| ------------------------- | ------------ | ----------- | ---------------------------------------------- | --------------------------------------------------------------- |
-| `category_id`             | INTEGER      | Sim         | FK `categories` (RESTRICT)                     | Categoria                                                       |
-| `status_id`               | INTEGER      | Sim         | FK `statuses` (RESTRICT)                       | Status atual                                                    |
-| `last_public_status_id`   | INTEGER      | Não         | FK `statuses` (RESTRICT); indexado             | Último status público (painel do solicitante)                   |
-| `priority_id`             | INTEGER      | Não         | FK `priorities` (RESTRICT)                     | Prioridade                                                      |
-| `professional_id`         | UUID         | Não         | FK `details_professional` (SET NULL)           | Responsável técnico                                             |
-| `mapping_professional_id` | UUID         | Não         | FK `details_professional` (SET NULL); indexado | Designado para executar o mapeamento                            |
-| `requester_user_id`       | INTEGER      | Não         | FK `users` (SET NULL); indexado                | Conta autenticada que criou (NULL no modo público)              |
-| `preliminary_complexity`  | VARCHAR(50)  | Não         | NULL permitido                                 | **Legado** — substituído por `triages.preliminary_complexity`   |
-| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido                                 | Resultado da triagem (em uso)                                   |
-| `screening_justification` | TEXT         | Não         | NULL permitido                                 | **Legado** — substituído por `triages.conclusion_justification` |
-| `identified_risks`        | TEXT         | Não         | NULL permitido                                 | **Legado** — substituído por `triages.perceived_risks`          |
-| `internal_notes`          | TEXT         | Não         | NULL permitido                                 | Notas internas (campo texto legado, em uso)                     |
-| `next_steps`              | TEXT         | Não         | NULL permitido                                 | Próximos passos                                                 |
-| `last_technical_message`  | TEXT         | Não         | NULL permitido                                 | Última mensagem pública do responsável                          |
-| `estimated_completion`    | DATE         | Não         | NULL permitido                                 | Previsão de conclusão                                           |
-| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido                                 | Data/hora da reunião de mapeamento                              |
-| `meeting_link`            | TEXT         | Não         | NULL permitido                                 | Link da reunião                                                 |
-| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                                       | Usuário/e-mail de criação                                       |
-| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                    | Criação                                                         |
-| `updated_by`              | VARCHAR(254) | Não         | NULL permitido                                 | Usuário/e-mail da última atualização                            |
-| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização                                              |
-| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização visível ao solicitante                       |
+| Campo                     | Tipo         | Obrigatório | Restrição / Default                            | Finalidade                                         |
+| ------------------------- | ------------ | ----------- | ---------------------------------------------- | -------------------------------------------------- |
+| `category_id`             | INTEGER      | Sim         | FK `categories` (RESTRICT)                     | Categoria                                          |
+| `status_id`               | INTEGER      | Sim         | FK `statuses` (RESTRICT)                       | Status atual                                       |
+| `last_public_status_id`   | INTEGER      | Não         | FK `statuses` (RESTRICT); indexado             | Último status público (painel do solicitante)      |
+| `priority_id`             | INTEGER      | Não         | FK `priorities` (RESTRICT)                     | Prioridade                                         |
+| `professional_id`         | UUID         | Não         | FK `details_professional` (SET NULL)           | Responsável técnico                                |
+| `mapping_professional_id` | UUID         | Não         | FK `details_professional` (SET NULL); indexado | Designado para executar o mapeamento               |
+| `requester_user_id`       | INTEGER      | Não         | FK `users` (SET NULL); indexado                | Conta autenticada que criou (NULL no modo público) |
+| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido                                 | Resultado da triagem (em uso)                      |
+| `internal_notes`          | TEXT         | Não         | NULL permitido                                 | Notas internas (campo texto legado, em uso)        |
+| `next_steps`              | TEXT         | Não         | NULL permitido                                 | Próximos passos                                    |
+| `last_technical_message`  | TEXT         | Não         | NULL permitido                                 | Última mensagem pública do responsável             |
+| `estimated_completion`    | DATE         | Não         | NULL permitido                                 | Previsão de conclusão                              |
+| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido                                 | Data/hora da reunião de mapeamento                 |
+| `meeting_link`            | TEXT         | Não         | NULL permitido                                 | Link da reunião                                    |
+| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                                       | Usuário/e-mail de criação                          |
+| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                    | Criação                                            |
+| `updated_by`              | VARCHAR(254) | Não         | NULL permitido                                 | Usuário/e-mail da última atualização               |
+| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização                                 |
+| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização visível ao solicitante          |
 
 - Índices: `idx_requests_created_at`, `_status`, `_category`, `_priority`,
   `_professional`, `_requester`, `_requester_user`, `_mapping_professional`,
@@ -266,34 +264,31 @@ responsabilidade da aplicação.
 Pendências por campo abertas por analistas durante a triagem, no contrato
 `requested → responded → validated` (ver `docs/contract-pendencias_03.md`).
 
-| Campo                      | Tipo         | Obrigatório | Restrição / Default                                      | Finalidade                        |
-| -------------------------- | ------------ | ----------- | -------------------------------------------------------- | --------------------------------- |
-| `pending_item_id`          | UUID         | Sim         | PK, `gen_random_uuid()`                                  | Identificador                     |
-| `request_id`               | BIGINT       | Sim         | FK `requests` (CASCADE)                                  | Solicitação                       |
-| `batch_id`                 | UUID         | Sim         | DEFAULT `gen_random_uuid()`; indexado                    | Agrupa pendências criadas juntas  |
-| `type`                     | ENUM         | Sim         | `field_edit`/`observation`                               | Tipo                              |
-| `field_key`                | VARCHAR(100) | Não         | NULL permitido                                           | Chave do campo alvo               |
-| `field_label`              | VARCHAR(255) | Não         | NULL permitido                                           | Rótulo do campo                   |
-| `current_value`            | JSONB        | Não         | NULL permitido                                           | Valor atual do campo              |
-| `comment`                  | TEXT         | Sim         | NOT NULL                                                 | Observação da pendência           |
-| `status`                   | ENUM         | Sim         | `requested`/`responded`/`validated`; DEFAULT `requested` | Situação                          |
-| `corrected_value`          | JSONB        | Não         | NULL permitido                                           | Valor corrigido pelo solicitante  |
-| `response_text`            | TEXT         | Não         | NULL permitido                                           | Resposta textual                  |
-| `responded_at`             | TIMESTAMPTZ  | Não         | NULL permitido                                           | Respondida em                     |
-| `validated_at`             | TIMESTAMPTZ  | Não         | NULL permitido                                           | Validada em                       |
-| `request_attachment`       | BOOLEAN      | Sim         | DEFAULT FALSE                                            | Exige anexo do solicitante        |
-| `deadline`                 | DATE         | Não         | NULL permitido                                           | Prazo                             |
-| `created_by`               | VARCHAR(100) | Sim         | NOT NULL                                                 | Usuário/e-mail de criação         |
-| `created_at`               | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                              | Criação                           |
-| `description`              | TEXT         | Sim         | NOT NULL                                                 | **Legado** — espelho de `comment` |
-| `requested_fields`         | JSONB        | Não         | NULL permitido                                           | **Legado** — sem uso em `src/`    |
-| `requires_attachment`      | BOOLEAN      | Sim         | DEFAULT FALSE                                            | **Legado** — sem uso em `src/`    |
-| `expected_attachment_type` | VARCHAR(100) | Não         | NULL permitido                                           | **Legado** — sem uso em `src/`    |
-| `resolution`               | TEXT         | Não         | NULL permitido                                           | **Legado** — sem uso em `src/`    |
-| `resolved_by`              | VARCHAR(100) | Não         | NULL permitido                                           | **Legado** — sem uso em `src/`    |
-| `resolved_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                           | **Legado** — sem uso em `src/`    |
+| Campo                | Tipo         | Obrigatório | Restrição / Default                                      | Finalidade                        |
+| -------------------- | ------------ | ----------- | -------------------------------------------------------- | --------------------------------- |
+| `pending_item_id`    | UUID         | Sim         | PK, `gen_random_uuid()`                                  | Identificador                     |
+| `request_id`         | BIGINT       | Sim         | FK `requests` (CASCADE)                                  | Solicitação                       |
+| `batch_id`           | UUID         | Sim         | DEFAULT `gen_random_uuid()`; indexado                    | Agrupa pendências criadas juntas  |
+| `type`               | ENUM         | Sim         | `field_edit`/`observation`                               | Tipo                              |
+| `field_key`          | VARCHAR(100) | Não         | NULL permitido                                           | Chave do campo alvo               |
+| `field_label`        | VARCHAR(255) | Não         | NULL permitido                                           | Rótulo do campo                   |
+| `current_value`      | JSONB        | Não         | NULL permitido                                           | Valor atual do campo              |
+| `comment`            | TEXT         | Sim         | NOT NULL                                                 | Observação da pendência           |
+| `status`             | ENUM         | Sim         | `requested`/`responded`/`validated`; DEFAULT `requested` | Situação                          |
+| `corrected_value`    | JSONB        | Não         | NULL permitido                                           | Valor corrigido pelo solicitante  |
+| `response_text`      | TEXT         | Não         | NULL permitido                                           | Resposta textual                  |
+| `responded_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Respondida em                     |
+| `validated_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Validada em                       |
+| `request_attachment` | BOOLEAN      | Sim         | DEFAULT FALSE                                            | Exige anexo do solicitante        |
+| `deadline`           | DATE         | Não         | NULL permitido                                           | Prazo                             |
+| `created_by`         | VARCHAR(100) | Sim         | NOT NULL                                                 | Usuário/e-mail de criação         |
+| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                              | Criação                           |
+| `description`        | TEXT         | Sim         | NOT NULL                                                 | **Legado** — espelho de `comment` |
 
 - Índices: `idx_pending_items_request`, `_status`, `_request_status`, `_batch`.
+- As colunas `requested_fields`, `requires_attachment`,
+  `expected_attachment_type`, `resolution`, `resolved_by` e `resolved_at`
+  foram removidas pela revisão do banco (substituídas pelo contrato 03).
 - A coluna `is_visible_to_requester` foi removida (toda pendência é para o
   solicitante).
 
@@ -301,24 +296,22 @@ Pendências por campo abertas por analistas durante a triagem, no contrato
 
 Metadados dos anexos derivados no servidor.
 
-| Campo             | Tipo          | Obrigatório | Restrição / Default           | Finalidade                   |
-| ----------------- | ------------- | ----------- | ----------------------------- | ---------------------------- |
-| `attachment_id`   | UUID          | Sim         | PK, `gen_random_uuid()`       | Identificador do anexo       |
-| `request_id`      | BIGINT        | Sim         | FK `requests` (CASCADE)       | Solicitação associada        |
-| `pending_item_id` | UUID          | Não         | FK `pending_items` (SET NULL) | Pendência associada          |
-| `file_name`       | VARCHAR(255)  | Sim         | NOT NULL                      | Nome original                |
-| `file_path`       | VARCHAR(1000) | Sim         | NOT NULL                      | Caminho de armazenamento     |
-| `content_type`    | VARCHAR(100)  | Sim         | CHECK de formato              | MIME do anexo                |
-| `size_bytes`      | BIGINT        | Sim         | CHECK 1..10MB                 | Tamanho em bytes             |
-| `is_restricted`   | BOOLEAN       | Sim         | DEFAULT FALSE                 | Não consumido pela aplicação |
-| `uploaded_by`     | VARCHAR(254)  | Não         | NULL permitido                | Usuário/e-mail do envio      |
-| `uploaded_at`     | TIMESTAMPTZ   | Sim         | DEFAULT `CURRENT_TIMESTAMP`   | Data e hora do envio         |
+| Campo             | Tipo          | Obrigatório | Restrição / Default           | Finalidade               |
+| ----------------- | ------------- | ----------- | ----------------------------- | ------------------------ |
+| `attachment_id`   | UUID          | Sim         | PK, `gen_random_uuid()`       | Identificador do anexo   |
+| `request_id`      | BIGINT        | Sim         | FK `requests` (CASCADE)       | Solicitação associada    |
+| `pending_item_id` | UUID          | Não         | FK `pending_items` (SET NULL) | Pendência associada      |
+| `file_name`       | VARCHAR(255)  | Sim         | NOT NULL                      | Nome original            |
+| `file_path`       | VARCHAR(1000) | Sim         | NOT NULL                      | Caminho de armazenamento |
+| `content_type`    | VARCHAR(100)  | Sim         | CHECK de formato              | MIME do anexo            |
+| `size_bytes`      | BIGINT        | Sim         | CHECK 1..10MB                 | Tamanho em bytes         |
+| `uploaded_by`     | VARCHAR(254)  | Não         | NULL permitido                | Usuário/e-mail do envio  |
+| `uploaded_at`     | TIMESTAMPTZ   | Sim         | DEFAULT `CURRENT_TIMESTAMP`   | Data e hora do envio     |
 
 - `content_type` restrito a PDF, DOCX, XLSX, PNG e JPG
   (`ck_attachments_content_type`).
-- Índices: `idx_attachments_request`, `_pending_item`, `_restricted`,
-  `_uploaded_at`. O índice `_restricted` é ocioso (ver
-  `schema-review-130.md`).
+- Índices: `idx_attachments_request`, `_pending_item`, `_uploaded_at`. A coluna
+  `is_restricted` e seu índice ocioso foram removidos pela revisão do banco.
 
 ## Tabela `request_time_preferences`
 
@@ -368,6 +361,8 @@ solicitação.
   `_target_status`.
 - **Invariante:** `uk_mappings_one_open_per_request` — índice único parcial em
   `request_id` `WHERE is_concluded = false`.
+- **CHECK** `ck_mappings_concluded_at`: `concluded_at` é preenchido se e somente
+  se `is_concluded` for `true`.
 
 ## Tabela `mapping_participants`
 
@@ -523,6 +518,8 @@ Marcos relevantes do domínio:
 9. `20260924000000` + `20260926000000`: motor de status v4 (status 1–17).
 10. `20260927000000`: revisão do banco (índices de FK, invariantes de mapeamento
     e `audit_history.occurred_at` como `timestamptz`).
+11. `20260928000000`: limpeza de legados, unicidade case-insensitive de e-mails,
+    CHECK de conclusão de mapeamento e índice de timeline de auditoria.
 
 ### Execução
 
@@ -534,9 +531,9 @@ npm run migrate:make -- migration-name
 
 ## Validações
 
-- `npm run migrate:latest` em banco novo — 56 migrations;
+- `npm run migrate:latest` em banco novo — 57 migrations;
 - `npm run seed:run` — 11 seeds;
-- `npm run migrate:rollback` / reaplicação da migration da revisão;
+- `npm run migrate:rollback` / reaplicação das migrations da revisão;
 - `npm run check` (typecheck + lint + Prettier).
 
 O detalhamento dos achados e das melhorias da revisão está em
