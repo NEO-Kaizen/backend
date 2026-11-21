@@ -209,6 +209,9 @@ if (changeCategory === "Sim") {
 }
 status = portalConfig.statuses.find((s) => s.id === exitStatus)!.name; // id numérico → name; não armazena id em status
 lastUpdate = now().toISOString();
+// Se o Status mudou de fato e o destino é público e não restrito, o solicitante
+// autenticado recebe uma Notificação in-app na mesma transação
+// (eventKey `request.triage:<audit_id>`; ver docs/notifications-contract.md).
 // GET /requests/:protocol/triage retorna a triagem vigente (objeto) ou null
 ```
 

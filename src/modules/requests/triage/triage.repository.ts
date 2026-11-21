@@ -1,17 +1,13 @@
 import type { Knex } from "knex";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
-import { recordAudit } from "../../../shared/audit/auditLogger.ts";
-import {
-  emitNotification,
-  type CommittedNotification,
-} from "../../../shared/notifications/emitNotification.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
 interface StatusRow {
   status_id: number;
   name: string;
   isPublic: boolean;
+  isRestricted: boolean;
 }
 
 interface CategoryRow {
@@ -155,9 +151,21 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
     .where({ is_active: true, is_restricted: false })
     .where({ triage_mode: "conclusion_only" })
     .where({ status_id: value })
-    .first("status_id as status_id", "name", "is_public")
-    .then((row: { status_id: number; name: string; is_public: boolean } | undefined) =>
-      row ? { status_id: row.status_id, name: row.name, isPublic: row.is_public } : undefined,
+    .first("status_id as status_id", "name", "is_public", "is_restricted")
+    .then(
+      (
+        row:
+          | { status_id: number; name: string; is_public: boolean; is_restricted: boolean }
+          | undefined,
+      ) =>
+        row
+          ? {
+              status_id: row.status_id,
+              name: row.name,
+              isPublic: row.is_public,
+              isRestricted: row.is_restricted,
+            }
+          : undefined,
     ) as Promise<StatusRow | undefined>;
 }
 
@@ -225,16 +233,6 @@ export async function applyRequestOutcome(
   }
 }
 
-export interface TriageAuditContext {
-  actorId: number;
-  previousStatus: string | null;
-  previousCategory: string | null;
-  nextStatus: string;
-  justification: string;
-  ipAddress?: string;
-  changeOrigin: "admin" | "internal";
-}
-
 /**
  * Append do snapshot em `triages` (D-N14): um id só — `triage_id =
  * TriageAssessment.id` (uuid gerado no service). A proveniência
@@ -267,95 +265,5 @@ export async function insertTriage(
     assignee_name: triage.assignee?.name ?? null,
     assignee_email: triage.assignee?.email ?? null,
     last_technical_message: triage.lastTechnicalMessage,
-  });
-}
-
-export async function saveTriageDecision(
-  protocol: string,
-  requestId: string,
-  triage: TriageAssessment,
-  categoryId: number | null,
-  statusId: number,
-  statusIsPublic: boolean,
-  lastTechnicalMessage: string | null,
-  expectedStatusId: number,
-  updatedBy: string,
-  previousAssignee: { professionalId: string | null; userId: number | null },
-  audit: TriageAuditContext,
-  notificationContext: { requesterUserId: number | null; requestTitle: string },
-): Promise<CommittedNotification[]> {
-  return db.transaction(async (trx) => {
-    await insertTriage(requestId, triage, trx);
-    await applyRequestOutcome(
-      protocol,
-      categoryId,
-      statusId,
-      statusIsPublic,
-      lastTechnicalMessage,
-      expectedStatusId,
-      updatedBy,
-      true,
-      trx,
-    );
-    const triageAuditId = await recordAudit(trx, {
-      entityType: "request",
-      entityId: protocol,
-      actionType: "request.triage",
-      userId: audit.actorId,
-      previousValue: JSON.stringify({
-        status: audit.previousStatus,
-        category: audit.previousCategory,
-      }),
-      newValue: JSON.stringify({
-        triageId: triage.id,
-        exitStatus: triage.exitStatus,
-        status: audit.nextStatus,
-      }),
-      // `note` = justificativa interna (conclusão da triagem); o retorno
-      // público só é persistido quando o status de saída é público.
-      note: audit.justification,
-      lastTechnicalMessage: statusIsPublic ? lastTechnicalMessage : null,
-      ipAddress: audit.ipAddress,
-      changeOrigin: audit.changeOrigin,
-    });
-
-    // Liberação automática do responsável na conclusão da triagem. Evento só
-    // quando havia vínculo; `previousValue` segue a convenção de
-    // `request.unassign` (user_id do responsável anterior). Origem `system`.
-    if (previousAssignee.professionalId !== null) {
-      await recordAudit(trx, {
-        entityType: "request",
-        entityId: protocol,
-        actionType: "request.unassign",
-        userId: audit.actorId,
-        previousValue: previousAssignee.userId === null ? null : String(previousAssignee.userId),
-        newValue: null,
-        ipAddress: audit.ipAddress,
-        changeOrigin: "system",
-      });
-    }
-
-    // O veredito da Triagem também muda o Status (issue #156: "PATCH manual ou
-    // veredito da Triagem"). Mesma regra do PATCH: só Status público notifica,
-    // e solicitante anônimo não tem canal in-app na v1.
-    const requesterUserId = notificationContext.requesterUserId;
-
-    if (!statusIsPublic || requesterUserId === null) {
-      return [];
-    }
-
-    return emitNotification(trx, {
-      type: "status_changed",
-      eventKey: `request.triage:${triageAuditId}`,
-      requestId,
-      actorUserId: audit.actorId,
-      recipientUserIds: [requesterUserId],
-      payload: {
-        type: "status_changed",
-        protocol,
-        title: notificationContext.requestTitle,
-        newStatus: audit.nextStatus,
-      },
-    });
   });
 }

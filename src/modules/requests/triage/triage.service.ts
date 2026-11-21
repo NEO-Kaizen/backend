@@ -4,6 +4,7 @@ import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import { publishCommittedNotifications } from "../../../shared/notifications/notificationEmitter.ts";
+import { emitStatusChangedNotification } from "../../../shared/notifications/statusChangedNotification.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import * as repository from "./triage.repository.ts";
 
@@ -158,28 +159,74 @@ export async function createTriage(
         : null,
   };
 
-  const committedNotifications = await repository.saveTriageDecision(
-    protocol,
-    request.request_id,
-    triage,
-    categoryId,
-    exitStatus.status_id,
-    exitStatus.isPublic,
-    triage.lastTechnicalMessage,
-    request.status_id,
-    actor.email,
-    { professionalId: request.professional_id, userId: request.assignee_user_id },
-    {
-      actorId: actor.id,
-      previousStatus: request.status_name,
-      previousCategory: request.category_name,
-      nextStatus: exitStatus.name,
-      justification: triage.conclusionJustification,
+  const committedNotifications = await db.transaction(async (trx) => {
+    await repository.insertTriage(request.request_id, triage, trx);
+    await repository.applyRequestOutcome(
+      protocol,
+      categoryId,
+      exitStatus.status_id,
+      exitStatus.isPublic,
+      triage.lastTechnicalMessage,
+      request.status_id,
+      actor.email,
+      true,
+      trx,
+    );
+
+    const triageAuditId = await recordAudit(trx, {
+      entityType: "request",
+      entityId: protocol,
+      actionType: "request.triage",
+      userId: actor.id,
+      previousValue: JSON.stringify({
+        status: request.status_name,
+        category: request.category_name,
+      }),
+      newValue: JSON.stringify({
+        triageId: triage.id,
+        exitStatus: triage.exitStatus,
+        status: exitStatus.name,
+      }),
+      // `note` = justificativa interna (conclusão da triagem); o retorno
+      // público só é persistido quando o status de saída é público.
+      note: triage.conclusionJustification,
+      lastTechnicalMessage: exitStatus.isPublic ? triage.lastTechnicalMessage : null,
       ipAddress,
       changeOrigin: actor.role === "Administrador" ? "admin" : "internal",
-    },
-    { requesterUserId: request.requester_user_id, requestTitle: request.title },
-  );
+    });
+
+    // Liberação automática do responsável na conclusão da triagem. Evento só
+    // quando havia vínculo; `previousValue` segue a convenção de
+    // `request.unassign` (user_id do responsável anterior). Origem `system`.
+    if (request.professional_id !== null) {
+      await recordAudit(trx, {
+        entityType: "request",
+        entityId: protocol,
+        actionType: "request.unassign",
+        userId: actor.id,
+        previousValue: request.assignee_user_id === null ? null : String(request.assignee_user_id),
+        newValue: null,
+        ipAddress,
+        changeOrigin: "system",
+      });
+    }
+
+    // "Status mudou" só é Evento quando o Status muda de fato e o destino é
+    // público e não restrito — mesma regra do PATCH manual.
+    if (exitStatus.status_id === request.status_id) return [];
+    if (!exitStatus.isPublic || exitStatus.isRestricted) return [];
+
+    return emitStatusChangedNotification(trx, {
+      source: "triage",
+      auditId: triageAuditId,
+      requestId: request.request_id,
+      protocol: request.protocol,
+      title: request.title,
+      newStatus: exitStatus.name,
+      actorUserId: actor.id,
+      requesterUserId: request.requester_user_id,
+    });
+  });
 
   publishCommittedNotifications(committedNotifications);
 

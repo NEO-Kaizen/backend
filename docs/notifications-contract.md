@@ -35,6 +35,8 @@ RF20 e reutilizam a mesma seam de emissão.
 - `eventKey`: `request.status_change:<audit_id>` no PATCH e
   `request.triage:<audit_id>` no veredito — transições distintas do mesmo
   Status não se deduplicam entre si.
+- Só é Evento quando o Status muda de fato: re-triagem concluída no mesmo
+  Status não notifica.
 - Só notifica quando o Status de destino é público (`is_public = true`) e não
   restrito (`is_restricted = false`).
 - Transições para Status interno ou restrito não geram Notificação.
