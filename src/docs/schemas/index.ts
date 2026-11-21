@@ -46,6 +46,15 @@ import { PrioritizationCriteria } from "./prioritization.ts";
 
 import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
 
+import {
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
+} from "./notifications.ts";
+
 export {
   ErrorResponse,
   ValidationErrorResponse,
@@ -85,6 +94,12 @@ export {
   PrioritizationCriteria,
   ReviewDecisionValidate,
   ReviewDecisionReopen,
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
 };
 
 export const schemas = {
@@ -126,4 +141,10 @@ export const schemas = {
   PrioritizationCriteria,
   ReviewDecisionValidate,
   ReviewDecisionReopen,
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
 } as const;
