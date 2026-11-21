@@ -161,17 +161,17 @@ export async function createTriage(
 
   const committedNotifications = await db.transaction(async (trx) => {
     await repository.insertTriage(request.request_id, triage, trx);
-    await repository.applyRequestOutcome(
+    await repository.applyRequestOutcome({
       protocol,
       categoryId,
-      exitStatus.status_id,
-      exitStatus.isPublic,
-      triage.lastTechnicalMessage,
-      request.status_id,
-      actor.email,
-      true,
+      statusId: exitStatus.status_id,
+      statusIsPublic: exitStatus.isPublic,
+      lastTechnicalMessage: triage.lastTechnicalMessage,
+      expectedStatusId: request.status_id,
+      updatedBy: actor.email,
+      releaseAssignee: true,
       trx,
-    );
+    });
 
     const triageAuditId = await recordAudit(trx, {
       entityType: "request",
@@ -211,13 +211,12 @@ export async function createTriage(
       });
     }
 
-    // "Status mudou" só é Evento quando o Status muda de fato e o destino é
-    // público e não restrito — mesma regra do PATCH manual.
+    // "Status mudou" só é Evento quando o Status muda de fato; a elegibilidade
+    // (público e não restrito) é decidida por `emitStatusChangedNotification`.
     if (exitStatus.status_id === request.status_id) return [];
-    if (!exitStatus.isPublic || exitStatus.isRestricted) return [];
 
     return emitStatusChangedNotification(trx, {
-      source: "triage",
+      flow: "triage_verdict",
       auditId: triageAuditId,
       requestId: request.request_id,
       protocol: request.protocol,
@@ -225,6 +224,10 @@ export async function createTriage(
       newStatus: exitStatus.name,
       actorUserId: actor.id,
       requesterUserId: request.requester_user_id,
+      destination: {
+        isPublic: exitStatus.isPublic,
+        isRestricted: exitStatus.isRestricted,
+      },
     });
   });
 

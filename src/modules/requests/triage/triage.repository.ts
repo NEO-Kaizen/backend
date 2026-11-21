@@ -144,6 +144,10 @@ export async function findLatestTriage(protocol: string): Promise<TriageAssessme
  * `free`/`conclusion_only` — substitui o antigo filtro `isTriageExit`.
  * Contrato puro: só id numérico — literais antigos (nomes) são rejeitados
  * com 422 (`contract-triage_04.md` §Observações).
+ *
+ * O filtro `is_restricted=false` garante que a saída da triagem nunca seja
+ * restrita; `isRestricted` é devolvido para a checagem de audiência
+ * compartilhada com o PATCH manual.
  */
 export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
@@ -166,7 +170,7 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
               isRestricted: row.is_restricted,
             }
           : undefined,
-    ) as Promise<StatusRow | undefined>;
+    );
 }
 
 /**
@@ -183,17 +187,30 @@ export async function resolveCategoryId(value: string): Promise<CategoryRow | un
     .first("category_id as category_id", "name") as Promise<CategoryRow | undefined>;
 }
 
-export async function applyRequestOutcome(
-  protocol: string,
-  categoryId: number | null,
-  statusId: number,
-  statusIsPublic: boolean,
-  lastTechnicalMessage: string | null,
-  expectedStatusId: number,
-  updatedBy: string,
-  releaseAssignee: boolean,
-  trx?: Knex.Transaction,
-): Promise<void> {
+export interface ApplyRequestOutcomeInput {
+  protocol: string;
+  categoryId: number | null;
+  statusId: number;
+  statusIsPublic: boolean;
+  lastTechnicalMessage: string | null;
+  expectedStatusId: number;
+  updatedBy: string;
+  releaseAssignee: boolean;
+  trx?: Knex.Transaction;
+}
+
+export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Promise<void> {
+  const {
+    protocol,
+    categoryId,
+    statusId,
+    statusIsPublic,
+    lastTechnicalMessage,
+    expectedStatusId,
+    updatedBy,
+    releaseAssignee,
+    trx,
+  } = input;
   const source = trx ?? db;
 
   const updates: Record<string, unknown> = {

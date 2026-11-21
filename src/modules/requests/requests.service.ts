@@ -1257,22 +1257,23 @@ export async function updateRequestStatus(
       changeOrigin,
     });
 
-    // Notificação do solicitante apenas em Status público. Transições internas
-    // ou restritas são ruído (e informação que não pertence ao solicitante);
-    // solicitante anônimo não tem canal in-app na v1.
-    const committedNotifications =
-      target.isPublic && !target.is_restricted
-        ? await emitStatusChangedNotification(trx, {
-            source: "status_change",
-            auditId,
-            requestId: request.request_id,
-            protocol: request.protocol,
-            title: request.title,
-            newStatus: target.name,
-            actorUserId: actor.id,
-            requesterUserId: request.requester_user_id,
-          })
-        : [];
+    // A elegibilidade (Status público e não restrito, solicitante autenticado)
+    // é decidida por `emitStatusChangedNotification`; transições internas ou
+    // restritas continuam sem Notificação.
+    const committedNotifications = await emitStatusChangedNotification(trx, {
+      flow: "manual_patch",
+      auditId,
+      requestId: request.request_id,
+      protocol: request.protocol,
+      title: request.title,
+      newStatus: target.name,
+      actorUserId: actor.id,
+      requesterUserId: request.requester_user_id,
+      destination: {
+        isPublic: target.isPublic,
+        isRestricted: target.is_restricted,
+      },
+    });
 
     return { lastUpdate: persistedAt, committed: committedNotifications };
   });

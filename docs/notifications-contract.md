@@ -43,7 +43,7 @@ RF20 e reutilizam a mesma seam de emissão.
 - Solicitação sem `requester_user_id` (solicitante anônimo) não gera
   Notificação in-app na v1.
 - Se a transação falhar, nem o Status nem a Notificação são gravados.
-- Após o commit, o aviso é publicado no `EventEmitter` tipado com
+- Após o commit, a publicação ocorre no `EventEmitter` tipado com
   `{ userId, notificationIds }`.
 
 ## Autenticação
