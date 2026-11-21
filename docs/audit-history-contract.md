@@ -414,6 +414,9 @@ Cookie: session_id=<jwt>
 
 ## Observações do contrato
 
+- Para o cálculo de tempos por Status, a fonte de verdade deste contrato é
+  `docs/rf13-status-time-audit.md`; esta seção preserva apenas o formato da
+  timeline de auditoria.
 - Valores de `entity_type`/`action_type` são o vocabulário do `auditCatalog`;
   `entity_type_label` existe para a UI não precisar traduzir — chaves/estruturas
   em inglês, textos de exibição em PT-BR.

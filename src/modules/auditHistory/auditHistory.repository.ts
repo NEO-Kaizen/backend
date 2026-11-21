@@ -14,14 +14,9 @@ interface AuditCountRow {
   total: number | string;
 }
 
-export interface StatusTimeRequestRow {
-  created_at: Date | string;
-  current_status: string;
-}
-
 export interface PausedStatusRow {
+  status_id: number;
   name: string;
-  is_paused: boolean;
 }
 
 interface AuditHistoryDetailRow {
@@ -133,20 +128,10 @@ export async function listAuditHistoryByProtocol(
     .then((rows) => rows as AuditHistoryDetailRow[]);
 }
 
-export async function findStatusTimeRequest(
-  protocol: string,
-): Promise<StatusTimeRequestRow | undefined> {
-  return db("requests as r")
-    .join("statuses as s", "s.status_id", "r.status_id")
-    .select("r.created_at", "s.name as current_status")
-    .where("r.protocol", protocol)
-    .first<StatusTimeRequestRow>();
-}
-
-export async function listPausedStatusNames(): Promise<string[]> {
+export async function listPausedStatuses(): Promise<PausedStatusRow[]> {
   const rows = await db("statuses")
-    .select("name")
+    .select("status_id", "name")
     .where({ is_paused: true })
-    .then((items) => items as Array<{ name: string }>);
-  return rows.map((row) => row.name);
+    .then((items) => items as PausedStatusRow[]);
+  return rows;
 }

@@ -121,11 +121,11 @@ Cada item de `totalsByStatus`:
 
 ### Respostas de erro
 
-| Status | Situação                         |
-| ------ | -------------------------------- |
-| `401`  | Sem sessão ou sessão inválida.   |
-| `403`  | Perfil sem acesso à solicitação. |
-| `404`  | Protocolo inexistente.           |
+| Status | Situação                                                                            |
+| ------ | ----------------------------------------------------------------------------------- |
+| `401`  | Sem sessão ou sessão inválida.                                                      |
+| `403`  | Perfil sem custódia; também usado por Analista para mascarar protocolo inexistente. |
+| `404`  | Protocolo inexistente para Administrador ou Gestor.                                 |
 
 ### Uso no frontend
 

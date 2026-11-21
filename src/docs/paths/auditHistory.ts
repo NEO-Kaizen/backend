@@ -25,7 +25,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Perfil sem acesso ou protocolo não visível ao Analista sem custódia.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -69,7 +69,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Perfil sem acesso ou protocolo não visível ao Analista sem custódia.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -176,7 +176,7 @@ export default {
           },
         },
         "403": {
-          description: "Usuário sem acesso à solicitação.",
+          description: "Usuário sem custódia ou protocolo não visível ao Analista sem custódia.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -184,7 +184,7 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo inexistente.",
+          description: "Protocolo inexistente para perfil Administrador ou Gestor.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

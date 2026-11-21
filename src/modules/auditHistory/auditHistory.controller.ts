@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
-import { auditHistoryQuerySchema } from "./auditHistory.schema.ts";
+import { auditHistoryQuerySchema, auditProtocolParamsSchema } from "./auditHistory.schema.ts";
 import {
   listAuditHistoryLogs,
   getAuditHistoryDetail,
@@ -41,10 +41,11 @@ export async function getAuditLogsByProtocolController(
     throw new AppError("Token inválido ou expirado", 401);
   }
 
-  const protocol = String(req.params.protocol ?? "").trim();
-  if (protocol === "") {
-    throw new AppError("Protocolo é obrigatório", 400);
+  const parsedParams = auditProtocolParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    throw new AppError(formatZodIssues(parsedParams.error, "params"), 400);
   }
+  const protocol = parsedParams.data.protocol;
 
   const logs = await listAuditLogsByProtocol(protocol, {
     id: Number(req.user.id),
@@ -62,10 +63,11 @@ export async function getStatusTimesByProtocolController(
     throw new AppError("Token inválido ou expirado", 401);
   }
 
-  const protocol = String(req.params.protocol ?? "").trim();
-  if (protocol === "") {
-    throw new AppError("Protocolo é obrigatório", 400);
+  const parsedParams = auditProtocolParamsSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    throw new AppError(formatZodIssues(parsedParams.error, "params"), 400);
   }
+  const protocol = parsedParams.data.protocol;
 
   const result = await getStatusTimesByProtocol(protocol, {
     id: Number(req.user.id),

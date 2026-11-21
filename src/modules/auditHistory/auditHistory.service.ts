@@ -9,12 +9,15 @@ import type {
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
 import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
-import { findRequestStatusContext } from "../requests/requests.repository.ts";
+import {
+  findRequestStatusContext,
+  type RequestStatusContext,
+} from "../requests/requests.repository.ts";
 import {
   calculateStatusTime,
   type StatusTimeSummary,
   type StatusTimeTransition,
-} from "../../shared/utils/statusTime.ts";
+} from "./statusTime.ts";
 
 const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
   Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
@@ -85,6 +88,7 @@ function parseStatusValue(value: string | null): string | null {
 
   try {
     const parsed: unknown = JSON.parse(value);
+    if (typeof parsed === "string") return parsed;
     if (
       typeof parsed === "object" &&
       parsed !== null &&
@@ -97,23 +101,36 @@ function parseStatusValue(value: string | null): string | null {
     return value;
   }
 
-  return value;
+  return null;
 }
 
-export async function calculateStatusTimeForProtocol(
-  protocol: string,
-  now: Date = new Date(),
-): Promise<StatusTimeSummary> {
-  const normalized = protocol.trim();
-  const [request, pausedStatusNames, auditRows] = await Promise.all([
-    repository.findStatusTimeRequest(normalized),
-    repository.listPausedStatusNames(),
-    repository.listAuditHistoryByProtocol(normalized),
-  ]);
+function parseStatusTransition(value: string | null): { status: string; statusId?: number } | null {
+  if (!value) return null;
+  const status = parseStatusValue(value);
+  if (!status) return null;
 
-  if (!request) {
-    throw new AppError("Protocolo não encontrado", 404);
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed === "object" && parsed !== null && "status_id" in parsed) {
+      const statusId = parsed.status_id;
+      if (typeof statusId === "number" && Number.isInteger(statusId)) {
+        return { status, statusId };
+      }
+    }
+  } catch {
+    // Plain status names remain valid for historical audit rows.
   }
+  return { status };
+}
+
+async function calculateStatusTimeForRequest(
+  request: NonNullable<Awaited<ReturnType<typeof findRequestStatusContext>>>,
+  now: Date,
+): Promise<StatusTimeSummary> {
+  const [pausedStatuses, auditRows] = await Promise.all([
+    repository.listPausedStatuses(),
+    repository.listAuditHistoryByProtocol(request.protocol),
+  ]);
 
   const chronologicalRows = [...auditRows].reverse();
   const transitions: StatusTimeTransition[] = [];
@@ -127,14 +144,14 @@ export async function calculateStatusTimeForProtocol(
       continue;
     }
 
-    const status = parseStatusValue(row.new_value);
-    if (!status) continue;
+    const statusTransition = parseStatusTransition(row.new_value);
+    if (!statusTransition) continue;
 
     const occurredAt =
       row.occurred_at instanceof Date ? row.occurred_at : new Date(String(row.occurred_at));
     if (Number.isNaN(occurredAt.getTime())) continue;
 
-    transitions.push({ status, occurredAt });
+    transitions.push({ ...statusTransition, occurredAt });
   }
 
   const openedAt =
@@ -150,29 +167,36 @@ export async function calculateStatusTimeForProtocol(
       row.action_type === "request.override_status_admin" ||
       row.action_type === "request.triage",
   );
-  const initialStatus =
-    parseStatusValue(earliestAuditRow?.previous_value ?? null) ??
-    firstTransition?.status ??
-    request.current_status;
+  const previousStatus = parseStatusValue(earliestAuditRow?.previous_value ?? null);
+  const currentStatus = request.current_status_name;
+  if (!currentStatus) {
+    throw new AppError("Status atual da solicitação inválido", 500);
+  }
+  const initialStatus = previousStatus ?? currentStatus;
+  if (!previousStatus && firstTransition) {
+    throw new AppError(
+      "Não foi possível reconstruir o Status inicial a partir da auditoria.",
+      409,
+      "STATUS_HISTORY_DIVERGENCE",
+    );
+  }
 
   return calculateStatusTime({
     openedAt,
     initialStatus,
-    currentStatus: request.current_status,
-    pausedStatusNames,
+    currentStatus,
+    pausedStatusNames: pausedStatuses.map((status) => status.name),
+    pausedStatusIds: pausedStatuses.map((status) => status.status_id),
     transitions,
     now,
   });
 }
 
-export async function getStatusTimesByProtocol(
-  protocol: string,
+function assertRequestCustody(
+  request: RequestStatusContext | undefined,
   actor: { id: number; role: Role },
-): Promise<StatusTimeResponse> {
-  const normalized = protocol.trim();
+): RequestStatusContext {
   const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
-  const request = await findRequestStatusContext(normalized);
-
   if (!request) {
     if (!isManagerLike) {
       throw new AppError(
@@ -197,9 +221,18 @@ export async function getStatusTimesByProtocol(
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
   }
+  return request;
+}
+
+export async function getStatusTimesByProtocol(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<StatusTimeResponse> {
+  const normalized = protocol.trim();
+  const request = assertRequestCustody(await findRequestStatusContext(normalized), actor);
 
   const calculatedAt = new Date();
-  const summary = await calculateStatusTimeForProtocol(request.protocol, calculatedAt);
+  const summary = await calculateStatusTimeForRequest(request, calculatedAt);
 
   return {
     protocol: request.protocol,
@@ -221,35 +254,7 @@ export async function listAuditLogsByProtocol(
   actor: { id: number; role: Role },
 ): Promise<AuditHistoryDetail[]> {
   const normalized = protocol.trim();
-  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
-
-  const request = await findRequestStatusContext(normalized);
-  if (!request) {
-    // Sem vazar existência: não-custódia recebe 403 genérico; só perfis com
-    // leitura ampla veem o 404 real.
-    if (!isManagerLike) {
-      throw new AppError(
-        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-        403,
-        "INSUFFICIENT_ROLE_PERMISSIONS",
-      );
-    }
-    throw new AppError("Protocolo não encontrado", 404);
-  }
-
-  const isAssignee =
-    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
-  const isMappingAssignee =
-    request.mapping_assignee_user_id !== null &&
-    Number(request.mapping_assignee_user_id) === actor.id;
-
-  if (!isManagerLike && !isAssignee && !isMappingAssignee) {
-    throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-      403,
-      "INSUFFICIENT_ROLE_PERMISSIONS",
-    );
-  }
+  const request = assertRequestCustody(await findRequestStatusContext(normalized), actor);
 
   const rows = await repository.listAuditHistoryByProtocol(request.protocol);
   return rows.map((row) => toDetail(row));

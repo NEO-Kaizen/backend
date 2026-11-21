@@ -1,5 +1,6 @@
 export interface StatusTimeTransition {
   status: string;
+  statusId?: number;
   occurredAt: Date;
 }
 
@@ -31,6 +32,7 @@ export interface StatusTimeCalculationInput {
   initialStatus: string;
   currentStatus: string;
   pausedStatusNames: readonly string[];
+  pausedStatusIds?: readonly number[];
   transitions: readonly StatusTimeTransition[];
   now: Date;
 }
@@ -41,15 +43,18 @@ function positiveMilliseconds(start: Date, end: Date): number {
 
 export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTimeSummary {
   const pausedStatusNames = new Set(input.pausedStatusNames);
+  const pausedStatusIds = new Set(input.pausedStatusIds ?? []);
   const intervals: StatusTimeInterval[] = [];
   let status = input.initialStatus;
+  let statusId: number | undefined;
   let enteredAt = input.openedAt;
 
   for (const transition of input.transitions) {
     if (transition.status === status) continue;
 
     const duration = positiveMilliseconds(enteredAt, transition.occurredAt);
-    const isPaused = pausedStatusNames.has(status);
+    const isPaused =
+      (statusId !== undefined && pausedStatusIds.has(statusId)) || pausedStatusNames.has(status);
     intervals.push({
       status,
       enteredAt: enteredAt.toISOString(),
@@ -60,27 +65,18 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
     });
 
     status = transition.status;
+    statusId = transition.statusId;
     enteredAt = transition.occurredAt;
   }
 
   const now = input.now.getTime() >= enteredAt.getTime() ? input.now : enteredAt;
   if (status !== input.currentStatus) {
-    const duration = positiveMilliseconds(enteredAt, now);
-    const isPaused = pausedStatusNames.has(status);
-    intervals.push({
-      status,
-      enteredAt: enteredAt.toISOString(),
-      exitedAt: now.toISOString(),
-      activeMilliseconds: isPaused ? 0 : duration,
-      pausedMilliseconds: isPaused ? duration : 0,
-      isPaused,
-    });
-    status = input.currentStatus;
-    enteredAt = now;
+    throw new Error("A auditoria não corresponde ao Status atual da solicitação.");
   }
 
   const currentDuration = positiveMilliseconds(enteredAt, now);
-  const currentIsPaused = pausedStatusNames.has(status);
+  const currentIsPaused =
+    (statusId !== undefined && pausedStatusIds.has(statusId)) || pausedStatusNames.has(status);
 
   intervals.push({
     status,

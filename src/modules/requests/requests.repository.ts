@@ -711,6 +711,7 @@ export async function findAssignmentContextByProtocol(
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
+    created_at: "requests.created_at",
     professional_id: "requests.professional_id",
     status: "statuses.name",
     screening_result: "requests.screening_result",
@@ -792,6 +793,7 @@ export async function updateStatus(
 export interface RequestStatusContext {
   request_id: string;
   protocol: string;
+  created_at: Date | string;
   current_status_id: number | null;
   current_status_name: string | null;
   current_is_terminal: boolean;

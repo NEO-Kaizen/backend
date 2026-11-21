@@ -32,3 +32,9 @@ export const auditHistoryQuerySchema = z
     limit: query.limit ?? 20,
     entityType: query.entityType ?? undefined,
   })) satisfies z.ZodType<AuditHistoryQuery>;
+
+export const auditProtocolParamsSchema = z
+  .object({
+    protocol: z.string().trim().min(1, "Protocolo é obrigatório."),
+  })
+  .strict();
