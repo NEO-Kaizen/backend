@@ -40,23 +40,20 @@ export async function emitNotification(
     (userId) => userId !== data.actorUserId,
   );
 
-  const committed: CommittedNotification[] = [];
+  // Entregas independentes: cada par destinatário/canal grava a própria linha.
+  const deliveries = await Promise.all(
+    recipients.flatMap((recipientUserId) =>
+      channels.map((channel) =>
+        channel.deliver(trx, {
+          recipientUserId,
+          eventType: data.type,
+          requestId: data.requestId,
+          payload: data.payload,
+          dedupKey: `${data.eventKey}:${recipientUserId}`,
+        }),
+      ),
+    ),
+  );
 
-  for (const recipientUserId of recipients) {
-    for (const channel of channels) {
-      const delivery = await channel.deliver(trx, {
-        recipientUserId,
-        eventType: data.type,
-        requestId: data.requestId,
-        payload: data.payload,
-        dedupKey: `${data.eventKey}:${recipientUserId}`,
-      });
-
-      if (delivery) {
-        committed.push(delivery);
-      }
-    }
-  }
-
-  return committed;
+  return deliveries.filter((delivery): delivery is CommittedNotification => delivery !== null);
 }
