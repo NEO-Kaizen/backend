@@ -1,6 +1,9 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
-import { ASSIGNABILITY_PREDICATES } from "../../shared/catalog/permissionCatalog.ts";
+import {
+  ASSIGNABILITY_PREDICATES,
+  type PermissionKey,
+} from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { generateProtocol } from "../../shared/protocol/generateProtocol.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
@@ -638,20 +641,29 @@ export async function findEvaluationByProtocol(
   };
 }
 
+function hasAllPermissionKeysPredicate(profileIdExpression: string, keys: readonly PermissionKey[]) {
+  const placeholders = keys.map(() => "?").join(", ");
+
+  return {
+    sql: `(SELECT COUNT(DISTINCT pp.permission_key) FROM profile_permissions AS pp WHERE pp.profile_id = ${profileIdExpression} AND pp.permission_key IN (${placeholders})) = ?`,
+    bindings: [...keys, keys.length],
+  };
+}
+
 async function findAssignableProfileIds(): Promise<number[]> {
-  const triageKeys = ASSIGNABILITY_PREDICATES.triage;
-  const mappingKeys = ASSIGNABILITY_PREDICATES.mapping;
-  const triagePlaceholders = triageKeys.map(() => "?").join(", ");
-  const mappingPlaceholders = mappingKeys.map(() => "?").join(", ");
+  const triagePredicate = hasAllPermissionKeysPredicate(
+    "p.profile_id",
+    ASSIGNABILITY_PREDICATES.triage,
+  );
+  const mappingPredicate = hasAllPermissionKeysPredicate(
+    "p.profile_id",
+    ASSIGNABILITY_PREDICATES.mapping,
+  );
   const rows = (await db("profiles as p")
     .where("p.is_active", true)
     .whereRaw(
-      "((p.is_assignable_triage = TRUE AND (SELECT COUNT(DISTINCT pp.permission_key) FROM profile_permissions AS pp WHERE pp.profile_id = p.profile_id AND pp.permission_key IN (" +
-        triagePlaceholders +
-        ")) = ?) OR (p.is_assignable_mapping = TRUE AND (SELECT COUNT(DISTINCT pp.permission_key) FROM profile_permissions AS pp WHERE pp.profile_id = p.profile_id AND pp.permission_key IN (" +
-        mappingPlaceholders +
-        ")) = ?))",
-      [...triageKeys, triageKeys.length, ...mappingKeys, mappingKeys.length],
+      `((p.is_assignable_triage = TRUE AND ${triagePredicate.sql}) OR (p.is_assignable_mapping = TRUE AND ${mappingPredicate.sql}))`,
+      [...triagePredicate.bindings, ...mappingPredicate.bindings],
     )
     .select("p.profile_id")) as Array<{ profile_id: number }>;
 
@@ -687,15 +699,15 @@ export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
  */
 async function profileHasAllPermissions(
   profileId: number,
-  keys: readonly string[],
+  keys: readonly PermissionKey[],
 ): Promise<boolean> {
-  const row = (await db("profile_permissions")
-    .where({ profile_id: profileId })
-    .whereIn("permission_key", keys)
-    .countDistinct({ total: "permission_key" })
-    .first()) as { total: string | number } | undefined;
+  const predicate = hasAllPermissionKeysPredicate("p.profile_id", keys);
+  const row = await db("profiles as p")
+    .where("p.profile_id", profileId)
+    .whereRaw(predicate.sql, predicate.bindings)
+    .first("p.profile_id");
 
-  return Number(row?.total ?? 0) === keys.length;
+  return row !== undefined;
 }
 
 export async function profileHasAssignablePermissions(
