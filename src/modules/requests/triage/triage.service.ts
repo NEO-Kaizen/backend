@@ -169,7 +169,6 @@ export async function createTriage(
       lastTechnicalMessage: triage.lastTechnicalMessage,
       expectedStatusId: request.status_id,
       updatedBy: actor.email,
-      shouldReleaseAssignee: true,
       trx,
     });
 

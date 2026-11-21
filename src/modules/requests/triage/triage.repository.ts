@@ -187,7 +187,6 @@ export interface ApplyRequestOutcomeInput {
   lastTechnicalMessage: string | null;
   expectedStatusId: number;
   updatedBy: string;
-  shouldReleaseAssignee: boolean;
   trx?: Knex.Transaction;
 }
 
@@ -200,7 +199,6 @@ export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Prom
     lastTechnicalMessage,
     expectedStatusId,
     updatedBy,
-    shouldReleaseAssignee,
     trx,
   } = input;
   const source = trx ?? db;
@@ -215,9 +213,7 @@ export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Prom
   // release automático): a solicitação volta a ficar sem responsável de
   // triagem e depende de nova atribuição. O snapshot do autor permanece em
   // `triages.assignee_*`.
-  if (shouldReleaseAssignee) {
-    updates.professional_id = null;
-  }
+  updates.professional_id = null;
 
   if (isStatusPublic) {
     if (!lastTechnicalMessage) {
