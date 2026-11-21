@@ -122,20 +122,6 @@ async function recordAccessDeniedAudit(
   });
 }
 
-/**
- * Registra a tentativa de acesso negado na auditoria e lança 404 sem revelar
- * a existência do recurso. Usado em todos os guards de custódia de requests.
- */
-async function recordAccessDeniedAndThrow(
-  protocol: string,
-  actorId: number,
-  ipAddress: string | undefined,
-  detail: string,
-): Promise<never> {
-  await recordAccessDeniedAudit(protocol, actorId, ipAddress, detail);
-  throw inaccessibleRequestError();
-}
-
 function inaccessibleRequestError(): AppError {
   return new AppError("Solicitação não encontrada", 404, "request_not_found");
 }
@@ -1289,7 +1275,7 @@ export async function updateRequestStatus(
   }
 
   if (!target.is_active) {
-    await recordAccessDeniedAndThrow(
+    await recordAccessDeniedAudit(
       request.protocol,
       actor.id,
       ipAddress,
@@ -1302,7 +1288,7 @@ export async function updateRequestStatus(
     target.is_restricted || (target.triage_mode !== "free" && target.mapping_mode !== "free");
   const hasStatusOverride = custodyFor(actor, "request:status_override") === "global";
   if (requiresOverride && !hasStatusOverride) {
-    await recordAccessDeniedAndThrow(
+    await recordAccessDeniedAudit(
       request.protocol,
       actor.id,
       ipAddress,
