@@ -50,7 +50,10 @@ import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 import { applyStatusTransition } from "./statusTransition.ts";
 import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
-import { emitStatusChangedNotification } from "../../shared/notifications/statusChangedNotification.ts";
+import {
+  emitStatusChangedNotification,
+  type StatusTarget,
+} from "../../shared/notifications/statusChangedNotification.ts";
 
 import type {
   AssignAnalystPayload,
@@ -1257,9 +1260,16 @@ export async function updateRequestStatus(
       changeOrigin,
     });
 
-    // A elegibilidade (Status público e não restrito, solicitante autenticado)
-    // é decidida por `emitStatusChangedNotification`; transições internas ou
-    // restritas continuam sem Notificação.
+    const statusTarget: StatusTarget = {
+      statusId: target.status_id,
+      isPublic: target.isPublic,
+      isRestricted: target.is_restricted,
+    };
+
+    // A mudança efetiva e a elegibilidade (Status público e não restrito,
+    // solicitante autenticado) são decididas por
+    // `emitStatusChangedNotification`; transições internas ou restritas
+    // continuam sem Notificação.
     const committedNotifications = await emitStatusChangedNotification(trx, {
       source: "status_patch",
       auditId,
@@ -1270,11 +1280,7 @@ export async function updateRequestStatus(
       actorUserId: actor.id,
       requesterUserId: request.requester_user_id,
       previousStatusId: request.current_status_id,
-      targetStatus: {
-        statusId: target.status_id,
-        isPublic: target.isPublic,
-        isRestricted: target.is_restricted,
-      },
+      targetStatus: statusTarget,
     });
 
     return { lastUpdate: persistedAt, committed: committedNotifications };

@@ -10,6 +10,13 @@ const EVENT_KEY_PREFIXES: Record<StatusChangeSource, string> = {
   triage_verdict: "request.triage",
 };
 
+/** Status de destino e sua visibilidade, usados pela regra de audiência. */
+export interface StatusTarget {
+  statusId: number;
+  isPublic: boolean;
+  isRestricted: boolean;
+}
+
 export interface StatusChangedNotificationInput extends Omit<
   StatusChangedNotificationPayload,
   "type"
@@ -23,11 +30,7 @@ export interface StatusChangedNotificationInput extends Omit<
   /** Status anterior; igual ao destino significa que não houve mudança. */
   previousStatusId: number | null;
   /** Status de destino; a visibilidade decide a audiência. */
-  targetStatus: {
-    statusId: number;
-    isPublic: boolean;
-    isRestricted: boolean;
-  };
+  targetStatus: StatusTarget;
 }
 
 /**

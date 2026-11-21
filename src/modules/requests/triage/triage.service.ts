@@ -4,7 +4,10 @@ import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import { publishCommittedNotifications } from "../../../shared/notifications/notificationEmitter.ts";
-import { emitStatusChangedNotification } from "../../../shared/notifications/statusChangedNotification.ts";
+import {
+  emitStatusChangedNotification,
+  type StatusTarget,
+} from "../../../shared/notifications/statusChangedNotification.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import * as repository from "./triage.repository.ts";
 
@@ -210,6 +213,13 @@ export async function createTriage(
       });
     }
 
+    const statusTarget: StatusTarget = {
+      statusId: exitStatus.status_id,
+      isPublic: exitStatus.isPublic,
+      // `resolveExitStatus` só devolve Status com `is_restricted=false`.
+      isRestricted: false,
+    };
+
     // A mudança efetiva e a elegibilidade (público e não restrito) são
     // decididas por `emitStatusChangedNotification`.
     return emitStatusChangedNotification(trx, {
@@ -222,12 +232,7 @@ export async function createTriage(
       actorUserId: actor.id,
       requesterUserId: request.requester_user_id,
       previousStatusId: request.status_id,
-      targetStatus: {
-        statusId: exitStatus.status_id,
-        isPublic: exitStatus.isPublic,
-        // `resolveExitStatus` só devolve Status com `is_restricted=false`.
-        isRestricted: false,
-      },
+      targetStatus: statusTarget,
     });
   });
 
