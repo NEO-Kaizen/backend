@@ -1,10 +1,14 @@
-# Contrato de API — Responsável Técnico da Solicitação
+# Regras de negócio — Responsável Técnico da Solicitação
 
-Contrato Frontend ↔ Backend para listar os responsáveis técnicos elegíveis e
+Regras de negócio para listar os responsáveis técnicos elegíveis e
 definir/substituir/remover o responsável de uma solicitação (issue #50).
 
 - Fonte de verdade: Issue #50 e RN-010 (gatilho de status na triagem de
   elegíveis).
+- Fonte da verdade das rotas, payloads e respostas: OpenAPI em
+  `src/docs/paths/requests.ts` e `src/docs/schemas/`.
+- Este documento descreve regras de negócio e exemplos; não é fonte da verdade
+  do contrato HTTP.
 - Referências: `src/modules/requests/*` (router/controller/service/repository),
   `src/modules/DTOs/requests/RequestResponse.dto.ts` (`AssigneeSummary`,
   `AssignRequestResponse`), `src/shared/audit/auditCatalog.ts` (entidade
@@ -24,6 +28,12 @@ O Responsável é atribuível quando a extensão de profissional está ativa,
 a conta e o Perfil estão ativos, a flag de Atribuibilidade da etapa está ligada
 e o Perfil tem as chaves exigidas pelo predicado dessa etapa. A API revalida
 essas condições no servidor em cada atribuição e reatribuição.
+
+Para designação interna, o ator precisa de `request:assign` e Custódia sobre a
+solicitação; o alvo inválido (incluindo usuário ou Perfil inativo) responde
+`400` com o código estável `assignee_not_assignable`. A reatribuição aplica as
+mesmas validações. Quando o ator não pode ler a linha após a mutação, a resposta
+é um acknowledgement `{ protocol, updated: true }`, sem conteúdo interno.
 
 `requests.professional_id` referencia `details_professional.professional_id` com `ON DELETE SET NULL` — solicitações antigas mantêm o vínculo mesmo se o
 profissional for desativado.

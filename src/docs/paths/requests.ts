@@ -138,9 +138,9 @@ export default {
   "/requests/assignees": {
     get: {
       tags: ["Solicitações"],
-      summary: "Listar responsáveis por triagem",
+      summary: "Listar responsáveis atribuíveis",
       description:
-        "Retorna a lista de profissionais com perfil `Analista` ativos, para uso no modal de atribuição de triagem.",
+        "Exige `assignee_directory:read`. Retorna profissionais com conta, Perfil e extensão ativos, flag de Atribuibilidade habilitada e permissões exigidas pela etapa.",
       operationId: "getAssignees",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -150,7 +150,7 @@ export default {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                items: { $ref: "#/components/schemas/AssigneeSummary" },
               },
             },
           },
@@ -164,7 +164,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Analista, Gestor, Administrador).",
+          description: "Ator sem `assignee_directory:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -216,7 +216,7 @@ export default {
       summary: "Consulta administrativa de solicitação",
       description:
         "Retorna os 4 blocos completos do cadastro, status, prioridade, responsável, anexos e observações internas. " +
-        "Exige autenticação e perfil Analista, Gestor ou Administrador.",
+        "Exige `request:read`; a Custódia `assigned` limita a leitura às linhas sob responsabilidade do ator, e `all` permite qualquer linha.",
       operationId: "getInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -232,7 +232,7 @@ export default {
           description: "Detalhes internos da solicitação.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/RequestInternalDetail" },
             },
           },
         },
@@ -245,7 +245,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso a solicitação.",
+          description: "Ator autenticado sem `request:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -253,7 +253,7 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo inexistente.",
+          description: "Protocolo inexistente ou fora da Custódia de leitura.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -268,7 +268,7 @@ export default {
       description:
         "Atualiza os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). " +
         "Substituição completa: chave ausente = campo limpo (NULL). " +
-        "Exige autenticação e perfil Analista, Gestor ou Administrador.",
+        "Exige `request:write` e Custódia sobre a linha. `request:write` requer também `request:read`; Custódias de leitura e escrita podem ter alcances diferentes.",
       operationId: "patchInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -283,15 +283,7 @@ export default {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                requester: { type: "object" },
-                demand: { type: "object" },
-                operational: { type: "object" },
-                complementary: { type: "object" },
-              },
-            },
+            schema: { $ref: "#/components/schemas/InternalRequestUpdate" },
           },
         },
       },
@@ -300,7 +292,12 @@ export default {
           description: "Solicitação atualizada.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: {
+                oneOf: [
+                  { $ref: "#/components/schemas/RequestInternalDetail" },
+                  { $ref: "#/components/schemas/RequestMutationAcknowledgement" },
+                ],
+              },
             },
           },
         },
@@ -313,7 +310,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil não autorizado.",
+          description: "Ator sem `request:write`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -321,7 +318,7 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo inexistente.",
+          description: "Protocolo inexistente ou fora da Custódia de escrita.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -529,7 +526,7 @@ export default {
       tags: ["Solicitações"],
       summary: "Trocar status da solicitação",
       description:
-        "Troca única de status do Motor de Status v4. Administrador faz bypass; responsável com custódia apenas para status `free` e `isRestricted=false`. Exige justificativa.",
+        "Exige `request:status_change` e Custódia sobre a solicitação. Status restritos ou fora do modo da etapa exigem `request:status_override` global. Alvo inativo retorna 409; recusas por Custódia mantêm 404 para não revelar a solicitação.",
       operationId: "patchRequestStatus",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -561,7 +558,7 @@ export default {
           description: "Status alterado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/RequestStatusChangeResponse" },
             },
           },
         },
@@ -582,7 +579,7 @@ export default {
           },
         },
         "403": {
-          description: "Sem permissão para alterar o status.",
+          description: "Sem `request:status_change` ou sem `request:status_override` para o alvo.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -590,7 +587,8 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo inexistente.",
+          description:
+            "Solicitação inexistente ou fora da Custódia do ator; alvo de status inexistente.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -605,17 +603,24 @@ export default {
             },
           },
         },
+        "409": {
+          description: "Status de destino inativo.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
-  "/requests/{protocol}/internal/assignee": {
+  "/requests/{protocol}/assignee": {
     patch: {
       tags: ["Solicitações"],
-      summary: "Atribuir responsável interno",
+      summary: "Definir ou remover responsável",
       description:
-        "Define ou remove o responsável (assignee) ou mapeamento (mappingAssigneeId). " +
-        "Exatamente um dos dois campos deve ser informado. Exige perfil Analista ou Administrador.",
-      operationId: "patchInternalAssignee",
+        "Rota legada de designação. Exige `request:assign` e Custódia sobre a solicitação. O service valida a Atribuibilidade do alvo também em reatribuições; alvo inválido retorna 400 com code `assignee_not_assignable`.",
+      operationId: "patchRequestAssignee",
       security: [{ cookieAuth: [] }],
       parameters: [
         {
@@ -632,8 +637,12 @@ export default {
             schema: {
               type: "object",
               properties: {
-                assigneeId: { type: "string", nullable: true },
-                mappingAssigneeId: { type: "string", nullable: true },
+                professionalId: {
+                  type: "string",
+                  format: "uuid",
+                  nullable: true,
+                  description: "UUID do responsável; omitido ou null remove o responsável.",
+                },
               },
             },
           },
@@ -641,15 +650,15 @@ export default {
       },
       responses: {
         "200": {
-          description: "Responsável atribuído com sucesso.",
+          description: "Responsável atualizado.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/AssignRequestResponse" },
             },
           },
         },
         "400": {
-          description: "Payload inválido (não informou exatamente um dos campos).",
+          description: "Payload inválido ou alvo não atribuível (`assignee_not_assignable`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -665,7 +674,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil não autorizado.",
+          description: "Ator sem `request:assign`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -673,7 +682,94 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo inexistente.",
+          description: "Solicitação inexistente ou fora da Custódia do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+  },
+  "/requests/{protocol}/internal/assignee": {
+    patch: {
+      tags: ["Solicitações"],
+      summary: "Atribuir responsável interno",
+      description:
+        "Define ou remove o responsável (assignee) ou mapeamento (mappingAssigneeId). " +
+        "Exatamente um dos dois campos deve ser informado. Exige `request:assign` e Custódia sobre a solicitação; o service valida a Atribuibilidade do alvo. Alvo inválido retorna 400 com code `assignee_not_assignable`.",
+      operationId: "patchInternalAssignee",
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              oneOf: [
+                {
+                  type: "object",
+                  required: ["assigneeId"],
+                  properties: { assigneeId: { type: "string", nullable: true } },
+                },
+                {
+                  type: "object",
+                  required: ["mappingAssigneeId"],
+                  properties: { mappingAssigneeId: { type: "string", nullable: true } },
+                },
+              ],
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Responsável atribuído com sucesso.",
+          content: {
+            "application/json": {
+              schema: {
+                oneOf: [
+                  { $ref: "#/components/schemas/RequestInternalDetail" },
+                  { $ref: "#/components/schemas/RequestMutationAcknowledgement" },
+                ],
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Payload inválido ou alvo não atribuível (`assignee_not_assignable`).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Ator sem `request:assign`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação inexistente ou fora da Custódia do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

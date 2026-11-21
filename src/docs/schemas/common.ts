@@ -5,6 +5,7 @@ export const ErrorResponse = {
     status: { type: "string", example: "error" },
     statusCode: { type: "integer", example: 400 },
     message: { type: "string", example: "E-mail ou senha ausentes." },
+    code: { type: "string", example: "assignee_not_assignable" },
   },
 };
 

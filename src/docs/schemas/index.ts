@@ -17,6 +17,14 @@ import {
   UserProfileResponse,
 } from "./user.ts";
 import { RequestSummary, RequestDetail } from "./request.ts";
+import {
+  AssigneeSummary,
+  AssignRequestResponse,
+  InternalRequestUpdate,
+  RequestInternalDetail,
+  RequestMutationAcknowledgement,
+  RequestStatusChangeResponse,
+} from "./requestsInternal.ts";
 
 import { QueueMetrics, QueueItem, QueueResponse } from "./queue.ts";
 
@@ -62,6 +70,12 @@ export {
   UserProfileResponse,
   RequestSummary,
   RequestDetail,
+  AssigneeSummary,
+  AssignRequestResponse,
+  InternalRequestUpdate,
+  RequestInternalDetail,
+  RequestMutationAcknowledgement,
+  RequestStatusChangeResponse,
   QueueMetrics,
   QueueItem,
   QueueResponse,
@@ -103,6 +117,12 @@ export const schemas = {
   UserProfileResponse,
   RequestSummary,
   RequestDetail,
+  AssigneeSummary,
+  AssignRequestResponse,
+  InternalRequestUpdate,
+  RequestInternalDetail,
+  RequestMutationAcknowledgement,
+  RequestStatusChangeResponse,
   QueueMetrics,
   QueueItem,
   QueueResponse,
