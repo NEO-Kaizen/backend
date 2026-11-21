@@ -53,6 +53,15 @@ import {
   StatusTimeResponse,
 } from "./audit.ts";
 
+import {
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
+} from "./notifications.ts";
+
 export {
   ErrorResponse,
   ValidationErrorResponse,
@@ -97,6 +106,12 @@ export {
   StatusTimeInterval,
   StatusTimeByStatus,
   StatusTimeResponse,
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
 };
 
 export const schemas = {
@@ -143,4 +158,10 @@ export const schemas = {
   StatusTimeInterval,
   StatusTimeByStatus,
   StatusTimeResponse,
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
 } as const;

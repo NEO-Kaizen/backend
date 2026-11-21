@@ -36,21 +36,10 @@ interface Analyst extends UserSummary {
   mustChangePassword: boolean;
   createdAt: string; // ISO
   specialty: string; // "" permitido → frontend oculta linha
-  categories: RequestCategory[]; // [] permitido → sem chips
+  categories: string[]; // nomes das categorias do cadastro ativo/configurável; [] permitido → sem chips
   notes: string | null; // null/vazio → sem bloco NOTAS
   requestLoad: number | null; // null → sem coluna demandas
 }
-type RequestCategory =
-  | "Automação"
-  | "Melhoria de processo"
-  | "Indicador"
-  | "Dashboard ou relatório"
-  | "Análise de dados"
-  | "Padronização"
-  | "Revisão de processo"
-  | "Apoio técnico"
-  | "Estudo de viabilidade"
-  | "Outros";
 ```
 
 **Erros:** `401/403/500` → `{status:'error', statusCode, message}`.

@@ -19,9 +19,10 @@ import {
   type StatusTimeTransition,
 } from "./statusTime.ts";
 
-const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
-  Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
-) as Record<AuditEntityName, string>;
+/** Rótulo do catálogo; valores históricos fora dele caem no próprio nome persistido. */
+function entityTypeLabel(entityType: string): string {
+  return isAuditEntityName(entityType) ? auditCatalog[entityType].label : entityType;
+}
 
 export async function listAuditHistoryLogs(
   filters: AuditHistoryQuery,
@@ -30,8 +31,10 @@ export async function listAuditHistoryLogs(
 
   const formatted: AuditHistorySummary[] = items.map((row) => ({
     audit_id: Number(row.audit_id),
+    // Valores históricos podem estar fora do catálogo atual; o contrato expõe
+    // o valor persistido e o label cai no fallback.
     entity_type: row.entity_type,
-    entity_type_label: entityLabels[row.entity_type as AuditEntityName] ?? row.entity_type,
+    entity_type_label: entityTypeLabel(row.entity_type),
     action_type: row.action_type,
     actor: {
       kind: row.user_id === null ? "system" : "user",

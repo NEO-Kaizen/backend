@@ -1,14 +1,15 @@
-import { AppError } from "../../shared/errors/AppError.ts";
+﻿import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type {
   RequestStatus,
-  OperationalImpact,
   RequestPriority,
   RequesterBlock,
   DemandBlock,
   AssignmentContextRow,
+  InternalRequestRow,
 } from "../../shared/types/requests.ts";
+import { REQUEST_PRIORITIES } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
   Meeting,
@@ -48,6 +49,8 @@ import {
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 import { applyStatusTransition } from "./statusTransition.ts";
+import { emitNotification } from "../../shared/notifications/emitNotification.ts";
+import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 
 import type {
   AssignAnalystPayload,
@@ -64,15 +67,15 @@ interface AuthenticatedIdentity {
 }
 
 /**
- * Resolve a identidade do usuário autenticado direto do banco (fonte fresca):
- * `name`/`email` do payload do JWT podem estar obsoletos após uma edição de
- * perfil, então a lista/consulta e a criação usam o cadastro atual.
+ * Resolve a identidade do usuÃ¡rio autenticado direto do banco (fonte fresca):
+ * `name`/`email` do payload do JWT podem estar obsoletos apÃ³s uma ediÃ§Ã£o de
+ * perfil, entÃ£o a lista/consulta e a criaÃ§Ã£o usam o cadastro atual.
  */
 async function resolveAuthenticatedIdentity(userId: number): Promise<AuthenticatedIdentity> {
   const user = await findUserById(userId);
 
   if (!user || !user.is_active || !user.profile_is_active) {
-    throw new AppError("Sessão inválida", 401);
+    throw new AppError("SessÃ£o invÃ¡lida", 401);
   }
 
   return { fullName: user.full_name, email: user.email };
@@ -87,15 +90,15 @@ export async function findRequest(
   const found = await repository.findRequestByProtocolWithOwner(normalizedProtocol);
 
   if (!found) {
-    throw new AppError("Protocolo não encontrado", 404);
+    throw new AppError("Protocolo nÃ£o encontrado", 404);
   }
 
-  // No modo AUTHENTICATED só o dono enxerga a solicitação. Retornamos 404 (e
-  // não 403) para não revelar a existência de um protocolo de terceiros.
+  // No modo AUTHENTICATED sÃ³ o dono enxerga a solicitaÃ§Ã£o. Retornamos 404 (e
+  // nÃ£o 403) para nÃ£o revelar a existÃªncia de um protocolo de terceiros.
   if (authenticatedUserId !== undefined) {
     const identity = await resolveAuthenticatedIdentity(authenticatedUserId);
     if (found.requesterEmail.trim().toLowerCase() !== identity.email.trim().toLowerCase()) {
-      throw new AppError("Protocolo não encontrado", 404);
+      throw new AppError("Protocolo nÃ£o encontrado", 404);
     }
   }
 
@@ -108,7 +111,7 @@ export async function registerRequest(
   authenticatedUserId?: number,
 ) {
   try {
-    // No modo AUTHENTICATED a identidade vem do cadastro, não do payload —
+    // No modo AUTHENTICATED a identidade vem do cadastro, nÃ£o do payload â€”
     // evita que o solicitante se passe por outro e-mail/nome (spoofing).
     const payload =
       authenticatedUserId === undefined
@@ -142,20 +145,20 @@ export async function listRequestsByEmail(
   input: ListRequestsInput,
   authenticatedUserId?: number,
 ): Promise<PaginatedResponse<RequestSummary>> {
-  // No modo AUTHENTICATED o e-mail vem da sessão; em PUBLIC, da query.
+  // No modo AUTHENTICATED o e-mail vem da sessÃ£o; em PUBLIC, da query.
   const email =
     authenticatedUserId === undefined
       ? input.email
       : (await resolveAuthenticatedIdentity(authenticatedUserId)).email;
 
   if (!email) {
-    throw new AppError("Parâmetro obrigatório ausente: email", 400);
+    throw new AppError("ParÃ¢metro obrigatÃ³rio ausente: email", 400);
   }
 
   const normalizedEmail = email.trim().toLowerCase();
 
   if (input.status && !(await repository.findStatusByName(input.status))) {
-    throw new AppError("Status inválido.", 400);
+    throw new AppError("Status invÃ¡lido.", 400);
   }
 
   return repository.findRequestsByRequesterEmail({
@@ -167,21 +170,21 @@ export async function listRequestsByEmail(
 }
 
 // --- Consulta administrativa/interna (issue #48) ---------------------------
-// Difere de findRequest (pública, issue #34): retorna o DTO interno completo,
-// nunca o público. Ver docs/requests-internal-query-contract.md.
+// Difere de findRequest (pÃºblica, issue #34): retorna o DTO interno completo,
+// nunca o pÃºblico. Ver docs/requests-internal-query-contract.md.
 
-// Resposta "Sim/Não (+ detalhamento)": undefined quando o campo não foi
-// respondido (Bloco 4 é opcional — o contrato espera a chave ausente, não
-// null; res.json/JSON.stringify já removem chaves com valor undefined),
-// false para "Não", string com o detalhe para "Sim".
+// Resposta "Sim/NÃ£o (+ detalhamento)": undefined quando o campo nÃ£o foi
+// respondido (Bloco 4 Ã© opcional â€” o contrato espera a chave ausente, nÃ£o
+// null; res.json/JSON.stringify jÃ¡ removem chaves com valor undefined),
+// false para "NÃ£o", string com o detalhe para "Sim".
 function toYesNoDetail(hasFlag: boolean | null, detail: string | null): YesNoDetail | undefined {
   if (hasFlag === null || hasFlag === undefined) return undefined;
   if (hasFlag === false) return false;
   return detail ?? "";
 }
 
-// Variante para o Bloco 3, cujo campo é obrigatório (NOT NULL no schema):
-// a flag nunca é null e o retorno nunca é undefined — dispensa o `as`.
+// Variante para o Bloco 3, cujo campo Ã© obrigatÃ³rio (NOT NULL no schema):
+// a flag nunca Ã© null e o retorno nunca Ã© undefined â€” dispensa o `as`.
 function toRequiredYesNoDetail(flag: boolean, detail: string | null): YesNoDetail {
   if (flag === false) return false;
   return detail ?? "";
@@ -195,45 +198,42 @@ export async function findInternalByProtocol(
   protocol: string,
   actor?: { id: number; role: Role },
 ): Promise<RequestInternalDetailDTO> {
-  const request = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const request = await repository.findInternalRequestByProtocol(protocol);
 
   if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
+    throw new AppError("SolicitaÃ§Ã£o nÃ£o encontrada", 404);
   }
 
   // Visibilidade da consulta interna (escopo #102): Administrador e Gestor
-  // (read-only) veem qualquer solicitação; Analista apenas as atribuídas
-  // (triagem ou mapeamento). Solicitante não chega aqui (router).
+  // (read-only) veem qualquer solicitaÃ§Ã£o; Analista apenas as atribuÃ­das
+  // (triagem ou mapeamento). Solicitante nÃ£o chega aqui (router).
   if (actor?.role === "Analista") {
-    const assigneeUserId = request["assignee_user_id"] as number | null;
-    const mappingUserId = request["mapping_user_id"] as number | null;
+    const assigneeUserId = request.assignee_user_id;
+    const mappingUserId = request.mapping_user_id;
     const isAssignee = assigneeUserId === actor.id || mappingUserId === actor.id;
     if (!isAssignee) {
-      throw new AppError("Acesso negado a esta solicitação", 403);
+      throw new AppError("Acesso negado a esta solicitaÃ§Ã£o", 403);
     }
   }
 
-  const requestId = request["request_id"] as string;
+  const requestId = request.request_id;
   const [attachments, schedulePreferences, evaluation] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
     repository.findEvaluationByProtocol(protocol),
   ]);
 
-  const meetingScheduledFor: string | null = request["meeting_scheduled_for"]
-    ? new Date(request["meeting_scheduled_for"] as string).toISOString()
+  const meetingScheduledFor: string | null = request.meeting_scheduled_for
+    ? new Date(request.meeting_scheduled_for).toISOString()
     : null;
   const meeting = meetingScheduledFor
     ? {
         scheduledFor: meetingScheduledFor,
-        link: (request["meeting_link"] as string | null) ?? null,
+        link: request.meeting_link ?? null,
       }
     : null;
 
-  // Pendências (contract-pendencias_03): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
+  // PendÃªncias (contract-pendencias_03): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
   const pendingSummary = await (async () => {
     try {
       const summary = await pendingItemsRepo.pendingSummaryByRequestId(requestId);
@@ -259,52 +259,49 @@ export async function findInternalByProtocol(
 
   const complementary: ComplementaryBlock = {
     hasProcessDocumentation: toYesNoDetail(
-      request["has_process_documentation"] as boolean | null,
-      request["process_documentation_detail"] as string | null,
+      request.has_process_documentation,
+      request.process_documentation_detail,
     ),
     hasSimilarSolution: toYesNoDetail(
-      request["has_similar_solution"] as boolean | null,
-      request["similar_solution_detail"] as string | null,
+      request.has_similar_solution,
+      request.similar_solution_detail,
     ),
-    dependsOnOtherAreas: toYesNoDetail(
-      request["depends_on_other_areas"] as boolean | null,
-      request["other_areas_detail"] as string | null,
-    ),
+    dependsOnOtherAreas: toYesNoDetail(request.depends_on_other_areas, request.other_areas_detail),
     handlesRestrictedInfo: toYesNoDetail(
-      request["handles_restricted_info"] as boolean | null,
-      request["restricted_info_detail"] as string | null,
+      request.handles_restricted_info,
+      request.restricted_info_detail,
     ),
-    additionalNotes: (request["additional_notes"] as string | null) ?? undefined,
+    additionalNotes: request.additional_notes ?? undefined,
   };
 
-  const openedAt = normalizeIsoDate(request["created_at"]) ?? new Date().toISOString();
-  const lastUpdate = normalizeIsoDate(request["updated_at"]) ?? openedAt;
+  const openedAt = normalizeIsoDate(request.created_at) ?? new Date().toISOString();
+  const lastUpdate = normalizeIsoDate(request.updated_at) ?? openedAt;
 
-  const assigneeUserId = request["assignee_user_id"] as number | null;
-  const mappingUserId = request["mapping_user_id"] as number | null;
+  const assigneeUserId = request.assignee_user_id;
+  const mappingUserId = request.mapping_user_id;
 
   const assignee =
-    assigneeUserId !== null && assigneeUserId !== undefined && request["professional_name"]
+    assigneeUserId !== null && assigneeUserId !== undefined && request.professional_name
       ? {
           id: String(assigneeUserId),
-          name: request["professional_name"] as string,
-          email: (request["professional_email"] as string | null) ?? null,
+          name: request.professional_name,
+          email: request.professional_email ?? null,
         }
       : null;
 
   const mappingAssignee =
-    mappingUserId !== null && mappingUserId !== undefined && request["mapping_name"]
+    mappingUserId !== null && mappingUserId !== undefined && request.mapping_name
       ? {
           id: String(mappingUserId),
-          name: request["mapping_name"] as string,
-          email: (request["mapping_email"] as string | null) ?? null,
+          name: request.mapping_name,
+          email: request.mapping_email ?? null,
         }
       : null;
 
   return {
-    protocol: request["protocol"] as string,
-    status: request["status"] as string,
-    priority: (request["priority"] as string | null) ?? null,
+    protocol: request.protocol,
+    status: request.status,
+    priority: parseRequestPriority(request.priority),
     prioritization: {
       score: evaluation ? evaluation.score : null,
       maxScore: 50,
@@ -317,41 +314,42 @@ export async function findInternalByProtocol(
     pendingSummary: pendingSummary.summary,
     unread: pendingSummary.unread,
     requester: {
-      fullName: request["requester_name"] as string,
-      corporateEmail: request["requester_email"] as string,
-      area: (request["requester_area"] as string | null) ?? "",
-      department: (request["requester_department"] as string | null) ?? undefined,
-      manager: (request["requester_manager"] as string | null) ?? "",
-      additionalContact: (request["requester_additional_contact"] as string | null) ?? undefined,
+      fullName: request.requester_name,
+      corporateEmail: request.requester_email,
+      area: request.requester_area ?? "",
+      department: request.requester_department ?? undefined,
+      manager: request.requester_manager ?? "",
+      additionalContact: request.requester_additional_contact ?? undefined,
     },
     demand: {
-      title: request["title"] as string,
-      requestType: request["request_type"] as string,
-      category: request["category"] as string,
-      processName: request["process_name"] as string,
-      description: request["need_description"] as string,
-      problem: request["problem_opportunity"] as string,
-      expectedResult: request["expected_result"] as string,
-      justification: request["justification"] as string,
+      title: request.title,
+      requestType: request.request_type,
+      // O join com `categories` Ã© a fonte do nome; o contrato exige string.
+      category: request.category,
+      processName: request.process_name,
+      description: request.need_description,
+      problem: request.problem_opportunity,
+      expectedResult: request.expected_result,
+      justification: request.justification,
     },
     operational: {
-      processDescription: request["process_description"] as string,
-      processSteps: request["process_steps"] as string,
-      systemsUsed: request["systems_used"] as string,
-      executionFrequency: request["execution_frequency"] as string,
-      volumetry: request["approximate_volume"] as string,
-      peopleInvolved: request["people_involved"] as number,
-      averageExecutionTime: request["average_duration"] as string,
-      monthlyEffortHours: Number(request["estimated_monthly_effort"]),
+      processDescription: request.process_description,
+      processSteps: request.process_steps,
+      systemsUsed: request.systems_used,
+      executionFrequency: request.execution_frequency,
+      volumetry: request.approximate_volume,
+      peopleInvolved: request.people_involved,
+      averageExecutionTime: request.average_duration,
+      monthlyEffortHours: Number(request.estimated_monthly_effort),
       hasManualControls: toRequiredYesNoDetail(
-        request["has_manual_controls"] as boolean,
-        request["manual_controls_detail"] as string | null,
+        request.has_manual_controls,
+        request.manual_controls_detail,
       ),
-      mainRisks: request["main_risks"] as string,
-      clientImpact: request["client_impact"] as string,
-      operationalImpact: request["operational_impact"] as OperationalImpact,
-      desiredDeadline: toDateOnly(request["desired_deadline"] as string | Date),
-      perceivedCriticality: request["perceived_criticality"] as RequestPriority,
+      mainRisks: request.main_risks,
+      clientImpact: request.client_impact,
+      operationalImpact: request.operational_impact,
+      desiredDeadline: toDateOnly(request.desired_deadline),
+      perceivedCriticality: request.perceived_criticality,
     },
     complementary: hasComplementaryData(complementary) ? complementary : undefined,
     schedulePreferences:
@@ -369,18 +367,18 @@ export async function findInternalByProtocol(
     })),
     openedAt,
     lastUpdate,
-    internalObservations: extractInternalObservations(request["internal_notes"] as string | null),
+    internalObservations: extractInternalObservations(request.internal_notes),
   };
 }
 
 /**
- * Extrai as observações internas puras de `requests.internal_notes`,
+ * Extrai as observaÃ§Ãµes internas puras de `requests.internal_notes`,
  * descartando o wrapper legado da triagem (`__triage`) quando presente.
  *
- * A partir da v2.0 a triagem vive na tabela `triages` (não escreve mais neste
+ * A partir da v2.0 a triagem vive na tabela `triages` (nÃ£o escreve mais neste
  * campo); o strip de `__triage` permanece apenas defensivo para dados legados.
- * O texto bruto restante — observações não-JSON (guardadas sob `observations`)
- * ou qualquer outra chave customizada — continua sendo o `internalObservations`
+ * O texto bruto restante â€” observaÃ§Ãµes nÃ£o-JSON (guardadas sob `observations`)
+ * ou qualquer outra chave customizada â€” continua sendo o `internalObservations`
  * do contrato.
  */
 function extractInternalObservations(raw: string | null | undefined): string | null {
@@ -402,7 +400,7 @@ function extractInternalObservations(raw: string | null | undefined): string | n
         return JSON.stringify(rest);
       }
     } catch {
-      // Não-JSON: trata como texto comum de observação.
+      // NÃ£o-JSON: trata como texto comum de observaÃ§Ã£o.
     }
   }
 
@@ -411,10 +409,10 @@ function extractInternalObservations(raw: string | null | undefined): string | n
 
 // --- Acompanhamento do solicitante (GET /requests/:protocol/tracking) -------
 // Contrato em `../DTOs/requests/RequestTracking.dto.ts` (espelho fiel de
-// `frontend/src/lib/types/requester-tracking.ts`). O `mode` é decidido pela
-// credencial resolvida no middleware dual: cookie de sessão do dono →
-// `authenticated`; header `X-Requester-Identity` verificado em modo PUBLIC →
-// `public`. Nunca devolve dados internos (triagem, priorização, anotações).
+// `frontend/src/lib/types/requester-tracking.ts`). O `mode` Ã© decidido pela
+// credencial resolvida no middleware dual: cookie de sessÃ£o do dono â†’
+// `authenticated`; header `X-Requester-Identity` verificado em modo PUBLIC â†’
+// `public`. Nunca devolve dados internos (triagem, priorizaÃ§Ã£o, anotaÃ§Ãµes).
 
 /** Credencial resolvida por `shared/middleware/dualAuth.ts`. */
 export interface TrackingCaller {
@@ -422,86 +420,82 @@ export interface TrackingCaller {
   requesterIdentity?: { name: string; email: string } | null;
 }
 
-const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitação.";
+const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitaÃ§Ã£o.";
 
-function mapTrackingMeeting(row: Record<string, unknown>): Meeting | null {
-  const scheduledFor = row["meeting_scheduled_for"]
-    ? new Date(row["meeting_scheduled_for"] as string).toISOString()
+function parseRequestPriority(value: string | null): RequestPriority | null {
+  if (value == null) return null;
+  return (REQUEST_PRIORITIES as readonly string[]).includes(value)
+    ? (value as RequestPriority)
+    : null;
+}
+
+function mapTrackingMeeting(row: InternalRequestRow): Meeting | null {
+  const scheduledFor = row.meeting_scheduled_for
+    ? new Date(row.meeting_scheduled_for).toISOString()
     : null;
 
   if (!scheduledFor) return null;
 
-  return { scheduledFor, link: (row["meeting_link"] as string | null) ?? null };
+  return { scheduledFor, link: row.meeting_link ?? null };
 }
 
-function mapTrackingRequester(row: Record<string, unknown>): RequesterBlock {
+function mapTrackingRequester(row: InternalRequestRow): RequesterBlock {
   return {
-    fullName: (row["requester_name"] as string) ?? "",
-    corporateEmail: (row["requester_email"] as string) ?? "",
-    area: (row["requester_area"] as string | null) ?? "",
-    department: (row["requester_department"] as string | null) ?? undefined,
-    manager: (row["requester_manager"] as string | null) ?? "",
-    additionalContact: (row["requester_additional_contact"] as string | null) ?? undefined,
+    fullName: row.requester_name ?? "",
+    corporateEmail: row.requester_email ?? "",
+    area: row.requester_area ?? "",
+    department: row.requester_department ?? undefined,
+    manager: row.requester_manager ?? "",
+    additionalContact: row.requester_additional_contact ?? undefined,
   };
 }
 
-function mapTrackingDemand(row: Record<string, unknown>): DemandBlock {
+function mapTrackingDemand(row: InternalRequestRow): DemandBlock {
   return {
-    title: row["title"] as string,
-    requestType: row["request_type"] as string,
-    category: (row["category"] as string | null) ?? "",
-    processName: row["process_name"] as string,
-    description: row["need_description"] as string,
-    problem: row["problem_opportunity"] as string,
-    expectedResult: row["expected_result"] as string,
-    justification: row["justification"] as string,
+    title: row.title,
+    requestType: row.request_type,
+    category: row.category,
+    processName: row.process_name,
+    description: row.need_description,
+    problem: row.problem_opportunity,
+    expectedResult: row.expected_result,
+    justification: row.justification,
   };
 }
 
-function mapTrackingImpacts(row: Record<string, unknown>): PublicOperationalImpacts {
+function mapTrackingImpacts(row: InternalRequestRow): PublicOperationalImpacts {
   return {
-    mainRisks: row["main_risks"] as string,
-    clientImpact: row["client_impact"] as string,
-    operationalImpact: row["operational_impact"] as OperationalImpact,
-    perceivedCriticality: row["perceived_criticality"] as RequestPriority,
-    desiredDeadline: toDateOnly(row["desired_deadline"] as string | Date),
+    mainRisks: row.main_risks,
+    clientImpact: row.client_impact,
+    operationalImpact: row.operational_impact,
+    perceivedCriticality: row.perceived_criticality,
+    desiredDeadline: toDateOnly(row.desired_deadline),
   };
 }
 
-function mapTrackingComplementary(row: Record<string, unknown>): ComplementaryBlock {
+function mapTrackingComplementary(row: InternalRequestRow): ComplementaryBlock {
   return {
     hasProcessDocumentation: toYesNoDetail(
-      row["has_process_documentation"] as boolean | null,
-      row["process_documentation_detail"] as string | null,
+      row.has_process_documentation,
+      row.process_documentation_detail,
     ),
-    hasSimilarSolution: toYesNoDetail(
-      row["has_similar_solution"] as boolean | null,
-      row["similar_solution_detail"] as string | null,
-    ),
-    dependsOnOtherAreas: toYesNoDetail(
-      row["depends_on_other_areas"] as boolean | null,
-      row["other_areas_detail"] as string | null,
-    ),
-    handlesRestrictedInfo: toYesNoDetail(
-      row["handles_restricted_info"] as boolean | null,
-      row["restricted_info_detail"] as string | null,
-    ),
-    additionalNotes: (row["additional_notes"] as string | null) ?? undefined,
+    hasSimilarSolution: toYesNoDetail(row.has_similar_solution, row.similar_solution_detail),
+    dependsOnOtherAreas: toYesNoDetail(row.depends_on_other_areas, row.other_areas_detail),
+    handlesRestrictedInfo: toYesNoDetail(row.handles_restricted_info, row.restricted_info_detail),
+    additionalNotes: row.additional_notes ?? undefined,
   };
 }
 
-function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails {
-  const openedAt = normalizeIsoDate(row["created_at"]) ?? new Date().toISOString();
+function buildPublicDetails(row: InternalRequestRow): PublicRequestDetails {
+  const openedAt = normalizeIsoDate(row.created_at) ?? new Date().toISOString();
 
   return {
-    protocol: row["protocol"] as string,
-    status: (row["public_status"] as string | null) ?? "Solicitação enviada",
+    protocol: row.protocol,
+    status: row.public_status ?? "SolicitaÃ§Ã£o enviada",
     openedAt,
     lastUpdate:
-      normalizeIsoDate(row["last_external_update_at"]) ??
-      normalizeIsoDate(row["updated_at"]) ??
-      openedAt,
-    lastTechnicalMessage: (row["last_technical_message"] as string | null) ?? null,
+      normalizeIsoDate(row.last_external_update_at) ?? normalizeIsoDate(row.updated_at) ?? openedAt,
+    lastTechnicalMessage: row.last_technical_message ?? null,
     meeting: mapTrackingMeeting(row),
     requester: mapTrackingRequester(row),
     demand: mapTrackingDemand(row),
@@ -510,9 +504,9 @@ function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails 
 }
 
 async function buildAuthenticatedDetails(
-  row: Record<string, unknown>,
+  row: InternalRequestRow,
 ): Promise<RequesterRequestDetails> {
-  const requestId = row["request_id"] as string;
+  const requestId = row.request_id;
   const [attachments, schedulePreferences] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
@@ -520,7 +514,7 @@ async function buildAuthenticatedDetails(
 
   const meeting = mapTrackingMeeting(row);
   const complementary = mapTrackingComplementary(row);
-  // O modo autenticado não tem `impacts`: os mesmos campos vivem dentro de
+  // O modo autenticado nÃ£o tem `impacts`: os mesmos campos vivem dentro de
   // `operational` (`RequesterOperational extends PublicOperationalImpacts`).
   const { impacts, ...base } = buildPublicDetails(row);
 
@@ -528,18 +522,15 @@ async function buildAuthenticatedDetails(
     ...base,
     operational: {
       ...impacts,
-      processDescription: row["process_description"] as string,
-      processSteps: row["process_steps"] as string,
-      systemsUsed: row["systems_used"] as string,
-      executionFrequency: row["execution_frequency"] as string,
-      volumetry: row["approximate_volume"] as string,
-      peopleInvolved: row["people_involved"] as number,
-      averageExecutionTime: row["average_duration"] as string,
-      monthlyEffortHours: Number(row["estimated_monthly_effort"]),
-      hasManualControls: toRequiredYesNoDetail(
-        row["has_manual_controls"] as boolean,
-        row["manual_controls_detail"] as string | null,
-      ),
+      processDescription: row.process_description,
+      processSteps: row.process_steps,
+      systemsUsed: row.systems_used,
+      executionFrequency: row.execution_frequency,
+      volumetry: row.approximate_volume,
+      peopleInvolved: row.people_involved,
+      averageExecutionTime: row.average_duration,
+      monthlyEffortHours: Number(row.estimated_monthly_effort),
+      hasManualControls: toRequiredYesNoDetail(row.has_manual_controls, row.manual_controls_detail),
     },
     complementary: hasComplementaryData(complementary) ? complementary : undefined,
     schedulePreferences:
@@ -550,9 +541,9 @@ async function buildAuthenticatedDetails(
     // Anexos do acompanhamento: metadados apenas; sem endpoint de download o
     // `downloadUrl` fica vazio e `canDownload` falso (mesma postura do /internal).
     attachments: attachments.map((attachment) => ({
-      id: attachment.attachment_id as string,
-      fileName: attachment.file_name as string,
-      mimeType: attachment.content_type as string,
+      id: attachment.attachment_id,
+      fileName: attachment.file_name,
+      mimeType: attachment.content_type,
       sizeBytes: Number(attachment.size_bytes),
       downloadUrl: "",
       canDownload: false,
@@ -561,46 +552,43 @@ async function buildAuthenticatedDetails(
 }
 
 /**
- * Dono da solicitação na sessão autenticada.
+ * Dono da solicitaÃ§Ã£o na sessÃ£o autenticada.
  *
- * A fonte primária é o vínculo direto `requests.requester_user_id` (gravado no
+ * A fonte primÃ¡ria Ã© o vÃ­nculo direto `requests.requester_user_id` (gravado no
  * `POST /requests` em modo AUTHENTICATED), imune a uma troca posterior de
  * e-mail/nome no cadastro.
  */
-function isTrackingOwner(row: Record<string, unknown>, user: AuthenticatedUser): boolean {
-  const requesterUserId = row["requester_user_id"] as number | null;
+function isTrackingOwner(row: InternalRequestRow, user: AuthenticatedUser): boolean {
+  const requesterUserId = row.requester_user_id;
 
   if (requesterUserId !== null && requesterUserId !== undefined) {
     return requesterUserId === Number(user.id);
   }
 
-  // Fallback: solicitações sem vínculo (`requester_user_id` NULL) — criadas em
-  // modo PUBLIC/anônimo antes da curadoria do 1:1. Compara o e-mail
-  // normalizado do snapshot `requesters`; o vínculo é curado progressivamente
-  // por `resolveRequesterId` a cada nova solicitação autenticada.
-  return normalizeEmail((row["requester_email"] as string) ?? "") === normalizeEmail(user.email);
+  // Fallback: solicitaÃ§Ãµes sem vÃ­nculo (`requester_user_id` NULL) â€” criadas em
+  // modo PUBLIC/anÃ´nimo antes da curadoria do 1:1. Compara o e-mail
+  // normalizado do snapshot `requesters`; o vÃ­nculo Ã© curado progressivamente
+  // por `resolveRequesterId` a cada nova solicitaÃ§Ã£o autenticada.
+  return normalizeEmail(row.requester_email ?? "") === normalizeEmail(user.email);
 }
 
 async function getAuthenticatedTracking(
   protocol: string,
   user: AuthenticatedUser,
 ): Promise<TrackingDetailsResponse> {
-  // Perfis internos têm a consulta administrativa própria (`/internal`); o
-  // acompanhamento é exclusivo do solicitante. 403 uniforme (independe do
-  // protocolo) — não revela existência.
+  // Perfis internos tÃªm a consulta administrativa prÃ³pria (`/internal`); o
+  // acompanhamento Ã© exclusivo do solicitante. 403 uniforme (independe do
+  // protocolo) â€” nÃ£o revela existÃªncia.
   if (user.role !== "Solicitante") {
     throw new AppError("Perfis internos devem acompanhar pela consulta interna.", 403);
   }
 
-  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const row = await repository.findInternalRequestByProtocol(protocol);
 
-  // Protocolo inexistente ou de terceiro: mesma resposta (404), para não
-  // revelar a existência de solicitações alheias (anti-enumeração).
+  // Protocolo inexistente ou de terceiro: mesma resposta (404), para nÃ£o
+  // revelar a existÃªncia de solicitaÃ§Ãµes alheias (anti-enumeraÃ§Ã£o).
   if (!row || !isTrackingOwner(row, user)) {
-    throw new AppError("Protocolo não encontrado", 404);
+    throw new AppError("Protocolo nÃ£o encontrado", 404);
   }
 
   return { mode: "authenticated", details: await buildAuthenticatedDetails(row) };
@@ -613,27 +601,22 @@ async function getPublicTracking(
   const mode = await getSolicitationMode();
 
   if (mode !== "PUBLIC") {
-    throw new AppError("Verificação indisponível no modo atual", 403);
+    throw new AppError("VerificaÃ§Ã£o indisponÃ­vel no modo atual", 403);
   }
 
-  // Sem cookie e sem header válido: exige validação prévia (anti-enumeração).
+  // Sem cookie e sem header vÃ¡lido: exige validaÃ§Ã£o prÃ©via (anti-enumeraÃ§Ã£o).
   if (!identity) {
     throw new AppError(TRACKING_INVALID_IDENTITY, 401);
   }
 
-  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const row = await repository.findInternalRequestByProtocol(protocol);
 
   const nameOk =
-    row !== null &&
-    normalizeName((row["requester_name"] as string) ?? "") === normalizeName(identity.name);
+    row !== null && normalizeName(row.requester_name ?? "") === normalizeName(identity.name);
   const emailOk =
-    row !== null &&
-    normalizeEmail((row["requester_email"] as string) ?? "") === normalizeEmail(identity.email);
+    row !== null && normalizeEmail(row.requester_email ?? "") === normalizeEmail(identity.email);
 
-  // Inexistente ou divergente → mesmo 401 genérico: não revela qual dado
+  // Inexistente ou divergente â†’ mesmo 401 genÃ©rico: nÃ£o revela qual dado
   // divergiu nem se o protocolo existe.
   if (!row || !nameOk || !emailOk) {
     throw new AppError(TRACKING_INVALID_IDENTITY, 401);
@@ -643,9 +626,9 @@ async function getPublicTracking(
 }
 
 /**
- * `GET /requests/:protocol/tracking` — detalhe bimodal do acompanhamento.
- * O `mode` é decidido pela credencial: sessão do dono → `authenticated`;
- * identidade pública em modo PUBLIC → `public`.
+ * `GET /requests/:protocol/tracking` â€” detalhe bimodal do acompanhamento.
+ * O `mode` Ã© decidido pela credencial: sessÃ£o do dono â†’ `authenticated`;
+ * identidade pÃºblica em modo PUBLIC â†’ `public`.
  */
 export async function getTracking(
   protocol: string,
@@ -654,7 +637,7 @@ export async function getTracking(
   const normalizedProtocol = protocol.trim();
 
   if (normalizedProtocol === "") {
-    throw new AppError("Protocolo é obrigatório", 400);
+    throw new AppError("Protocolo Ã© obrigatÃ³rio", 400);
   }
 
   if (caller.user) {
@@ -664,56 +647,12 @@ export async function getTracking(
   return getPublicTracking(normalizedProtocol, caller.requesterIdentity ?? null);
 }
 
-// --- Atualização interna dos blocos (issue #88) -----------------------------
-// PATCH /requests/:protocol/internal. Semântica de SUBSTITUIÇÃO COMPLETA dos
-// blocos editáveis (decisão de contrato): o payload descreve o estado final;
-// chave ausente = campo limpo (NULL). `last_external_update_at` não é tocado.
+// --- AtualizaÃ§Ã£o interna dos blocos (issue #88) -----------------------------
+// PATCH /requests/:protocol/internal. SemÃ¢ntica de SUBSTITUIÃ‡ÃƒO COMPLETA dos
+// blocos editÃ¡veis (decisÃ£o de contrato): o payload descreve o estado final;
+// chave ausente = campo limpo (NULL). `last_external_update_at` nÃ£o Ã© tocado.
 
-/** Linha crua dos blocos de uma solicitação — mesmo shape de
- * `findInternalRequestByProtocol` (repository), usado pelo PATCH interno. */
-interface InternalRequestRow {
-  request_id: string;
-  requester_id: string;
-  professional_id: string | null;
-  title: string;
-  request_type: string;
-  category: string;
-  process_name: string;
-  need_description: string;
-  problem_opportunity: string;
-  expected_result: string;
-  justification: string;
-  process_description: string;
-  process_steps: string;
-  systems_used: string;
-  execution_frequency: string;
-  approximate_volume: string;
-  people_involved: number;
-  average_duration: string;
-  estimated_monthly_effort: string | number;
-  has_manual_controls: boolean;
-  manual_controls_detail: string | null;
-  main_risks: string;
-  client_impact: string;
-  operational_impact: OperationalImpact;
-  desired_deadline: Date | string;
-  perceived_criticality: RequestPriority;
-  has_process_documentation: boolean | null;
-  process_documentation_detail: string | null;
-  has_similar_solution: boolean | null;
-  similar_solution_detail: string | null;
-  depends_on_other_areas: boolean | null;
-  other_areas_detail: string | null;
-  handles_restricted_info: boolean | null;
-  restricted_info_detail: string | null;
-  additional_notes: string | null;
-  requester_area: string | null;
-  requester_department: string | null;
-  requester_manager: string | null;
-  requester_additional_contact: string | null;
-}
-
-/** Blocos editáveis no estado atual — usado como `previousValue` da auditoria. */
+/** Blocos editÃ¡veis no estado atual â€” usado como `previousValue` da auditoria. */
 function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalRequestPayload {
   const complementary: ComplementaryBlock = {
     hasProcessDocumentation: toYesNoDetail(
@@ -742,6 +681,7 @@ function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalReque
     demand: {
       title: request.title,
       requestType: request.request_type,
+      // O join com `categories` Ã© a fonte do nome; o contrato exige string.
       category: request.category,
       processName: request.process_name,
       description: request.need_description,
@@ -781,19 +721,19 @@ export async function updateInternalRequest(
   const request = await repository.findInternalRequestByProtocol(protocol.trim());
 
   if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
+    throw new AppError("SolicitaÃ§Ã£o nÃ£o encontrada", 404);
   }
 
-  // Autorização por perfil (issue #121): Administrador e Gestor editam qualquer
-  // solicitação; Analista apenas as atribuídas a ele (requests.professional_id
-  // = seu details_professional.professional_id). Solicitação sem responsável
-  // não é de nenhum analista.
+  // AutorizaÃ§Ã£o por perfil (issue #121): Administrador e Gestor editam qualquer
+  // solicitaÃ§Ã£o; Analista apenas as atribuÃ­das a ele (requests.professional_id
+  // = seu details_professional.professional_id). SolicitaÃ§Ã£o sem responsÃ¡vel
+  // nÃ£o Ã© de nenhum analista.
   if (actor.role === "Analista") {
     const professional = await repository.findProfessionalByUserId(actor.id);
     const canEdit =
       professional !== undefined && request.professional_id === professional.professional_id;
     if (!canEdit) {
-      throw new AppError("Acesso restrito às solicitações atribuídas a você", 403);
+      throw new AppError("Acesso restrito Ã s solicitaÃ§Ãµes atribuÃ­das a vocÃª", 403);
     }
   }
 
@@ -813,7 +753,7 @@ export async function updateInternalRequest(
     });
   });
 
-  // A resposta reutiliza o mapeador do GET interno — formato idêntico ao
+  // A resposta reutiliza o mapeador do GET interno â€” formato idÃªntico ao
   // contrato `RequestInternalDetailDTO`.
   return findInternalByProtocol(protocol.trim());
 }
@@ -822,8 +762,8 @@ export async function listAssignees(): Promise<AssigneeSummary[]> {
   return repository.findActiveAssignees();
 }
 
-// RN-010 — ao salvar o responsável de uma demanda em triagem já aprovada como
-// elegível, o status avança automaticamente para "Aguardando mapeamento".
+// RN-010 â€” ao salvar o responsÃ¡vel de uma demanda em triagem jÃ¡ aprovada como
+// elegÃ­vel, o status avanÃ§a automaticamente para "Aguardando mapeamento".
 const RN010_FROM_STATUS: RequestStatus = "Em triagem";
 const RN010_TO_STATUS: RequestStatus = "Aguardando mapeamento";
 const RN010_ELIGIBLE_SCREENING = "elegivel";
@@ -836,13 +776,13 @@ async function resolveAnalystByUserId(
   }
   const candidate = await repository.findAssignmentCandidateByUserId(userId);
   if (!candidate) {
-    throw new AppError("Analista não encontrado", 404);
+    throw new AppError("Analista nÃ£o encontrado", 404);
   }
   if (candidate.professional_status !== "active" || !candidate.user_is_active) {
-    throw new AppError("Responsável inativo.", 400);
+    throw new AppError("ResponsÃ¡vel inativo.", 400);
   }
   if (!(repository.ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
-    throw new AppError("Perfil do responsável não permite atribuição.", 400);
+    throw new AppError("Perfil do responsÃ¡vel nÃ£o permite atribuiÃ§Ã£o.", 400);
   }
   return {
     professionalId: candidate.professional_id,
@@ -852,20 +792,20 @@ async function resolveAnalystByUserId(
   };
 }
 
-// Legado: resolve por professionalId (mantido p/ rota antiga até remoção total)
+// Legado: resolve por professionalId (mantido p/ rota antiga atÃ© remoÃ§Ã£o total)
 async function resolveAssignee(
   professionalId: string,
 ): Promise<{ id: string; name: string; email: string }> {
   const candidate = await repository.findAssignmentCandidateById(professionalId);
 
   if (!candidate) {
-    throw new AppError("Responsável não encontrado.", 400);
+    throw new AppError("ResponsÃ¡vel nÃ£o encontrado.", 400);
   }
   if (candidate.professional_status !== "active" || !candidate.user_is_active) {
-    throw new AppError("Responsável inativo.", 400);
+    throw new AppError("ResponsÃ¡vel inativo.", 400);
   }
   if (!(repository.ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
-    throw new AppError("Perfil do responsável não permite atribuição.", 400);
+    throw new AppError("Perfil do responsÃ¡vel nÃ£o permite atribuiÃ§Ã£o.", 400);
   }
 
   return { id: String(candidate.user_id), name: candidate.name, email: candidate.email };
@@ -879,14 +819,14 @@ export async function assignResponsible(
 ): Promise<AssignRequestResponse> {
   const request = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
+    throw new AppError("SolicitaÃ§Ã£o nÃ£o encontrada", 404);
   }
 
-  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
-  // ou Administrador — sem justificativa (não é troca de status).
+  // issue #124: atribuiÃ§Ã£o liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
+  // ou Administrador â€” sem justificativa (nÃ£o Ã© troca de status).
   if (!canAssignRequest(actor, request)) {
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "AÃ§Ã£o restrita ao Administrador ou ao Analista responsÃ¡vel pela demanda.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
@@ -962,14 +902,14 @@ export async function assignAnalyst(
 ): Promise<RequestInternalDetailDTO> {
   const request = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
+    throw new AppError("SolicitaÃ§Ã£o nÃ£o encontrada", 404);
   }
 
-  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
-  // ou Administrador — sem justificativa (não é troca de status).
+  // issue #124: atribuiÃ§Ã£o liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
+  // ou Administrador â€” sem justificativa (nÃ£o Ã© troca de status).
   if (!canAssignRequest(actor, request)) {
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "AÃ§Ã£o restrita ao Administrador ou ao Analista responsÃ¡vel pela demanda.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
@@ -1139,8 +1079,8 @@ export async function assignAnalyst(
   return findInternalByProtocol(protocol.trim());
 }
 
-// issue #124 — atribuição (internal/assignee + legado /assignee):
-// ANALYST_ASSIGNEE (responsável da triagem OU designado do mapeamento) ou
+// issue #124 â€” atribuiÃ§Ã£o (internal/assignee + legado /assignee):
+// ANALYST_ASSIGNEE (responsÃ¡vel da triagem OU designado do mapeamento) ou
 // Administrador. Gestor continua sem atribuir (Q3/RN).
 function canAssignRequest(
   actor: { id: number; role: Role },
@@ -1157,17 +1097,17 @@ function canAssignRequest(
   return isTriageAssignee || isMappingAssignee;
 }
 
-// --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
-// Rota única de troca de status (delta `portal-config-statuses-amend.md` §3.3):
-// - `Administrador`: bypass de triageMode/mappingMode/isRestricted — pode ir a
-//   qualquer status `isActive` (inativo → 409);
-// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
-//   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
+// --- PATCH /requests/:protocol/status (issue #124 â€” Motor de Status v4) -----
+// Rota Ãºnica de troca de status (delta `portal-config-statuses-amend.md` Â§3.3):
+// - `Administrador`: bypass de triageMode/mappingMode/isRestricted â€” pode ir a
+//   qualquer status `isActive` (inativo â†’ 409);
+// - `ANALYST_ASSIGNEE` (responsÃ¡vel pela triagem ou designado do mapeamento,
+//   qualquer perfil interno com custÃ³dia â€” inclusive Gestor): sÃ³ status ativo,
 //   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
-// - status terminais (`isTerminal`) nunca são saída — fluxo encerrado não
-//   reabre por este endpoint (→ 422).
-// Auditoria: bypass → `request.override_status_admin`; normal →
-// `request.status_change`; negado → `request.access_denied`.
+// - status terminais (`isTerminal`) nunca sÃ£o saÃ­da â€” fluxo encerrado nÃ£o
+//   reabre por este endpoint (â†’ 422).
+// Auditoria: bypass â†’ `request.override_status_admin`; normal â†’
+// `request.status_change`; negado â†’ `request.access_denied`.
 
 async function recordStatusAccessDeniedAudit(
   protocol: string,
@@ -1198,12 +1138,12 @@ export async function updateRequestStatus(
 ): Promise<UpdateStatusResponse> {
   const request = await repository.findRequestStatusContext(protocol.trim());
   if (!request) {
-    throw new AppError("Protocolo não encontrado", 404);
+    throw new AppError("Protocolo nÃ£o encontrado", 404);
   }
 
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
   if (!target) {
-    throw new AppError("Status de destino não encontrado", 404);
+    throw new AppError("Status de destino nÃ£o encontrado", 404);
   }
 
   const isAdmin = actor.role === "Administrador";
@@ -1212,10 +1152,10 @@ export async function updateRequestStatus(
       request.protocol,
       actor.id,
       ipAddress,
-      "perfil Gestor é somente leitura",
+      "perfil Gestor Ã© somente leitura",
     );
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "AÃ§Ã£o restrita ao Administrador ou ao Analista responsÃ¡vel pela demanda.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
@@ -1232,17 +1172,17 @@ export async function updateRequestStatus(
       request.protocol,
       actor.id,
       ipAddress,
-      "sem custódia da solicitação",
+      "sem custÃ³dia da solicitaÃ§Ã£o",
     );
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "AÃ§Ã£o restrita ao Administrador ou ao Analista responsÃ¡vel pela demanda.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
   }
 
   if (request.current_status_id !== null && request.current_status_id === target.status_id) {
-    throw new AppError("A solicitação já está neste status.", 422);
+    throw new AppError("A solicitaÃ§Ã£o jÃ¡ estÃ¡ neste status.", 422);
   }
 
   if (!target.is_active) {
@@ -1252,7 +1192,7 @@ export async function updateRequestStatus(
       ipAddress,
       `tentativa de definir status inativo (id ${target.status_id})`,
     );
-    throw new AppError("Status inativo não pode ser alvo.", 409);
+    throw new AppError("Status inativo nÃ£o pode ser alvo.", 409);
   }
 
   if (!isAdmin) {
@@ -1261,10 +1201,10 @@ export async function updateRequestStatus(
         request.protocol,
         actor.id,
         ipAddress,
-        "tentativa de definir status restrito (Priorizado) por não-administrador",
+        "tentativa de definir status restrito (Priorizado) por nÃ£o-administrador",
       );
       throw new AppError(
-        "Status Priorizado só pode ser definido por Administrador.",
+        "Status Priorizado sÃ³ pode ser definido por Administrador.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
       );
@@ -1274,10 +1214,10 @@ export async function updateRequestStatus(
         request.protocol,
         actor.id,
         ipAddress,
-        `tentativa de definir status não-free (id ${target.status_id})`,
+        `tentativa de definir status nÃ£o-free (id ${target.status_id})`,
       );
       throw new AppError(
-        "Só é possível definir status ativo com triageMode ou mappingMode free.",
+        "SÃ³ Ã© possÃ­vel definir status ativo com triageMode ou mappingMode free.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
       );
@@ -1285,7 +1225,7 @@ export async function updateRequestStatus(
   }
 
   if (target.isPublic && payload.lastTechnicalMessage == null) {
-    throw new AppError("Retorno ao solicitante obrigatório para status público.", 400);
+    throw new AppError("Retorno ao solicitante obrigatÃ³rio para status pÃºblico.", 400);
   }
 
   const actionType: "request.status_change" | "request.override_status_admin" = isAdmin
@@ -1293,7 +1233,7 @@ export async function updateRequestStatus(
     : "request.status_change";
   const changeOrigin = isAdmin ? "admin" : "internal";
 
-  const lastUpdate = await db.transaction(async (trx) => {
+  const { lastUpdate, committed } = await db.transaction(async (trx) => {
     const persistedAt = await applyStatusTransition(trx, {
       requestId: request.request_id,
       target: {
@@ -1306,7 +1246,7 @@ export async function updateRequestStatus(
       expectedStatusId: request.current_status_id,
     });
 
-    await recordAudit(trx, {
+    const auditId = await recordAudit(trx, {
       entityType: "request",
       entityId: request.protocol,
       actionType,
@@ -1323,8 +1263,34 @@ export async function updateRequestStatus(
       changeOrigin,
     });
 
-    return persistedAt;
+    // Notificação do solicitante apenas em Status público. Transições internas
+    // ou restritas são ruído (e informação que não pertence ao solicitante);
+    // solicitante anônimo não tem canal in-app na v1.
+    const requesterUserId = request.requester_user_id;
+
+    const committedNotifications =
+      target.isPublic && !target.is_restricted && requesterUserId !== null
+        ? await emitNotification(trx, {
+            type: "status_changed",
+            eventKey: `request.status_change:${auditId}`,
+            requestId: request.request_id,
+            actorUserId: actor.id,
+            recipientUserIds: [requesterUserId],
+            payload: {
+              type: "status_changed",
+              protocol: request.protocol,
+              title: request.title,
+              newStatus: target.name,
+            },
+          })
+        : [];
+
+    return { lastUpdate: persistedAt, committed: committedNotifications };
   });
+
+  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
+  // fonte de verdade para quem reconectar via `Last-Event-ID`.
+  publishCommittedNotifications(committed);
 
   return {
     protocol: request.protocol,

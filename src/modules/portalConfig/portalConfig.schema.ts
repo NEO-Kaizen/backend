@@ -3,6 +3,9 @@ import {
   CORE_STATUS_IDS,
   PRIORITIZATION_CRITERIA,
   THEME_TOKEN_KEYS,
+  type AccessSection,
+  type CategoriesSection,
+  type StatusesSection,
   type ThemeTokenKey,
 } from "../../shared/types/portalConfig.ts";
 import { STATUS_TONES, type StatusTone } from "../../shared/types/systemTheme.ts";
@@ -73,7 +76,7 @@ export const updateAccessSchema = z
       error: "Modo de acesso inválido — opções: PUBLIC ou AUTHENTICATED.",
     }),
   })
-  .strict();
+  .strict() satisfies z.ZodType<AccessSection>;
 
 export const updateIdentitySchema = z
   .object({
@@ -136,7 +139,7 @@ export const updateCategoriesSchema = z
         }
       }),
   })
-  .strict();
+  .strict() satisfies z.ZodType<CategoriesSection>;
 
 const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
   error: "Modo inválido — opções: none, free ou conclusion_only.",
@@ -164,7 +167,7 @@ export const portalStatusSchema = z
   })
   .strict()
   .superRefine((status, ctx) => {
-    if (status.isCore && !(CORE_STATUS_IDS as readonly number[]).includes(status.id)) {
+    if (status.isCore && !CORE_STATUS_IDS.includes(status.id as (typeof CORE_STATUS_IDS)[number])) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["isCore"],
@@ -219,7 +222,7 @@ export const updateStatusesSchema = z
         }
       }),
   })
-  .strict();
+  .strict() satisfies z.ZodType<StatusesSection>;
 
 /**
  * Pesos da priorização — objeto atômico completo, sempre com todas as chaves.

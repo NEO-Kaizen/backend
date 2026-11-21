@@ -120,7 +120,11 @@ export interface PortalCategory {
  */
 export type StatusMode = "none" | "free" | "conclusion_only";
 
-export const CORE_STATUS_IDS = [1, 3, 4, 6, 7, 16, 17] as const;
+/**
+ * Ids de núcleo protegidos contra renomeação/remoção/desativação.
+ * Reexportados de `./status.ts` (fonte única dos ids do seed).
+ */
+export { CORE_STATUS_IDS } from "./status.ts";
 
 /**
  * Status do ciclo de vida — Motor de Status v4. A ordem de exibição é a
