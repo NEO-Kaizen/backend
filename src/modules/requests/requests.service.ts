@@ -960,12 +960,7 @@ async function validateAssignmentTarget<T>(
     return await resolve();
   } catch (error) {
     if (error instanceof AppError && error.code === "assignee_not_assignable") {
-      await recordAccessDeniedAudit(
-        protocol,
-        actor.id,
-        ipAddress,
-        "alvo de atribuição inválido",
-      );
+      await recordAccessDeniedAudit(protocol, actor.id, ipAddress, "alvo de atribuição inválido");
     }
     throw error;
   }

@@ -641,7 +641,10 @@ export async function findEvaluationByProtocol(
   };
 }
 
-function hasAllPermissionKeysPredicate(profileIdExpression: string, keys: readonly PermissionKey[]) {
+function hasAllPermissionKeysPredicate(
+  profileIdExpression: string,
+  keys: readonly PermissionKey[],
+) {
   const placeholders = keys.map(() => "?").join(", ");
 
   return {
