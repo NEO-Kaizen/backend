@@ -16,7 +16,9 @@ import type {
   YesNoDetail,
   AssignmentCandidateRow,
   AssignmentContextRow,
+  InternalRequestRow,
 } from "../../shared/types/requests.ts";
+import type { StatusMode } from "../../shared/types/portalConfig.ts";
 import type {
   CreateRequestPayload,
   ListRequestsQuery,
@@ -491,7 +493,22 @@ export async function findRequestByProtocolWithOwner(
 
 // --- Consulta administrativa/interna (issue #48 + contract-assign-action) ---
 
-export async function findInternalRequestByProtocol(protocol: string) {
+/** Anexo de solicitação — projeção de `attachments` usada no detalhe. */
+export interface RequestAttachmentRow {
+  attachment_id: string;
+  file_name: string;
+  content_type: string;
+  size_bytes: string; // bigint do pg
+}
+
+/** Preferência de agendamento — projeção de `request_time_preferences`. */
+export interface SchedulePreferenceRow {
+  scheduled_for: Date | string;
+}
+
+export async function findInternalRequestByProtocol(
+  protocol: string,
+): Promise<InternalRequestRow | null> {
   const hasMapping = await db.schema.hasColumn("requests", "mapping_professional_id");
 
   let query = db("requests")
@@ -603,23 +620,31 @@ export async function findInternalRequestByProtocol(protocol: string) {
         db.raw("NULL::text as mapping_email"),
       ];
 
-  const request = await query.select([...baseSelect, ...mappingSelect]).first();
+  const request: InternalRequestRow | undefined = await query
+    .select([...baseSelect, ...mappingSelect])
+    .first();
 
   return request ?? null;
 }
 
-export async function findAttachmentsByRequestId(requestId: string | number) {
-  return db("attachments")
+export async function findAttachmentsByRequestId(
+  requestId: string,
+): Promise<RequestAttachmentRow[]> {
+  const rows: RequestAttachmentRow[] = await db("attachments")
     .where({ request_id: requestId })
     .select("attachment_id", "file_name", "content_type", "size_bytes")
     .orderBy("uploaded_at", "asc");
+  return rows;
 }
 
-export async function findSchedulePreferencesByRequestId(requestId: string | number) {
-  return db("request_time_preferences")
+export async function findSchedulePreferencesByRequestId(
+  requestId: string,
+): Promise<SchedulePreferenceRow[]> {
+  const rows: SchedulePreferenceRow[] = await db("request_time_preferences")
     .where({ request_id: requestId })
     .select("scheduled_for")
     .orderBy("scheduled_for", "asc");
+  return rows;
 }
 
 export async function findEvaluationByProtocol(
@@ -810,9 +835,10 @@ export interface RequestStatusTarget {
   name: string;
   is_active: boolean;
   is_restricted: boolean;
+  /** Alias camelCase mantido para os guards do serviço (projeção `is_public`). */
   isPublic: boolean;
-  triage_mode: "none" | "free" | "conclusion_only";
-  mapping_mode: "none" | "free" | "conclusion_only";
+  triage_mode: StatusMode;
+  mapping_mode: StatusMode;
 }
 
 export async function findRequestStatusContext(
@@ -879,8 +905,8 @@ export async function findRequestStatusTarget(
               is_active: boolean;
               is_restricted: boolean;
               is_public: boolean;
-              triage_mode: "none" | "free" | "conclusion_only";
-              mapping_mode: "none" | "free" | "conclusion_only";
+              triage_mode: StatusMode;
+              mapping_mode: StatusMode;
             }
           | undefined,
       ) =>

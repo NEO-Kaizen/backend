@@ -1,5 +1,7 @@
+import type { SolicitationMode } from "./portalConfig.ts";
+
 /** Modo de abertura do portal — `solicitation_mode` do contrato. */
-export type PortalSolicitationMode = "PUBLIC" | "AUTHENTICATED";
+export type PortalSolicitationMode = SolicitationMode;
 
 /**
  * Linha da tabela `system_settings` — configuração global singleton (contrato
@@ -18,7 +20,7 @@ export type PortalSolicitationMode = "PUBLIC" | "AUTHENTICATED";
 export interface SystemSettingsRow {
   settings_id: number;
   platform_name: string;
-  solicitation_mode: PortalSolicitationMode;
+  solicitation_mode: SolicitationMode;
   protocol_mask: string;
   theme_id: number | null;
   logo_light_url: string | null;

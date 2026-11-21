@@ -9,6 +9,8 @@
     "build": "tsc",
     "start:prod": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
+    "docs:types": "node scripts/type-inventory.mjs",
+    "docs:types:check": "node scripts/type-inventory.mjs --check",
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "echo \"No tests configured yet\"",
     "lint": "eslint .",
@@ -57,6 +59,7 @@
     "eslint": "^10.8.1",
     "globals": "^17.9.0",
     "prettier": "3.10.1",
+    "typescript": "6.0.3",
     "typescript-eslint": "^8.66.0"
   },
   "dependencies": {

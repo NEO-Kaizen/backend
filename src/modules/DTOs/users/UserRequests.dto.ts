@@ -1,3 +1,5 @@
+import type { ProfileName } from "../../../shared/types/role.ts";
+
 export interface CreateProfessionalInput {
   /** Cargo do analista (vira `job_title` → `specialty` no card). */
   jobTitle: string;
@@ -18,7 +20,8 @@ export interface RequesterInput {
 export interface CreateUserRequest {
   fullName: string;
   email: string;
-  role: string;
+  /** Nome do perfil no banco (`profiles.name`), ex.: "analista". */
+  role: ProfileName;
   /** Obrigatório quando `role = "analista"`; proibido para os demais perfis. */
   professional?: CreateProfessionalInput;
   requester: RequesterInput;
@@ -27,7 +30,7 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   fullName?: string;
   email?: string;
-  role?: string;
+  role?: ProfileName;
   professional?: CreateProfessionalInput;
   requester?: {
     area?: string;
@@ -38,7 +41,7 @@ export interface UpdateUserRequest {
 }
 
 export interface ListUsersQuery {
-  profile?: string;
+  profile?: ProfileName;
   search?: string;
   page: number;
   pageSize: number;

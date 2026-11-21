@@ -71,7 +71,7 @@ export const getInternalRequestByProtocol = async (
 
 /** Valida e devolve `req.params.protocol` — comum aos dois handlers da rota. */
 function assertProtocolParam(req: Request): string {
-  const protocol = req.params.protocol as string;
+  const protocol = req.params.protocol;
 
   if (!protocol || typeof protocol !== "string" || protocol.trim() === "") {
     throw new AppError("Protocolo é obrigatório", 400);
