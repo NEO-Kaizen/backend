@@ -50,17 +50,6 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
 ]);
 
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
-export type PendingItemCreatedNotificationPayload = z.infer<typeof pendingItemCreatedPayloadSchema>;
-export type PendingItemReopenedNotificationPayload = z.infer<
-  typeof pendingItemReopenedPayloadSchema
->;
-export type PendingItemValidatedNotificationPayload = z.infer<
-  typeof pendingItemValidatedPayloadSchema
->;
-export type PendingItemNotificationPayload =
-  | PendingItemCreatedNotificationPayload
-  | PendingItemReopenedNotificationPayload
-  | PendingItemValidatedNotificationPayload;
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 
 /** Campos comuns dos Eventos de Notificação, validados na emissão. */
@@ -113,10 +102,5 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
-export type PendingItemNotificationEvent = z.infer<
-  | typeof pendingItemCreatedEventSchema
-  | typeof pendingItemReopenedEventSchema
-  | typeof pendingItemValidatedEventSchema
->;
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationEventType = NotificationEvent["type"];

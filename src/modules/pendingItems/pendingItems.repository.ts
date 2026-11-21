@@ -3,7 +3,7 @@ import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
+import type { PendingItem, ReviewDecision } from "../DTOs/pendingItems/PendingItems.dto.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
 export interface RequestRef {
@@ -325,7 +325,7 @@ export async function findPendingItemsByBatchId(
     .select("*")) as unknown as Record<string, unknown>[];
 }
 
-export async function createPendingItemsBatchTx(
+export async function createPendingItemsBatchInTransaction(
   trx: Knex.Transaction,
   input: {
     requestId: string;
@@ -513,9 +513,7 @@ export async function addPendingItemAttachmentTx(input: {
   });
 }
 
-export type ReviewDecisionAction = "reopen" | "validate";
-
-export async function applyReviewDecisionsTx(
+export async function applyReviewDecisionsInTransaction(
   trx: Knex.Transaction,
   input: {
     requestId: string;
@@ -530,7 +528,7 @@ export async function applyReviewDecisionsTx(
   },
 ): Promise<{
   rows: Record<string, unknown>[];
-  actionAuditIds: Map<ReviewDecisionAction, string>;
+  actionAuditIds: Map<ReviewDecision, string>;
 }> {
   if (typeof input.requestAttachment === "boolean") {
     await trx("pending_items")
@@ -540,8 +538,8 @@ export async function applyReviewDecisionsTx(
 
   let hasReopen = false;
   /** Primeiro `audit_id` de cada ação, na ordem em que apareceu na revisão. */
-  const actionAuditIds = new Map<ReviewDecisionAction, string>();
-  const rememberFirstAudit = (action: ReviewDecisionAction, auditId: string): void => {
+  const actionAuditIds = new Map<ReviewDecision, string>();
+  const rememberFirstAudit = (action: ReviewDecision, auditId: string): void => {
     if (!actionAuditIds.has(action)) actionAuditIds.set(action, auditId);
   };
 

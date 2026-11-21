@@ -1,14 +1,53 @@
 import type { Knex } from "knex";
 import { emitNotification, type CommittedNotification } from "./emitNotification.ts";
+import type { NotificationEvent } from "./notificationEvents.ts";
 
 /** Ação do ciclo de Pendência que gera Notificação ao solicitante. */
 export type PendingItemNotificationAction = "created" | "reopened" | "validated";
 
-const EVENT_KEY_PREFIXES: Record<PendingItemNotificationAction, string> = {
-  created: "pending_item.create",
-  reopened: "pending_item.reopen",
-  validated: "pending_item.validate",
-};
+interface PendingItemPointer {
+  protocol: string;
+  title: string;
+}
+
+type PendingItemEventBase = Omit<NotificationEvent, "type" | "payload">;
+
+/**
+ * Um único mapa mantém a `eventKey` e a variante do Payload na mesma fonte.
+ * O `build` devolve o Evento tipado que o emissor valida antes de gravar.
+ */
+const NOTIFICATION_BY_ACTION = {
+  created: {
+    eventKeyPrefix: "pending_item.create",
+    build: (base: PendingItemEventBase, pointer: PendingItemPointer) => ({
+      ...base,
+      type: "pending_item_created" as const,
+      payload: { type: "pending_item_created" as const, ...pointer },
+    }),
+  },
+  reopened: {
+    eventKeyPrefix: "pending_item.reopen",
+    build: (base: PendingItemEventBase, pointer: PendingItemPointer) => ({
+      ...base,
+      type: "pending_item_reopened" as const,
+      payload: { type: "pending_item_reopened" as const, ...pointer },
+    }),
+  },
+  validated: {
+    eventKeyPrefix: "pending_item.validate",
+    build: (base: PendingItemEventBase, pointer: PendingItemPointer) => ({
+      ...base,
+      type: "pending_item_validated" as const,
+      payload: { type: "pending_item_validated" as const, ...pointer },
+    }),
+  },
+} satisfies Record<
+  PendingItemNotificationAction,
+  {
+    eventKeyPrefix: string;
+    build: (base: PendingItemEventBase, pointer: PendingItemPointer) => NotificationEvent;
+  }
+>;
 
 export interface PendingItemNotificationInput {
   action: PendingItemNotificationAction;
@@ -35,32 +74,18 @@ export async function emitPendingItemNotification(
 ): Promise<CommittedNotification[]> {
   if (input.requesterUserId === null) return [];
 
-  const base = {
-    eventKey: `${EVENT_KEY_PREFIXES[input.action]}:${input.auditId}`,
-    requestId: input.requestId,
-    actorUserId: input.actorUserId,
-    recipientUserIds: [input.requesterUserId],
-  };
-  const payload = { protocol: input.protocol, title: input.title };
+  const notification = NOTIFICATION_BY_ACTION[input.action];
 
-  switch (input.action) {
-    case "created":
-      return emitNotification(trx, {
-        ...base,
-        type: "pending_item_created",
-        payload: { type: "pending_item_created", ...payload },
-      });
-    case "reopened":
-      return emitNotification(trx, {
-        ...base,
-        type: "pending_item_reopened",
-        payload: { type: "pending_item_reopened", ...payload },
-      });
-    case "validated":
-      return emitNotification(trx, {
-        ...base,
-        type: "pending_item_validated",
-        payload: { type: "pending_item_validated", ...payload },
-      });
-  }
+  return emitNotification(
+    trx,
+    notification.build(
+      {
+        eventKey: `${notification.eventKeyPrefix}:${input.auditId}`,
+        requestId: input.requestId,
+        actorUserId: input.actorUserId,
+        recipientUserIds: [input.requesterUserId],
+      },
+      { protocol: input.protocol, title: input.title },
+    ),
+  );
 }

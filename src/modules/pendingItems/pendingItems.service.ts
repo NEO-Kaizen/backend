@@ -218,7 +218,7 @@ export async function createPendingItems(
   }
 
   const { rows: createdRows, committedNotifications } = await db.transaction(async (trx) => {
-    const { rows: insertedRows, auditId } = await repo.createPendingItemsBatchTx(trx, {
+    const { rows: insertedRows, auditId } = await repo.createPendingItemsBatchInTransaction(trx, {
       requestId: request.request_id,
       protocol,
       batchId,
@@ -564,17 +564,20 @@ export async function reviewPendingItems(
   });
 
   const { rows: decidedRows, committedNotifications } = await db.transaction(async (trx) => {
-    const { rows: reviewedRows, actionAuditIds } = await repo.applyReviewDecisionsTx(trx, {
-      requestId: request.request_id,
-      protocol,
-      batchId,
-      decisions,
-      requestAttachment: body.requestAttachment,
-      actor,
-      ip,
-      currentStatusName: request.status,
-      decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
-    });
+    const { rows: reviewedRows, actionAuditIds } = await repo.applyReviewDecisionsInTransaction(
+      trx,
+      {
+        requestId: request.request_id,
+        protocol,
+        batchId,
+        decisions,
+        requestAttachment: body.requestAttachment,
+        actor,
+        ip,
+        currentStatusName: request.status,
+        decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
+      },
+    );
 
     const notifications = await emitPendingItemNotifications(trx, {
       requestId: request.request_id,
