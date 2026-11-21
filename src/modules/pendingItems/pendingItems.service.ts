@@ -1,9 +1,14 @@
 import { randomUUID } from "node:crypto";
+import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { getFieldSnapshot, isFieldKey, type FieldKey } from "../../shared/catalog/fieldCatalog.ts";
 import * as repo from "./pendingItems.repository.ts";
-import type { PendingItemInsert, ReviewDecisionInput } from "./pendingItems.repository.ts";
+import type {
+  PendingItemInsert,
+  RequestRef,
+  ReviewDecisionInput,
+} from "./pendingItems.repository.ts";
 import type {
   PendingItem,
   CreatePendingItemsBody,
@@ -19,9 +24,13 @@ import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
+import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
 import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
-import { emitPendingItemRespondedNotification } from "../../shared/notifications/pendingItemRespondedNotification.ts";
-import { findActiveAdminUserIds } from "../users/users.repository.ts";
+import {
+  emitPendingItemRespondedNotification,
+  type PendingItemRespondedAudience,
+} from "../../shared/notifications/pendingItemRespondedNotification.ts";
+import { findActiveAdminUserIds, findUserIdByEmail } from "../users/users.repository.ts";
 
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
@@ -193,11 +202,8 @@ export type PendingCaller = {
   requesterIdentity?: { name: string; email: string } | null;
 };
 
-/** Ator da resposta: sessão (id preenchido) ou identidade pública (id nulo). */
-export interface PendingResponseActor {
-  userId: number | null;
-  email: string | undefined;
-}
+/** Ator da resposta: sessão validada ou identidade pública sem conta (`null`). */
+export type PendingResponseActor = { id: number; email: string; role: string } | null;
 
 /**
  * Criar/revisar exige Administrador ou o assignee atual (contrato 03 §3,
@@ -269,6 +275,93 @@ export async function listPendingItems(
   return { batchId, requestAttachment, items };
 }
 
+function responseChangeOrigin(actor: PendingResponseActor): "admin" | "requester" {
+  return actor !== null && actor.role !== "Solicitante" ? "admin" : "requester";
+}
+
+/**
+ * Ator da Notificação. Sem sessão, a identidade pública representa o
+ * solicitante vinculado; quando não há vínculo, o e-mail verificado identifica
+ * uma eventual conta do mesmo dono para a autoexclusão.
+ */
+async function resolveResponseActorUserId(
+  trx: Knex.Transaction,
+  actor: PendingResponseActor,
+  request: RequestRef,
+): Promise<number | null> {
+  if (actor) return actor.id;
+  if (request.requester_user_id !== null) return request.requester_user_id;
+  return findUserIdByEmail(trx, request.requester_email);
+}
+
+async function resolvePendingItemRespondedAudience(
+  trx: Knex.Transaction,
+  requestId: string,
+): Promise<PendingItemRespondedAudience> {
+  const assigneeUserId = await repo.findAssigneeUserIdByRequestId(trx, requestId);
+  if (assigneeUserId !== null) {
+    return { kind: "assignee", userId: assigneeUserId };
+  }
+  return { kind: "active_admins", userIds: await findActiveAdminUserIds(trx) };
+}
+
+interface PendingItemResponseCommitInput {
+  request: RequestRef;
+  pendingItemId: string;
+  batchId: string;
+  patch: Record<string, unknown>;
+  actor: PendingResponseActor;
+  ip: string | undefined;
+}
+
+interface PendingItemResponseCommitResult {
+  row: Record<string, unknown>;
+  committedNotifications: CommittedNotification[];
+}
+
+/**
+ * Aplica a resposta e emite a Notificação na mesma transação. A publicação
+ * pós-commit fica com o chamador.
+ */
+async function commitPendingItemResponse(
+  input: PendingItemResponseCommitInput,
+): Promise<PendingItemResponseCommitResult> {
+  return db.transaction(async (trx) => {
+    const result = await repo.applyPendingItemResponse(trx, {
+      requestId: input.request.request_id,
+      protocol: input.request.protocol,
+      pendingItemId: input.pendingItemId,
+      batchId: input.batchId,
+      patch: input.patch,
+      actorEmail: input.actor?.email,
+      changeOrigin: responseChangeOrigin(input.actor),
+      ip: input.ip,
+      decideStatus: (facts) =>
+        facts.requestedRemaining === 0 &&
+        facts.attachmentSatisfied &&
+        facts.currentStatusName !== IN_TRIAGE_STATUS
+          ? IN_TRIAGE_STATUS
+          : null,
+    });
+
+    const actorUserId = await resolveResponseActorUserId(trx, input.actor, input.request);
+    const audience = await resolvePendingItemRespondedAudience(trx, input.request.request_id);
+
+    const committedNotifications = await emitPendingItemRespondedNotification(trx, {
+      auditId: result.auditId,
+      requestId: input.request.request_id,
+      requestPointer: {
+        protocol: input.request.protocol,
+        title: input.request.title,
+      },
+      actorUserId,
+      audience,
+    });
+
+    return { row: result.row, committedNotifications };
+  });
+}
+
 export async function respondPendingItem(
   protocol: string,
   pendingItemId: string,
@@ -319,44 +412,13 @@ export async function respondPendingItem(
     patch = { response_text: response.trim() };
   }
 
-  // Sem sessão, a identidade pública ainda representa o solicitante vinculado:
-  // ele não deve receber a Notificação da própria resposta.
-  const actorUserId = actor.userId ?? request.requester_user_id;
-
-  const { row: updated, committedNotifications } = await db.transaction(async (trx) => {
-    const result = await repo.applyPendingItemResponse(trx, {
-      requestId: request.request_id,
-      protocol: request.protocol,
-      pendingItemId,
-      batchId: row["batch_id"] as string,
-      patch,
-      actorEmail: actor.email,
-      isInternal: actor.userId !== null,
-      ip,
-      decideStatus: (facts) =>
-        facts.requestedRemaining === 0 &&
-        facts.attachmentSatisfied &&
-        facts.currentStatusName !== IN_TRIAGE_STATUS
-          ? IN_TRIAGE_STATUS
-          : null,
-    });
-
-    const assigneeUserId = await repo.findAssigneeUserIdByRequestId(trx, request.request_id);
-    const audience =
-      assigneeUserId !== null
-        ? { assigneeUserId }
-        : { activeAdminUserIds: await findActiveAdminUserIds(trx) };
-
-    const committed = await emitPendingItemRespondedNotification(trx, {
-      auditId: result.auditId,
-      requestId: request.request_id,
-      protocol: request.protocol,
-      title: request.title,
-      actorUserId,
-      audience,
-    });
-
-    return { row: result.row, committedNotifications: committed };
+  const { row: updated, committedNotifications } = await commitPendingItemResponse({
+    request,
+    pendingItemId,
+    batchId: row["batch_id"] as string,
+    patch,
+    actor,
+    ip,
   });
 
   // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a

@@ -32,13 +32,6 @@ function actorFromRequest(req: Request): { id: number; email: string; role: stri
   return { id, email: req.user.email, role: req.user.role };
 }
 
-/** Ator da resposta: sessão validada ou identidade pública sem usuário. */
-function responseActorFromRequest(req: Request): service.PendingResponseActor {
-  if (!req.user) return { userId: null, email: undefined };
-  const actor = actorFromRequest(req);
-  return { userId: actor.id, email: actor.email };
-}
-
 export async function createPendingItems(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
   const parsed = createPendingItemsSchema.safeParse(req.body);
@@ -63,11 +56,12 @@ export async function respondPendingItem(req: Request, res: Response): Promise<R
   const pendingItemId = req.params.pendingItemId;
   if (!pendingItemId || typeof pendingItemId !== "string" || pendingItemId.trim() === "")
     throw new AppError("pendingItemId é obrigatório", 400);
+  const actor = req.user ? actorFromRequest(req) : null;
   const item = await service.respondPendingItem(
     protocol,
     pendingItemId.trim(),
     req.body as Record<string, unknown>,
-    responseActorFromRequest(req),
+    actor,
     req.ip,
     callerFromRequest(req),
   );

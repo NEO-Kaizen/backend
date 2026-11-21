@@ -59,11 +59,17 @@ emissão.
   anexo (`POST .../attachments`) não emite: o Evento é a confirmação da
   resposta, e o anexo aparece no detalhe da solicitação apontada.
 - Com `requests.professional_id` definido, o destinatário é o usuário do
-  Responsável (`details_professional.user_id`).
+  Responsável (`details_professional.user_id`), independentemente do estado
+  atual da conta: a designação é a fonte de verdade; desativação e
+  remanejamento pertencem ao fluxo de atribuição.
 - Sem Responsável designado, os destinatários são os usuários ativos com perfil
   `administrador` (conta e perfil ativos), com o aviso explícito no payload.
-- O ator nunca recebe. Sem sessão, a identidade pública é associada ao
-  `requests.requester_user_id` (quando houver) para a exclusão.
+- O ator nunca recebe. A autoexclusão tem precedência sobre o critério de
+  contagem: a resposta do solicitante gera exatamente uma Notificação ao
+  Responsável quando ele não é o ator; quando o próprio Responsável responde,
+  nenhuma Notificação é emitida. Sem sessão, a identidade pública é associada
+  ao `requests.requester_user_id` (quando houver) ou, sem vínculo, à conta cujo
+  e-mail coincide com a identidade verificada, para a exclusão.
 - Se a transação falhar, nem a resposta, nem o Status, nem a Notificação são
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de

@@ -17,6 +17,8 @@ const requestPointerPayloadSchema = z.object({
   title: z.string().trim().min(1).max(150),
 });
 
+export type RequestPointer = z.infer<typeof requestPointerPayloadSchema>;
+
 export const statusChangedPayloadSchema = requestPointerPayloadSchema
   .extend({
     type: z.literal("status_changed"),

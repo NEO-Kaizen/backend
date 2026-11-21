@@ -70,6 +70,20 @@ export async function findActiveAdminUserIds(trx?: Knex.Transaction): Promise<nu
   return rows.map((row) => Number(row.user_id));
 }
 
+/**
+ * Conta dona do e-mail informado — usada para excluir o ator de uma resposta
+ * pública sem `requester_user_id` (a identidade foi verificada pelo e-mail).
+ */
+export async function findUserIdByEmail(
+  trx: Knex.Transaction,
+  email: string,
+): Promise<number | null> {
+  const row = (await trx("users").where({ email: email.trim().toLowerCase() }).first("user_id")) as
+    { user_id: number } | undefined;
+
+  return row ? Number(row.user_id) : null;
+}
+
 /** Perfis que ganham a extensÃ£o de profissional (1:1 user â†’ details_professional)
  *  na criaÃ§Ã£o de conta. Apenas `analista`: a extensÃ£o Ã© o card do analista e a
  *  elegibilidade de atribuiÃ§Ã£o tambÃ©m Ã© restrita a `analista`

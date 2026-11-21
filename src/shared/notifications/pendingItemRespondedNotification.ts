@@ -3,22 +3,21 @@ import { emitNotification, type CommittedNotification } from "./emitNotification
 import {
   PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
   type NotificationEvent,
-  type PendingItemRespondedNotificationPayload,
+  type RequestPointer,
 } from "./notificationEvents.ts";
 
 const EVENT_KEY_PREFIX = "request.pending_responded";
 
 /** Audiência resolvida: Responsável designado ou Administradores ativos. */
 export type PendingItemRespondedAudience =
-  { assigneeUserId: number } | { activeAdminUserIds: readonly number[] };
+  { kind: "assignee"; userId: number } | { kind: "active_admins"; userIds: readonly number[] };
 
-export interface PendingItemRespondedNotificationInput extends Omit<
-  PendingItemRespondedNotificationPayload,
-  "type"
-> {
+export interface PendingItemRespondedNotificationInput {
   /** `audit_id` da resposta; junto do prefixo forma a `eventKey`. */
   auditId: string;
   requestId: string;
+  /** Protocolo e título da solicitação — ponteiro da Allowlist. */
+  requestPointer: RequestPointer;
   /** Ator da resposta; `null` em solicitação anônima sem usuário vinculado. */
   actorUserId: number | null;
   /** Resolvida pelo chamador antes da emissão. */
@@ -32,46 +31,56 @@ export interface PendingItemRespondedNotificationInput extends Omit<
  * - Sem Responsável: notifica os Administradores ativos, com o aviso
  *   explícito de que a solicitação está sem responsável.
  *
- * O ator e destinatários duplicados são removidos pelo emissor; o payload é
- * um ponteiro com os campos da Allowlist.
+ * A autoexclusão do ator tem precedência: quando o Responsável é quem
+ * responde, o Evento não é emitido. O payload é um ponteiro com os campos da
+ * Allowlist.
  */
 export async function emitPendingItemRespondedNotification(
   trx: Knex.Transaction,
   input: PendingItemRespondedNotificationInput,
 ): Promise<CommittedNotification[]> {
+  const event = buildPendingItemRespondedEvent(input);
+  if (!event) return [];
+  return emitNotification(trx, event);
+}
+
+function buildPendingItemRespondedEvent(
+  input: PendingItemRespondedNotificationInput,
+): NotificationEvent | null {
   const eventBase = {
     eventKey: `${EVENT_KEY_PREFIX}:${input.auditId}`,
     requestId: input.requestId,
     actorUserId: input.actorUserId,
   };
+  const payloadBase = {
+    protocol: input.requestPointer.protocol,
+    title: input.requestPointer.title,
+  };
 
-  if ("activeAdminUserIds" in input.audience && input.audience.activeAdminUserIds.length === 0) {
-    return [];
+  if (input.audience.kind === "assignee") {
+    if (input.audience.userId === input.actorUserId) return null;
+
+    return {
+      type: "pending_item_responded",
+      ...eventBase,
+      recipientUserIds: [input.audience.userId],
+      payload: {
+        type: "pending_item_responded",
+        ...payloadBase,
+      },
+    };
   }
 
-  const event: NotificationEvent =
-    "assigneeUserId" in input.audience
-      ? {
-          type: "pending_item_responded",
-          ...eventBase,
-          recipientUserIds: [input.audience.assigneeUserId],
-          payload: {
-            type: "pending_item_responded",
-            protocol: input.protocol,
-            title: input.title,
-          },
-        }
-      : {
-          type: "pending_item_responded_unassigned",
-          ...eventBase,
-          recipientUserIds: [...input.audience.activeAdminUserIds],
-          payload: {
-            type: "pending_item_responded_unassigned",
-            protocol: input.protocol,
-            title: input.title,
-            notice: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
-          },
-        };
+  if (input.audience.userIds.length === 0) return null;
 
-  return emitNotification(trx, event);
+  return {
+    type: "pending_item_responded_unassigned",
+    ...eventBase,
+    recipientUserIds: [...input.audience.userIds],
+    payload: {
+      type: "pending_item_responded_unassigned",
+      ...payloadBase,
+      notice: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
+    },
+  };
 }

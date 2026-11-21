@@ -64,6 +64,8 @@ export async function findRequestById(
 /**
  * Usuário do Responsável corrente (`requests.professional_id`), dentro da
  * transação da resposta. `null` quando a solicitação não tem Responsável.
+ * O estado atual da conta não altera a audiência: a designação é a fonte de
+ * verdade (decisão registrada em `docs/notifications-contract.md`).
  */
 export async function findAssigneeUserIdByRequestId(
   trx: Knex.Transaction,
@@ -422,7 +424,7 @@ export interface PendingItemResponseInput {
   batchId: string;
   patch: Record<string, unknown>;
   actorEmail: string | undefined;
-  isInternal: boolean;
+  changeOrigin: "admin" | "requester";
   ip: string | undefined;
   decideStatus: (facts: RespondFacts) => string | null;
 }
@@ -465,7 +467,7 @@ export async function applyPendingItemResponse(
     previousValue: "requested",
     newValue: "responded",
     ipAddress: input.ip ?? null,
-    changeOrigin: input.isInternal ? "admin" : "requester",
+    changeOrigin: input.changeOrigin,
   });
 
   const requestedCount = (await trx("pending_items")
