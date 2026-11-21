@@ -180,7 +180,7 @@ export const assignRequestSchema = z
 
 export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;
 
-// Contrato contract-assign-action.md — PATCH /requests/:protocol/internal/assignee
+// Contrato docs/rules/assignment.md — PATCH /requests/:protocol/internal/assignee
 // Frontend envia user_id string (ex.: "20"), nunca professional_id. XOR: exatamente um campo presente.
 const analystIdSchema = z.string().trim().min(1, "analystId não pode ser vazio.");
 

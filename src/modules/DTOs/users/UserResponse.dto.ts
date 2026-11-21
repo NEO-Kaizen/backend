@@ -22,7 +22,7 @@ export interface AssignAnalyst {
   requestLoad: number | null;
 }
 
-// compat alias — contrato contract-assign-action.md usa AssignAnalyst; manter Analyst como alias até remover usos legados
+// compat alias — contrato docs/rules/assignment.md usa AssignAnalyst; manter Analyst como alias até remover usos legados
 export type Analyst = AssignAnalyst;
 
 export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {

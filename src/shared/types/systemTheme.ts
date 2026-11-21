@@ -25,7 +25,7 @@ export type ThemePalette = "light" | "dark";
 
 /**
  * Linha da tabela `system_themes` — tema do portal (contrato
- * `portal-config-api.md`), TABELA PRÓPRIA, fora do `system_settings`.
+ * `docs/rules/portal-config.md`), TABELA PRÓPRIA, fora do `system_settings`.
  *
  * Colunas explícitas por paleta (sem JSONB): tokens hex, gradiente e os 5
  * statuses por tom na paleta `light` e `dark`. Singleton (`theme_id = 1`).

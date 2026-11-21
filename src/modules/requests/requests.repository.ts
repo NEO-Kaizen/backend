@@ -491,7 +491,7 @@ export async function findRequestByProtocolWithOwner(
   };
 }
 
-// --- Consulta administrativa/interna (issue #48 + contract-assign-action) ---
+// --- Consulta administrativa/interna (issue #48 + docs/rules/assignment.md) ---
 
 /** Anexo de solicitação — projeção de `attachments` usada no detalhe. */
 export interface RequestAttachmentRow {
@@ -662,7 +662,7 @@ export async function findEvaluationByProtocol(
   };
 }
 
-/** Perfil que pode ser responsável técnico — contrato contract-assign-action.md: só Analista. */
+/** Perfil que pode ser responsável técnico — contrato docs/rules/assignment.md: só Analista. */
 export const ASSIGNABLE_PROFILES = ["analista"] as const;
 
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {

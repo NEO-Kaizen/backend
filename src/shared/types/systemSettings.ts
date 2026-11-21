@@ -5,7 +5,7 @@ export type PortalSolicitationMode = SolicitationMode;
 
 /**
  * Linha da tabela `system_settings` — configuração global singleton (contrato
- * `portal-config-api.md`).
+ * `docs/rules/portal-config.md`).
  *
  * Retorno direto do Knex (colunas em snake_case, datas normalizadas pelo
  * PostgreSQL). O singleton é garantido no banco: `settings_id = 1` (PK + CHECK).

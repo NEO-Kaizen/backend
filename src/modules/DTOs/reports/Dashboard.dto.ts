@@ -6,7 +6,7 @@ export type DashboardSituation = "open" | "closed" | "overdue" | "unassigned";
 /**
  * Filtro de prioridade do dashboard.
  * `"unassigned"` significa "solicitações ainda não priorizadas" (sentinela do
- * contrato `dashboard-metrics-contract.md`), não "sem responsável".
+ * contrato `docs/rules/reports.md`), não "sem responsável".
  */
 export type DashboardPriorityFilter = number | "unassigned";
 
@@ -33,7 +33,7 @@ export interface DashboardStatusMetric {
   count: number;
   tone: StatusTone;
   /**
-   * Nome legado de `statuses.is_terminal` (ver `dashboard-metrics-contract.md`).
+   * Nome legado de `statuses.is_terminal` (ver `docs/rules/reports.md`).
    * O Motor de Status v4 expõe o mesmo conceito como `isTerminal` em
    * `PortalStatus`; mantido por compatibilidade do contrato do dashboard.
    */

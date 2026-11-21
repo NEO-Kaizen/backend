@@ -1,5 +1,5 @@
 // DTO de GET /requests/:protocol/internal — contrato fechado com o frontend
-// em docs/requests-internal-query-contract.md (tela `/(admin)/fila/[protocolo]`).
+// em docs/rules/pending-items.md (tela `/(admin)/fila/[protocolo]`).
 // Difere explicitamente do DTO público (GET /requests/:protocol, issue #34):
 // nunca retorna dados internos de triagem além de `internalObservations`.
 

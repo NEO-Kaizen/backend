@@ -12,8 +12,9 @@ referência, a solicitação, suas pendências, anexos e preferências de horár
 seus relacionamentos, restrições, índices, regras de integridade e decisões de
 modelagem.
 
-O contrato de comunicação Frontend ↔ Backend que orienta esta modelagem está em
-[`docs/solicitations-api-requests-0_4.md`](../solicitations-api-requests-0_4.md).
+As regras de negócio que orientam esta modelagem estão em
+[`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md); o contrato HTTP está em
+[`src/docs/`](../../src/docs/).
 
 ## Visão geral do modelo
 
@@ -131,22 +132,36 @@ módulo de configurações.
 
 ## Tabela `statuses`
 
-Armazena a matriz pública de 17 status visíveis ao solicitante.
+Armazena o catálogo de Status do Motor v4. Apenas parte dos Status é pública
+(`is_public = true`); os 17 valores semeados são a referência base, não uma
+lista fechada.
 
 ### Estrutura
 
-| Campo          | Tipo         | Obrigatório | Restrição / Default          | Finalidade                |
-| -------------- | ------------ | ----------- | ---------------------------- | ------------------------- |
-| `status_id`    | INTEGER      | Sim         | Primary Key, auto increment  | Identificador do status   |
-| `order_number` | INTEGER      | Sim         | UNIQUE (`uk_statuses_order`) | Ordem de exibição         |
-| `name`         | VARCHAR(100) | Sim         | UNIQUE (`uk_statuses_name`)  | Nome do status            |
-| `description`  | TEXT         | Não         | NULL permitido               | Descrição do status       |
-| `is_final`     | BOOLEAN      | Sim         | DEFAULT FALSE                | Indica se encerra o fluxo |
+| Campo           | Tipo         | Obrigatório | Restrição / Default                          | Finalidade                    |
+| --------------- | ------------ | ----------- | -------------------------------------------- | ----------------------------- |
+| `status_id`     | INTEGER      | Sim         | Primary Key, auto increment                  | Identificador estável (1..50) |
+| `order_number`  | INTEGER      | Sim         | UNIQUE (`uk_statuses_order`)                 | Ordem de exibição             |
+| `name`          | VARCHAR(100) | Sim         | UNIQUE (`uk_statuses_name`)                  | Nome do Status                |
+| `description`   | TEXT         | Não         | NULL permitido                               | Descrição do Status           |
+| `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                                | Núcleo imutável               |
+| `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                                | Nome visível ao solicitante   |
+| `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                                | Encerra a solicitação         |
+| `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                                | Só Administrador define       |
+| `triage_mode`   | ENUM         | Sim         | `none`/`free`/`conclusion_only`              | Alvo da fase de triagem       |
+| `mapping_mode`  | ENUM         | Sim         | `none`/`free`/`conclusion_only`              | Alvo da fase de mapeamento    |
+| `tone`          | ENUM         | Sim         | `error`/`success`/`info`/`warning`/`neutral` | Tom visual                    |
+| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE                                 | Participa de novos fluxos     |
 
 ### Restrições
 
 - `order_number` e `name` são únicos e obrigatórios;
-- `is_final` possui valor padrão `FALSE`.
+- Status core (`1, 3, 4, 6, 7, 16, 17`) não podem ser removidos, renomeados,
+  desativados nem ter flags/modos alterados;
+- o `CHECK` de `entity_type` da auditoria é independente deste catálogo.
+
+As regras de transição estão em
+[`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
 
 ## Tabela `priorities`
 
@@ -200,8 +215,8 @@ renomeada/ajustada pela migration
   aqui e continua logando;
 - índice em `status` (`idx_details_professional_status`).
 
-Elegibilidade para atribuição (ver `docs/requests-assignment-contract.md`):
-`status = 'active'` **e** `users.is_active` **e** perfil `analista`/`gestor`.
+Elegibilidade para atribuição (ver `docs/rules/assignment.md`):
+`status = 'active'` **e** `users.is_active` **e** perfil `analista`.
 
 ## Tabela `requests`
 
@@ -256,7 +271,7 @@ identificador interno sequencial.
 | `status_id`               | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Status atual do pedido                                                               |
 | `priority_id`             | INTEGER      | Não         | Foreign Key, NULL permitido                                                  | Prioridade, preenchida após a triagem                                                |
 | `preliminary_complexity`  | VARCHAR(50)  | Não         | NULL permitido                                                               | Complexidade preliminar                                                              |
-| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido                                                               | Resultado da triagem                                                                 |
+| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido                                                               | Resultado legado da triagem (não escrito pelo fluxo atual)                           |
 | `screening_justification` | TEXT         | Não         | NULL permitido                                                               | Justificativa da triagem                                                             |
 | `identified_risks`        | TEXT         | Não         | NULL permitido                                                               | Riscos identificados                                                                 |
 | `professional_id`         | UUID         | Não         | Foreign Key, NULL permitido                                                  | Responsável técnico atribuído                                                        |
@@ -297,35 +312,40 @@ responsabilidade da aplicação.
 
 ## Tabela `pending_items`
 
-Armazena as pendências abertas por analistas durante a triagem.
+Armazena pendências por campo/observação (contrato 02). As regras de ciclo de
+vida estão em [`docs/rules/pending-items.md`](../rules/pending-items.md).
 
 ### Estrutura
 
-| Campo                      | Tipo         | Obrigatório | Restrição / Default                                     | Finalidade                  |
-| -------------------------- | ------------ | ----------- | ------------------------------------------------------- | --------------------------- |
-| `pending_item_id`          | UUID         | Sim         | Primary Key, `gen_random_uuid()`                        | Identificador da pendência  |
-| `request_id`               | BIGINT       | Sim         | Foreign Key, NOT NULL                                   | Solicitação associada       |
-| `type`                     | ENUM         | Sim         | `field_edit`/`attachment_upload`/`information`/`action` | Tipo da pendência           |
-| `description`              | TEXT         | Sim         | NOT NULL                                                | Descrição da pendência      |
-| `requested_fields`         | JSONB        | Não         | NULL permitido                                          | Campos solicitados          |
-| `requires_attachment`      | BOOLEAN      | Sim         | DEFAULT FALSE                                           | Exige anexo                 |
-| `expected_attachment_type` | VARCHAR(100) | Não         | NULL permitido                                          | Formato esperado do anexo   |
-| `is_visible_to_requester`  | BOOLEAN      | Sim         | DEFAULT TRUE                                            | Visível ao solicitante      |
-| `status`                   | ENUM         | Sim         | `open`/`overdue`/`resolved`; DEFAULT `open`             | Situação da pendência       |
-| `deadline`                 | DATE         | Não         | NULL permitido                                          | Prazo                       |
-| `created_by`               | VARCHAR(100) | Sim         | NOT NULL                                                | Usuário/e-mail de criação   |
-| `created_at`               | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                             | Data e hora de criação      |
-| `resolution`               | TEXT         | Não         | NULL permitido                                          | Resolução                   |
-| `resolved_by`              | VARCHAR(100) | Não         | NULL permitido                                          | Usuário/e-mail da resolução |
-| `resolved_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                          | Data e hora da resolução    |
+| Campo                | Tipo         | Obrigatório | Restrição / Default                                      | Finalidade                           |
+| -------------------- | ------------ | ----------- | -------------------------------------------------------- | ------------------------------------ |
+| `pending_item_id`    | UUID         | Sim         | Primary Key, `gen_random_uuid()`                         | Identificador do item                |
+| `request_id`         | BIGINT       | Sim         | FK `requests.request_id`                                 | Solicitação associada                |
+| `batch_id`           | UUID         | Sim         | NOT NULL                                                 | Agrupa o lote                        |
+| `type`               | ENUM         | Sim         | `field_edit`/`observation`                               | Tipo do item                         |
+| `field_key`          | VARCHAR(100) | Não         | NULL em `observation`                                    | Chave do catálogo de campos          |
+| `field_label`        | VARCHAR(150) | Não         | Snapshot do rótulo                                       | Exibição                             |
+| `current_value`      | TEXT         | Não         | JSON serializado                                         | Snapshot do valor na criação         |
+| `comment`            | TEXT         | Sim         | 1..2000                                                  | Pedido do analista                   |
+| `description`        | TEXT         | Sim         | Espelho legado de `comment`                              | Compatibilidade                      |
+| `corrected_value`    | TEXT         | Não         | JSON serializado                                         | Resposta de `field_edit`             |
+| `response_text`      | TEXT         | Não         | Resposta de `observation`                                | Resposta discursiva                  |
+| `status`             | ENUM         | Sim         | `requested`/`responded`/`validated`; DEFAULT `requested` | Situação do item                     |
+| `request_attachment` | BOOLEAN      | Sim         | DEFAULT FALSE                                            | Exigência do LOTE                    |
+| `deadline`           | DATE         | Não         | NULL permitido                                           | Prazo (não preenchido hoje)          |
+| `created_by`         | VARCHAR(100) | Sim         | NOT NULL                                                 | Usuário/e-mail de criação            |
+| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                              | Data de criação (resetada no reopen) |
+| `responded_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Resposta do solicitante              |
+| `validated_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Validação do analista                |
 
 ### Restrições
 
 - `request_id` referencia `requests.request_id` com `ON DELETE CASCADE`;
 - `type` usa o tipo nativo `pending_item_type`;
-- `status` usa o tipo nativo `pending_item_status` com valor padrão `open`;
-- índices: `idx_pending_items_request`, `idx_pending_items_status`,
-  `idx_pending_items_visibility`.
+- `status` usa o tipo nativo `pending_item_status` com valor padrão
+  `requested`;
+- `batch_id` + `request_attachment` são uniformes no lote;
+- índices em `request_id`, `batch_id` e `status`.
 
 ## Tabela `attachments`
 
@@ -382,8 +402,7 @@ mapeamento (`schedulePreferences`).
 O identificador público de rastreio é o **protocolo**, uma coluna de texto
 (`protocol VARCHAR(25)`, `UNIQUE`, `NOT NULL`). Ele é **não enumerável** e
 derivado do `request_id` interno por FPE/Feistel (ex.: `MAAT-8K3P-9X2M`),
-conforme o contrato (`docs/solicitations-api-requests-0_4.md`, seção 1 e
-observações).
+conforme as regras em [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
 
 - o `request_id` é gerado por uma sequence dedicada (`requests_request_seq`),
   garantindo unicidade sob concorrência sem expor o sequencial;
@@ -420,7 +439,7 @@ observações).
   contra varredura sequencial (IDOR).
 - **Obrigatoriedade e limites espelhados no banco:** os campos obrigatórios do
   contrato são `NOT NULL` e os limites de caracteres são refletidos em
-  `VARCHAR`, conforme a seção "Observações" do contrato.
+  `VARCHAR`, conforme os blocos descritos em [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
 - **`YesNoDetail` como flag + detalhe:** a resposta "Sim/Não (+ detalhamento)"
   vira duas colunas; o detalhe é a própria resposta positiva.
 - **Preferências de horário em tabela filha:** `schedulePreferences` é uma lista;
@@ -453,8 +472,10 @@ Não fazem parte desta Issue:
 ## Migrations
 
 A estrutura é controlada por migrations do Knex, executadas após as migrations de
-autenticação (diretório `migrations/` na raiz, fora do escopo desta seção), na
-seguinte ordem:
+autenticação (diretório `migrations/` na raiz, fora do escopo desta seção). A
+lista abaixo é o núcleo inicial; migrations posteriores de status, pendências,
+anexos e auditoria vivem em `migrations/requester_request/` e prevalecem sobre
+esta fotografia. Ordem do núcleo:
 
 1. `202609100001_create_requesters.js`
 2. `202609100002_create_categories.js`

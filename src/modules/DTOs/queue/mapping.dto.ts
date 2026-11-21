@@ -1,5 +1,5 @@
 // DTOs do subfluxo de Mapeamento (`/queue/requests/:protocol/mapping`).
-// Contrato fechado com o frontend em `contrato-mapeamento.md` (issue #86).
+// Contrato HTTP na especificação OpenAPI (`src/docs/paths/queue.ts`; issue #86).
 //
 // `id` do participante referencia `users.user_id`; quando ausente, o
 // participante é externo (nome/e-mail enviados no payload). O `id` do

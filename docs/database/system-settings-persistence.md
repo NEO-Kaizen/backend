@@ -4,7 +4,7 @@
 >
 > Esta PR **REESCREVE a migration `20260915000000_create_system_settings.js`**
 > que já está mergeada na `main` (PR #79). Ela foi remodelada para espelhar o
-> contrato `portal-config-api.md` (tema em `system_themes` + identity/access/
+> regras em `docs/rules/portal-config.md` (tema em `system_themes` + identity/access/
 > assets no `system_settings`). **O banco deve ser recriado do zero**
 > (`DROP DATABASE` + `CREATE DATABASE` + `migrate:latest` + `seed:run`).
 > **NÃO executar `migrate:latest` em ambientes que já tenham a #79 aplicada**
@@ -14,12 +14,12 @@
 ## Issues relacionadas
 
 - Issue #54 — BACKEND - Persistência de configuração global do portal
-- Issue #90 (contrato `portal-config-api.md`) — Configuração do portal (PortalConfig)
+- Issue #90 (regras em `docs/rules/portal-config.md`) — Configuração do portal (PortalConfig)
 
 ## Objetivo
 
 Documentar a estrutura de banco de dados que persiste a configuração global do
-portal — espelhando **exatamente** o contrato `portal-config-api.md` naquilo que
+portal — espelhando **exatamente** as regras de `docs/rules/portal-config.md` naquilo que
 **não** vive em tabelas próprias.
 
 O contrato é dividido em **duas tabelas**:
@@ -274,19 +274,20 @@ opera em transação própria com lock do singleton:
   cliente), `display_order` = índice do array; itens ausentes tornam-se
   `status = 'inactive'` (sem hard delete — FK RESTRICT em `requests`).
   Seguido de `setval` para não colidir com a sequence.
-- **`statuses`** → upsert por `status_id`, `order_number` = índice,
-  `visibility`/`closes_request`/`tone`/`is_active` (por item do payload);
-  ausentes viram `is_active = false` e são renumerados para depois dos enviados;
-  `is_final` é sincronizado com `closes_request` (decisão §8.5). A unicidade de
-  `order_number` (`uk_statuses_order`) é `DEFERRABLE INITIALLY DEFERRED`
-  (migration `20260919140000`), validada no commit após a renumeração. Nomes
-  protegidos (referenciados no código) não podem ser renomeados/removidos. O
-  `GET` retorna também os inativos (`isActive: false`), já que não há exclusão
-  de status.
+- **`statuses`** → upsert por `status_id`, `order_number` = índice e as flags
+  do Motor v4 (`is_core`, `is_public`, `is_terminal`, `triage_mode`,
+  `mapping_mode`, `is_restricted`, `tone`, `is_active`). Ausentes viram
+  `is_active = false` e são renumerados para depois dos enviados. Status core
+  (`1, 3, 4, 6, 7, 16, 17`) não podem ser removidos, renomeados, rebaixados,
+  desativados nem ter flags/modos alterados (violação → `409` com código
+  estável). A unicidade de `order_number` (`uk_statuses_order`) é
+  `DEFERRABLE INITIALLY DEFERRED` (migration `20260919140000`), validada no
+  commit após a renumeração. O `GET` retorna também os inativos
+  (`isActive: false`), já que não há exclusão de status.
 - **`prioritization-weights`** → mapeia as 10 chaves do contrato (EN) para
   `criteria.criterion_id` (pt snake) via `src/shared/types/criteria.ts`
-  (`CRITERION_KEY_TO_ID`) e grava `criteria.weight` (inteiro 0–10, decisão
-  §8.3; CHECK `ck_criteria_weight_range`).
+  (`CRITERION_KEY_TO_ID`) e grava `criteria.weight` (inteiro 1–10 na API; o CHECK do banco aceita 0–10 para
+  compatibilidade histórica).
 
 Todos os PATCH registram auditoria (`audit_history`, entidade `settings`,
 ação `settings.update`) na MESMA transação da alteração, com `FOR UPDATE` no
@@ -296,7 +297,7 @@ singleton para serializar escritas administrativas concorrentes.
 > (`src/shared/middleware/accessMode.ts`), então a alteração via `PATCH access`
 > passa a valer imediatamente para `POST /requests`, `GET /requests` e
 > `GET /requests/:protocol` — sem cache/restart. Comportamento por modo em
-> `docs/solicitations-api-requests-0_4.md` (seção 0).
+> [`docs/rules/public-tracking.md`](../rules/public-tracking.md).
 
 ### Assets binários (multipart)
 

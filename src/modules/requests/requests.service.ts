@@ -171,7 +171,7 @@ export async function listRequestsByEmail(
 
 // --- Consulta administrativa/interna (issue #48) ---------------------------
 // Difere de findRequest (pÃºblica, issue #34): retorna o DTO interno completo,
-// nunca o pÃºblico. Ver docs/requests-internal-query-contract.md.
+// nunca o pÃºblico. Ver docs/rules/pending-items.md.
 
 // Resposta "Sim/NÃ£o (+ detalhamento)": undefined quando o campo nÃ£o foi
 // respondido (Bloco 4 Ã© opcional â€” o contrato espera a chave ausente, nÃ£o
@@ -233,7 +233,7 @@ export async function findInternalByProtocol(
       }
     : null;
 
-  // PendÃªncias (contract-pendencias_03): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
+  // PendÃªncias (docs/rules/pending-items.md): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
   const pendingSummary = await (async () => {
     try {
       const summary = await pendingItemsRepo.pendingSummaryByRequestId(requestId);
@@ -1094,7 +1094,7 @@ function canAssignRequest(
 }
 
 // --- PATCH /requests/:protocol/status (issue #124 â€” Motor de Status v4) -----
-// Rota Ãºnica de troca de status (delta `portal-config-statuses-amend.md` Â§3.3):
+// Rota Ãºnica de troca de status (delta `docs/rules/requests-lifecycle.md` Â§3.3):
 // - `Administrador`: bypass de triageMode/mappingMode/isRestricted â€” pode ir a
 //   qualquer status `isActive` (inativo â†’ 409);
 // - `ANALYST_ASSIGNEE` (responsÃ¡vel pela triagem ou designado do mapeamento,

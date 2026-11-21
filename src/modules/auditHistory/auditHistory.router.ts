@@ -37,6 +37,13 @@ export default auditHistoryRoutes;
 // (montagens diferentes): `/audit-history/<int>` vs `/audit-logs/<protocol>`.
 export const auditLogsRouter = express.Router();
 
+// Mesma postura de cache da listagem administrativa: dados sensíveis não devem
+// ser armazenados por navegador ou intermediários.
+auditLogsRouter.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  next();
+});
+
 auditLogsRouter.get(
   "/:protocol",
   authMiddleware,

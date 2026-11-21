@@ -1,13 +1,14 @@
 export const NotificationPayload = {
   type: "object",
+  additionalProperties: false,
   description:
     "Payload reduzido à Allowlist do Evento. Nunca contém mensagem técnica, scores, notas internas ou campos de triagem.",
   required: ["type", "protocol", "title", "newStatus"],
   properties: {
     type: { type: "string", enum: ["status_changed"], example: "status_changed" },
-    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-    title: { type: "string", example: "Automatizar conciliação bancária" },
-    newStatus: { type: "string", example: "Aguardando mapeamento" },
+    protocol: { type: "string", maxLength: 25, example: "MAAT-8K3P-9X2M" },
+    title: { type: "string", maxLength: 150, example: "Automatizar conciliação bancária" },
+    newStatus: { type: "string", maxLength: 100, example: "Aguardando mapeamento" },
   },
 };
 

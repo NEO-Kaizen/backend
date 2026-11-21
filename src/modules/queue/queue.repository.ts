@@ -1,5 +1,4 @@
 import db from "../../database/conection.ts";
-import { TERMINAL_STATUSES } from "../../shared/types/requests.ts";
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
 import { applyQueueFilters } from "./queue.filters.ts";
@@ -59,10 +58,9 @@ export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMet
         [...IN_PROGRESS_STATUS_NAMES],
       ),
       // Atrasadas: prazo (`date`) já vencido — vence hoje ainda não é atraso —
-      // e status não terminal (sem entrega concluída/cancelada).
+      // e status não terminal (flag do catálogo v4).
       db.raw(
-        `COUNT(CASE WHEN requests.desired_deadline < CURRENT_DATE AND s.name NOT IN (${TERMINAL_STATUSES.map(() => "?").join(",")}) THEN 1 END)::int as "overdueRequests"`,
-        [...TERMINAL_STATUSES],
+        'COUNT(CASE WHEN requests.desired_deadline < CURRENT_DATE AND s.is_terminal = FALSE THEN 1 END)::int as "overdueRequests"',
       ),
     )
     .first();
@@ -108,7 +106,7 @@ export const findQueueRequests = async (
       "requests.process_name as processName",
       "priority_tbl.level as priority",
       "status.name as status",
-      // Expor user_id como assigneeId para contract-assign-action.md (frontend usa user_id)
+      // Expor user_id como assigneeId para docs/rules/assignment.md (frontend usa user_id)
       db.raw('assignee_user.user_id::text as "assigneeId"'),
       "assignee_user.full_name as assignee",
       "requester.full_name as requesterName",

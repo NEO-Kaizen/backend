@@ -16,14 +16,6 @@ export default {
             },
           },
         },
-        "401": {
-          description: "Não autenticado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
       },
     },
   },
@@ -112,6 +104,7 @@ export default {
             "application/json": {
               schema: {
                 type: "object",
+                required: ["platformName", "protocolMask"],
                 properties: {
                   platformName: { type: "string", example: "MAAT" },
                   protocolMask: { type: "string", example: "MAAT" },
@@ -168,7 +161,11 @@ export default {
           description: "Tema alterado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/PortalTheme" },
+              schema: {
+                type: "object",
+                required: ["theme"],
+                properties: { theme: { $ref: "#/components/schemas/PortalTheme" } },
+              },
             },
           },
         },
@@ -276,12 +273,32 @@ export default {
           description: "Assets alterados com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/PortalAssets" },
+              schema: {
+                type: "object",
+                required: ["assets"],
+                properties: { assets: { $ref: "#/components/schemas/PortalAssets" } },
+              },
             },
           },
         },
         "400": {
           description: "Body inválido, JSON malformado ou nenhum asset informado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "413": {
+          description: "Arquivo excede o limite de tamanho da chave.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "415": {
+          description: "MIME/extensão não permitido para a chave.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -359,14 +376,6 @@ export default {
         },
         "403": {
           description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "409": {
-          description: "Conflito (categoria núcleo ausente, nome duplicado, etc.).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

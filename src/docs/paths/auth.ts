@@ -51,6 +51,7 @@ export default {
       description:
         "Remove o cookie de sessão do navegador. Idempotente — retorna sucesso mesmo sem sessão ativa.",
       operationId: "authLogout",
+      security: [],
       responses: {
         "200": {
           description: "Sessão encerrada com sucesso.",

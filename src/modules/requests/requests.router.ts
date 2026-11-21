@@ -31,7 +31,7 @@ requestsRoutes.get(
   getAssignees,
 );
 
-// Contrato contract-assign-action.md: PATCH /requests/:protocol/internal/assignee com body {assigneeId} | {mappingAssigneeId} (user_id string, XOR, null para remover)
+// Contrato docs/rules/assignment.md: PATCH /requests/:protocol/internal/assignee com body {assigneeId} | {mappingAssigneeId} (user_id string, XOR, null para remover)
 // issue #124: a autorização por atribuição (ANALYST_ASSIGNEE triagem OU
 // mapeamento, ou Administrador) é feita no service — Gestor não atribui
 // (403 no service). Mantida rota legada /:protocol/assignee.
@@ -49,7 +49,7 @@ requestsRoutes.patch(
   patchAssignee,
 );
 
-// Acompanhamento do solicitante (contrato `contract-pendencias_03.md` §3):
+// Acompanhamento do solicitante (contrato `docs/rules/pending-items.md.md` §3):
 // dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
 // antes de `/:protocol` para não ser capturado por engano.
 requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);

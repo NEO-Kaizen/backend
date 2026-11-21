@@ -1,17 +1,27 @@
+const json = (ref: string) => ({
+  content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
+});
+
+const error = (description: string) => ({
+  description,
+  ...json("ErrorResponse"),
+});
+
 export default {
   "/notifications": {
     get: {
       tags: ["Notificações"],
-      summary: "Listar Notificações",
+      summary: "Listar notificações",
       description:
-        "Lista as Notificações do usuário autenticado, da mais recente para a mais antiga, com estado de leitura. Paginação por cursor opaco (`nextCursor`).",
+        "Lista as notificações do usuário autenticado, da mais recente para a mais antiga. Paginação por cursor opaco.",
       operationId: "listNotifications",
+      security: [{ cookieAuth: [] }],
       parameters: [
         {
           name: "cursor",
           in: "query",
           required: false,
-          schema: { type: "string" },
+          schema: { type: "string", maxLength: 512 },
         },
         {
           name: "limit",
@@ -21,30 +31,9 @@ export default {
         },
       ],
       responses: {
-        "200": {
-          description: "Página de Notificações.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/NotificationListResponse" },
-            },
-          },
-        },
-        "400": {
-          description: "Cursor ou limite inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sessão ausente ou inválida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Página de notificações.", ...json("NotificationListResponse") },
+        "400": error("Cursor ou limite inválido."),
+        "401": error("Sessão ausente ou inválida."),
       },
     },
   },
@@ -52,26 +41,16 @@ export default {
   "/notifications/unread-count": {
     get: {
       tags: ["Notificações"],
-      summary: "Contar Notificações não lidas",
-      description: "Retorna o contador de Notificações não lidas do usuário autenticado.",
+      summary: "Contar notificações não lidas",
+      description: "Retorna o contador de notificações não lidas do usuário autenticado.",
       operationId: "getNotificationUnreadCount",
+      security: [{ cookieAuth: [] }],
       responses: {
         "200": {
           description: "Contador de não lidas.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/NotificationUnreadCountResponse" },
-            },
-          },
+          ...json("NotificationUnreadCountResponse"),
         },
-        "401": {
-          description: "Sessão ausente ou inválida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sessão ausente ou inválida."),
       },
     },
   },
@@ -79,10 +58,11 @@ export default {
   "/notifications/{notificationId}/read": {
     patch: {
       tags: ["Notificações"],
-      summary: "Marcar Notificação como lida",
+      summary: "Marcar notificação como lida",
       description:
-        "Marca uma Notificação do usuário autenticado como lida. A operação é idempotente: repetir devolve o instante original de leitura.",
+        "Idempotente: repetir a chamada devolve o instante original de leitura. Notificação de outro usuário responde 404 (sem revelar existência).",
       operationId: "markNotificationRead",
+      security: [{ cookieAuth: [] }],
       parameters: [
         {
           name: "notificationId",
@@ -92,38 +72,10 @@ export default {
         },
       ],
       responses: {
-        "200": {
-          description: "Notificação marcada como lida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/NotificationMarkReadResponse" },
-            },
-          },
-        },
-        "400": {
-          description: "Identificador inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sessão ausente ou inválida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Notificação não encontrada para o usuário.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Notificação marcada.", ...json("NotificationMarkReadResponse") },
+        "400": error("Identificador inválido."),
+        "401": error("Sessão ausente ou inválida."),
+        "404": error("Notificação não encontrada para o usuário."),
       },
     },
   },
@@ -131,26 +83,16 @@ export default {
   "/notifications/read-all": {
     patch: {
       tags: ["Notificações"],
-      summary: "Marcar todas as Notificações como lidas",
-      description: "Marca em massa todas as Notificações não lidas do usuário autenticado.",
+      summary: "Marcar todas as notificações como lidas",
+      description: "Marca em massa todas as notificações não lidas do usuário autenticado.",
       operationId: "markAllNotificationsRead",
+      security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Quantidade de Notificações marcadas.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/NotificationMarkAllReadResponse" },
-            },
-          },
+          description: "Quantidade marcada.",
+          ...json("NotificationMarkAllReadResponse"),
         },
-        "401": {
-          description: "Sessão ausente ou inválida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sessão ausente ou inválida."),
       },
     },
   },
@@ -158,10 +100,12 @@ export default {
   "/notifications/stream": {
     get: {
       tags: ["Notificações"],
-      summary: "Stream SSE de Notificações",
+      summary: "Stream SSE de notificações",
       description:
-        "Entrega as Notificações em tempo real via Server-Sent Events, autenticado pelo cookie de sessão. O evento `notification` traz o mesmo item da lista no `data` e o id da Notificação no campo `id`. Ao reconectar com `Last-Event-ID`, reenvia as Notificações criadas depois da âncora; o cliente deduplica por id.",
+        "Server-Sent Events autenticado pelo cookie. Evento `notification` com o mesmo item da lista; `id` = id da notificação. " +
+        "Ao reconectar, reenvia notificações posteriores à âncora (`Last-Event-ID` ou query `lastEventId`); eventos ao vivo são enfileirados durante o replay.",
       operationId: "streamNotifications",
+      security: [{ cookieAuth: [] }],
       parameters: [
         {
           name: "Last-Event-ID",
@@ -185,14 +129,7 @@ export default {
             },
           },
         },
-        "401": {
-          description: "Sessão ausente ou inválida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sessão ausente ou inválida."),
       },
     },
   },

@@ -1,6 +1,6 @@
 # Persistência de Notificações (RF20)
 
-Issue: #157. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
+Issue: #157. Regras de negócio em [`docs/rules/notifications.md`](../rules/notifications.md); contrato HTTP em [`src/docs/`](../../src/docs/).
 
 ## Objetivo
 

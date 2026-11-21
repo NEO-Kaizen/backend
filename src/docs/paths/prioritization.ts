@@ -1,49 +1,39 @@
+const json = (ref: string) => ({
+  content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
+});
+
+const error = (description: string) => ({
+  description,
+  ...json("ErrorResponse"),
+});
+
 export default {
   "/prioritization/criteria": {
     get: {
       tags: ["Priorização"],
-      summary: "Listar critérios de Priorização",
+      summary: "Listar critérios de priorização",
       description:
-        "Lista os critérios de Priorização com seus pesos. Exige autenticação e perfil interno.",
+        "Lista os critérios ativos e seus pesos. Leitura liberada aos perfis internos (Gestor é somente leitura também aqui).",
       operationId: "listPrioritizationCriteria",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Lista de critérios de Priorização.",
-          content: {
-            "application/json": {
-              schema: {
-                type: "array",
-                items: { $ref: "#/components/schemas/PrioritizationCriteria" },
-              },
-            },
-          },
+          description: "Critérios ativos.",
+          ...json("PrioritizationCriteriaList"),
         },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso."),
       },
     },
   },
+
   "/prioritization/{protocol}/score": {
     put: {
       tags: ["Priorização"],
-      summary: "Avaliar pontuação de Priorização",
+      summary: "Avaliar pontuação de priorização",
       description:
-        "Avalia a pontuação de Priorização de uma solicitação. Exige autenticação e perfil Analista ou Administrador.",
+        "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. " +
+        "Todas as notas dos critérios ativos são obrigatórias. Perfis: Administrador ou Analista responsável pela solicitação.",
       operationId: "evaluatePrioritizationScore",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -58,70 +48,19 @@ export default {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                notes: {
-                  type: "object",
-                  additionalProperties: {
-                    type: "integer",
-                    minimum: 1,
-                    maximum: 5,
-                  },
-                  description: "Notas de 1 a 5 para cada critério de priorização.",
-                  example: {
-                    impacto_operacional: 4,
-                    risco_operacional: 3,
-                    urgencia: 4,
-                    volumetria: 3,
-                    esforco_manual: 2,
-                    impacto_cliente: 4,
-                    prazo_regulatorio: 3,
-                    areas_impactadas: 3,
-                    alinhamento_estrategico: 4,
-                    complexidade_estimada: 3,
-                  },
-                },
-                justification: {
-                  type: "string",
-                  maxLength: 500,
-                  example:
-                    "Solicitação priorizada com base no impacto operacional e urgência do negócio.",
-                },
-              },
-              required: ["notes"],
-            },
+            schema: { $ref: "#/components/schemas/EvaluatePrioritizationRequest" },
           },
         },
       },
       responses: {
         "200": {
-          description: "Pontuação avaliada com sucesso.",
+          description: "Priorização avaliada.",
+          ...json("EvaluatePrioritizationResponse"),
         },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Analista ou Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo inexistente.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Payload inválido ou notas incompletas."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil ou custódia insuficiente."),
+        "404": error("Protocolo inexistente."),
       },
     },
   },

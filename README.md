@@ -126,6 +126,12 @@ A documentação da persistência (autenticação, pedidos e configuração glob
 - [Persistência dos pedidos (solicitações)](docs/database/requests-persistence.md)
 - [Persistência da configuração global](docs/database/system-settings-persistence.md)
 
+As regras de negócio ficam em [`docs/rules/`](docs/rules/README.md), as decisões
+difíceis de reverter em [`docs/adr/`](docs/adr/), e o contrato HTTP na
+especificação OpenAPI em [`src/docs/`](src/docs/) — não há contrato duplicado em
+Markdown. O mapa dos documentos antigos está em
+[`docs/superseded.md`](docs/superseded.md).
+
 As migrations e os seeds podem ser executados após a configuração das credenciais do banco:
 
 ```bash
@@ -166,7 +172,7 @@ O servidor roda em `http://localhost:3000` (ou na porta definida em `PORT`).
 
 ## Documentação da API (Swagger/OpenAPI)
 
-O contrato da API (endpoints, parâmetros, schemas, exemplos de request/response e códigos de erro) é definido exclusivamente na especificação OpenAPI 3.0.1 e exposto pelo Swagger.
+O contrato da API (endpoints, parâmetros, schemas, exemplos de request/response e códigos de erro) é definido exclusivamente na especificação OpenAPI 3.0.1 e exposto pelo Swagger. A especificação vive em [`src/docs/`](src/docs/) e é materializada em [`docs/openapi.json`](docs/openapi.json) para consumo sem subir o backend.
 
 A documentação interativa fica disponível apenas em desenvolvimento:
 
@@ -176,6 +182,16 @@ A documentação interativa fica disponível apenas em desenvolvimento:
 Para testar endpoints protegidos no Swagger UI, faça login primeiro em `POST /auth/login`; o servidor define o cookie HttpOnly `session_id`, que o navegador envia automaticamente nas requisições seguintes.
 
 > O Swagger só é montado quando `NODE_ENV=development` e `SWAGGER_ENABLED=true` (definido em `.env`). Nunca é exposto em produção.
+
+## Scripts de documentação
+
+| Comando                      | Descrição                                                         |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `npm run docs:types`         | Gera `docs/type-inference.md` a partir do código                  |
+| `npm run docs:types:check`   | Falha se `docs/type-inference.md` estiver desatualizado           |
+| `npm run docs:openapi`       | Gera `docs/openapi.json` a partir de `src/docs/`                  |
+| `npm run docs:openapi:check` | Valida a spec, os `$ref`s, as rotas reais e o artefato versionado |
+| `npm run docs:check`         | Alias do check de OpenAPI                                         |
 
 ## Scripts
 

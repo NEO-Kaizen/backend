@@ -139,7 +139,7 @@ export async function findLatestTriage(protocol: string): Promise<TriageAssessme
  * §3.1): elegível = `isActive && isRestricted===false && triageMode` em
  * `free`/`conclusion_only` — substitui o antigo filtro `isTriageExit`.
  * Contrato puro: só id numérico — literais antigos (nomes) são rejeitados
- * com 422 (`contract-triage_04.md` §Observações).
+ * com 422 (`docs/rules/triage.md` §Observações).
  */
 export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
@@ -155,7 +155,7 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
 
 /**
  * Resolve a categoria de destino contra o cadastro **ativo**
- * (`contract-triage_04.md` §1 — `newCategory` deve estar ativo). Contrato:
+ * (`docs/rules/triage.md` §1 — `newCategory` deve estar ativo). Contrato:
  * name-string (nunca id).
  */
 export async function resolveCategoryId(value: string): Promise<CategoryRow | undefined> {
