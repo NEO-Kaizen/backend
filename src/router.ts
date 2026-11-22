@@ -12,6 +12,7 @@ import pendingItemsRoutes, {
   publicVerifyRouter,
 } from "./modules/pendingItems/pendingItems.router.ts";
 import auditHistoryRoutes, { auditLogsRouter } from "./modules/auditHistory/auditHistory.router.ts";
+import profilesRoutes from "./modules/profiles/profiles.router.ts";
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.use("/requests/:protocol/public", publicVerifyRouter);
 router.use("/requests", requestsRoutes);
 router.use("/requests", triageRoutes);
 router.use("/users", usersRoutes);
+router.use("/profiles", profilesRoutes);
 
 router.use("/queue", queueRoutes);
 router.use("/portal-config", portalConfigRoutes);
