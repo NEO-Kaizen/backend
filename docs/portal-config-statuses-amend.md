@@ -1,6 +1,11 @@
-# Contrato de API — Configuração do Portal (PortalConfig) — Delta `statuses` v4 + Ciclo
+# Regras de negócio — Configuração do Portal (PortalConfig) — Delta `statuses` v4 + Ciclo
 
-> **Delta sobre `backend/docs/portal-config-api-0_4.md` + `frontend/contratos/portal-config-api-0_4.md`.** Altera **apenas** `PortalConfig.statuses` e unifica ciclo em **3 endpoints** (`POST triage`, `PUT mapping`, `PATCH /status` com bypass Admin). Todo `status change` exige `justification` interna (`1..4000` após trim); **toda transição para um status público (`isPublic===true`) exige também `lastTechnicalMessage`** (`1..4000` após trim), independentemente do ator, e somente esse texto é retornado ao solicitante em `RequestDetail.lastTechnicalMessage`. A justificativa interna não substitui a mensagem pública. No `PUT mapping`, a reunião só é exigida quando `targetStatus === 6` (`Mapeamento agendado`, agora **core**); qualquer outro alvo exige `justification` + (se público) `lastTechnicalMessage`. O bypass do Admin difere somente nos gates de transição para qualquer `isActive`; não dispensa campos obrigatórios. `access, identity, theme, assets, categories, prioritization-weights` idênticos à 0_4.
+> Fonte da verdade das rotas, payloads, respostas e status HTTP: especificação
+> OpenAPI em `src/docs/`. Este documento mantém regras de negócio e contexto
+> histórico; as regras de autorização por Perfil abaixo foram substituídas pelo
+> RBAC descrito em `docs/rbac.md`.
+
+> **Delta sobre `backend/docs/portal-config-api-0_4.md` + `frontend/contratos/portal-config-api-0_4.md`.** Altera **apenas** `PortalConfig.statuses` e unifica ciclo em **3 endpoints** (`POST triage`, `PUT mapping`, `PATCH /status`). Todo `status change` exige `justification` interna (`1..4000` após trim); **toda transição para um status público (`isPublic===true`) exige também `lastTechnicalMessage`** (`1..4000` após trim), independentemente do ator, e somente esse texto é retornado ao solicitante em `RequestDetail.lastTechnicalMessage`. A justificativa interna não substitui a mensagem pública. No `PUT mapping`, a reunião só é exigida quando `targetStatus === 6` (`Mapeamento agendado`, agora **core**); qualquer outro alvo exige `justification` + (se público) `lastTechnicalMessage`. A rota de status é protegida por `request:status_change` + Custódia, com `request:status_override` global para alvos protegidos. `access, identity, theme, assets, categories, prioritization-weights` idênticos à 0_4.
 
 - Fonte: `product-response v4 §1.2` (17-row truth), `contract-triage.md` §4, `solicitations-api-requests-0_4.md`.
 - Referências: `shared/types/portalConfig.ts`, `portalConfig.schema.ts:140-186`, `portalConfig.service.ts:261-270`, `triage.service.ts:46`, `mapping.service.ts:300-364`, `requests.service.ts:206`.
@@ -13,7 +18,7 @@
 - `PortalStatus` 6→9 campos: `isCore, isPublic, isTerminal, triageMode, mappingMode, isRestricted` (normaliza `Acessível+Apenas → triageMode/mappingMode`, `allowedRoles → isRestricted`, `closesRequest → isTerminal`, **7 core** — inclui `Mapeamento agendado` id 6). Ordem de exibição = ordem do array (sem `order` explícito).
 - `PATCH /portal-config/statuses` valida novos enums + `isCore`/`isRestricted` e seed 17 → Anexo A (Priorizado `none/none&true`, terminais só `16,17`).
 - `POST triage` / `PUT mapping` validam `triageMode/mappingMode + isRestricted` em vez de `isTriageExit`.
-- **Todo** `status change` exige `justification` (`1..4000`); **toda transição para status público exige `lastTechnicalMessage`** (`1..4000`, retorno ao solicitante). `PATCH /requests/:protocol/status` único: `ADMIN` bypassa `triageMode/mappingMode/isRestricted` para qualquer status ativo; analista responsável só `free`, ativo e não restrito; `Gestor` permanece read-only. Sem rota `.../status/override` separada.
+- **Todo** `status change` exige `justification` (`1..4000`); **toda transição para status público exige `lastTechnicalMessage`** (`1..4000`, retorno ao solicitante). A rota única `PATCH /requests/:protocol/status` é protegida por `request:status_change` + Custódia; alvos restritos ou fora do modo `free` exigem `request:status_override` global. Sem rota `.../status/override` separada.
 - **`PUT mapping` com lock de agendamento:** `targetStatus === 6` (`Mapeamento agendado`) exige reunião e dispensa `justification`/`lastTechnicalMessage`; `targetStatus !== 6` trava a reunião e exige `justification`, mais `lastTechnicalMessage` se o alvo for público.
 - **`Mapeamento agendado` (id 6) passa a core** — não renomeia/remove/desativa; conjunto core 6→7 (`1,3,4,6,7,16,17`).
 
@@ -463,20 +468,22 @@ curl -s -X PUT http://localhost:3000/queue/requests/MAAT-8K3P-9X2M/mapping \
 
 ### 3.3 PATCH /requests/:protocol/status — create (único, free + admin bypass)
 
-Substitui `3.3` + `3.4` anteriores — rota única. A autorização é fechada:
+Substitui `3.3` + `3.4` anteriores — rota única. A autorização atual é por
+chave de permissão e Custódia:
 
-- `Administrador` pode definir qualquer status com `isActive === true`, inclusive
-  `conclusion_only` ou `isRestricted === true`.
-- `ANALYST_ASSIGNEE` só pode definir um status `free`, com `isActive === true` e
-  `isRestricted === false`, quando `user.id === assigneeId || user.id === mappingAssigneeId`.
-- `Gestor` é read-only: não pode executar `PATCH /status`; uma tentative retorna
-  `403 INSUFFICIENT_ROLE_PERMISSIONS`.
-- O bypass do `Administrador` cobre somente `triageMode`, `mappingMode` e
-  `isRestricted`; ele não dispensa `justification` nem `lastTechnicalMessage`.
+- O ator exige `request:status_change`; com Custódia `assigned`, só pode alterar
+  solicitações sob sua responsabilidade, e com `all`, qualquer solicitação.
+- Status restritos ou fora do modo `free` da etapa exigem
+  `request:status_override` com Custódia `global`.
+- O alvo ainda precisa estar ativo; alvo inativo responde `409`. Permissão
+  ausente para o alvo protegido responde `403`; solicitação fora da Custódia
+  responde `404` para não revelar sua existência.
+- A mudança continua exigindo `justification` e, para status público,
+  `lastTechnicalMessage`; `request:status_override` não dispensa esses campos.
 
-| Endpoint                           | Autenticação | Permissão                                                                                                                                     |
-| ---------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PATCH /requests/:protocol/status` | `session_id` | `Administrador` para qualquer alvo ativo ou `ANALYST_ASSIGNEE` da solicitação para alvo `free`, ativo e não restrito; `Gestor` não autorizado |
+| Endpoint                           | Autenticação | Autorização                                                                                                    |
+| ---------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
+| `PATCH /requests/:protocol/status` | `session_id` | `request:status_change` + Custódia; `request:status_override` global para alvo restrito ou fora do modo `free` |
 
 **Request — analista (free):**
 

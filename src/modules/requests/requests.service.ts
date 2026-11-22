@@ -7,7 +7,7 @@ import type {
   RequestPriority,
   RequesterBlock,
   DemandBlock,
-  AssignmentContextRow,
+  AssignmentCandidateRow,
 } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
@@ -55,12 +55,91 @@ import type {
   UpdateRequestPayload,
   UpdateStatusPayload,
 } from "./requests.schema.ts";
-import type { Role } from "../../shared/types/role.ts";
+import { hasCustody } from "../../shared/access/custody.ts";
+import type { EffectivePermission, PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
 import type { UpdateStatusResponse } from "../DTOs/requests/RequestRequests.dto.ts";
 
 interface AuthenticatedIdentity {
   fullName: string;
   email: string;
+}
+
+interface RequestActor {
+  readonly id: number;
+  readonly email: string;
+  readonly permissions: readonly EffectivePermission[];
+}
+
+interface RequestMutationAcknowledgement {
+  readonly protocol: string;
+  readonly updated: true;
+}
+
+function custodyFor(actor: RequestActor, key: PermissionKey) {
+  return actor.permissions.find((permission) => permission.key === key)?.custody;
+}
+
+function hasRequestCustody(
+  actor: RequestActor,
+  key: PermissionKey,
+  assigneeUserId: unknown,
+): boolean {
+  const custody = custodyFor(actor, key);
+  if (!custody) return false;
+  const responsibleId =
+    typeof assigneeUserId === "number" ? assigneeUserId : Number(assigneeUserId);
+  return hasCustody(
+    custody,
+    { userId: actor.id, email: actor.email },
+    {
+      responsibleIds: Number.isInteger(responsibleId) && responsibleId > 0 ? [responsibleId] : [],
+    },
+  );
+}
+
+/**
+ * Registra a tentativa de acesso negado na auditoria. Usado em todos os
+ * guards de custódia de requests.
+ */
+async function recordAccessDeniedAudit(
+  protocol: string,
+  actorId: number,
+  ipAddress: string | undefined,
+  detail: string,
+): Promise<void> {
+  await db.transaction(async (trx) => {
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: protocol,
+      actionType: "request.access_denied",
+      userId: actorId,
+      previousValue: null,
+      newValue: null,
+      note: "Access denied: " + detail,
+      ipAddress,
+      changeOrigin: "system",
+    });
+  });
+}
+
+function inaccessibleRequestError(): AppError {
+  return new AppError("Solicitação não encontrada", 404, "request_not_found");
+}
+
+async function requireRequestCustody<T>(
+  request: T | null | undefined,
+  actor: RequestActor,
+  protocol: string,
+  ipAddress: string | undefined,
+  detail: string,
+  canAccess: (request: T) => boolean,
+): Promise<T> {
+  if (request === null || request === undefined || !canAccess(request)) {
+    await recordAccessDeniedAudit(protocol, actor.id, ipAddress, detail);
+    throw inaccessibleRequestError();
+  }
+
+  return request;
 }
 
 /**
@@ -193,28 +272,20 @@ function hasComplementaryData(block: ComplementaryBlock): boolean {
 
 export async function findInternalByProtocol(
   protocol: string,
-  actor?: { id: number; role: Role },
+  actor: RequestActor,
+  ipAddress?: string,
 ): Promise<RequestInternalDetailDTO> {
-  const request = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
-
-  if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
-
-  // Visibilidade da consulta interna (escopo #102): Administrador e Gestor
-  // (read-only) veem qualquer solicitação; Analista apenas as atribuídas
-  // (triagem ou mapeamento). Solicitante não chega aqui (router).
-  if (actor?.role === "Analista") {
-    const assigneeUserId = request["assignee_user_id"] as number | null;
-    const mappingUserId = request["mapping_user_id"] as number | null;
-    const isAssignee = assigneeUserId === actor.id || mappingUserId === actor.id;
-    if (!isAssignee) {
-      throw new AppError("Acesso negado a esta solicitação", 403);
-    }
-  }
+  const request = await requireRequestCustody(
+    (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
+      string,
+      unknown
+    > | null,
+    actor,
+    protocol,
+    ipAddress,
+    "request:read sem custódia",
+    (row) => hasRequestCustody(actor, "request:read", row["assignee_user_id"]),
+  );
 
   const requestId = request["request_id"] as string;
   const [attachments, schedulePreferences, evaluation] = await Promise.all([
@@ -775,27 +846,17 @@ function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalReque
 export async function updateInternalRequest(
   protocol: string,
   payload: UpdateRequestPayload,
-  actor: { id: number; email: string; role: Role },
+  actor: RequestActor,
   ipAddress: string | undefined,
-): Promise<RequestInternalDetailDTO> {
-  const request = await repository.findInternalRequestByProtocol(protocol.trim());
-
-  if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
-
-  // Autorização por perfil (issue #121): Administrador e Gestor editam qualquer
-  // solicitação; Analista apenas as atribuídas a ele (requests.professional_id
-  // = seu details_professional.professional_id). Solicitação sem responsável
-  // não é de nenhum analista.
-  if (actor.role === "Analista") {
-    const professional = await repository.findProfessionalByUserId(actor.id);
-    const canEdit =
-      professional !== undefined && request.professional_id === professional.professional_id;
-    if (!canEdit) {
-      throw new AppError("Acesso restrito às solicitações atribuídas a você", 403);
-    }
-  }
+): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
+  const request = await requireRequestCustody(
+    await repository.findInternalRequestByProtocol(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:write sem custódia",
+    (row) => hasRequestCustody(actor, "request:write", row.assignee_user_id),
+  );
 
   await db.transaction(async (trx) => {
     await repository.updateRequestBlocks(trx, request.request_id, payload, actor.email);
@@ -813,9 +874,15 @@ export async function updateInternalRequest(
     });
   });
 
-  // A resposta reutiliza o mapeador do GET interno — formato idêntico ao
-  // contrato `RequestInternalDetailDTO`.
-  return findInternalByProtocol(protocol.trim());
+  // Quando o ator também tem request:read com custódia sobre a linha, devolve
+  // o DTO completo. Caso contrário (ex.: request:write sem request:read), cumpre
+  // o contrato com 200 { protocol, updated: true } sem exigir leitura da linha.
+  const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
+  if (updatedRequest && hasRequestCustody(actor, "request:read", updatedRequest.assignee_user_id)) {
+    return findInternalByProtocol(protocol.trim(), actor, ipAddress);
+  }
+
+  return { protocol: protocol.trim(), updated: true };
 }
 
 export async function listAssignees(): Promise<AssigneeSummary[]> {
@@ -828,81 +895,103 @@ const RN010_FROM_STATUS: RequestStatus = "Em triagem";
 const RN010_TO_STATUS: RequestStatus = "Aguardando mapeamento";
 const RN010_ELIGIBLE_SCREENING = "elegivel";
 
-async function resolveAnalystByUserId(
+async function validateAssigneeCandidate(
+  candidate: AssignmentCandidateRow | undefined,
+  stage: "triage" | "mapping",
+): Promise<AssignmentCandidateRow> {
+  const invalidTarget = () =>
+    new AppError("O alvo não pode ser escolhido como Responsável.", 400, "assignee_not_assignable");
+
+  if (
+    !candidate ||
+    !candidate.profile_is_active ||
+    !candidate.user_is_active ||
+    candidate.professional_status !== "active"
+  ) {
+    throw invalidTarget();
+  }
+  const flagEnabled =
+    stage === "triage" ? candidate.is_assignable_triage : candidate.is_assignable_mapping;
+  if (
+    !flagEnabled ||
+    !(await repository.profileHasAssignablePermissions(candidate.profile_id, stage))
+  ) {
+    throw invalidTarget();
+  }
+
+  return candidate;
+}
+
+async function resolveAssigneeByUserId(
   userId: string,
+  stage: "triage" | "mapping",
 ): Promise<{ professionalId: string; id: string; name: string; email: string }> {
-  if (userId.trim() === "") {
-    throw new AppError("analystId vazio", 400);
-  }
   const candidate = await repository.findAssignmentCandidateByUserId(userId);
-  if (!candidate) {
-    throw new AppError("Analista não encontrado", 404);
-  }
-  if (candidate.professional_status !== "active" || !candidate.user_is_active) {
-    throw new AppError("Responsável inativo.", 400);
-  }
-  if (!(repository.ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
-    throw new AppError("Perfil do responsável não permite atribuição.", 400);
-  }
+  const assignable = await validateAssigneeCandidate(candidate, stage);
   return {
-    professionalId: candidate.professional_id,
-    id: String(candidate.user_id),
-    name: candidate.name,
-    email: candidate.email,
+    professionalId: assignable.professional_id,
+    id: String(assignable.user_id),
+    name: assignable.name,
+    email: assignable.email,
   };
 }
 
-// Legado: resolve por professionalId (mantido p/ rota antiga até remoção total)
 async function resolveAssignee(
   professionalId: string,
-): Promise<{ id: string; name: string; email: string }> {
+  stage: "triage" | "mapping",
+): Promise<{ professionalId: string; id: string; name: string; email: string }> {
   const candidate = await repository.findAssignmentCandidateById(professionalId);
+  const assignable = await validateAssigneeCandidate(candidate, stage);
+  return {
+    professionalId: assignable.professional_id,
+    id: String(assignable.user_id),
+    name: assignable.name,
+    email: assignable.email,
+  };
+}
 
-  if (!candidate) {
-    throw new AppError("Responsável não encontrado.", 400);
+async function validateAssignmentTarget<T>(
+  protocol: string,
+  actor: RequestActor,
+  ipAddress: string | undefined,
+  resolve: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await resolve();
+  } catch (error) {
+    if (error instanceof AppError && error.code === "assignee_not_assignable") {
+      await recordAccessDeniedAudit(protocol, actor.id, ipAddress, "alvo de atribuição inválido");
+    }
+    throw error;
   }
-  if (candidate.professional_status !== "active" || !candidate.user_is_active) {
-    throw new AppError("Responsável inativo.", 400);
-  }
-  if (!(repository.ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
-    throw new AppError("Perfil do responsável não permite atribuição.", 400);
-  }
-
-  return { id: String(candidate.user_id), name: candidate.name, email: candidate.email };
 }
 
 export async function assignResponsible(
   protocol: string,
   payload: AssignRequestPayload,
-  actor: { id: number; email: string; role: Role },
+  actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<AssignRequestResponse> {
-  const request = await repository.findAssignmentContextByProtocol(protocol.trim());
-  if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
+  const request = await requireRequestCustody(
+    await repository.findAssignmentContextByProtocol(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:assign sem custódia",
+    (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
+  );
 
-  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
-  // ou Administrador — sem justificativa (não é troca de status).
-  if (!canAssignRequest(actor, request)) {
-    throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-      403,
-      "INSUFFICIENT_ROLE_PERMISSIONS",
-    );
-  }
-
+  // A atribuição é autorizada por request:assign e Custódia, sem decisão por
+  // Perfil. A validação do alvo ocorre no service para definir ou reatribuir.
   const assignee =
     payload.professionalId === null || payload.professionalId === undefined
       ? null
-      : await resolveAssignee(payload.professionalId);
+      : await validateAssignmentTarget(protocol.trim(), actor, ipAddress, () =>
+          resolveAssignee(payload.professionalId as string, "triage"),
+        );
 
   const previousId = request.professional_id;
-  const nextId = assignee
-    ? await repository
-        .findAssignmentCandidateByUserId(assignee.id)
-        .then((c) => c?.professional_id ?? null)
-    : null;
+  const nextId = assignee?.professionalId ?? null;
   // Para legado mantemos professional_id como valor de auditoria
   const auditNext = assignee?.id ?? null;
   const auditPrev = previousId
@@ -955,24 +1044,20 @@ export async function assignResponsible(
 export async function assignAnalyst(
   protocol: string,
   payload: AssignAnalystPayload,
-  actor: { id: number; email: string; role: Role },
+  actor: RequestActor,
   ipAddress: string | undefined,
-): Promise<RequestInternalDetailDTO> {
-  const request = await repository.findAssignmentContextByProtocol(protocol.trim());
-  if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
+): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
+  const request = await requireRequestCustody(
+    await repository.findAssignmentContextByProtocol(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:assign sem custódia",
+    (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
+  );
 
-  // issue #124: atribuição liberada a ANALYST_ASSIGNEE (triagem OU mapeamento)
-  // ou Administrador — sem justificativa (não é troca de status).
-  if (!canAssignRequest(actor, request)) {
-    throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-      403,
-      "INSUFFICIENT_ROLE_PERMISSIONS",
-    );
-  }
-
+  // A atribuição é autorizada por request:assign e Custódia, sem decisão por
+  // Perfil. A validação do alvo ocorre no service para definir ou reatribuir.
   const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
   const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
 
@@ -1000,7 +1085,9 @@ export async function assignAnalyst(
       if (raw === undefined || raw === null || String(raw).trim() === "") {
         throw new AppError("analystId vazio", 400);
       }
-      const resolved = await resolveAnalystByUserId(String(raw));
+      const resolved = await validateAssignmentTarget(protocol.trim(), actor, ipAddress, () =>
+        resolveAssigneeByUserId(String(raw), "triage"),
+      );
       const previous = request.professional_id;
       const auditPrev = previous
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
@@ -1085,7 +1172,9 @@ export async function assignAnalyst(
       if (raw === undefined || raw === null || String(raw).trim() === "") {
         throw new AppError("analystId vazio", 400);
       }
-      const resolved = await resolveAnalystByUserId(String(raw));
+      const resolved = await validateAssignmentTarget(protocol.trim(), actor, ipAddress, () =>
+        resolveAssigneeByUserId(String(raw), "mapping"),
+      );
       const previous = request.mapping_professional_id;
       const auditPrev = previous
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
@@ -1132,109 +1221,37 @@ export async function assignAnalyst(
     }
   }
 
-  return findInternalByProtocol(protocol.trim());
+  const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
+  if (updatedRequest && hasRequestCustody(actor, "request:read", updatedRequest.assignee_user_id)) {
+    return findInternalByProtocol(protocol.trim(), actor, ipAddress);
+  }
+
+  return { protocol: protocol.trim(), updated: true };
 }
 
-// issue #124 — atribuição (internal/assignee + legado /assignee):
-// ANALYST_ASSIGNEE (responsável da triagem OU designado do mapeamento) ou
-// Administrador. Gestor continua sem atribuir (Q3/RN).
-function canAssignRequest(
-  actor: { id: number; role: Role },
-  request: AssignmentContextRow,
-): boolean {
-  if (actor.role === "Administrador") return true;
-
-  const isTriageAssignee =
-    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
-  const isMappingAssignee =
-    request.mapping_assignee_user_id !== null &&
-    Number(request.mapping_assignee_user_id) === actor.id;
-
-  return isTriageAssignee || isMappingAssignee;
-}
-
-// --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
-// Rota única de troca de status (delta `portal-config-statuses-amend.md` §3.3):
-// - `Administrador`: bypass de triageMode/mappingMode/isRestricted — pode ir a
-//   qualquer status `isActive` (inativo → 409);
-// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
-//   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
-//   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
-// - status terminais (`isTerminal`) nunca são saída — fluxo encerrado não
-//   reabre por este endpoint (→ 422).
-// Auditoria: bypass → `request.override_status_admin`; normal →
-// `request.status_change`; negado → `request.access_denied`.
-
-async function recordStatusAccessDeniedAudit(
-  protocol: string,
-  actorId: number,
-  ipAddress: string | undefined,
-  detail: string,
-): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      entityId: protocol,
-      actionType: "request.access_denied",
-      userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: `Access denied: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
-  });
-}
+// --- PATCH /requests/:protocol/status (Motor de Status v4) -------------------
+// request:status_change + Custódia libera alvos ativos não restritos no modo
+// free. Alvos restritos ou fora desse modo exigem request:status_override
+// global. As recusas são auditadas sem revelar solicitações fora da Custódia.
 
 export async function updateRequestStatus(
   protocol: string,
   payload: UpdateStatusPayload,
-  actor: { id: number; email: string; role: Role },
+  actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<UpdateStatusResponse> {
-  const request = await repository.findRequestStatusContext(protocol.trim());
-  if (!request) {
-    throw new AppError("Protocolo não encontrado", 404);
-  }
+  const request = await requireRequestCustody(
+    await repository.findRequestStatusContext(protocol.trim()),
+    actor,
+    protocol.trim(),
+    ipAddress,
+    "request:status_change sem custódia",
+    (row) => hasRequestCustody(actor, "request:status_change", row.assignee_user_id),
+  );
 
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
   if (!target) {
     throw new AppError("Status de destino não encontrado", 404);
-  }
-
-  const isAdmin = actor.role === "Administrador";
-  if (actor.role === "Gestor") {
-    await recordStatusAccessDeniedAudit(
-      request.protocol,
-      actor.id,
-      ipAddress,
-      "perfil Gestor é somente leitura",
-    );
-    throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-      403,
-      "INSUFFICIENT_ROLE_PERMISSIONS",
-    );
-  }
-  const isAssignee =
-    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
-  const isMappingAssignee =
-    request.mapping_assignee_user_id !== null &&
-    Number(request.mapping_assignee_user_id) === actor.id;
-  const isAnalystAssignee = isAssignee || isMappingAssignee;
-
-  if (!isAdmin && !isAnalystAssignee) {
-    await recordStatusAccessDeniedAudit(
-      request.protocol,
-      actor.id,
-      ipAddress,
-      "sem custódia da solicitação",
-    );
-    throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-      403,
-      "INSUFFICIENT_ROLE_PERMISSIONS",
-    );
   }
 
   if (request.current_status_id !== null && request.current_status_id === target.status_id) {
@@ -1242,7 +1259,7 @@ export async function updateRequestStatus(
   }
 
   if (!target.is_active) {
-    await recordStatusAccessDeniedAudit(
+    await recordAccessDeniedAudit(
       request.protocol,
       actor.id,
       ipAddress,
@@ -1251,43 +1268,31 @@ export async function updateRequestStatus(
     throw new AppError("Status inativo não pode ser alvo.", 409);
   }
 
-  if (!isAdmin) {
-    if (target.is_restricted) {
-      await recordStatusAccessDeniedAudit(
-        request.protocol,
-        actor.id,
-        ipAddress,
-        "tentativa de definir status restrito (Priorizado) por não-administrador",
-      );
-      throw new AppError(
-        "Status Priorizado só pode ser definido por Administrador.",
-        403,
-        "INSUFFICIENT_ROLE_PERMISSIONS",
-      );
-    }
-    if (target.triage_mode !== "free" && target.mapping_mode !== "free") {
-      await recordStatusAccessDeniedAudit(
-        request.protocol,
-        actor.id,
-        ipAddress,
-        `tentativa de definir status não-free (id ${target.status_id})`,
-      );
-      throw new AppError(
-        "Só é possível definir status ativo com triageMode ou mappingMode free.",
-        403,
-        "INSUFFICIENT_ROLE_PERMISSIONS",
-      );
-    }
+  const requiresOverride =
+    target.is_restricted || (target.triage_mode !== "free" && target.mapping_mode !== "free");
+  const hasStatusOverride = custodyFor(actor, "request:status_override") === "global";
+  if (requiresOverride && !hasStatusOverride) {
+    await recordAccessDeniedAudit(
+      request.protocol,
+      actor.id,
+      ipAddress,
+      "alvo de status exige request:status_override",
+    );
+    throw new AppError(
+      "O status de destino exige permissão de override.",
+      403,
+      "request_status_override_required",
+    );
   }
 
   if (target.isPublic && payload.lastTechnicalMessage == null) {
     throw new AppError("Retorno ao solicitante obrigatório para status público.", 400);
   }
 
-  const actionType: "request.status_change" | "request.override_status_admin" = isAdmin
-    ? "request.override_status_admin"
+  const actionType: "request.status_change" | "request.status_override" = requiresOverride
+    ? "request.status_override"
     : "request.status_change";
-  const changeOrigin = isAdmin ? "admin" : "internal";
+  const changeOrigin = "internal";
 
   const lastUpdate = await db.transaction(async (trx) => {
     const persistedAt = await applyStatusTransition(trx, {

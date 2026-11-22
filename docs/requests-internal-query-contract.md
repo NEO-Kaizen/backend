@@ -1,11 +1,13 @@
-# Contrato de API — Consulta Interna de Solicitação (Painel Administrativo)
+# Regras de negócio — Consulta Interna de Solicitação (Painel Administrativo)
 
-Contrato do endpoint `GET /requests/:protocol/internal`, autenticado, usado
+Comportamento do endpoint `GET /requests/:protocol/internal`, autenticado, usado
 pela tela de especificação da solicitação (`/(admin)/fila/[protocolo]`) do
 painel administrativo (analistas, gestores e administradores). Issue #48.
 
-- Fonte de verdade do contrato de resposta: `internal-request-contract.md`
-  (compartilhado pelo time de frontend).
+- Fonte de verdade das rotas, payloads e respostas: OpenAPI em
+  `src/docs/paths/requests.ts` e `src/docs/schemas/`.
+- Este documento complementa OpenAPI com regras de negócio e limitações de
+  comportamento; não é fonte da verdade do contrato HTTP.
 - Referência de produto: `funcionalidades-especificacao.md` §"Consultar
   solicitação por protocolo (para adms)".
 - Erros sempre no envelope: `{ "status": "error", "statusCode": number, "message": string }`
@@ -38,9 +40,11 @@ portador.
 enviado automaticamente após `POST /auth/login`. Sem cookie ou com token
 inválido/expirado → `401`.
 
-**Autorização:** `Administrador` e `Gestor` (read-only) veem qualquer
-solicitação; `Analista` apenas as atribuídas por triagem (`assignee`) ou
-mapeamento (`mappingAssignee`) — escopo #102. Fora do escopo → `403`.
+**Autorização:** exige `request:read`. A Custódia `assigned` permite ler
+somente solicitações cujo Responsável corrente (`requests.professional_id`)
+seja o ator; `all` permite ler qualquer solicitação. Custódia fora da linha
+responde 404 igual a um protocolo inexistente, sem revelar sua existência.
+Sem `request:read`, a rota responde 403.
 
 **Path param:** `protocol` — o código de rastreio da solicitação
 (URL-encoded), ex.: `MAAT-8K3P-9X2M`.
@@ -116,7 +120,20 @@ export interface Meeting {
 
 export interface CorrectionAlert {
   count: number;
-  message: string;
+  batchId: string;
+}
+
+export interface PendingSummary {
+  total: number;
+  requested: number;
+  responded: number;
+  validated: number;
+}
+
+export interface UnreadState {
+  count: number;
+  hasUnread: boolean;
+  lastUnreadAt: string | null;
 }
 
 export interface InternalAttachment {
@@ -133,7 +150,10 @@ export interface RequestInternalDetailDTO {
   priority: string | null;
   prioritization: Prioritization;
   assignee: Assignee | null;
+  mappingAssignee?: Assignee | null;
   correctionAlert: CorrectionAlert | null;
+  pendingSummary: PendingSummary;
+  unread: UnreadState;
 
   requester: RequesterBlock;
   demand: DemandBlock;
@@ -228,11 +248,11 @@ HTTP/1.1 200 OK
 
 **Erros:**
 
-| Status | Quando                                                                                         |
-| ------ | ---------------------------------------------------------------------------------------------- |
-| 401    | Sem cookie de sessão, ou token inválido/expirado                                               |
-| 403    | Autenticado sem perfil interno (Solicitante) — acesso restrito a Analista/Gestor/Administrador |
-| 404    | Protocolo inexistente                                                                          |
+| Status | Quando                                               |
+| ------ | ---------------------------------------------------- |
+| 401    | Sem cookie de sessão, ou token inválido/expirado     |
+| 403    | Ator autenticado sem `request:read`                  |
+| 404    | Protocolo inexistente ou fora da Custódia de leitura |
 
 ```json
 HTTP/1.1 401 Unauthorized
@@ -243,7 +263,7 @@ HTTP/1.1 401 Unauthorized
 ```json
 HTTP/1.1 403 Forbidden
 
-{ "status": "error", "statusCode": 403, "message": "Acesso restrito ao perfil Analista ou Gestor ou Administrador" }
+{ "status": "error", "statusCode": 403, "message": "Acesso restrito à permissão request:read" }
 ```
 
 ```json
@@ -252,11 +272,20 @@ HTTP/1.1 404 Not Found
 { "status": "error", "statusCode": 404, "message": "Solicitação não encontrada" }
 ```
 
+## PATCH /requests/:protocol/internal — edição interna
+
+A operação exige `request:write` e a Custódia `assigned`/`all` correspondente,
+resolvida no service. O catálogo também exige que o perfil tenha
+`request:read`, embora as Custódias de escrita e leitura possam ter alcances
+diferentes. Quando a linha não está sob a Custódia efetiva de leitura, a
+resposta é `200 { protocol, updated: true }`, sem devolver conteúdo interno;
+caso contrário, retorna `RequestInternalDetailDTO`. Os schemas e as respostas
+possíveis estão descritos na especificação OpenAPI.
+
 ## Limitações conhecidas desta implementação
 
-- **`403` implementado.** Acesso restrito aos perfis internos
-  `Analista`, `Gestor` e `Administrador` (decisão P2). O perfil `Solicitante`
-  autenticado recebe `403` e deve usar a consulta pública.
+- A autorização interna é baseada em request:read e na Custódia efetiva
+  carregada para cada requisição; o nome do Perfil não decide a visibilidade.
 - **`meeting` e `mappingDate` sempre `null`.** Não existe tabela de reunião
   de mapeamento agendada no schema atual (`request_time_preferences` só
   guarda as preferências de horário do solicitante, não a reunião

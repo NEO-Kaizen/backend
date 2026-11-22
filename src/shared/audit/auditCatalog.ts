@@ -39,6 +39,7 @@ export const auditCatalog = {
       // Motor de Status v4 (issue #124): bypass de perfil/restrição do
       // `PATCH /requests/:protocol/status` e tentativas de acesso negado.
       "override_status_admin",
+      "status_override",
       "access_denied",
     ],
   },

@@ -102,10 +102,11 @@ Três dependências são validadas no servidor. Uma composição que viole qualq
 | Chave que exige           | Dependência               | Por quê                                                                                |
 | ------------------------- | ------------------------- | -------------------------------------------------------------------------------------- |
 | `*:manage`                | `*:read` da mesma família | quem altera precisa ler o que altera                                                   |
+| `request:write`           | `request:read`            | editar o conteúdo interno sem poder ler a solicitação não é uma capability válida      |
 | `request:status_override` | `request:status_change`   | o override libera o alvo protegido; a decisão sobre qual solicitação continua na outra |
 | `pending_item:respond`    | `request:track`           | a pendência vive dentro de uma solicitação; responder sem acompanhar é agir às cegas   |
 
-As demais combinações não têm dependência: `request:create` é independente — um perfil pode abrir sem acompanhar — e `request:track` sozinho é um Solicitante somente-leitura, que vê a própria solicitação mas não responde pendências.
+As demais combinações não têm dependência: `request:create` é independente — um perfil pode abrir sem acompanhar — e `request:track` sozinho é um Solicitante somente-leitura, que vê a própria solicitação mas não responde pendências. A chave `request:write` também precisa de `request:read`; suas Custódias podem ter alcances diferentes, e a resposta da mutação não revela conteúdo fora da Custódia de leitura.
 
 ## 2. Os onze verbos
 
@@ -136,7 +137,7 @@ A coluna **Custódia** diz se a chave depende da linha. A coluna **O que permite
 | `request:create`          | request | create          | `global`    | Abrir uma solicitação; o autor passa a ser o Solicitante dela e a posse nasce com a linha                      |
 | `request:track`           | request | track           | `custodial` | Acompanhar as próprias solicitações na projeção do Solicitante — nunca a visão interna; custódia fixa em `own` |
 | `request:read`            | request | read            | `custodial` | Ler a solicitação na visão interna                                                                             |
-| `request:write`           | request | write           | `custodial` | Editar o conteúdo interno da solicitação                                                                       |
+| `request:write`           | request | write           | `custodial` | Editar o conteúdo interno da solicitação; exige também `request:read`                                          |
 | `request:assign`          | request | assign          | `custodial` | Atribuir e reatribuir o Responsável                                                                            |
 | `request:status_change`   | request | status_change   | `custodial` | Mudar o status para um alvo permitido pelo fluxo                                                               |
 | `request:status_override` | request | status_override | `global`    | Mudar o status para alvo restrito ou fora do modo da etapa; não torna o alvo elegível na triagem/mapeamento    |
@@ -374,7 +375,9 @@ A extensão de profissional (`details_professional`, 1:1 com a conta) habilita o
 
 ## 7. Mapa rota → chave
 
-As rotas abaixo são a referência de contrato. O que vale é a chave; a rota pode variar sem mudar a permissão.
+O contrato de rotas é a especificação OpenAPI em `src/docs/`; a tabela abaixo
+resume o mapeamento de capabilities. O que vale é a chave; a rota pode variar
+sem mudar a permissão.
 
 | Rota                                                                                                  | Chave / regra                                                                                            |
 | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -383,11 +386,11 @@ As rotas abaixo são a referência de contrato. O que vale é a chave; a rota po
 | `GET /requests?email=`                                                                                | `request:track` em `own` com sessão; porta pública sem sessão                                            |
 | `GET /requests/:protocol`                                                                             | `request:track` em `own` com sessão; porta pública sem sessão                                            |
 | `GET /requests/:protocol/tracking`                                                                    | `request:track` em `own` com sessão; porta pública sem sessão                                            |
-| `GET /requests/:protocol/internal`                                                                    | `request:read` + custódia                                                                                |
-| `PATCH /requests/:protocol/internal`                                                                  | `request:write` + custódia                                                                               |
-| `PATCH /requests/:protocol/internal/assignee`, `PATCH /requests/:protocol/assignee`                   | `request:assign`; alvo validado pela atribuibilidade                                                     |
-| `PATCH /requests/:protocol/status`                                                                    | `request:status_change`; alvo restrito exige `request:status_override`                                   |
-| `GET /requests/assignees`, `GET /users/analysts`                                                      | `assignee_directory:read` (`/users/analysts` é nome legado; o diretório é por flag, não por perfil)      |
+| `GET /requests/:protocol/internal`                                                                    | `request:read` + custódia; fora dela retorna 404                                                         |
+| `PATCH /requests/:protocol/internal`                                                                  | `request:write` + custódia; exige também `request:read`; sem custódia de leitura retorna acknowledgement |
+| `PATCH /requests/:protocol/internal/assignee`, `PATCH /requests/:protocol/assignee`                   | `request:assign` + custódia; alvo inválido retorna 400 `assignee_not_assignable`                         |
+| `PATCH /requests/:protocol/status`                                                                    | `request:status_change` + custódia; alvo restrito exige `request:status_override` global                 |
+| `GET /requests/assignees`, `GET /users/analysts`                                                      | `assignee_directory:read` (diretório por flag e predicado, não por nome de Perfil)                       |
 | `GET /queue`, `GET /queue/metrics`                                                                    | `queue:read`                                                                                             |
 | `GET /reports/requests.csv`                                                                           | `queue:export`                                                                                           |
 | `GET /reports/dashboard`                                                                              | `reports:read`                                                                                           |

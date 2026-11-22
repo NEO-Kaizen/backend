@@ -58,7 +58,7 @@ export const PERMISSION_CATALOG = [
     key: "request:write",
     custodyType: "custodial",
     allowedCustodies: ["assigned", "all"],
-    dependencies: [],
+    dependencies: ["request:read"],
   },
   {
     key: "request:assign",
@@ -371,6 +371,14 @@ export function buildEffectivePermissions(
       custody: grant.custody,
       order: ORDER_BY_KEY.get(entry.key) ?? Number.MAX_SAFE_INTEGER,
     });
+  }
+
+  for (const permission of permissions) {
+    for (const dependency of requireCatalogEntry(permission.key).dependencies) {
+      if (!seen.has(dependency)) {
+        throw new Error(`A permissão '${permission.key}' exige também '${dependency}'`);
+      }
+    }
   }
 
   permissions.sort((left, right) => left.order - right.order);

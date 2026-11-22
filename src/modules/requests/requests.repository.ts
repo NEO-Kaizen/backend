@@ -1,5 +1,9 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import {
+  ASSIGNABILITY_PREDICATES,
+  type PermissionKey,
+} from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { generateProtocol } from "../../shared/protocol/generateProtocol.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
@@ -637,16 +641,49 @@ export async function findEvaluationByProtocol(
   };
 }
 
-/** Perfil que pode ser responsável técnico — contrato contract-assign-action.md: só Analista. */
-export const ASSIGNABLE_PROFILES = ["analista"] as const;
+function hasAllPermissionKeysPredicate(
+  profileIdExpression: string,
+  keys: readonly PermissionKey[],
+) {
+  const placeholders = keys.map(() => "?").join(", ");
+
+  return {
+    sql: `(SELECT COUNT(DISTINCT pp.permission_key) FROM profile_permissions AS pp WHERE pp.profile_id = ${profileIdExpression} AND pp.permission_key IN (${placeholders})) = ?`,
+    bindings: [...keys, keys.length],
+  };
+}
+
+async function findAssignableProfileIds(): Promise<number[]> {
+  const triagePredicate = hasAllPermissionKeysPredicate(
+    "p.profile_id",
+    ASSIGNABILITY_PREDICATES.triage,
+  );
+  const mappingPredicate = hasAllPermissionKeysPredicate(
+    "p.profile_id",
+    ASSIGNABILITY_PREDICATES.mapping,
+  );
+  const rows = (await db("profiles as p")
+    .where("p.is_active", true)
+    .whereRaw(
+      `((p.is_assignable_triage = TRUE AND ${triagePredicate.sql}) OR (p.is_assignable_mapping = TRUE AND ${mappingPredicate.sql}))`,
+      [...triagePredicate.bindings, ...mappingPredicate.bindings],
+    )
+    .select("p.profile_id")) as Array<{ profile_id: number }>;
+
+  return rows.map((row) => Number(row.profile_id));
+}
 
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
+  const profileIds = await findAssignableProfileIds();
+  if (profileIds.length === 0) return [];
+
   return db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.status", "active")
     .andWhere("u.is_active", true)
-    .whereIn("p.name", ASSIGNABLE_PROFILES)
+    .andWhere("p.is_active", true)
+    .whereIn("p.profile_id", profileIds)
     .select({
       id: "dp.professional_id",
       name: "u.full_name",
@@ -655,6 +692,35 @@ export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
       capacity: "dp.capacity",
     })
     .orderBy("u.full_name", "asc");
+}
+
+/**
+ * Verifica se o perfil detém todas as chaves de permissão informadas.
+ * Única fonte da contagem de chaves de atribuibilidade — evita duplicar a
+ * lógica entre listagem em massa (findAssignableProfileIds) e verificação
+ * individual (profileHasAssignablePermissions).
+ */
+async function profileHasAllPermissions(
+  profileId: number,
+  keys: readonly PermissionKey[],
+): Promise<boolean> {
+  const predicate = hasAllPermissionKeysPredicate("p.profile_id", keys);
+  const row = await db("profiles as p")
+    .where("p.profile_id", profileId)
+    .whereRaw(predicate.sql, predicate.bindings)
+    .first("p.profile_id");
+
+  return row !== undefined;
+}
+
+export async function profileHasAssignablePermissions(
+  profileId: number,
+  stage: "triage" | "mapping",
+): Promise<boolean> {
+  const keys =
+    stage === "triage" ? ASSIGNABILITY_PREDICATES.triage : ASSIGNABILITY_PREDICATES.mapping;
+
+  return profileHasAllPermissions(profileId, keys);
 }
 
 /** Candidato a responsável por user_id (contrato usa users.user_id string). */
@@ -679,7 +745,10 @@ export async function findAssignmentCandidateByUserId(
       email: "u.email",
       professional_status: "dp.status",
       user_is_active: "u.is_active",
-      profile_name: "p.name",
+      profile_id: "p.profile_id",
+      profile_is_active: "p.is_active",
+      is_assignable_triage: "p.is_assignable_triage",
+      is_assignable_mapping: "p.is_assignable_mapping",
     });
 }
 
@@ -699,7 +768,10 @@ export async function findAssignmentCandidateById(
       email: "u.email",
       professional_status: "dp.status",
       user_is_active: "u.is_active",
-      profile_name: "p.name",
+      profile_id: "p.profile_id",
+      profile_is_active: "p.is_active",
+      is_assignable_triage: "p.is_assignable_triage",
+      is_assignable_mapping: "p.is_assignable_mapping",
     });
 }
 

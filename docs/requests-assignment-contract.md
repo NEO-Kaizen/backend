@@ -1,10 +1,14 @@
-# Contrato de API — Responsável Técnico da Solicitação
+# Regras de negócio — Responsável Técnico da Solicitação
 
-Contrato Frontend ↔ Backend para listar os responsáveis técnicos elegíveis e
+Regras de negócio para listar os responsáveis técnicos elegíveis e
 definir/substituir/remover o responsável de uma solicitação (issue #50).
 
 - Fonte de verdade: Issue #50 e RN-010 (gatilho de status na triagem de
   elegíveis).
+- Fonte da verdade das rotas, payloads e respostas: OpenAPI em
+  `src/docs/paths/requests.ts` e `src/docs/schemas/`.
+- Este documento descreve regras de negócio e exemplos; não é fonte da verdade
+  do contrato HTTP.
 - Referências: `src/modules/requests/*` (router/controller/service/repository),
   `src/modules/DTOs/requests/RequestResponse.dto.ts` (`AssigneeSummary`,
   `AssignRequestResponse`), `src/shared/audit/auditCatalog.ts` (entidade
@@ -20,15 +24,18 @@ um usuário do sistema (`details_professional.user_id → users.user_id`, `UNIQU
 Nome e e-mail vêm sempre de `users`; `details_professional` guarda apenas os
 dados de rotação (`status`, `capacity`, `job_title`, `specialties`, ...).
 
-Um responsável é **elegível** quando, simultaneamente:
+O Responsável é atribuível quando a extensão de profissional está ativa,
+a conta e o Perfil estão ativos, a flag de Atribuibilidade da etapa está ligada
+e o Perfil tem as chaves exigidas pelo predicado dessa etapa. A API revalida
+essas condições no servidor em cada atribuição e reatribuição.
 
-1. `details_professional.status = 'active'` (está na rotação — um analista em
-   licença fica `inactive` mas mantém o login);
-2. `users.is_active = true` (conta ativa);
-3. o perfil do usuário é `analista` ou `gestor` (`ASSIGNABLE_PROFILES`).
+Para designação interna, o ator precisa de `request:assign` e Custódia sobre a
+solicitação; o alvo inválido (incluindo usuário ou Perfil inativo) responde
+`400` com o código estável `assignee_not_assignable`. A reatribuição aplica as
+mesmas validações. Quando o ator não pode ler a linha após a mutação, a resposta
+é um acknowledgement `{ protocol, updated: true }`, sem conteúdo interno.
 
-`requests.professional_id` referencia `details_professional.professional_id`
-com `ON DELETE SET NULL` — solicitações antigas mantêm o vínculo mesmo se o
+`requests.professional_id` referencia `details_professional.professional_id` com `ON DELETE SET NULL` — solicitações antigas mantêm o vínculo mesmo se o
 profissional for desativado.
 
 ---
@@ -57,14 +64,14 @@ export interface AssignRequestResponse {
 
 ---
 
-## 1. GET /requests/assignees — Responsáveis elegíveis
+## 1. GET /requests/assignees — Responsáveis atribuíveis
 
-Protegido por autenticação (cookie de sessão) e restrito aos perfis
-`Analista`, `Gestor` e `Administrador`. A leitura é mais ampla que a escrita
+Protegido por autenticação (cookie de sessão) e pela permissão
+`assignee_directory:read`. A leitura é mais ampla que a escrita
 porque a fila (`GET /queue`) usa a mesma lista para filtrar por responsável.
 
 **Resposta 200** — `AssigneeSummary[]`, ordenada por `name` (asc). Apenas
-elegíveis (ver critérios acima).
+Responsáveis atribuíveis conforme flag e predicado de cada etapa.
 
 ```json
 [
@@ -83,17 +90,17 @@ elegíveis (ver critérios acima).
 | Código | Situação                                |
 | ------ | --------------------------------------- |
 | 401    | Sem cookie de sessão ou sessão inválida |
-| 403    | Perfil `Solicitante`                    |
+| 403    | Ator sem `assignee_directory:read`      |
 
 ---
 
 ## 2. PATCH /requests/:protocol/assignee — Definir / substituir / remover responsável
 
-Protegido por autenticação. **issue #124**: liberado a `Administrador` **ou**
-`ANALYST_ASSIGNEE` da solicitação (responsável da triagem **ou** designado do
-mapeamento — guard `canAssignRequest` no service). `Gestor` não atribui;
-demais perfis → `403`. (Antes da v4 a atribuição era restrita ao perfil
-`Administrador` — critério de aceite da issue #50.)
+Protegido por autenticação e `request:assign`. O service valida a Custódia
+da solicitação e a Atribuibilidade do alvo. Alvo inválido responde 400 com
+code `assignee_not_assignable`. A rota interna de designação segue as mesmas
+validações. Seu resultado detalhado só é devolvido quando o ator também pode
+ler a solicitação; caso contrário, a resposta contém `{ protocol, updated: true }`.
 
 **Body** — `AssignRequestPayload`
 
@@ -121,15 +128,12 @@ demais perfis → `403`. (Antes da v4 a atribuição era restrita ao perfil
 
 **Erros**
 
-| Código | Mensagem                                                                                                          | Situação                                                                             |
-| ------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| 400    | `Campos inválidos: professionalId — ...`                                                                          | Body ausente/inválido (não é UUID nem `null`)                                        |
-| 400    | `Responsável não encontrado.`                                                                                     | UUID não existe em `details_professional`                                            |
-| 400    | `Responsável inativo.`                                                                                            | `details_professional.status = 'inactive'` **ou** `users.is_active = false`          |
-| 400    | `Perfil do responsável não permite atribuição.`                                                                   | Usuário vinculado não é `analista`/`gestor`                                          |
-| 401    | `Token inválido ou expirado`                                                                                      | Sem sessão                                                                           |
-| 403    | `Ação restrita ao Administrador ou ao Analista responsável pela demanda.` (`code: INSUFFICIENT_ROLE_PERMISSIONS`) | Perfil sem permissão: não é `Administrador` nem `ANALYST_ASSIGNEE` (inclui `Gestor`) |
-| 404    | `Solicitação não encontrada`                                                                                      | Protocolo inexistente                                                                |
+| Código | Situação                                                                         |
+| ------ | -------------------------------------------------------------------------------- |
+| 400    | Body inválido ou alvo inválido; alvo inválido usa code `assignee_not_assignable` |
+| 401    | Sem sessão ou sessão inválida                                                    |
+| 403    | Ator sem `request:assign`                                                        |
+| 404    | Solicitação inexistente ou fora da Custódia do ator                              |
 
 ### Semântica
 
