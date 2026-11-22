@@ -1,8 +1,19 @@
 import { z } from "zod";
 import type { DashboardQuery } from "../DTOs/reports/Dashboard.dto.ts";
+import type { RequestPdfExport } from "../DTOs/reports/RequestPdfExport.dto.ts";
 
 const optionalDate = z.iso.date("Data inválida — use o formato AAAA-MM-DD.").optional();
 const optionalId = z.coerce.number().int().positive().optional();
+
+
+export const requestPdfExportSchema = z
+  .object({
+    request_id: z.string().regex(/^[1-9]\d*$/, "ID inválido."),
+  })
+  .strict()
+  .transform((data) => ({
+    id: data.request_id,
+  })) satisfies z.ZodType<RequestPdfExport>;
 
 export const dashboardQuerySchema = z
   .object({
