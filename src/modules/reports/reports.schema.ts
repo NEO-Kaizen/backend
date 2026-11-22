@@ -8,7 +8,7 @@ const optionalId = z.coerce.number().int().positive().optional();
 
 export const requestPdfExportSchema = z
   .object({
-    protocol: z.string().regex(/^MAAT-[A-Z0-9]{6}$/, "Protocolo inválido."),
+    protocol: z.string().regex(/^MAAT-[A-Z0-9-]{6,20}$/, "Protocolo inválido."),
   })
   .strict()
   .transform((data) => ({
