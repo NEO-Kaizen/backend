@@ -8,11 +8,22 @@ import { ASSIGNABILITY_PREDICATES, type PermissionKey } from "../catalog/permiss
  */
 export type AssignabilityStage = "triage" | "mapping";
 
+export interface FindAssignableProfilesOptions {
+  readonly queryable?: Knex;
+  /** Omit to return profiles assignable to either stage. */
+  readonly stage?: AssignabilityStage;
+}
+
+export interface PermissionKeysPredicate {
+  readonly sql: string;
+  readonly bindings: Array<string | number>;
+}
+
 /** Predicado SQL: o Perfil possui todas as chaves informadas. */
 export function hasAllPermissionKeysPredicate(
   profileIdExpression: string,
   keys: readonly PermissionKey[],
-) {
+): PermissionKeysPredicate {
   const placeholders = keys.map(() => "?").join(", ");
 
   return {
@@ -21,23 +32,31 @@ export function hasAllPermissionKeysPredicate(
   };
 }
 
-/** Perfis ativos atribuíveis em triagem ou mapeamento (flag + predicado). */
-export async function findAssignableProfileIds(queryable: Knex = db): Promise<number[]> {
-  const triagePredicate = hasAllPermissionKeysPredicate(
-    "p.profile_id",
-    ASSIGNABILITY_PREDICATES.triage,
-  );
-  const mappingPredicate = hasAllPermissionKeysPredicate(
-    "p.profile_id",
-    ASSIGNABILITY_PREDICATES.mapping,
-  );
+/** Perfis ativos atribuíveis à etapa informada (ou a ambas) por flag + predicado. */
+export async function findAssignableProfileIds(
+  options: FindAssignableProfilesOptions = {},
+): Promise<number[]> {
+  const { queryable = db, stage } = options;
+  const stages: readonly AssignabilityStage[] = stage ? [stage] : ["triage", "mapping"];
+  const predicates = stages.map((assignabilityStage) => ({
+    stage: assignabilityStage,
+    predicate: hasAllPermissionKeysPredicate(
+      "p.profile_id",
+      ASSIGNABILITY_PREDICATES[assignabilityStage],
+    ),
+  }));
+  const sql = predicates
+    .map(({ stage: assignabilityStage, predicate }) => {
+      const flag =
+        assignabilityStage === "triage" ? "is_assignable_triage" : "is_assignable_mapping";
+      return `(p.${flag} = TRUE AND ${predicate.sql})`;
+    })
+    .join(" OR ");
+  const bindings = predicates.flatMap(({ predicate }) => predicate.bindings);
 
   const rows = (await queryable("profiles as p")
     .where("p.is_active", true)
-    .whereRaw(
-      `((p.is_assignable_triage = TRUE AND ${triagePredicate.sql}) OR (p.is_assignable_mapping = TRUE AND ${mappingPredicate.sql}))`,
-      [...triagePredicate.bindings, ...mappingPredicate.bindings],
-    )
+    .whereRaw(`(${sql})`, bindings)
     .select("p.profile_id")) as Array<{ profile_id: number }>;
 
   return rows.map((row) => Number(row.profile_id));

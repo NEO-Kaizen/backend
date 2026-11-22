@@ -91,7 +91,7 @@ export const findQueueRequests = async (
 };
 
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {
-  const profileIds = await findAssignableProfileIds();
+  const profileIds = await findAssignableProfileIds({ queryable: db, stage: "triage" });
   if (profileIds.length === 0) return [];
 
   return db("details_professional as dp")
