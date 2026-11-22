@@ -222,7 +222,6 @@ export type ResponsibleAssignedNotificationEvent = z.infer<typeof responsibleAss
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationEventType = NotificationEvent["type"];
 
-
 /** Fonte única dos Eventos de criação, reabertura e validação, usada por OpenAPI e scripts. */
 export const PENDING_ITEM_EVENT_TYPES = [
   "pending_item_created",
