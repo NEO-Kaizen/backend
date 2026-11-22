@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import { emitNotification, type CommittedNotification } from "./emitNotification.ts";
+import type { NotificationEvent } from "./notificationEvents.ts";
 import type {
   NotificationEventBase,
   PendingItemNotificationEvent,
@@ -87,7 +88,7 @@ async function emitPendingItemNotification(
         recipientUserIds: [request.requesterUserId],
       },
       request.pointer,
-    ),
+    ) as NotificationEvent,
   );
 }
 
