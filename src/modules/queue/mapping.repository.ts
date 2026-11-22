@@ -9,6 +9,8 @@
 // cadastro e persiste os valores canônicos (divergência do payload ignorada).
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import { ASSIGNABILITY_PREDICATES } from "../../shared/catalog/permissionCatalog.ts";
+import { hasAllPermissionKeysPredicate } from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { RequestStatus } from "../../shared/types/requests.ts";
 import type { MappingValues, ResolvedParticipant } from "../DTOs/queue/mapping.dto.ts";
@@ -71,7 +73,6 @@ export interface MappingAssigneeCandidate {
   user_is_active: boolean;
   profile_id: number;
   profile_is_active: boolean;
-  is_assignable_mapping: boolean;
 }
 
 /**
@@ -188,11 +189,27 @@ export const findMappingAssigneeCandidate = async (
       user_is_active: "u.is_active",
       profile_id: "p.profile_id",
       profile_is_active: "p.is_active",
-      is_assignable_mapping: "p.is_assignable_mapping",
     });
 
   return row ?? null;
 };
+
+export async function isMappingAssigneeProfileAssignable(
+  queryable: Knex,
+  profileId: number,
+): Promise<boolean> {
+  const predicate = hasAllPermissionKeysPredicate("p.profile_id", ASSIGNABILITY_PREDICATES.mapping);
+  const row = await queryable("profiles as p")
+    .where({
+      "p.profile_id": profileId,
+      "p.is_active": true,
+      "p.is_assignable_mapping": true,
+    })
+    .whereRaw(predicate.sql, predicate.bindings)
+    .first("p.profile_id");
+
+  return row !== undefined;
+}
 
 /** Mapeamento mais recente da solicitação (inclusive concluído) — resposta do GET. */
 export const findCurrentMapping = async (

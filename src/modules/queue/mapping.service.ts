@@ -18,7 +18,6 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { recordAccessDeniedAttempt } from "../../shared/audit/accessDenied.ts";
-import { profileHasAssignablePermissions } from "../../shared/access/assignability.ts";
 import { hasAdministrativeAuditOrigin, hasPermissionCustody } from "../../shared/access/custody.ts";
 import { applyStatusTransition } from "../requests/statusTransition.ts";
 import type {
@@ -291,10 +290,7 @@ async function assertCandidateEligible(
   ) {
     throw new AppError("Designado inativo.", 422);
   }
-  if (
-    !candidate.is_assignable_mapping ||
-    !(await profileHasAssignablePermissions(candidate.profile_id, "mapping", queryable))
-  ) {
+  if (!(await repository.isMappingAssigneeProfileAssignable(queryable, candidate.profile_id))) {
     throw new AppError("O perfil do designado não permite executar o mapeamento.", 422);
   }
 }
