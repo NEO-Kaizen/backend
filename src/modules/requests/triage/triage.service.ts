@@ -105,7 +105,7 @@ export async function createTriage(
   if (request.status_is_restricted && !hasStatusOverride) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação priorizada");
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "A Triagem não pode ser registrada enquanto a solicitação estiver em status restrito.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
@@ -115,7 +115,7 @@ export async function createTriage(
   if (!canAccess) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "sem custódia da solicitação");
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "Você não tem permissão ou Custódia para registrar a Triagem.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );

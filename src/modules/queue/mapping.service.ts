@@ -385,7 +385,11 @@ export const upsertMappingService = async (
         "sem custódia para escrever no mapeamento",
         ipAddress,
       );
-      throw new AppError("Acesso negado a esta solicitação", 403);
+      throw new AppError(
+        "Você não tem permissão ou Custódia para alterar este Mapeamento.",
+        403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
+      );
     }
 
     // Status terminais não aceitam edição (não reabre fluxo encerrado).
@@ -403,6 +407,7 @@ export const upsertMappingService = async (
       throw new AppError(
         "Esta solicitação está em status restrito e não pode receber alterações de mapeamento.",
         403,
+        "INSUFFICIENT_ROLE_PERMISSIONS",
       );
     }
 

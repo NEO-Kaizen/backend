@@ -289,13 +289,13 @@ HTTP/1.1 422 Unprocessable Entity
 
 **Erros:**
 
-| Status | Quando                                                                                                                                                                                                                                                                                                      |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 401    | Sem sessão / cookie inválido                                                                                                                                                                                                                                                                                |
-| 403    | Usuário não é `Administrador` nem `ANALYST_ASSIGNEE` atual da solicitação (mensagem `Ação restrita ao Administrador ou ao Analista responsável pela demanda.` + `code: INSUFFICIENT_ROLE_PERMISSIONS`); rejeita também solicitação com status `isRestricted` (Priorizado — só via `PATCH /status` override) |
-| 404    | Protocolo inexistente                                                                                                                                                                                                                                                                                       |
-| 422    | Validação — body fora dos limites abaixo (envelope `fields` por campo)                                                                                                                                                                                                                                      |
-| 500    | Erro genérico                                                                                                                                                                                                                                                                                               |
+| Status | Quando                                                                                                                                        |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 401    | Sem sessão / cookie inválido                                                                                                                  |
+| 403    | Sem `triage:write` ou Custódia sobre o Responsável corrente, ou solicitação com Status `isRestricted` (`code: INSUFFICIENT_ROLE_PERMISSIONS`) |
+| 404    | Protocolo inexistente                                                                                                                         |
+| 422    | Validação — body fora dos limites abaixo (envelope `fields` por campo)                                                                        |
+| 500    | Erro genérico                                                                                                                                 |
 
 **Validações `422` (espelham `src/routes/(admin)/fila/[protocolo]/components/triagem/triage-validation.ts:49`):**
 

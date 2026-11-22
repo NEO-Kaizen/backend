@@ -129,9 +129,9 @@ export interface UpdateStatusesRequest {
 
 Não idempotente — cada chamada gera `id` uuid novo; última triagem é vigente (`contract-triage.md §1`). A validação de `exitStatus` usa o Status v4 e `triageMode`.
 
-| Endpoint                          | Autenticação            | Permissão                                                                                                                                                                                                 |
-| --------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /requests/:protocol/triage` | `session_id` (HttpOnly) | `Administrador` ou `ANALYST_ASSIGNEE` (`user.id == assigneeId`) → `403` caso contrário (`Gestor` read-only). `isRestricted==true` (Priorizado) bloqueia mesmo assignee → via `PATCH /status` ADMIN bypass |
+| Endpoint                          | Autenticação            | Permissão                                                                                                              |
+| --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `POST /requests/:protocol/triage` | `session_id` (HttpOnly) | `triage:write` + Custódia; `isRestricted==true` bloqueia a Triagem, que deve aguardar a transição de Status apropriada |
 
 **Request:**
 
@@ -289,20 +289,20 @@ HTTP/1.1 403 Forbidden
 {
   "status": "error",
   "statusCode": 403,
-  "message": "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+   "message": "Você não tem permissão ou Custódia para registrar a Triagem.",
   "code": "INSUFFICIENT_ROLE_PERMISSIONS"
 }
 ```
 
 **Erros:**
 
-| Status | Quando                                                                              |
-| ------ | ----------------------------------------------------------------------------------- |
-| 401    | Sem `session_id` / sessão inválida/expirada                                         |
-| 403    | Não é `Administrador` nem `ANALYST_ASSIGNEE`; ou `isRestricted===true` (Priorizado) |
-| 404    | Protocolo inexistente                                                               |
-| 422    | Body fora das validações acima (`fields` por campo)                                 |
-| 500    | Erro genérico                                                                       |
+| Status | Quando                                                                                     |
+| ------ | ------------------------------------------------------------------------------------------ |
+| 401    | Sem `session_id` / sessão inválida/expirada                                                |
+| 403    | Sem `triage:write` ou Custódia; ou solicitação com Status restrito (`isRestricted===true`) |
+| 404    | Protocolo inexistente                                                                      |
+| 422    | Body fora das validações acima (`fields` por campo)                                        |
+| 500    | Erro genérico                                                                              |
 
 **curl:**
 
@@ -329,9 +329,9 @@ curl -s -X POST http://localhost:3000/requests/MAAT-8K3P-9X2M/triage \
 
 Lista de espera interna — reutiliza duplo guard `canDesignate/canEditContent` existente.
 
-| Endpoint                                | Autenticação | Permissão                                                                                                                                        |
-| --------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PUT /queue/requests/:protocol/mapping` | `session_id` | `Administrador` ou `ANALYST_ASSIGNEE` responsável pela triagem/mapeamento, para alvo ativo com `isRestricted===false` (Priorizado só via bypass) |
+| Endpoint                                | Autenticação | Permissão                                                                                                              |
+| --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `PUT /queue/requests/:protocol/mapping` | `session_id` | `mapping:write` + Custódia sobre o Responsável da solicitação ou do Mapeamento corrente; snapshots não concedem acesso |
 
 **Request — agendamento (`targetStatus: 6`, exige reunião):**
 
@@ -438,7 +438,7 @@ HTTP/1.1 422 Unprocessable Entity
 | Status | Quando                                                                                                                                                                                                            |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 401    | Sem sessão                                                                                                                                                                                                        |
-| 403    | `403 {code:INSUFFICIENT_ROLE_PERMISSIONS}` — não é assignee/designado ou `isRestricted===true`                                                                                                                    |
+| 403    | `403 {code:INSUFFICIENT_ROLE_PERMISSIONS}` — sem `mapping:write` ou Custódia, ou solicitação com Status restrito                                                                                                  |
 | 404    | Protocolo inexistente                                                                                                                                                                                             |
 | 422    | Solicitação já terminal, `targetStatus` inválido, reunião ausente quando `targetStatus === 6`, `justification` ausente quando `targetStatus !== 6`, `lastTechnicalMessage` ausente quando `targetStatus.isPublic` |
 
