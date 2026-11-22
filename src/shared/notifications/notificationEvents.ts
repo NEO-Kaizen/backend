@@ -8,39 +8,35 @@ import { z } from "zod";
  * Cada variante nova entra aqui com schema próprio (`.strict()`), e o emissor
  * valida o Evento antes de gravar.
  */
-const requestPointerFields = {
+/** Campos comuns dos Payloads que apontam para uma solicitação. */
+const requestPointerPayloadSchema = z.object({
   protocol: z.string().trim().min(1).max(25),
   title: z.string().trim().min(1).max(150),
-};
+});
 
-export const statusChangedPayloadSchema = z
-  .object({
+export type RequestPointer = z.infer<typeof requestPointerPayloadSchema>;
+
+/** Fábrica dos Payloads de Pendência: cada variante continua `.strict()`. */
+function pendingItemPayloadSchema<T extends string>(type: T) {
+  return requestPointerPayloadSchema
+    .extend({
+      type: z.literal(type),
+    })
+    .strict();
+}
+
+export const statusChangedPayloadSchema = requestPointerPayloadSchema
+  .extend({
     type: z.literal("status_changed"),
-    ...requestPointerFields,
     newStatus: z.string().trim().min(1).max(100),
   })
   .strict();
 
-export const pendingItemCreatedPayloadSchema = z
-  .object({
-    type: z.literal("pending_item_created"),
-    ...requestPointerFields,
-  })
-  .strict();
+export const pendingItemCreatedPayloadSchema = pendingItemPayloadSchema("pending_item_created");
 
-export const pendingItemReopenedPayloadSchema = z
-  .object({
-    type: z.literal("pending_item_reopened"),
-    ...requestPointerFields,
-  })
-  .strict();
+export const pendingItemReopenedPayloadSchema = pendingItemPayloadSchema("pending_item_reopened");
 
-export const pendingItemValidatedPayloadSchema = z
-  .object({
-    type: z.literal("pending_item_validated"),
-    ...requestPointerFields,
-  })
-  .strict();
+export const pendingItemValidatedPayloadSchema = pendingItemPayloadSchema("pending_item_validated");
 
 export const notificationPayloadSchema = z.discriminatedUnion("type", [
   statusChangedPayloadSchema,
@@ -66,33 +62,35 @@ const notificationEventBaseSchema = z
   })
   .strict();
 
-export const statusChangedEventSchema = notificationEventBaseSchema
-  .extend({
-    type: z.literal("status_changed"),
-    payload: statusChangedPayloadSchema,
-  })
-  .strict();
+/** Fábrica dos Eventos: mantém `type` e `payload` correlacionados e `.strict()`. */
+function notificationEventSchemaFor<T extends string, P extends z.ZodType>(type: T, payload: P) {
+  return notificationEventBaseSchema
+    .extend({
+      type: z.literal(type),
+      payload,
+    })
+    .strict();
+}
 
-export const pendingItemCreatedEventSchema = notificationEventBaseSchema
-  .extend({
-    type: z.literal("pending_item_created"),
-    payload: pendingItemCreatedPayloadSchema,
-  })
-  .strict();
+export const statusChangedEventSchema = notificationEventSchemaFor(
+  "status_changed",
+  statusChangedPayloadSchema,
+);
 
-export const pendingItemReopenedEventSchema = notificationEventBaseSchema
-  .extend({
-    type: z.literal("pending_item_reopened"),
-    payload: pendingItemReopenedPayloadSchema,
-  })
-  .strict();
+export const pendingItemCreatedEventSchema = notificationEventSchemaFor(
+  "pending_item_created",
+  pendingItemCreatedPayloadSchema,
+);
 
-export const pendingItemValidatedEventSchema = notificationEventBaseSchema
-  .extend({
-    type: z.literal("pending_item_validated"),
-    payload: pendingItemValidatedPayloadSchema,
-  })
-  .strict();
+export const pendingItemReopenedEventSchema = notificationEventSchemaFor(
+  "pending_item_reopened",
+  pendingItemReopenedPayloadSchema,
+);
+
+export const pendingItemValidatedEventSchema = notificationEventSchemaFor(
+  "pending_item_validated",
+  pendingItemValidatedPayloadSchema,
+);
 
 export const notificationEventSchema = z.discriminatedUnion("type", [
   statusChangedEventSchema,
@@ -104,3 +102,11 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationEventType = NotificationEvent["type"];
+
+/** Fonte única dos tipos para o OpenAPI; `satisfies` mantém a união em sincronia. */
+export const NOTIFICATION_EVENT_TYPES = [
+  "status_changed",
+  "pending_item_created",
+  "pending_item_reopened",
+  "pending_item_validated",
+] as const satisfies readonly NotificationEventType[];

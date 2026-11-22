@@ -17,11 +17,10 @@ import type { RequestStatus } from "../../shared/types/requests.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
 import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts";
 import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
-import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
 import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 import {
-  emitPendingItemNotification,
-  type PendingItemNotificationAction,
+  emitPendingItemNotifications,
+  type PendingItemNotificationRequest,
 } from "../../shared/notifications/pendingItemNotification.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
@@ -31,42 +30,21 @@ const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
 const PENDING_INFO_STATUS: RequestStatus = "Pendente de informações";
 
-const NOTIFICATION_ACTION_BY_REVIEW_DECISION = {
-  reopen: "reopened",
-  validate: "validated",
-} as const;
-
 /**
- * Emite os Eventos do ciclo de Pendência na transação corrente. O contexto da
- * solicitação é relido aqui para que uma correção de título validada na mesma
- * revisão apareça no Payload.
+ * Relê a solicitação dentro da transação para que uma correção de título
+ * validada na mesma revisão apareça no Payload.
  */
-async function emitPendingItemNotifications(
+async function readPendingItemNotificationRequest(
   trx: Knex.Transaction,
-  input: {
-    requestId: string;
-    actorUserId: number;
-    events: ReadonlyArray<{ action: PendingItemNotificationAction; auditId: string }>;
-  },
-): Promise<CommittedNotification[]> {
-  const request = await repo.findRequestById(input.requestId, trx);
+  requestId: string,
+): Promise<PendingItemNotificationRequest> {
+  const request = await repo.findRequestById(requestId, trx);
   if (!request) throw new AppError("Solicitação não encontrada", 404);
-
-  const committed: CommittedNotification[] = [];
-  for (const event of input.events) {
-    committed.push(
-      ...(await emitPendingItemNotification(trx, {
-        action: event.action,
-        auditId: event.auditId,
-        requestId: request.request_id,
-        protocol: request.protocol,
-        title: request.title,
-        actorUserId: input.actorUserId,
-        requesterUserId: request.requester_user_id,
-      })),
-    );
-  }
-  return committed;
+  return {
+    requestId: request.request_id,
+    requesterUserId: request.requester_user_id,
+    pointer: { protocol: request.protocol, title: request.title },
+  };
 }
 
 function normalizeSummaryFieldKey(fieldKey: string): string {
@@ -228,9 +206,9 @@ export async function createPendingItems(
     });
 
     const notifications = await emitPendingItemNotifications(trx, {
-      requestId: request.request_id,
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
       actorUserId: actor.id,
-      events: [{ action: "created", auditId }],
+      events: [{ action: "create", auditId }],
     });
 
     return { rows: insertedRows, committedNotifications: notifications };
@@ -580,12 +558,9 @@ export async function reviewPendingItems(
     );
 
     const notifications = await emitPendingItemNotifications(trx, {
-      requestId: request.request_id,
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
       actorUserId: actor.id,
-      events: [...actionAuditIds].map(([decision, auditId]) => ({
-        action: NOTIFICATION_ACTION_BY_REVIEW_DECISION[decision],
-        auditId,
-      })),
+      events: [...actionAuditIds].map(([action, auditId]) => ({ action, auditId })),
     });
 
     return { rows: reviewedRows, committedNotifications: notifications };

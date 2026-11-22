@@ -1,3 +1,9 @@
+import { NOTIFICATION_EVENT_TYPES } from "../../shared/notifications/notificationEvents.ts";
+
+const pendingItemEventTypes = NOTIFICATION_EVENT_TYPES.filter((type) =>
+  type.startsWith("pending_item_"),
+);
+
 const statusChangedPayload = {
   type: "object",
   description:
@@ -18,7 +24,7 @@ const pendingItemPayload = {
   properties: {
     type: {
       type: "string",
-      enum: ["pending_item_created", "pending_item_reopened", "pending_item_validated"],
+      enum: pendingItemEventTypes,
       example: "pending_item_created",
     },
     protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
@@ -39,12 +45,7 @@ export const NotificationItem = {
     id: { type: "string", example: "f0000000-0000-4000-8000-000000000001" },
     type: {
       type: "string",
-      enum: [
-        "status_changed",
-        "pending_item_created",
-        "pending_item_reopened",
-        "pending_item_validated",
-      ],
+      enum: [...NOTIFICATION_EVENT_TYPES],
       example: "status_changed",
     },
     payload: { $ref: "#/components/schemas/NotificationPayload" },

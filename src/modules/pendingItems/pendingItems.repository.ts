@@ -303,6 +303,34 @@ async function updateRequestStatusId(
   });
 }
 
+/**
+ * Dominó de Status da Pendência: o Evento dominante é a Notificação da
+ * pendência, nunca um `status_changed`.
+ */
+async function recordPendingItemStatusDomino(
+  trx: Knex.Transaction,
+  input: {
+    protocol: string;
+    actorUserId: number;
+    previousStatusName: string;
+    newStatusName: string;
+    note?: string;
+    ip: string | undefined;
+  },
+): Promise<void> {
+  await recordAudit(trx, {
+    entityType: "request",
+    actionType: "request.status_change",
+    entityId: input.protocol,
+    userId: input.actorUserId,
+    previousValue: input.previousStatusName,
+    newValue: input.newStatusName,
+    note: input.note ?? null,
+    ipAddress: input.ip ?? null,
+    changeOrigin: "system",
+  });
+}
+
 export async function findProfessionalIdByUserId(userId: number): Promise<string | null> {
   const row = await db("details_professional").where({ user_id: userId }).first("professional_id");
   return (row?.professional_id as string | undefined) ?? null;
@@ -368,17 +396,12 @@ export async function createPendingItemsBatchInTransaction(
       ipAddress: input.ip ?? null,
       changeOrigin: "admin",
     });
-    // Dominó de Status da Pendência: o Evento dominante é a Notificação da
-    // pendência, nunca um `status_changed`.
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.status_change",
-      entityId: input.protocol,
-      userId: input.actor.id,
-      previousValue: current.statusName,
-      newValue: "Pendente de informações",
-      ipAddress: input.ip ?? null,
-      changeOrigin: "system",
+    await recordPendingItemStatusDomino(trx, {
+      protocol: input.protocol,
+      actorUserId: input.actor.id,
+      previousStatusName: current.statusName,
+      newStatusName: "Pendente de informações",
+      ip: input.ip,
     });
   } else {
     createAuditId = await recordAudit(trx, {
@@ -528,7 +551,7 @@ export async function applyReviewDecisionsInTransaction(
   },
 ): Promise<{
   rows: Record<string, unknown>[];
-  actionAuditIds: Map<ReviewDecision, string>;
+  actionAuditIds: ReadonlyMap<ReviewDecision, string>;
 }> {
   if (typeof input.requestAttachment === "boolean") {
     await trx("pending_items")
@@ -600,17 +623,13 @@ export async function applyReviewDecisionsInTransaction(
   if (nextStatusName) {
     const statusId = await findStatusIdByName(nextStatusName, trx);
     await updateRequestStatusId(trx, input.requestId, statusId, input.actor.email);
-    // Dominó de Status da Pendência: o Evento dominante é a Notificação da
-    // pendência, nunca um `status_changed`.
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.status_change",
-      entityId: input.protocol,
-      userId: input.actor.id,
-      previousValue: input.currentStatusName,
-      newValue: nextStatusName,
+    await recordPendingItemStatusDomino(trx, {
+      protocol: input.protocol,
+      actorUserId: input.actor.id,
+      previousStatusName: input.currentStatusName,
+      newStatusName: nextStatusName,
       note: "reopen pending",
-      changeOrigin: "system",
+      ip: input.ip,
     });
   }
 
