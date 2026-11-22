@@ -134,7 +134,10 @@ módulo de configurações.
 
 Armazena o catálogo de Status do Motor v4. Apenas parte dos Status é pública
 (`is_public = true`); os 17 valores semeados são a referência base, não uma
-lista fechada.
+lista fechada. A semântica das flags e modos (`is_core`, `is_public`,
+`is_terminal`, `is_restricted`, `triage_mode`, `mapping_mode`) está em
+[`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md); esta
+seção descreve apenas o schema.
 
 ### Estrutura
 

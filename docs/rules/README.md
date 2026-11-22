@@ -26,7 +26,7 @@ OpenAPI deve ser corrigida se descrever o comportamento errado.
 | [`triage.md`](triage.md)                               | Triagem sequencial, campos condicionais e status de saída     |
 | [`assignment.md`](assignment.md)                       | Responsável de triagem, designado de mapeamento e RN-010      |
 | [`pending-items.md`](pending-items.md)                 | Pendências por campo, respostas, revisão e anexos             |
-| [`internal-observations.md`](internal-observations.md) | Timeline de notas/eventos e checkpoint de leitura             |
+| [`internal-observations.md`](internal-observations.md) | Linha do tempo de notas/eventos e checkpoint de leitura       |
 | [`audit-trail.md`](audit-trail.md)                     | Auditoria append-only, catálogo e origens                     |
 | [`portal-config.md`](portal-config.md)                 | Configuração do portal, categorias, status e assets           |
 | [`users-and-profiles.md`](users-and-profiles.md)       | Extensões de solicitante/profissional e autoatendimento       |
@@ -36,13 +36,13 @@ OpenAPI deve ser corrigida se descrever o comportamento errado.
 
 ## Decisões pendentes
 
-As decisões abaixo ainda não foram fechadas. Os documentos registram o
-**comportamento atual do código** e marcam o ponto com `⚠ decisão pendente`, em
+As decisões abaixo ainda não foram fechadas. Os documentos de regra registram o
+**comportamento atual do código**; esta lista concentra os pontos em aberto, em
 vez de inventar uma regra nova:
 
 - `free` como destino de conclusão de triagem/mapeamento (hoje só
   `conclusion_only` é aceito).
-- Gestor como responsável técnico (hoje só `analista` é atribuível).
+- Gestor como Responsável (hoje só `analista` é atribuível).
 - Identificador público do responsável (`professional_id` × `user_id`).
 - Código único para erro de validação (`400` × `422`).
 - Escopo de autoatendimento de `PUT /users/me`.

@@ -64,8 +64,8 @@ retrato público. O protocolo é gerado na criação e não é reutilizado.
 - Gestor é somente leitura.
 - Status público exige retorno ao solicitante para qualquer ator; o bypass do
   Administrador **não** dispensa campos obrigatórios.
-- A auditoria do Administrador usa `request.override_status_admin`; na timeline
-  interna o evento é normalizado para `request.status_change`.
+- A auditoria do Administrador usa `request.override_status_admin`; na Linha do
+  tempo interna o evento é normalizado para `request.status_change`.
 
 ## Restrição e status terminal
 

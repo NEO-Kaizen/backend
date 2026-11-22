@@ -26,7 +26,7 @@ segundos após o commit.
 - Transições para Status interno ou restrito não geram notificação.
 - Solicitação sem solicitante autenticado não gera notificação in-app na v1.
 - Se a transação falhar, nem o Status nem a notificação são gravados.
-- Após o commit, o aviso é publicado no emissor tipado.
+- Após o commit, a Notificação é publicada no emissor tipado.
 
 > Triagem e mapeamento não emitem notificação, mesmo quando o destino é público.
 

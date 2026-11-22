@@ -6,7 +6,7 @@ export type DashboardSituation = "open" | "closed" | "overdue" | "unassigned";
 /**
  * Filtro de prioridade do dashboard.
  * `"unassigned"` significa "solicitações ainda não priorizadas" (sentinela do
- * contrato `docs/rules/reports.md`), não "sem responsável".
+ * sentinela definida em `docs/rules/reports.md`), não "sem responsável".
  */
 export type DashboardPriorityFilter = number | "unassigned";
 

@@ -4,7 +4,8 @@ import path from "node:path";
 import { AppError } from "../errors/AppError.ts";
 
 /**
- * Regras de upload por chave de asset (contrato `docs/rules/portal-config.md` §5).
+ * Regras de upload por chave de asset (regras em `docs/rules/portal-config.md`,
+ * seção Assets).
  * Cada variante (light/dark) aceita os MIMEs, extensões e tamanho máximo do
  * seu tipo (logo, avatar, favicon ou imagem de login).
  */

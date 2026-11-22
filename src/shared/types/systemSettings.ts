@@ -4,7 +4,7 @@ import type { SolicitationMode } from "./portalConfig.ts";
 export type PortalSolicitationMode = SolicitationMode;
 
 /**
- * Linha da tabela `system_settings` — configuração global singleton (contrato
+ * Linha da tabela `system_settings` — configuração global singleton (regras em
  * `docs/rules/portal-config.md`).
  *
  * Retorno direto do Knex (colunas em snake_case, datas normalizadas pelo

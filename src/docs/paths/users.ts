@@ -1,11 +1,4 @@
-const json = (ref: string) => ({
-  content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
-});
-
-const error = (description: string, schema = "ErrorResponse") => ({
-  description,
-  ...json(schema),
-});
+import { error, json } from "../components/responses.ts";
 
 const idParam = {
   name: "id",

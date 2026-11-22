@@ -1,11 +1,5 @@
-const json = (ref: string) => ({
-  content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
-});
-
-const error = (description: string) => ({
-  description,
-  ...json("ErrorResponse"),
-});
+import { protocolParam } from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
 
 export default {
   "/prioritization/criteria": {
@@ -36,14 +30,7 @@ export default {
         "Todas as notas dos critérios ativos são obrigatórias. Perfis: Administrador ou Analista responsável pela solicitação.",
       operationId: "evaluatePrioritizationScore",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {

@@ -1,6 +1,6 @@
 # Trilha de auditoria
 
-A auditoria registra as ações administrativas e de negócio. A timeline interna e
+A auditoria registra as ações administrativas e de negócio. A Linha do tempo interna e
 as telas de auditoria derivam dela.
 
 ## Invariantes
@@ -37,7 +37,7 @@ no mesmo PR.
 
 ## Consulta
 
-- Administrador e Gestor leem a listagem administrativa; Analista lê a timeline
+- Administrador e Gestor leem a listagem administrativa; Analista lê a Linha do tempo
   de uma solicitação apenas se for responsável (triagem ou mapeamento).
 - A listagem é ordenada do evento mais recente para o mais antigo.
 - Respostas administrativas não devem ser armazenadas por navegador ou

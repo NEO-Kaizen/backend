@@ -1,20 +1,7 @@
-const json = (ref: string) => ({
-  content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
-});
-
-const error = (description: string) => ({
-  description,
-  ...json("ErrorResponse"),
-});
+import { protocolParam } from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
 
 const dualAuth = [{ cookieAuth: [] }, { requesterIdentity: [] }];
-
-const protocolParam = {
-  name: "protocol",
-  in: "path",
-  required: true,
-  schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-};
 
 const pendingItemParam = {
   name: "pendingItemId",

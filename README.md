@@ -191,7 +191,7 @@ Para testar endpoints protegidos no Swagger UI, faça login primeiro em `POST /a
 | `npm run docs:types:check`   | Falha se `docs/type-inference.md` estiver desatualizado           |
 | `npm run docs:openapi`       | Gera `docs/openapi.json` a partir de `src/docs/`                  |
 | `npm run docs:openapi:check` | Valida a spec, os `$ref`s, as rotas reais e o artefato versionado |
-| `npm run docs:check`         | Alias do check de OpenAPI                                         |
+| `npm run docs:check`         | Inventário de tipos, OpenAPI e paridade de rotas                  |
 
 ## Scripts
 

@@ -1,6 +1,6 @@
 /**
  * Alinha o domínio de `criteria.weight` com a decisão de produto issue-59 §8.3:
- * pesos inteiros **0–10** (diverge do contrato que pede 1.0–5.0). O CHECK
+ * pesos inteiros **0–10** (diverge da especificação antiga, que pedia 1.0–5.0). O CHECK
  * original (`weight > 0`) rejeitaria o peso mínimo 0 aceito pelo PATCH
  * `/portal-config/prioritization-weights` na mesma operação de escrita.
  */

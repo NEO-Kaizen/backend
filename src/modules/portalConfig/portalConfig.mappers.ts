@@ -71,7 +71,7 @@ export const DEFAULT_THEME: PortalTheme = {
     onPrimary: "#0b0f1a",
     onDark: "#ffffff",
     onGradient: "#ffffff",
-    // Mesmo gradiente do light (pendência docs/rules/portal-config.md: manter o
+    // Mesmo gradiente do light (pendência registrada em `docs/rules/portal-config.md`: manter o
     // azul por contraste no dark).
     gradient: { from: "#002068", to: "#003399", angle: 143 },
     statuses: {
@@ -173,7 +173,7 @@ export function themeFromRow(row: SystemThemeRow | undefined): PortalTheme {
         (row[background as keyof SystemThemeRow] as string | null) ??
         DEFAULT_THEME[palette].statuses[tone].background,
       // Contrato: `backgroundLocked` ausente (NULL) = false (não o default
-      // do seed, que é true) — ver docs/rules/portal-config.md §Observações.
+      // do seed, que é true) — ver `docs/rules/portal-config.md`, seção Aparência.
       backgroundLocked: (row[backgroundLocked as keyof SystemThemeRow] as boolean | null) ?? false,
     };
   };

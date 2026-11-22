@@ -1,11 +1,4 @@
-const json = (ref: string) => ({
-  content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
-});
-
-const error = (description: string) => ({
-  description,
-  ...json("ErrorResponse"),
-});
+import { error, json } from "../components/responses.ts";
 
 export default {
   "/reports/dashboard": {

@@ -1,11 +1,5 @@
-const json = (ref: string) => ({
-  content: { "application/json": { schema: { $ref: `#/components/schemas/${ref}` } } },
-});
-
-const error = (description: string) => ({
-  description,
-  ...json("ErrorResponse"),
-});
+import { protocolParam } from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
 
 export default {
   "/audit-history": {
@@ -82,14 +76,7 @@ export default {
         "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Perfis internos; Analista precisa ser responsável (triagem ou mapeamento).",
       operationId: "getAuditLogsByProtocol",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       responses: {
         "200": {
           description: "Eventos de auditoria da solicitação.",

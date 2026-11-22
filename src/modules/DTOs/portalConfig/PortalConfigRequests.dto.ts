@@ -25,7 +25,7 @@ export interface UpdateThemeRequest {
 /**
  * Parte JSON `assets` do `PATCH /portal-config/assets` (Card 4):
  * chaves com a URL definida diretamente (reset/URL existente) + flag opcional
- * de cor primária do logo (contrato `docs/rules/portal-config.md`).
+ * de cor primária do logo (regras em `docs/rules/portal-config.md`).
  */
 export type PortalAssetsPatchDto = Partial<Record<AssetKey, string>> & {
   logoUsePrimaryColor?: boolean;

@@ -662,7 +662,7 @@ export async function findEvaluationByProtocol(
   };
 }
 
-/** Perfil que pode ser responsável técnico — contrato docs/rules/assignment.md: só Analista. */
+/** Perfil que pode ser Responsável — regras em `docs/rules/assignment.md`: só Analista. */
 export const ASSIGNABLE_PROFILES = ["analista"] as const;
 
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {

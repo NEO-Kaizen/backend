@@ -106,7 +106,7 @@ export const findQueueRequests = async (
       "requests.process_name as processName",
       "priority_tbl.level as priority",
       "status.name as status",
-      // Expor user_id como assigneeId para docs/rules/assignment.md (frontend usa user_id)
+      // Expor user_id como assigneeId conforme `docs/rules/assignment.md` (frontend usa user_id)
       db.raw('assignee_user.user_id::text as "assigneeId"'),
       "assignee_user.full_name as assignee",
       "requester.full_name as requesterName",

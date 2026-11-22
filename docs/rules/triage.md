@@ -2,7 +2,7 @@
 
 Cada solicitação tem **triagens sequenciais**: cada criação faz append de um
 registro novo; nunca há duas triagens simultâneas. A triagem vigente é a última
-criada. O histórico completo aparece na timeline interna, ordenado do mais
+criada. O registro completo aparece na Linha do tempo interna, ordenado do mais
 antigo para o mais recente.
 
 ## Autorização
@@ -51,7 +51,7 @@ Na mesma transação:
 
 Falha em qualquer etapa desfaz tudo.
 
-## Histórico
+## Registros anteriores
 
 Trocar a categoria não altera registros de triagem passados: cada linha guarda o
 `new_category` usado naquela versão. Os demais blocos não são snapshotados.

@@ -135,11 +135,12 @@ export async function findLatestTriage(protocol: string): Promise<TriageAssessme
 }
 
 /**
- * Resolve a saída da triagem contra `statuses`. Motor de Status v4 (delta
- * §3.1): elegível = `isActive && isRestricted===false && triageMode` em
- * `free`/`conclusion_only` — substitui o antigo filtro `isTriageExit`.
- * Contrato puro: só id numérico — literais antigos (nomes) são rejeitados
- * com 422 (`docs/rules/triage.md` §Observações).
+ * Resolve a saída da triagem contra `statuses`. Motor de Status v4 (ver
+ * `docs/rules/triage.md`, seção Status de saída): elegível =
+ * `isActive && isRestricted===false && triageMode` em `free`/`conclusion_only`
+ * — substitui o antigo filtro `isTriageExit`. Formato do fio: só id numérico —
+ * literais antigos (nomes) são rejeitados com 422 (ver `docs/rules/triage.md`,
+ * seção Regras condicionais).
  */
 export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
@@ -154,9 +155,9 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
 }
 
 /**
- * Resolve a categoria de destino contra o cadastro **ativo**
- * (`docs/rules/triage.md` §1 — `newCategory` deve estar ativo). Contrato:
- * name-string (nunca id).
+ * Resolve a categoria de destino contra o cadastro **ativo** (ver
+ * `docs/rules/triage.md`, seção Regras condicionais — `newCategory` deve estar
+ * ativo). Formato do fio: name-string (nunca id).
  */
 export async function resolveCategoryId(value: string): Promise<CategoryRow | undefined> {
   const raw = value.trim();

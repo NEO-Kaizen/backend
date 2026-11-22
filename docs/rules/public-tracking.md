@@ -27,12 +27,12 @@ sessão e sem receber JWT ou cookie novo.
 - O backend revalida a identidade a cada chamada e não confia na validade
   guardada pelo cliente. A TTL é responsabilidade do frontend.
 
-## Dual-auth e propriedade
+## Dual-auth e Posse
 
-- **Acompanhamento:** o dono é o vínculo `requests.requester_user_id`; em
+- **Acompanhamento:** a Posse é o vínculo `requests.requester_user_id`; em
   solicitações legadas sem vínculo, compara o e-mail normalizado. Sessão de
-  perfil interno é recusada. Em `AUTHENTICATED`, sem sessão do dono também é
-  recusado.
+  perfil interno é recusada. Em `AUTHENTICATED`, sem sessão do Solicitante
+  também é recusado.
 - **Pendências:** sessão de `Solicitante` compara nome e e-mail da conta;
   sessão interna passa sem checagem de custódia; sem cookie, exige identidade
   pública validada.
@@ -41,7 +41,7 @@ sessão e sem receber JWT ou cookie novo.
 
 O acompanhamento nunca inclui triagem, priorização, notas internas ou dados de
 outros solicitantes. O recorte público mostra apenas o estado externo; o recorte
-autenticado do dono acrescenta os blocos do formulário e anexos.
+autenticado do Solicitante acrescenta os blocos do formulário e anexos.
 
 ## Anti-enumeração
 

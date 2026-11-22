@@ -54,7 +54,8 @@ export interface ResolvedParticipant {
  *
  * `id` = `details_professional.professional_id` (uuid) — ecoável no
  * `mappingAssigneeId` do payload. `userId` = `users.user_id` (int, string) —
- * usado na comparação `mappingAssigneeId === currentUser.id` (contrato §9).
+ * usado na comparação `mappingAssigneeId === currentUser.id` (ver
+ * `docs/rules/assignment.md`).
  */
 export interface MappingAssignee {
   id: string;
@@ -92,9 +93,11 @@ export interface MappingResponseDTO {
  * permitido apenas ao responsável da solicitação ou Administrador.
  * `completeMapping` é exclusivo do `PUT` (não aparece na resposta).
  * `targetStatus` (PortalStatus.id) é obrigatório quando `completeMapping:true`
- * — status de destino do fluxo de mapeamento (delta v4 §3.2).
+ * — status de destino do fluxo de mapeamento (ver
+ * `docs/rules/requests-lifecycle.md`, seção Mapeamento).
  * `justification` (1..4000) é obrigatória quando `completeMapping:true` —
- * toda mudança de status exige justificativa (delta §3.3).
+ * toda mudança de status exige justificativa (ver
+ * `docs/rules/requests-lifecycle.md`, seção Troca direta de status).
  */
 export interface MappingPayloadDTO {
   id?: string;

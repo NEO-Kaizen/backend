@@ -8,10 +8,10 @@ cada seção é salva ou descartada por inteiro.
 O modo `PUBLIC`/`AUTHENTICATED` vale imediatamente para as rotas do fluxo do
 solicitante, sem cache ou restart.
 
-## Tema e identidade
+## Aparência e identidade
 
-- O tema é sempre o objeto completo (`light` + `dark`), sem merge parcial.
-- Valores nulos no tema caem para o default do contrato na leitura.
+- A Aparência é sempre o objeto completo (`light` + `dark`), sem merge parcial.
+- Valores nulos na Aparência caem para o default da leitura.
 - A identidade da plataforma é nome + máscara de protocolo.
 
 ## Assets
@@ -27,7 +27,7 @@ solicitante, sem cache ou restart.
 - Nomes são únicos ignorando maiúsculas/minúsculas.
 - Ao menos uma categoria precisa ficar ativa.
 - `id` é estável; a ordem do array é a ordem de exibição.
-- Categoria inativa permanece no histórico e não entra em novos fluxos.
+- Categoria inativa permanece registrada e não entra em novos fluxos.
 
 ## Status
 
@@ -35,7 +35,7 @@ solicitante, sem cache ou restart.
   renomeados, rebaixados, desativados nem ter flags/modos alterados.
 - Status restrito exige ambos os modos como `none`.
 - Ao menos um Status precisa ficar ativo.
-- A leitura inclui Status inativos; eles permanecem no histórico e não entram em
+- A leitura inclui Status inativos; eles permanecem registrados e não entram em
   novos fluxos.
 - A ordem do array é a ordem de exibição.
 
