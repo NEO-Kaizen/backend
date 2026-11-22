@@ -94,7 +94,7 @@ primeira publicação.
 
 | Job       | O que faz                                                                                                                                                        |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify`  | só em PR que mexe em `deploy/**` ou no workflow: `actionlint`, `shellcheck` e os testes de argumentos do `deploy.sh`. Não recebe segredos.                       |
+| `verify`  | só em PR que mexe em `deploy/**` ou nos workflows: `actionlint`, `shellcheck` e os testes de argumentos do `deploy.sh`. Não recebe segredos.                     |
 | `gate`    | resolve o SHA, exige que ele seja ancestral do topo da `main`, que a CI de `push` tenha passado e que ele ainda seja o topo; para `rollback`, só valida o ref.   |
 | `package` | checkout do SHA, `npm ci`, `npm run check`, `npm run build`, `npm prune --omit=dev`, `tar` do artefato e upload como artifact. Não recebe segredos.              |
 | `deploy`  | baixa o artifact, instala e conecta o OpenVPN, configura SSH, envia `release.tgz`, executa `deploy.sh` na VM e publica o resumo. Usa os segredos do repositório. |
