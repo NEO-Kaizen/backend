@@ -17,11 +17,6 @@ export interface MappingScheduledNotificationInput extends Omit<
    * — a audiência declarada na matriz #156.
    */
   requestMappingAssigneeUserId: number | null;
-  /**
-   * Designado do Mapeamento (`mappings.professional_id`) — herança: é usado
-   * quando não há designado de custódia.
-   */
-  mappingAssigneeUserId: number | null;
 }
 
 /**
@@ -29,8 +24,7 @@ export interface MappingScheduledNotificationInput extends Omit<
  *
  * Audiência: o solicitante autenticado e o designado de custódia da
  * solicitação — a matriz #156 declara `requests.mapping_professional_id`;
- * sem ele, usa-se o designado do Mapeamento (herança declarada no contrato);
- * quando não há nenhum dos dois, não há destinatário. O ator é removido pelo
+ * sem ele, não há destinatário designado. O ator é removido pelo
  * emissor, e dedup garante uma Notificação por destinatário.
  *
  * A decisão de *quando* notificar (conclusão do Mapeamento para o Status
@@ -41,8 +35,7 @@ export async function emitMappingScheduledNotification(
   trx: Knex.Transaction,
   input: MappingScheduledNotificationInput,
 ): Promise<CommittedNotification[]> {
-  const designeeUserId = input.requestMappingAssigneeUserId ?? input.mappingAssigneeUserId;
-  const recipientUserIds = [input.requesterUserId, designeeUserId].filter(
+  const recipientUserIds = [input.requesterUserId, input.requestMappingAssigneeUserId].filter(
     (userId): userId is number => userId !== null,
   );
 

@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **173**.
 - Tipos nomeados: **329** â€” 219 interfaces, 108 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1824** â€” 1343 variÃ¡veis, 245 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1821** â€” 1340 variÃ¡veis, 245 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **126**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -2383,11 +2383,6 @@ export interface MappingScheduledNotificationInput extends Omit<
    * — a audiência declarada na matriz #156.
    */
   requestMappingAssigneeUserId: number | null;
-  /**
-   * Designado do Mapeamento (`mappings.professional_id`) — herança: é usado
-   * quando não há designado de custódia.
-   */
-  mappingAssigneeUserId: number | null;
 }
 ```
 
@@ -2439,33 +2434,25 @@ export interface NotificationCommittedPayload {
 
 ### [src/shared/notifications/notificationEvents.ts](../src/shared/notifications/notificationEvents.ts)
 
-#### L20 â€” alias RequestPointer
+#### L21 â€” alias RequestPointer
 
 ```ts
 export type RequestPointer = z.infer<typeof requestPointerPayloadSchema>;
 ```
 
-#### L86 â€” alias StatusChangedNotificationPayload
+#### L85 â€” alias StatusChangedNotificationPayload
 
 ```ts
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
 ```
 
-#### L87 â€” alias MappingScheduledNotificationPayload
+#### L86 â€” alias MappingScheduledNotificationPayload
 
 ```ts
 export type MappingScheduledNotificationPayload = z.infer<typeof mappingScheduledPayloadSchema>;
 ```
 
-#### L88 â€” alias ResponsibleAssignedNotificationPayload
-
-```ts
-export type ResponsibleAssignedNotificationPayload = z.infer<
-  typeof responsibleAssignedPayloadSchema
->;
-```
-
-#### L91 â€” alias PendingItemRespondedNotificationPayload
+#### L87 â€” alias PendingItemRespondedNotificationPayload
 
 ```ts
 export type PendingItemRespondedNotificationPayload = z.infer<
@@ -2473,7 +2460,7 @@ export type PendingItemRespondedNotificationPayload = z.infer<
 >;
 ```
 
-#### L94 â€” alias PendingItemRespondedUnassignedNotificationPayload
+#### L90 â€” alias PendingItemRespondedUnassignedNotificationPayload
 
 ```ts
 export type PendingItemRespondedUnassignedNotificationPayload = z.infer<
@@ -2481,43 +2468,45 @@ export type PendingItemRespondedUnassignedNotificationPayload = z.infer<
 >;
 ```
 
-#### L97 â€” alias NotificationPayload
+#### L93 â€” alias ResponsibleAssignedNotificationPayload
+
+```ts
+export type ResponsibleAssignedNotificationPayload = z.infer<
+  typeof responsibleAssignedPayloadSchema
+>;
+```
+
+#### L96 â€” alias NotificationPayload
 
 ```ts
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 ```
 
-#### L124 â€” alias NotificationEventBase
+#### L121 â€” alias NotificationEventBase
 
 ```ts
 export type NotificationEventBase = z.infer<typeof notificationEventBaseSchema>;
 ```
 
-#### L201 â€” alias StatusChangedNotificationEvent
+#### L208 â€” alias StatusChangedNotificationEvent
 
 ```ts
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
 ```
 
-#### L202 â€” alias MappingScheduledNotificationEvent
+#### L209 â€” alias MappingScheduledNotificationEvent
 
 ```ts
 export type MappingScheduledNotificationEvent = z.infer<typeof mappingScheduledEventSchema>;
 ```
 
-#### L203 â€” alias ResponsibleAssignedNotificationEvent
-
-```ts
-export type ResponsibleAssignedNotificationEvent = z.infer<typeof responsibleAssignedEventSchema>;
-```
-
-#### L204 â€” alias PendingItemRespondedNotificationEvent
+#### L210 â€” alias PendingItemRespondedNotificationEvent
 
 ```ts
 export type PendingItemRespondedNotificationEvent = z.infer<typeof pendingItemRespondedEventSchema>;
 ```
 
-#### L205 â€” alias PendingItemRespondedUnassignedNotificationEvent
+#### L211 â€” alias PendingItemRespondedUnassignedNotificationEvent
 
 ```ts
 export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
@@ -2525,25 +2514,31 @@ export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
 >;
 ```
 
-#### L208 â€” alias NotificationEvent
+#### L214 â€” alias ResponsibleAssignedNotificationEvent
+
+```ts
+export type ResponsibleAssignedNotificationEvent = z.infer<typeof responsibleAssignedEventSchema>;
+```
+
+#### L215 â€” alias NotificationEvent
 
 ```ts
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 ```
 
-#### L209 â€” alias NotificationEventType
+#### L216 â€” alias NotificationEventType
 
 ```ts
 export type NotificationEventType = NotificationEvent["type"];
 ```
 
-#### L218 â€” alias PendingItemEventType
+#### L225 â€” alias PendingItemEventType
 
 ```ts
 export type PendingItemEventType = (typeof PENDING_ITEM_EVENT_TYPES)[number];
 ```
 
-#### L219 â€” alias PendingItemNotificationEvent
+#### L227 â€” alias PendingItemNotificationEvent
 
 ```ts
 export type PendingItemNotificationEvent = Extract<
@@ -2554,13 +2549,13 @@ export type PendingItemNotificationEvent = Extract<
 
 ### [src/shared/notifications/pendingItemNotification.ts](../src/shared/notifications/pendingItemNotification.ts)
 
-#### L10 â€” alias PendingItemNotificationAction
+#### L11 â€” alias PendingItemNotificationAction
 
 ```ts
 export type PendingItemNotificationAction = "create" | "reopen" | "validate";
 ```
 
-#### L13 â€” interface PendingItemNotificationRequest
+#### L14 â€” interface PendingItemNotificationRequest
 
 ```ts
 export interface PendingItemNotificationRequest {
@@ -2570,7 +2565,7 @@ export interface PendingItemNotificationRequest {
 }
 ```
 
-#### L20 â€” interface PendingItemNotificationEventInput
+#### L21 â€” interface PendingItemNotificationEventInput
 
 ```ts
 export interface PendingItemNotificationEventInput {
@@ -2579,7 +2574,7 @@ export interface PendingItemNotificationEventInput {
 }
 ```
 
-#### L25 â€” interface PendingItemNotificationsInput
+#### L26 â€” interface PendingItemNotificationsInput
 
 ```ts
 export interface PendingItemNotificationsInput {
@@ -2589,7 +2584,7 @@ export interface PendingItemNotificationsInput {
 }
 ```
 
-#### L31 â€” interface PendingItemEventBuilder
+#### L32 â€” interface PendingItemEventBuilder
 
 ```ts
 interface PendingItemEventBuilder {
@@ -3837,7 +3832,7 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/index.ts](../src/docs/schemas/index.ts)
 
-- L112 â€” variÃ¡vel: `schemas`
+- L115 â€” variÃ¡vel: `schemas`
 
 ### [src/docs/schemas/mapping.ts](../src/docs/schemas/mapping.ts)
 
@@ -3845,18 +3840,17 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/notifications.ts](../src/docs/schemas/notifications.ts)
 
-- L7 â€” variÃ¡vel: `NotificationStatusChangedPayload`
-- L20 â€” variÃ¡vel: `pendingItemLifecyclePayload`
-- L36 â€” variÃ¡vel: `NotificationPendingItemRespondedPayload`
-- L52 â€” variÃ¡vel: `NotificationPendingItemRespondedUnassignedPayload`
-- L73 â€” variÃ¡vel: `NotificationMappingScheduledPayload`
-- L91 â€” variÃ¡vel: `NotificationResponsibleAssignedPayload`
-- L109 â€” variÃ¡vel: `NotificationPayload`
-- L123 â€” variÃ¡vel: `NotificationItem`
-- L148 â€” variÃ¡vel: `NotificationListResponse`
-- L165 â€” variÃ¡vel: `NotificationUnreadCountResponse`
-- L173 â€” variÃ¡vel: `NotificationMarkReadResponse`
-- L186 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
+- L1 â€” variÃ¡vel: `NotificationStatusChangedPayload`
+- L14 â€” variÃ¡vel: `NotificationPendingItemRespondedPayload`
+- L30 â€” variÃ¡vel: `NotificationPendingItemRespondedUnassignedPayload`
+- L51 â€” variÃ¡vel: `NotificationResponsibleAssignedPayload`
+- L69 â€” variÃ¡vel: `NotificationMappingScheduledPayload`
+- L86 â€” variÃ¡vel: `NotificationPayload`
+- L99 â€” variÃ¡vel: `NotificationItem`
+- L129 â€” variÃ¡vel: `NotificationListResponse`
+- L146 â€” variÃ¡vel: `NotificationUnreadCountResponse`
+- L154 â€” variÃ¡vel: `NotificationMarkReadResponse`
+- L167 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
 
 ### [src/docs/schemas/pendingItems.ts](../src/docs/schemas/pendingItems.ts)
 
@@ -4942,7 +4936,7 @@ interface GroupedIssues {
 - L706 â€” variÃ¡vel: `assigneeCandidate`
 - L716 â€” variÃ¡vel: `scheduledAt`
 - L717 â€” variÃ¡vel: `committedNotifications`
-- L732 â€” variÃ¡vel: `response`
+- L731 â€” variÃ¡vel: `response`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
@@ -5293,55 +5287,55 @@ interface GroupedIssues {
 - L873 â€” parÃ¢metro: `trx`
 - L873 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L876 â€” variÃ¡vel: `auditId`
-- L954 â€” variÃ¡vel: `request`
-- L969 â€” variÃ¡vel: `hasAssignee`
-- L970 â€” variÃ¡vel: `hasMapping`
-- L975 â€” variÃ¡vel: `raw`
-- L977 â€” variÃ¡vel: `previous`
-- L978 â€” variÃ¡vel: `auditPrev`
-- L981 â€” parÃ¢metro: `trx`
-- L981 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L998 â€” variÃ¡vel: `resolved`
-- L999 â€” variÃ¡vel: `previous`
-- L1000 â€” variÃ¡vel: `auditPrev`
-- L1003 â€” variÃ¡vel: `previousMapping`
-- L1004 â€” variÃ¡vel: `auditPrevMapping`
-- L1007 â€” variÃ¡vel: `action`
-- L1008 â€” variÃ¡vel: `shouldAdvance`
-- L1011 â€” parÃ¢metro: `trx`
-- L1011 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1018 â€” variÃ¡vel: `auditId`
-- L1071 â€” variÃ¡vel: `raw`
-- L1073 â€” variÃ¡vel: `previous`
-- L1074 â€” variÃ¡vel: `auditPrev`
-- L1077 â€” parÃ¢metro: `trx`
-- L1077 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1094 â€” variÃ¡vel: `resolved`
-- L1095 â€” variÃ¡vel: `previous`
-- L1096 â€” variÃ¡vel: `auditPrev`
-- L1099 â€” variÃ¡vel: `previousAssignee`
-- L1100 â€” variÃ¡vel: `auditPrevAssignee`
-- L1103 â€” variÃ¡vel: `action`
-- L1104 â€” parÃ¢metro: `trx`
-- L1104 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1111 â€” variÃ¡vel: `auditId`
-- L1204 â€” variÃ¡vel: `isTriageAssignee`
-- L1206 â€” variÃ¡vel: `isMappingAssignee`
-- L1231 â€” parÃ¢metro: `trx`
-- L1231 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1252 â€” variÃ¡vel: `request`
-- L1257 â€” variÃ¡vel: `target`
-- L1262 â€” variÃ¡vel: `isAdmin`
-- L1276 â€” variÃ¡vel: `isAssignee`
-- L1278 â€” variÃ¡vel: `isMappingAssignee`
-- L1281 â€” variÃ¡vel: `isAnalystAssignee`
-- L1347 â€” variÃ¡vel: `changeOrigin`
-- L1349 â€” parÃ¢metro: `trx`
-- L1349 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1349 â€” variÃ¡vel: `{ lastUpdate, committed }`
-- L1350 â€” variÃ¡vel: `persistedAt`
-- L1362 â€” variÃ¡vel: `auditId`
-- L1387 â€” variÃ¡vel: `committedNotifications`
+- L955 â€” variÃ¡vel: `request`
+- L970 â€” variÃ¡vel: `hasAssignee`
+- L971 â€” variÃ¡vel: `hasMapping`
+- L976 â€” variÃ¡vel: `raw`
+- L978 â€” variÃ¡vel: `previous`
+- L979 â€” variÃ¡vel: `auditPrev`
+- L982 â€” parÃ¢metro: `trx`
+- L982 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L999 â€” variÃ¡vel: `resolved`
+- L1000 â€” variÃ¡vel: `previous`
+- L1001 â€” variÃ¡vel: `auditPrev`
+- L1004 â€” variÃ¡vel: `previousMapping`
+- L1005 â€” variÃ¡vel: `auditPrevMapping`
+- L1008 â€” variÃ¡vel: `action`
+- L1009 â€” variÃ¡vel: `shouldAdvance`
+- L1012 â€” parÃ¢metro: `trx`
+- L1012 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1019 â€” variÃ¡vel: `auditId`
+- L1073 â€” variÃ¡vel: `raw`
+- L1075 â€” variÃ¡vel: `previous`
+- L1076 â€” variÃ¡vel: `auditPrev`
+- L1079 â€” parÃ¢metro: `trx`
+- L1079 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1096 â€” variÃ¡vel: `resolved`
+- L1097 â€” variÃ¡vel: `previous`
+- L1098 â€” variÃ¡vel: `auditPrev`
+- L1101 â€” variÃ¡vel: `previousAssignee`
+- L1102 â€” variÃ¡vel: `auditPrevAssignee`
+- L1105 â€” variÃ¡vel: `action`
+- L1106 â€” parÃ¢metro: `trx`
+- L1106 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1113 â€” variÃ¡vel: `auditId`
+- L1219 â€” variÃ¡vel: `isTriageAssignee`
+- L1221 â€” variÃ¡vel: `isMappingAssignee`
+- L1246 â€” parÃ¢metro: `trx`
+- L1246 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1267 â€” variÃ¡vel: `request`
+- L1272 â€” variÃ¡vel: `target`
+- L1277 â€” variÃ¡vel: `isAdmin`
+- L1291 â€” variÃ¡vel: `isAssignee`
+- L1293 â€” variÃ¡vel: `isMappingAssignee`
+- L1296 â€” variÃ¡vel: `isAnalystAssignee`
+- L1362 â€” variÃ¡vel: `changeOrigin`
+- L1364 â€” parÃ¢metro: `trx`
+- L1364 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1364 â€” variÃ¡vel: `{ lastUpdate, committed }`
+- L1365 â€” variÃ¡vel: `persistedAt`
+- L1377 â€” variÃ¡vel: `auditId`
+- L1402 â€” variÃ¡vel: `committedNotifications`
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
@@ -5732,9 +5726,8 @@ interface GroupedIssues {
 
 ### [src/shared/notifications/mappingScheduledNotification.ts](../src/shared/notifications/mappingScheduledNotification.ts)
 
-- L44 â€” variÃ¡vel: `designeeUserId`
-- L45 â€” variÃ¡vel: `recipientUserIds`
-- L46 â€” parÃ¢metro: `userId`
+- L38 â€” variÃ¡vel: `recipientUserIds`
+- L39 â€” parÃ¢metro: `userId`
 
 ### [src/shared/notifications/notificationEmitter.ts](../src/shared/notifications/notificationEmitter.ts)
 
@@ -5748,50 +5741,49 @@ interface GroupedIssues {
 
 ### [src/shared/notifications/notificationEvents.ts](../src/shared/notifications/notificationEvents.ts)
 
-- L12 â€” variÃ¡vel: `PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE`
-- L15 â€” variÃ¡vel: `requestPointerPayloadSchema`
-- L23 â€” retorno da funÃ§Ã£o: `pendingItemPayloadSchema()`
-- L31 â€” variÃ¡vel: `statusChangedPayloadSchema`
-- L43 â€” variÃ¡vel: `mappingScheduledPayloadSchema`
-- L50 â€” variÃ¡vel: `responsibleAssignedPayloadSchema`
-- L60 â€” variÃ¡vel: `pendingItemCreatedPayloadSchema`
-- L62 â€” variÃ¡vel: `pendingItemReopenedPayloadSchema`
-- L64 â€” variÃ¡vel: `pendingItemValidatedPayloadSchema`
-- L66 â€” variÃ¡vel: `pendingItemRespondedPayloadSchema`
-- L68 â€” variÃ¡vel: `pendingItemRespondedUnassignedPayloadSchema`
-- L75 â€” variÃ¡vel: `notificationPayloadSchema`
-- L105 â€” variÃ¡vel: `notificationEventFields`
-- L113 â€” variÃ¡vel: `notificationEventBaseSchema`
-- L130 â€” variÃ¡vel: `pendingItemResponseEventBaseSchema`
-- L137 â€” retorno da funÃ§Ã£o: `notificationEventSchemaFor()`
-- L146 â€” variÃ¡vel: `statusChangedEventSchema`
-- L151 â€” variÃ¡vel: `mappingScheduledEventSchema`
-- L156 â€” variÃ¡vel: `responsibleAssignedEventSchema`
-- L161 â€” variÃ¡vel: `pendingItemCreatedEventSchema`
-- L166 â€” variÃ¡vel: `pendingItemReopenedEventSchema`
-- L171 â€” variÃ¡vel: `pendingItemValidatedEventSchema`
-- L176 â€” variÃ¡vel: `pendingItemRespondedEventSchema`
-- L183 â€” variÃ¡vel: `pendingItemRespondedUnassignedEventSchema`
-- L190 â€” variÃ¡vel: `notificationEventSchema`
-- L212 â€” variÃ¡vel: `PENDING_ITEM_EVENT_TYPES`
-- L225 â€” variÃ¡vel: `PENDING_ITEM_RESPONSE_EVENT_TYPES`
-- L231 â€” variÃ¡vel: `NOTIFICATION_EVENT_TYPES`
+- L13 â€” variÃ¡vel: `PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE`
+- L16 â€” variÃ¡vel: `requestPointerPayloadSchema`
+- L24 â€” retorno da funÃ§Ã£o: `pendingItemPayloadSchema()`
+- L32 â€” variÃ¡vel: `pendingItemCreatedPayloadSchema`
+- L33 â€” variÃ¡vel: `pendingItemReopenedPayloadSchema`
+- L34 â€” variÃ¡vel: `pendingItemValidatedPayloadSchema`
+- L36 â€” variÃ¡vel: `statusChangedPayloadSchema`
+- L44 â€” variÃ¡vel: `mappingScheduledPayloadSchema`
+- L51 â€” variÃ¡vel: `pendingItemRespondedPayloadSchema`
+- L57 â€” variÃ¡vel: `pendingItemRespondedUnassignedPayloadSchema`
+- L64 â€” variÃ¡vel: `responsibleAssignedPayloadSchema`
+- L74 â€” variÃ¡vel: `notificationPayloadSchema`
+- L102 â€” variÃ¡vel: `notificationEventFields`
+- L110 â€” variÃ¡vel: `notificationEventBaseSchema`
+- L124 â€” retorno da funÃ§Ã£o: `notificationEventSchemaFor()`
+- L133 â€” variÃ¡vel: `statusChangedEventSchema`
+- L141 â€” variÃ¡vel: `mappingScheduledEventSchema`
+- L146 â€” variÃ¡vel: `pendingItemCreatedEventSchema`
+- L151 â€” variÃ¡vel: `pendingItemReopenedEventSchema`
+- L156 â€” variÃ¡vel: `pendingItemValidatedEventSchema`
+- L165 â€” variÃ¡vel: `pendingItemEventBaseSchema`
+- L172 â€” variÃ¡vel: `pendingItemRespondedEventSchema`
+- L179 â€” variÃ¡vel: `pendingItemRespondedUnassignedEventSchema`
+- L186 â€” variÃ¡vel: `responsibleAssignedEventSchema`
+- L197 â€” variÃ¡vel: `notificationEventSchema`
+- L219 â€” variÃ¡vel: `PENDING_ITEM_EVENT_TYPES`
+- L233 â€” variÃ¡vel: `NOTIFICATION_EVENT_TYPES`
 
 ### [src/shared/notifications/pendingItemNotification.ts](../src/shared/notifications/pendingItemNotification.ts)
 
-- L44 â€” variÃ¡vel: `PENDING_ITEM_EVENT_BY_ACTION`
-- L47 â€” parÃ¢metro: `eventBase`
-- L47 â€” parÃ¢metro: `requestPointer`
-- L47 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L55 â€” parÃ¢metro: `eventBase`
-- L55 â€” parÃ¢metro: `requestPointer`
-- L55 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L63 â€” parÃ¢metro: `eventBase`
-- L63 â€” parÃ¢metro: `requestPointer`
-- L63 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L76 â€” variÃ¡vel: `{ request, actorUserId }`
-- L79 â€” variÃ¡vel: `eventBuilder`
-- L107 â€” variÃ¡vel: `eventInput`
+- L45 â€” variÃ¡vel: `PENDING_ITEM_EVENT_BY_ACTION`
+- L48 â€” parÃ¢metro: `eventBase`
+- L48 â€” parÃ¢metro: `requestPointer`
+- L48 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L56 â€” parÃ¢metro: `eventBase`
+- L56 â€” parÃ¢metro: `requestPointer`
+- L56 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L64 â€” parÃ¢metro: `eventBase`
+- L64 â€” parÃ¢metro: `requestPointer`
+- L64 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L77 â€” variÃ¡vel: `{ request, actorUserId }`
+- L80 â€” variÃ¡vel: `eventBuilder`
+- L108 â€” variÃ¡vel: `eventInput`
 
 ### [src/shared/notifications/pendingItemRespondedNotification.ts](../src/shared/notifications/pendingItemRespondedNotification.ts)
 

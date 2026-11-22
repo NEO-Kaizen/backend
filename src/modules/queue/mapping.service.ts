@@ -725,7 +725,6 @@ export const upsertMappingService = async (
             actorUserId: actor.id,
             requesterUserId: context.requester_user_id,
             requestMappingAssigneeUserId: context.mapping_assignee_user_id,
-            mappingAssigneeUserId: assigneeCandidate?.userId ?? null,
           })
         : [];
 

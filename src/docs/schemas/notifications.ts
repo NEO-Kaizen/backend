@@ -1,35 +1,13 @@
-import {
-  NOTIFICATION_EVENT_TYPES,
-  PENDING_ITEM_EVENT_TYPES,
-  PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
-} from "../../shared/notifications/notificationEvents.ts";
-
 export const NotificationStatusChangedPayload = {
   type: "object",
   description:
-    "Payload do Evento `status_changed`: tipo, protocolo, título e o novo Status público.",
+    "Payload reduzido à Allowlist do Evento de mudança de Status. Nunca contém mensagem técnica, scores, notas internas ou campos de triagem.",
   required: ["type", "protocol", "title", "newStatus"],
   properties: {
     type: { type: "string", enum: ["status_changed"], example: "status_changed" },
     protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
     title: { type: "string", example: "Automatizar conciliação bancária" },
     newStatus: { type: "string", example: "Aguardando mapeamento" },
-  },
-};
-
-const pendingItemLifecyclePayload = {
-  type: "object",
-  description:
-    "Payload dos Eventos de criação, reabertura e validação de Pendência: contém apenas tipo, protocolo e título.",
-  required: ["type", "protocol", "title"],
-  properties: {
-    type: {
-      type: "string",
-      enum: PENDING_ITEM_EVENT_TYPES,
-      example: "pending_item_created",
-    },
-    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-    title: { type: "string", example: "Automatizar conciliação bancária" },
   },
 };
 
@@ -64,16 +42,33 @@ export const NotificationPendingItemRespondedUnassignedPayload = {
     title: { type: "string", example: "Analisar inadimplência por região" },
     notice: {
       type: "string",
-      enum: [PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE],
-      example: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
+      enum: ["Sem responsável designado"],
+      example: "Sem responsável designado",
     },
+  },
+};
+
+export const NotificationResponsibleAssignedPayload = {
+  type: "object",
+  description:
+    "Payload do Evento de Designação de Responsável: categoria e Status atual da solicitação no momento da designação. Aponta para a solicitação sem expor dados internos.",
+  required: ["type", "protocol", "title", "category", "status"],
+  properties: {
+    type: {
+      type: "string",
+      enum: ["responsible_assigned"],
+      example: "responsible_assigned",
+    },
+    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    title: { type: "string", example: "Automatizar conciliação bancária" },
+    category: { type: "string", example: "Automação" },
+    status: { type: "string", example: "Aguardando mapeamento" },
   },
 };
 
 export const NotificationMappingScheduledPayload = {
   type: "object",
-  description:
-    "Payload do Evento `mapping_scheduled`: tipo, protocolo, título e data/hora do Agendamento.",
+  description: "Payload do Evento de Agendamento do Mapeamento: data/hora do Agendamento.",
   required: ["type", "protocol", "title", "scheduledAt"],
   properties: {
     type: { type: "string", enum: ["mapping_scheduled"], example: "mapping_scheduled" },
@@ -92,9 +87,9 @@ export const NotificationPayload = {
   oneOf: [
     { $ref: "#/components/schemas/NotificationStatusChangedPayload" },
     { $ref: "#/components/schemas/NotificationMappingScheduledPayload" },
-    pendingItemLifecyclePayload,
     { $ref: "#/components/schemas/NotificationPendingItemRespondedPayload" },
     { $ref: "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },
+    { $ref: "#/components/schemas/NotificationResponsibleAssignedPayload" },
   ],
   discriminator: { propertyName: "type" },
   description:
@@ -108,7 +103,12 @@ export const NotificationItem = {
     id: { type: "string", example: "f0000000-0000-4000-8000-000000000001" },
     type: {
       type: "string",
-      enum: [...NOTIFICATION_EVENT_TYPES],
+      enum: [
+        "status_changed",
+        "pending_item_responded",
+        "pending_item_responded_unassigned",
+        "responsible_assigned",
+      ],
       example: "status_changed",
     },
     payload: { $ref: "#/components/schemas/NotificationPayload" },

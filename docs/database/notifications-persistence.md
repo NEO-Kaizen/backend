@@ -39,12 +39,8 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 - `dedup_key` = `<eventKey>:<recipient_user_id>`. O formato de `eventKey` por
   Evento está em `docs/notifications-contract.md`: por exemplo,
   `request.status_change:<audit_id>`, `mapping.complete:<audit_id>`,
-  `request.pending_responded:<audit_id>` e `request.assigned:<audit_id>`. A
-  chave de negócio preserva eventos distintos ao longo do ciclo de vida
-  (agendamento e reagendamento, por exemplo). Nos Eventos de criação,
-  reabertura e validação, o prefixo é `pending_item.create`,
-  `pending_item.reopen` ou `pending_item.validate` seguido do `audit_id` da
-  primeira transição da ação; na resposta, é `request.pending_responded`.
+  `request.pending_responded:<audit_id>` e `request.assigned:<audit_id>`. A chave de negócio preserva eventos
+  distintos ao longo do ciclo de vida (agendamento e reagendamento, por exemplo).
 - O emissor valida o Evento com Zod antes do INSERT. Payload fora da Allowlist
   é erro de programação e aborta a transação.
 - O ator é removido da lista de destinatários na emissão.
@@ -62,16 +58,14 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
   designado do seed 012;
 - `pending_item_responded` para o Responsável da request 1;
 - `pending_item_responded_unassigned` para os Administradores ativos da request 3,
-  com o aviso explícito;
+  com o aviso explícito; e
 - `responsible_assigned` para a request 1 — designação do Analista Teste e
-  redesignação da Roberta Analista; e
-- `pending_item_created`, `pending_item_reopened` e `pending_item_validated`
-  para o solicitante da request 3.
+  redesignação da Roberta Analista.
 
 Os destinatários Administradores e os ponteiros (`protocol`/`title`) são
-resolvidos do banco a partir dos e-mails e das requests do seed, sem repetir
-ids ou strings. O seed é idempotente por `dedup_key`: apaga as Notificações
-pelos ids fixos e pelas chaves que ele mesmo cria e as recria, sem tocar nas
+resolvidos do banco a partir dos e-mails e das requests do seed, sem repetir ids
+ou strings. O seed é idempotente por `dedup_key`: apaga as Notificações pelos
+ids fixos e pelas chaves que ele mesmo cria e as recria, sem tocar nas
 Notificações geradas pela API. O prefixo `seed:` mantém essas chaves fora do
 espaço das `eventKey` reais.
 

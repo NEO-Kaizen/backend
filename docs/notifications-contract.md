@@ -8,12 +8,14 @@ A plataforma de Notificações in-app e os Eventos ponta a ponta já integrados:
 
 - `status_changed` (#157): a mudança de Status no `PATCH /requests/:protocol/status`
   ou no veredito da Triagem gera Notificação para o solicitante autenticado.
-- `mapping_scheduled` (#160): a conclusão do Mapeamento para o Status
-  `Mapeamento agendado` gera Notificação para o solicitante autenticado e para
-  o designado do Mapeamento, com a data/hora do Agendamento.
+- `mapping_scheduled` (#160): a conclusão do Mapeamento para `Mapeamento agendado`
+  gera Notificação para o solicitante autenticado e o Responsável do Mapeamento
+  (`requests.mapping_professional_id`), com a data/hora do Agendamento.
 - `pending_item_responded` e `pending_item_responded_unassigned` (#159): a
   resposta de Pendência gera Notificação para o Responsável ou, na ausência
   dele, para os Administradores ativos.
+- `responsible_assigned` (#161): a Designação de Responsável nas rotas interna
+  e legada gera Notificação para o analista designado.
 
 As Notificações são entregues por SSE em até 5 segundos. Os demais Eventos de
 Pendência (criação, reabertura e validação) e do Mapeamento entram nas issues
@@ -24,13 +26,15 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
 - **Notificação**: projeção por destinatário criada na mesma transação do
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
-  emissão. A v1 tem `status_changed`, `mapping_scheduled`,
-  `pending_item_responded`, `pending_item_responded_unassigned`
+  emissão. A v1 tem `status_changed`,
+  `pending_item_responded`, `pending_item_responded_unassigned` e
+  `responsible_assigned`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
   `type`, `protocol`, `title` e `newStatus`; para `mapping_scheduled`, somente
   `type`, `protocol`, `title` e `scheduledAt`; para os Eventos de Pendência, os
   campos da seção própria — nunca mensagem técnica, scores, notas internas ou
-  campos de triagem.
+  campos de triagem. Para `responsible_assigned`, somente `type`, `protocol`,
+  `title`, `category` e `status`.
 - **Canal**: `NotificationChannel`. O canal in-app grava a Notificação na
   transação; o canal de e-mail do RF31 entra como outra implementação.
 - **Idempotência**: `notifications.dedup_key` é única. A chave é
@@ -38,8 +42,9 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
 - **Audiência**: o ator nunca recebe Notificação da própria ação; o
   destinatário de cada Evento segue a matriz da seção correspondente. Em
   `status_changed`, é o `requests.requester_user_id`; em `mapping_scheduled`,
-  o solicitante autenticado e o designado de custódia da solicitação
-  (`requests.mapping_professional_id`).
+  o solicitante autenticado e o Responsável do Mapeamento
+  (`requests.mapping_professional_id`); Em `responsible_assigned`, apenas o analista
+  designado; o Administrador que designou não recebe.
 
 ## Regras do Evento `status_changed`
 
@@ -57,33 +62,6 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   Notificação in-app na v1.
 - Se a transação falhar, nem o Status nem a Notificação são gravados.
 - Após o commit, a publicação ocorre no `EventEmitter` tipado com
-  `{ userId, notificationIds }`.
-
-## Regras do Evento `mapping_scheduled`
-
-- Emitido no `PUT /queue/requests/:protocol/mapping`, na mesma transação da
-  conclusão do Mapeamento (`mapping.complete`), da mudança de Status e da
-  auditoria.
-- Só notifica quando a conclusão tem como destino o Status
-  `Mapeamento agendado` (`status_id` 6). Rascunho (`completeMapping: false`)
-  não notifica; conclusão para outros Status (mapeamento concluído de fato)
-  também não.
-- Destinatários: solicitante autenticado (`requests.requester_user_id`) e
-  designado de custódia da solicitação (`requests.mapping_professional_id`)
-  — a audiência declarada na matriz #156; quando não há designado de
-  custódia, usa-se o designado do Mapeamento (herança declarada: o
-  `mappings.professional_id` do mapeamento concluído) —, menos o ator.
-  O designado de custódia sobrevive à agendamento (`targetStatus 6`); um
-  designado novo de mapeamento em o redesigna.
-- Reagendamento é uma nova conclusão do Mapeamento: gera nova `mapping.complete`
-  (nova `eventKey`) e, portanto, nova Notificação com a nova data/hora.
-- Destinatário ausente (solicitante anônimo ou sem designado de custódia e
-  sem designado do Mapeamento) não recebe Notificação in-app; os demais
-  destinatários são notificados normalmente.
-- O Payload traz `scheduledAt` em ISO-8601 UTC, normalizado para o Agendamento
-  concluído.
-- Se a transação falhar, nem o Agendamento nem a Notificação são gravados.
-- Após o commit, o aviso é publicado no `EventEmitter` tipado com
   `{ userId, notificationIds }`.
 
 ## Regras do Evento `pending_item_responded`
@@ -117,6 +95,34 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de
   Status.
+
+## Regras do Evento `mapping_scheduled`
+
+- Emitido no `PUT /queue/requests/:protocol/mapping`, na mesma transação da
+  conclusão do Mapeamento (`mapping.complete`), da mudança de Status e da
+  auditoria.
+- Só notifica quando a conclusão tem como destino o Status `Mapeamento agendado`
+  (`status_id` 6). Rascunho (`completeMapping: false`) não notifica.
+- Destinatários: solicitante autenticado (`requests.requester_user_id`) e o
+  Responsável do Mapeamento (`requests.mapping_professional_id`), menos o ator.
+- Reagendamento é uma nova conclusão: novo `mapping.complete` (nova `eventKey`)
+  e, portanto, nova Notificação com a nova data/hora.
+- Payload restrito a `type`, `protocol`, `title` e `scheduledAt` (ISO-8601 UTC).
+- Após o commit, o aviso é publicado no `EventEmitter` tipado.
+
+## Regras do Evento `responsible_assigned` (issue #161)
+
+- Emitido nas rotas interna (`PATCH /requests/:protocol/internal/assignee`) e
+  legada (`PATCH /requests/:protocol/assignee`) quando um analista é
+  designado na triagem ou no mapeamento da solicitação, na mesma transação da
+  designação e da auditoria.
+- `eventKey`: `request.assigned:<audit_id>` — cada designação é um Evento
+  distinto.
+- Audiência: apenas o analista designado. O Administrador que designou não
+  recebe. Sem troca de designado — designar o mesmo analista já designado —
+  não há Notificação duplicada.
+- Payload: `type`, `protocol`, `title`, `category` e `status` — a Allowlist da
+  designação, com a categoria e o Status atual da solicitação na emissão.
 
 ## Payload dos Eventos de Pendência
 
@@ -174,18 +180,6 @@ antiga, com estado de leitura.
       },
       "readAt": null,
       "createdAt": "2026-11-18T12:15:00.000Z"
-    },
-    {
-      "id": "f0000000-0000-4000-8000-000000000022",
-      "type": "mapping_scheduled",
-      "payload": {
-        "type": "mapping_scheduled",
-        "protocol": "MAAT-8K3P-9X2M",
-        "title": "Automatizar conciliação bancária",
-        "scheduledAt": "2026-09-15T14:00:00Z"
-      },
-      "readAt": null,
-      "createdAt": "2026-09-10T11:10:00Z"
     }
   ],
   "nextCursor": null
