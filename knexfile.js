@@ -9,6 +9,20 @@ const connection = {
   password: process.env.DB_PASSWORD,
 };
 
+// Supabase recommends a direct or session-mode connection for migrations.
+// Runtime keeps DB_PORT from .env (usually the transaction pooler on 6543), and
+// migrations default to session mode on 5432 unless MIGRATION_DB_PORT overrides it.
+const configuredMigrationPort = process.env.MIGRATION_DB_PORT;
+const migrationPort = configuredMigrationPort ? Number(configuredMigrationPort) : 5432;
+if (!Number.isInteger(migrationPort) || migrationPort <= 0) {
+  throw new Error("MIGRATION_DB_PORT must be a positive integer");
+}
+
+const migrationConnection = {
+  ...connection,
+  port: migrationPort,
+};
+
 const migrations = {
   directory: ["./migrations", "./migrations/requester_request", "./migrations/users"],
   extension: "js",
@@ -23,6 +37,11 @@ export default {
       directory: "./seeds/requester_request",
       extension: "js",
     },
+  },
+  production: {
+    client: "pg",
+    connection: migrationConnection,
+    migrations,
   },
   scenarios: {
     client: "pg",

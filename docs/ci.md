@@ -1,6 +1,6 @@
 # CI do backend
 
-Workflow do GitHub Actions para o `NEO-Kaizen/backend` (issue #137). CD não faz parte deste escopo.
+Workflow do GitHub Actions para o `NEO-Kaizen/backend` (issue #137). O CD fica em `deploy.yml` e está documentado em [`cd.md`](./cd.md).
 
 ## O que roda em cada PR
 
@@ -31,7 +31,6 @@ Não existe `.env` no runner de propósito: `knexfile.js` carrega o arquivo com 
 ## O que ainda não existe
 
 - Sem imagem Docker da aplicação e sem build/push: a imagem não faz parte da CI.
-- Sem CD: deploy está fora do escopo desta issue.
 - Sem job de testes: `npm test` ainda é um no-op na `main` e a suíte está em andamento na issue #135. O esqueleto do job está comentado em `ci.yml` com `TODO(#135)`.
 - Sem `npm audit` bloqueante: as 5 vulnerabilidades de produção pré-existentes são tratadas separadamente. O `dependency-review` cobre só o diff do PR e começa como não obrigatório.
 

@@ -1,0 +1,8 @@
+# Files that can read the production deploy secrets (VPN profile and SSH key).
+# Owners below must review changes to them. This only takes effect with a rule
+# on `main` that enables "Require review from Code Owners".
+#
+# Adjust the handle/team to whoever owns production deploys.
+/.github/workflows/ @renatoPsilva
+/deploy/ @renatoPsilva
+/.github/CODEOWNERS @renatoPsilva
