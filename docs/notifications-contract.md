@@ -8,9 +8,6 @@ A plataforma de Notificações in-app e os Eventos ponta a ponta já integrados:
 
 - `status_changed` (#157): a mudança de Status no `PATCH /requests/:protocol/status`
   ou no veredito da Triagem gera Notificação para o solicitante autenticado.
-- `mapping_scheduled` (#160): a conclusão do Mapeamento para o Status
-  `Mapeamento agendado` gera Notificação para o solicitante autenticado e para
-  o designado do Mapeamento, com a data/hora do Agendamento.
 - `pending_item_responded` e `pending_item_responded_unassigned` (#159): a
   resposta de Pendência gera Notificação para o Responsável ou, na ausência
   dele, para os Administradores ativos.
@@ -26,12 +23,11 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
 - **Notificação**: projeção por destinatário criada na mesma transação do
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
-  emissão. A v1 tem `status_changed`, `mapping_scheduled`,
+  emissão. A v1 tem `status_changed`,
   `pending_item_responded`, `pending_item_responded_unassigned` e
   `responsible_assigned`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
-  `type`, `protocol`, `title` e `newStatus`; para `mapping_scheduled`, somente
-  `type`, `protocol`, `title` e `scheduledAt`; para os Eventos de Pendência, os
+  `type`, `protocol`, `title` e `newStatus`; para os Eventos de Pendência, os
   campos da seção própria — nunca mensagem técnica, scores, notas internas ou
   campos de triagem. Para `responsible_assigned`, somente `type`, `protocol`,
   `title`, `category` e `status`.
@@ -41,9 +37,7 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   `evento:destinatário`; repetir a mesma emissão não duplica a linha.
 - **Audiência**: o ator nunca recebe Notificação da própria ação; o
   destinatário de cada Evento segue a matriz da seção correspondente. Em
-  `status_changed`, é o `requests.requester_user_id`; em `mapping_scheduled`,
-  o solicitante autenticado e o designado do Mapeamento
-  (`mappings.professional_id`). Em `responsible_assigned`, apenas o analista
+  `status_changed`, é o `requests.requester_user_id`; Em `responsible_assigned`, apenas o analista
   designado; o Administrador que designou não recebe.
 
 ## Regras do Evento `status_changed`
@@ -62,30 +56,6 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   Notificação in-app na v1.
 - Se a transação falhar, nem o Status nem a Notificação são gravados.
 - Após o commit, a publicação ocorre no `EventEmitter` tipado com
-  `{ userId, notificationIds }`.
-
-## Regras do Evento `mapping_scheduled`
-
-- Emitido no `PUT /queue/requests/:protocol/mapping`, na mesma transação da
-  conclusão do Mapeamento (`mapping.complete`), da mudança de Status e da
-  auditoria.
-- Só notifica quando a conclusão tem como destino o Status
-  `Mapeamento agendado` (`status_id` 6). Rascunho (`completeMapping: false`)
-  não notifica; conclusão para outros Status (mapeamento concluído de fato)
-  também não.
-- Destinatários: solicitante autenticado (`requests.requester_user_id`) e
-  designado do Mapeamento — o `mappings.professional_id` do mapeamento
-  concluído, que herda `requests.mapping_professional_id` quando a conclusão
-  não redesigna —, menos o ator.
-- Reagendamento é uma nova conclusão do Mapeamento: gera nova `mapping.complete`
-  (nova `eventKey`) e, portanto, nova Notificação com a nova data/hora.
-- Destinatário ausente (solicitante anônimo ou mapeamento sem designado) não
-  recebe Notificação in-app; os demais destinatários são notificados
-  normalmente.
-- O Payload traz `scheduledAt` em ISO-8601 UTC, normalizado para o Agendamento
-  concluído.
-- Se a transação falhar, nem o Agendamento nem a Notificação são gravados.
-- Após o commit, o aviso é publicado no `EventEmitter` tipado com
   `{ userId, notificationIds }`.
 
 ## Regras do Evento `pending_item_responded`
@@ -190,18 +160,6 @@ antiga, com estado de leitura.
       },
       "readAt": null,
       "createdAt": "2026-11-18T12:15:00.000Z"
-    },
-    {
-      "id": "f0000000-0000-4000-8000-000000000006",
-      "type": "mapping_scheduled",
-      "payload": {
-        "type": "mapping_scheduled",
-        "protocol": "MAAT-8K3P-9X2M",
-        "title": "Automatizar conciliação bancária",
-        "scheduledAt": "2026-09-15T14:00:00Z"
-      },
-      "readAt": null,
-      "createdAt": "2026-09-10T11:20:00.000Z"
     }
   ],
   "nextCursor": null

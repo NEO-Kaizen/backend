@@ -40,18 +40,6 @@ export const statusChangedPayloadSchema = requestPointerPayloadSchema
   })
   .strict();
 
-/**
- * Agendamento do Mapeamento (issue #160): a conclusão do Mapeamento para o
- * Status `Mapeamento agendado` notifica solicitante e designado com a data/hora.
- * Reagendamento é uma nova conclusão — novo Evento, nova Notificação.
- */
-export const mappingScheduledPayloadSchema = requestPointerPayloadSchema
-  .extend({
-    type: z.literal("mapping_scheduled"),
-    scheduledAt: z.iso.datetime({ offset: true }),
-  })
-  .strict();
-
 export const pendingItemRespondedPayloadSchema = requestPointerPayloadSchema
   .extend({
     type: z.literal("pending_item_responded"),
@@ -77,7 +65,6 @@ export const responsibleAssignedPayloadSchema = requestPointerPayloadSchema
 
 export const notificationPayloadSchema = z.discriminatedUnion("type", [
   statusChangedPayloadSchema,
-  mappingScheduledPayloadSchema,
   responsibleAssignedPayloadSchema,
   pendingItemCreatedPayloadSchema,
   pendingItemReopenedPayloadSchema,
@@ -87,7 +74,6 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
 ]);
 
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
-export type MappingScheduledNotificationPayload = z.infer<typeof mappingScheduledPayloadSchema>;
 export type PendingItemRespondedNotificationPayload = z.infer<
   typeof pendingItemRespondedPayloadSchema
 >;
@@ -157,14 +143,6 @@ export const pendingItemValidatedEventSchema = notificationEventSchemaFor(
   pendingItemValidatedPayloadSchema,
 );
 
-export const mappingScheduledEventSchema = z
-  .object({
-    type: z.literal("mapping_scheduled"),
-    ...notificationEventFields,
-    payload: mappingScheduledPayloadSchema,
-  })
-  .strict();
-
 /**
  * Base dos Eventos de Pendência. O ator pode ser ausente (`null`) quando a
  * resposta vem da identidade pública sem conta de usuário vinculada.
@@ -203,7 +181,6 @@ export const responsibleAssignedEventSchema = z
 
 export const notificationEventSchema = z.discriminatedUnion("type", [
   statusChangedEventSchema,
-  mappingScheduledEventSchema,
   responsibleAssignedEventSchema,
   pendingItemCreatedEventSchema,
   pendingItemReopenedEventSchema,
@@ -213,7 +190,6 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
-export type MappingScheduledNotificationEvent = z.infer<typeof mappingScheduledEventSchema>;
 export type PendingItemRespondedNotificationEvent = z.infer<typeof pendingItemRespondedEventSchema>;
 export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
   typeof pendingItemRespondedUnassignedEventSchema

@@ -10,12 +10,6 @@ const UNASSIGNED_ADMIN_EMAILS = [
   "ines.admin@email.com",
 ];
 
-/** Data/hora dos Agendamentos fictícios do seed 012 (request 1). */
-const MAPPING_SCHEDULED_AT = ["2026-08-15T14:00:00Z", "2026-09-15T14:00:00Z"];
-
-/** Solicitante e designado do Mapeamento concluído no seed 012. */
-const MAPPING_RECIPIENT_IDS = [112, 108];
-
 async function findRequestPointers(knex) {
   const rows = await knex("requests")
     .whereIn("request_id", SEED_REQUEST_IDS)
@@ -94,27 +88,6 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
     if (!value) throw new Error(`Ponteiro da solicitação ${requestId} ausente.`);
     return { protocol: value.protocol, title: value.title };
   };
-
-  const mappingOffset = 5 + unassignedAdminIds.length;
-  const mappingNotifications = MAPPING_SCHEDULED_AT.flatMap((scheduledAt, conclusionIndex) =>
-    MAPPING_RECIPIENT_IDS.map((recipientUserId, recipientIndex) =>
-      notification({
-        id: notificationId(
-          mappingOffset + conclusionIndex * MAPPING_RECIPIENT_IDS.length + recipientIndex,
-        ),
-        recipientUserId,
-        requestId: 1,
-        payload: {
-          type: "mapping_scheduled",
-          ...pointer(1),
-          scheduledAt,
-        },
-        dedupKey: `seed:mapping.complete:${conclusionIndex + 1}:${recipientUserId}`,
-        readAt: conclusionIndex === 0 && recipientUserId === 112 ? "2026-08-16 09:00:00" : null,
-        createdAt: conclusionIndex === 0 ? "2026-08-15 14:05:00" : "2026-09-10 11:20:00",
-      }),
-    ),
-  );
 
   return [
     notification({
@@ -207,7 +180,6 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       dedupKey: "seed:request.assigned:1:107",
       createdAt: "2026-11-19 17:05:00",
     }),
-    ...mappingNotifications,
   ];
 }
 
@@ -218,8 +190,6 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
  * - issue #159: `pending_item_responded` na request 1 (com Responsável) e
  *   `pending_item_responded_unassigned` na request 3 (sem Responsável), com o
  *   aviso explícito e os Administradores ativos do seed 004 como destinatários;
- * - issue #160: `mapping_scheduled` na request 1, cobrindo agendamento e
- *   reagendamento para o solicitante e o designado do Mapeamento do seed 012.
  *
  * Os ids dos Administradores e os ponteiros das solicitações vêm do banco para
  * não duplicar números/strings mágicas do seed 004/006.
