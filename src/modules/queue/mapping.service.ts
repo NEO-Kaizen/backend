@@ -18,7 +18,11 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { profileHasAssignablePermissions } from "../../shared/access/assignability.ts";
-import { custodyFor, hasCustody } from "../../shared/access/custody.ts";
+import {
+  custodyFor,
+  hasAdministrativeAuditOrigin,
+  hasCustody,
+} from "../../shared/access/custody.ts";
 import { applyStatusTransition } from "../requests/statusTransition.ts";
 import type {
   MappingActor,
@@ -562,7 +566,7 @@ export const upsertMappingService = async (
       await repository.replaceMappingParticipants(trx, mappingId, resolvedParticipants);
     }
 
-    const changeOrigin = "internal";
+    const changeOrigin = hasAdministrativeAuditOrigin(actor.permissions) ? "admin" : "internal";
 
     // Diff completo inclui o designado vigente: cada save registra quem executa,
     // além da mudança pontual de designação (`mapping.assign`).

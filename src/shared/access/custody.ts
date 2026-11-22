@@ -57,6 +57,14 @@ export function custodyFor(
 }
 
 /**
+ * Mantém a origem de auditoria administrativa sem comparar nomes de Perfil.
+ * Os perfis base Administrador e Admin Root têm `request:status_override` global.
+ */
+export function hasAdministrativeAuditOrigin(permissions: readonly EffectivePermission[]): boolean {
+  return custodyFor(permissions, "request:status_override") === "global";
+}
+
+/**
  * Escopo de linha das chaves de Fila (`queue:read`, `queue:export`).
  *
  * `all` dispensa o filtro (`undefined`); `assigned` restringe ao Responsável

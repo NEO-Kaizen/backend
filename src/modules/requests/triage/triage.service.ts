@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
-import { custodyFor, hasCustody } from "../../../shared/access/custody.ts";
+import {
+  custodyFor,
+  hasAdministrativeAuditOrigin,
+  hasCustody,
+} from "../../../shared/access/custody.ts";
 import type {
   EffectivePermission,
   PermissionKey,
@@ -198,7 +202,7 @@ export async function createTriage(
       nextStatus: exitStatus.name,
       justification: triage.conclusionJustification,
       ipAddress,
-      changeOrigin: "internal",
+      changeOrigin: hasAdministrativeAuditOrigin(actor.permissions) ? "admin" : "internal",
     },
   );
 
