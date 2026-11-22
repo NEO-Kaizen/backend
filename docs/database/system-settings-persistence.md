@@ -4,7 +4,7 @@
 >
 > Esta PR **REESCREVE a migration `20260915000000_create_system_settings.js`**
 > que já está mergeada na `main` (PR #79). Ela foi remodelada para espelhar o
-> regras em `docs/rules/portal-config.md` (tema em `system_themes` + identity/access/
+> regras em `docs/rules/portal-config.md` (Aparência em `system_themes` + identity/access/
 > assets no `system_settings`). **O banco deve ser recriado do zero**
 > (`DROP DATABASE` + `CREATE DATABASE` + `migrate:latest` + `seed:run`).
 > **NÃO executar `migrate:latest` em ambientes que já tenham a #79 aplicada**
@@ -24,11 +24,11 @@ portal — espelhando **exatamente** as regras de `docs/rules/portal-config.md` 
 
 O contrato é dividido em **duas tabelas**:
 
-1. **`system_themes`** — TABELA PRÓPRIA do tema (`light`/`dark`), com **colunas
+1. **`system_themes`** — TABELA PRÓPRIA da Aparência (`light`/`dark`), com **colunas
    explícitas** por token, gradiente e statuses — **sem JSONB** para as cores.
 2. **`system_settings`** — o **resto** do singleton: identity (`platform_name`,
    `protocol_mask`), access (`solicitation_mode`) e assets (4 URLs), com FK para
-   o tema vigente.
+   a Aparência vigente.
 
 Ambas são singletons (`= 1`), garantidos por PK + CHECK.
 
@@ -114,31 +114,31 @@ Possui exatamente uma linha (singleton via `PRIMARY KEY` + `CHECK
 | `platform_name`          | VARCHAR(80)                     | Sim         | Default `'MAAT'`                           | Nome exibido da plataforma                                                          |
 | `solicitation_mode`      | ENUM `portal_solicitation_mode` | Sim         | `PUBLIC`/`AUTHENTICATED`; default `PUBLIC` | Modo de abertura do portal (efetivo nas rotas de solicitação — `requireAccessMode`) |
 | `protocol_mask`          | VARCHAR(10)                     | Sim         | Default `'MAAT'`                           | Máscara dos protocolos                                                              |
-| `theme_id`               | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Tema vigente (tabela própria)                                                       |
-| `logo_light_url`         | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema claro)                                                    |
-| `logo_dark_url`          | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (tema escuro)                                                   |
+| `theme_id`               | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Aparência vigente (tabela própria)                                                  |
+| `logo_light_url`         | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (Aparência clara)                                               |
+| `logo_dark_url`          | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (Aparência escura)                                              |
 | `logo_use_primary_color` | BOOLEAN                         | Sim         | Default `false`                            | Logo renderizado monocromático na cor primária                                      |
-| `avatar_light_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema claro)                                                  |
-| `avatar_dark_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (tema escuro)                                                 |
+| `avatar_light_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (Aparência clara)                                             |
+| `avatar_dark_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (Aparência escura)                                            |
 | `login_image_light_url`  | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (claro)                                              |
 | `login_image_dark_url`   | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (escuro)                                             |
-| `favicon_light_url`      | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema claro)                                                 |
-| `favicon_dark_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (tema escuro)                                                |
+| `favicon_light_url`      | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (Aparência clara)                                            |
+| `favicon_dark_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (Aparência escura)                                           |
 | `updated_by`             | INTEGER                         | Não         | FK → `users.user_id`, `ON DELETE SET NULL` | Usuário/admin que alterou                                                           |
 | `created_at`             | TIMESTAMPTZ                     | Sim         | DEFAULT `CURRENT_TIMESTAMP`                | Criação do registro                                                                 |
 | `updated_at`             | TIMESTAMPTZ                     | Não         | NULL até a primeira atualização            | Última atualização                                                                  |
 
 ## Tabela `system_themes`
 
-Tabela **própria do tema**, colunas explícitas por paleta (sem JSONB), com
+Tabela **própria da Aparência**, colunas explícitas por paleta (sem JSONB), com
 exatamente uma linha (singleton via `PRIMARY KEY` + `CHECK (theme_id = 1)`).
 
 ### Estrutura — theme (colunas explícitas)
 
 Para cada paleta (`light_*` e `dark_*`) existem colunas explícitas:
 
-- **Tokens de cor** — `VARCHAR(9)`, hex `#RRGGBB` ou `#RRGGBBAA` (NULL = tema
-  indefinido):
+- **Tokens de cor** — `VARCHAR(9)`, hex `#RRGGBB` ou `#RRGGBBAA` (NULL =
+  Aparência indefinida):
 
   | Token           | Coluna                    |
   | --------------- | ------------------------- |
@@ -164,8 +164,8 @@ Para cada paleta (`light_*` e `dark_*`) existem colunas explícitas:
   `{paleta}_status_{tom}_background` (hex) e
   `{paleta}_status_{tom}_background_locked` (boolean);
 
-- **Auditoria** — `updated_at` apenas (o criador do tema é o `updated_by` do
-  `system_settings` quando se grava o tema).
+- **Auditoria** — `updated_at` apenas (o criador da Aparência é o `updated_by`
+  do `system_settings` quando se grava a Aparência).
 
 ### Restrições
 
@@ -182,7 +182,7 @@ Para cada paleta (`light_*` e `dark_*`) existem colunas explícitas:
 ## Relação entre as tabelas
 
 `system_settings.theme_id` → `system_themes.theme_id` (`ON DELETE SET NULL`).
-O tema é a única seção do contrato com tabela própria dentro desta entrega;
+A Aparência é a única seção da configuração com tabela própria nesta entrega;
 `GET /portal-config` consolida settings + theme + (categories/statuses/criteria)
 na camada de aplicação.
 
@@ -190,25 +190,26 @@ na camada de aplicação.
 
 ### Por que `theme` em tabela separada e `system_settings` enxuto?
 
-O tema tem estrutura larga e explícita (~66 colunas) e é atualizado de forma
+A Aparência tem estrutura larga e explícita (~66 colunas) e é atualizada de forma
 **atômica** (`PATCH /portal-config/theme` substitui light+dark completos).
 Isolá-lo em `system_themes`:
 
 - mantém `system_settings` enxuto (identity/access/assets);
-- dá espaço para evolução (ex.: histórico de versões de tema) sem tocar no
+- dá espaço para evolução (ex.: histórico de versões da Aparência) sem tocar no
   singleton de configuração;
 - mantém a validação de hex/ângulo no banco por CHECK.
 
 ### Por que colunas explícitas em vez de JSONB?
 
-O contrato define estrutura **fixa** de tema (tokens, gradiente, statuses), toda
+A Aparência tem estrutura **fixa** (tokens, gradiente, statuses), toda
 hex validável. Colunas tipadas com CHECK de formato dão validação no banco,
 refletem o schema no tipo `SystemThemeRow` e evitam o "config bag" do JSONB.
 
-### Por que o tema pode iniciar vazio (cores NULL)?
+### Por que a Aparência pode iniciar vazia (cores NULL)?
 
-O contrato permite "o backend iniciar sem tema e o frontend aplica os defaults
-locais por token". O INSERT padrão cria o registro do tema (theme_id = 1) sem
+O desenho permite "o backend iniciar sem Aparência e o frontend aplica os
+defaults locais por token". O INSERT padrão cria o registro da Aparência
+(theme_id = 1) sem
 cores; `system_settings.theme_id` aponta para ele já no nascimento.
 
 ### Onde ficam categories, statuses e pesos?
@@ -233,10 +234,10 @@ existem logo após o `migrate:latest`, sem depender de `seed:run`.
 > exclusivo desta migration; se uma migration futura reutilizá-lo, o rollback
 > precisará ser revisto.
 
-## Exemplo de atualização (tema + parte visual)
+## Exemplo de atualização (Aparência + parte visual)
 
 ```sql
--- tema (tabela própria)
+-- Aparência (tabela própria)
 UPDATE system_themes SET
   light_primary = '#00236F',
   dark_primary  = '#4C7DFF',

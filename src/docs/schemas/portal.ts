@@ -1,3 +1,15 @@
+import { STATUS_MODES } from "../../shared/types/portalConfig.ts";
+
+// ---------------------------------------------------------------------------
+// Status mode (Motor de Status v4)
+// ---------------------------------------------------------------------------
+
+export const StatusMode = {
+  type: "string",
+  enum: [...STATUS_MODES],
+  example: "none",
+};
+
 // ---------------------------------------------------------------------------
 // Status tone (reuse)
 // ---------------------------------------------------------------------------
@@ -199,8 +211,8 @@ export const PortalStatus = {
     isCore: { type: "boolean", example: true },
     isPublic: { type: "boolean", example: true },
     isTerminal: { type: "boolean", example: false },
-    triageMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
-    mappingMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
+    triageMode: { $ref: "#/components/schemas/StatusMode" },
+    mappingMode: { $ref: "#/components/schemas/StatusMode" },
     isRestricted: { type: "boolean", example: false },
     tone: {
       type: "string",

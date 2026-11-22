@@ -5,9 +5,10 @@
 O contrato HTTP deste backend passa a viver **exclusivamente** na especificação
 OpenAPI 3.0.1 em `src/docs/` (`paths/`, `schemas/`, `components/`), servida em
 `GET /api-docs` em desenvolvimento e materializada em `docs/openapi.json`.
-Documentos em `docs/` não descrevem mais rota, payload, resposta, enum ou status
-code: eles guardam regras de negócio (`docs/rules/`), decisões (`docs/adr/`),
-persistência (`docs/database/`) e operação (`docs/ci.md`).
+Documentos em `docs/` não definem mais **normativamente** rota, payload,
+resposta, enum ou status code: eles guardam regras de negócio (`docs/rules/`),
+decisões (`docs/adr/`), persistência (`docs/database/`) e operação
+(`docs/ci.md`).
 
 ## Contexto
 

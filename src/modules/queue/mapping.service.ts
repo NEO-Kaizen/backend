@@ -375,8 +375,9 @@ export const upsertMappingService = async (
     const previousProfessionalId = mapping ? mapping.professional_id : null;
 
     // Autorização — dois vínculos distintos (ver `docs/rules/assignment.md`):
-    // - Designação (`mappingAssigneeId` presente): responsável da solicitação
-    //   (dono pode delegar) ou Admin; o designado atual também pode (re)designar.
+    // - Designação (`mappingAssigneeId` presente): o Responsável pela
+    //   solicitação (Custódia) delega a outro profissional, o designado atual
+    //   também pode (re)designar e o Admin sempre pode.
     // - Campos do mapeamento (com ou sem designação): o designado ATUAL ou Admin.
     //   Criação sem designação herda o responsável — o próprio responsável pode
     //   criar (ele será o designado efetivo).

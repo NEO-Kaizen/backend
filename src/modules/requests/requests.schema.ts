@@ -207,8 +207,9 @@ export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 // --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
 // Único endpoint de troca de status: responsável com custódia só para status
 // de etapa `free` e `isRestricted=false`; Administrador faz bypass (qualquer
-// `isActive`); saída de terminal bloqueada para todos. Toda mudança exige
-// justificativa (ver `docs/rules/requests-lifecycle.md`).
+// `isActive`). Status terminais não bloqueiam a saída hoje — reabrir uma
+// solicitação encerrada por esta rota é decisão pendente (issue #148). Toda
+// mudança exige justificativa (ver `docs/rules/requests-lifecycle.md`).
 
 export const updateStatusSchema = z
   .object({

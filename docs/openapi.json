@@ -2225,16 +2225,8 @@
           "isCore": { "type": "boolean", "example": true },
           "isPublic": { "type": "boolean", "example": true },
           "isTerminal": { "type": "boolean", "example": false },
-          "triageMode": {
-            "type": "string",
-            "enum": ["none", "free", "conclusion_only"],
-            "example": "none"
-          },
-          "mappingMode": {
-            "type": "string",
-            "enum": ["none", "free", "conclusion_only"],
-            "example": "none"
-          },
+          "triageMode": { "$ref": "#/components/schemas/StatusMode" },
+          "mappingMode": { "$ref": "#/components/schemas/StatusMode" },
           "isRestricted": { "type": "boolean", "example": false },
           "tone": {
             "type": "string",
@@ -2393,6 +2385,11 @@
           },
           "angle": { "type": "integer", "minimum": 0, "maximum": 360, "example": 143 }
         }
+      },
+      "StatusMode": {
+        "type": "string",
+        "enum": ["none", "free", "conclusion_only"],
+        "example": "none"
       },
       "StatusToneTokens": {
         "type": "object",

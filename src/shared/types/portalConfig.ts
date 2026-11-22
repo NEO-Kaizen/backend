@@ -119,7 +119,8 @@ export interface PortalCategory {
  * - `free`: pode ser alvo livremente pelo agente da etapa;
  * - `conclusion_only`: alvo apenas na etapa de conclusão (ex.: Concluído).
  */
-export type StatusMode = "none" | "free" | "conclusion_only";
+export const STATUS_MODES = ["none", "free", "conclusion_only"] as const;
+export type StatusMode = (typeof STATUS_MODES)[number];
 
 /**
  * Ids de núcleo protegidos contra renomeação/remoção/desativação.

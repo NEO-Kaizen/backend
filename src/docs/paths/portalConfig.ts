@@ -1,3 +1,5 @@
+import { error } from "../components/responses.ts";
+
 export default {
   "/portal-config": {
     get: {
@@ -54,30 +56,9 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Body inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Body inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
   },
@@ -113,30 +94,9 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Body inválido (informe ao menos um campo).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Body inválido (informe ao menos um campo)."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
   },
@@ -169,30 +129,9 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Body inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Body inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
   },
@@ -281,46 +220,11 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Body inválido, JSON malformado ou nenhum asset informado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "413": {
-          description: "Arquivo excede o limite de tamanho da chave.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "415": {
-          description: "MIME/extensão não permitido para a chave.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Body inválido, JSON malformado ou nenhum asset informado."),
+        "413": error("Arquivo excede o limite de tamanho da chave."),
+        "415": error("MIME/extensão não permitido para a chave."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
   },
@@ -358,30 +262,9 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Body inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Body inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
   },
@@ -419,39 +302,12 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Body inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "409": {
-          description:
-            "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Body inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "409": error(
+          "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`.",
+        ),
       },
     },
   },
@@ -488,30 +344,9 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Body inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Body inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
   },

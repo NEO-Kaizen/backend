@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **172**.
 - Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1815** â€” 1358 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1817** â€” 1360 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -1891,7 +1891,7 @@ export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;
 export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 ```
 
-#### L224 â€” alias UpdateStatusPayload
+#### L225 â€” alias UpdateStatusPayload
 
 ```ts
 export type UpdateStatusPayload = z.infer<typeof updateStatusSchema>;
@@ -2690,13 +2690,13 @@ export interface PortalCategory {
 }
 ```
 
-#### L122 â€” alias StatusMode
+#### L123 â€” alias StatusMode
 
 ```ts
-export type StatusMode = "none" | "free" | "conclusion_only";
+export type StatusMode = (typeof STATUS_MODES)[number];
 ```
 
-#### L138 â€” interface PortalStatus
+#### L139 â€” interface PortalStatus
 
 ```ts
 export interface PortalStatus {
@@ -2713,19 +2713,19 @@ export interface PortalStatus {
 }
 ```
 
-#### L165 â€” alias PrioritizationCriterion
+#### L166 â€” alias PrioritizationCriterion
 
 ```ts
 export type PrioritizationCriterion = (typeof PRIORITIZATION_CRITERIA)[number];
 ```
 
-#### L170 â€” alias PrioritizationWeights
+#### L171 â€” alias PrioritizationWeights
 
 ```ts
 export type PrioritizationWeights = Record<PrioritizationCriterion, number>;
 ```
 
-#### L173 â€” interface PortalConfig
+#### L174 â€” interface PortalConfig
 
 ```ts
 export interface PortalConfig {
@@ -2740,49 +2740,49 @@ export interface PortalConfig {
 }
 ```
 
-#### L184 â€” alias AccessSection
+#### L185 â€” alias AccessSection
 
 ```ts
 export type AccessSection = Pick<PortalConfig, "solicitationMode">;
 ```
 
-#### L185 â€” alias IdentitySection
+#### L186 â€” alias IdentitySection
 
 ```ts
 export type IdentitySection = Pick<PortalConfig, "platformName" | "protocolMask">;
 ```
 
-#### L186 â€” alias ThemeSection
+#### L187 â€” alias ThemeSection
 
 ```ts
 export type ThemeSection = Pick<PortalConfig, "theme">;
 ```
 
-#### L187 â€” alias AssetsSection
+#### L188 â€” alias AssetsSection
 
 ```ts
 export type AssetsSection = Pick<PortalConfig, "assets">;
 ```
 
-#### L188 â€” alias CategoriesSection
+#### L189 â€” alias CategoriesSection
 
 ```ts
 export type CategoriesSection = Pick<PortalConfig, "categories">;
 ```
 
-#### L189 â€” alias StatusesSection
+#### L190 â€” alias StatusesSection
 
 ```ts
 export type StatusesSection = Pick<PortalConfig, "statuses">;
 ```
 
-#### L190 â€” alias PrioritizationWeightsSection
+#### L191 â€” alias PrioritizationWeightsSection
 
 ```ts
 export type PrioritizationWeightsSection = Pick<PortalConfig, "prioritizationWeights">;
 ```
 
-#### L193 â€” interface CategoryRow
+#### L194 â€” interface CategoryRow
 
 ```ts
 export interface CategoryRow {
@@ -2794,7 +2794,7 @@ export interface CategoryRow {
 }
 ```
 
-#### L202 â€” interface StatusRow
+#### L203 â€” interface StatusRow
 
 ```ts
 export interface StatusRow {
@@ -3503,7 +3503,7 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/index.ts](../src/docs/schemas/index.ts)
 
-- L167 â€” variÃ¡vel: `schemas`
+- L168 â€” variÃ¡vel: `schemas`
 
 ### [src/docs/schemas/internalNotes.ts](../src/docs/schemas/internalNotes.ts)
 
@@ -3544,21 +3544,22 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/portal.ts](../src/docs/schemas/portal.ts)
 
-- L5 â€” variÃ¡vel: `StatusToneTokens`
-- L23 â€” variÃ¡vel: `ThemeGradient`
-- L37 â€” variÃ¡vel: `ThemeTokens`
-- L124 â€” variÃ¡vel: `PortalTheme`
-- L137 â€” variÃ¡vel: `PortalAssets`
-- L167 â€” variÃ¡vel: `PortalCategory`
-- L182 â€” variÃ¡vel: `PortalStatus`
-- L218 â€” variÃ¡vel: `PrioritizationWeights`
-- L250 â€” variÃ¡vel: `PortalConfig`
-- L284 â€” variÃ¡vel: `PortalAccessPatchBody`
-- L297 â€” variÃ¡vel: `PortalIdentityPatchBody`
-- L311 â€” variÃ¡vel: `PortalThemePatchBody`
-- L320 â€” variÃ¡vel: `PortalCategoriesPatchBody`
-- L334 â€” variÃ¡vel: `PortalStatusesPatchBody`
-- L348 â€” variÃ¡vel: `PortalPrioritizationWeightsPatchBody`
+- L7 â€” variÃ¡vel: `StatusMode`
+- L17 â€” variÃ¡vel: `StatusToneTokens`
+- L35 â€” variÃ¡vel: `ThemeGradient`
+- L49 â€” variÃ¡vel: `ThemeTokens`
+- L136 â€” variÃ¡vel: `PortalTheme`
+- L149 â€” variÃ¡vel: `PortalAssets`
+- L179 â€” variÃ¡vel: `PortalCategory`
+- L194 â€” variÃ¡vel: `PortalStatus`
+- L230 â€” variÃ¡vel: `PrioritizationWeights`
+- L262 â€” variÃ¡vel: `PortalConfig`
+- L296 â€” variÃ¡vel: `PortalAccessPatchBody`
+- L309 â€” variÃ¡vel: `PortalIdentityPatchBody`
+- L323 â€” variÃ¡vel: `PortalThemePatchBody`
+- L332 â€” variÃ¡vel: `PortalCategoriesPatchBody`
+- L346 â€” variÃ¡vel: `PortalStatusesPatchBody`
+- L360 â€” variÃ¡vel: `PortalPrioritizationWeightsPatchBody`
 
 ### [src/docs/schemas/prioritization.ts](../src/docs/schemas/prioritization.ts)
 
@@ -4341,63 +4342,63 @@ interface GroupedIssues {
 
 ### [src/modules/portalConfig/portalConfig.schema.ts](../src/modules/portalConfig/portalConfig.schema.ts)
 
-- L21 â€” variÃ¡vel: `hexColorSchema`
-- L25 â€” variÃ¡vel: `ThemeGradientSchema`
-- L38 â€” variÃ¡vel: `StatusToneSchema`
-- L46 â€” variÃ¡vel: `statusTonesShape`
-- L47 â€” parÃ¢metro: `tone`
-- L47 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L50 â€” variÃ¡vel: `tokenShape`
-- L51 â€” parÃ¢metro: `key`
-- L51 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L54 â€” variÃ¡vel: `ThemePaletteSchema`
-- L62 â€” variÃ¡vel: `updateThemeSchema`
-- L73 â€” variÃ¡vel: `updateAccessSchema`
-- L81 â€” variÃ¡vel: `updateIdentitySchema`
-- L98 â€” parÃ¢metro: `identity`
-- L98 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L105 â€” variÃ¡vel: `portalCategorySchema`
-- L114 â€” variÃ¡vel: `updateCategoriesSchema`
-- L120 â€” parÃ¢metro: `categories`
-- L120 â€” parÃ¢metro: `ctx`
-- L120 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L121 â€” variÃ¡vel: `seen`
-- L122 â€” parÃ¢metro: `category`
-- L122 â€” parÃ¢metro: `index`
-- L122 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L123 â€” variÃ¡vel: `key`
-- L133 â€” parÃ¢metro: `category`
-- L133 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L144 â€” variÃ¡vel: `StatusModeSchema`
-- L148 â€” variÃ¡vel: `portalStatusSchema`
-- L168 â€” parÃ¢metro: `ctx`
-- L168 â€” parÃ¢metro: `status`
-- L168 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L178 â€” variÃ¡vel: `updateStatusesSchema`
-- L184 â€” parÃ¢metro: `ctx`
-- L184 â€” parÃ¢metro: `statuses`
-- L184 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L185 â€” variÃ¡vel: `seenNames`
-- L186 â€” parÃ¢metro: `index`
-- L186 â€” parÃ¢metro: `status`
-- L186 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L187 â€” variÃ¡vel: `nameKey`
-- L215 â€” parÃ¢metro: `status`
-- L215 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L231 â€” variÃ¡vel: `prioritizationWeightSchema`
-- L237 â€” variÃ¡vel: `updatePrioritizationWeightsSchema`
-- L245 â€” parÃ¢metro: `ctx`
-- L245 â€” parÃ¢metro: `{ prioritizationWeights }`
-- L245 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L246 â€” variÃ¡vel: `missing`
-- L247 â€” parÃ¢metro: `criterion`
-- L247 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L264 â€” variÃ¡vel: `assetUrlSchema`
-- L270 â€” parÃ¢metro: `url`
-- L270 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L274 â€” variÃ¡vel: `portalAssetsPatchSchema`
-- L288 â€” parÃ¢metro: `assets`
-- L288 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L22 â€” variÃ¡vel: `hexColorSchema`
+- L26 â€” variÃ¡vel: `ThemeGradientSchema`
+- L39 â€” variÃ¡vel: `StatusToneSchema`
+- L47 â€” variÃ¡vel: `statusTonesShape`
+- L48 â€” parÃ¢metro: `tone`
+- L48 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L51 â€” variÃ¡vel: `tokenShape`
+- L52 â€” parÃ¢metro: `key`
+- L52 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L55 â€” variÃ¡vel: `ThemePaletteSchema`
+- L63 â€” variÃ¡vel: `updateThemeSchema`
+- L74 â€” variÃ¡vel: `updateAccessSchema`
+- L82 â€” variÃ¡vel: `updateIdentitySchema`
+- L99 â€” parÃ¢metro: `identity`
+- L99 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L106 â€” variÃ¡vel: `portalCategorySchema`
+- L115 â€” variÃ¡vel: `updateCategoriesSchema`
+- L121 â€” parÃ¢metro: `categories`
+- L121 â€” parÃ¢metro: `ctx`
+- L121 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L122 â€” variÃ¡vel: `seen`
+- L123 â€” parÃ¢metro: `category`
+- L123 â€” parÃ¢metro: `index`
+- L123 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L124 â€” variÃ¡vel: `key`
+- L134 â€” parÃ¢metro: `category`
+- L134 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L145 â€” variÃ¡vel: `StatusModeSchema`
+- L149 â€” variÃ¡vel: `portalStatusSchema`
+- L169 â€” parÃ¢metro: `ctx`
+- L169 â€” parÃ¢metro: `status`
+- L169 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L179 â€” variÃ¡vel: `updateStatusesSchema`
+- L185 â€” parÃ¢metro: `ctx`
+- L185 â€” parÃ¢metro: `statuses`
+- L185 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L186 â€” variÃ¡vel: `seenNames`
+- L187 â€” parÃ¢metro: `index`
+- L187 â€” parÃ¢metro: `status`
+- L187 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L188 â€” variÃ¡vel: `nameKey`
+- L216 â€” parÃ¢metro: `status`
+- L216 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L232 â€” variÃ¡vel: `prioritizationWeightSchema`
+- L238 â€” variÃ¡vel: `updatePrioritizationWeightsSchema`
+- L246 â€” parÃ¢metro: `ctx`
+- L246 â€” parÃ¢metro: `{ prioritizationWeights }`
+- L246 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L247 â€” variÃ¡vel: `missing`
+- L248 â€” parÃ¢metro: `criterion`
+- L248 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L265 â€” variÃ¡vel: `assetUrlSchema`
+- L271 â€” parÃ¢metro: `url`
+- L271 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L275 â€” variÃ¡vel: `portalAssetsPatchSchema`
+- L289 â€” parÃ¢metro: `assets`
+- L289 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/portalConfig/portalConfig.service.ts](../src/modules/portalConfig/portalConfig.service.ts)
 
@@ -4624,30 +4625,30 @@ interface GroupedIssues {
 - L360 â€” variÃ¡vel: `isRequestMappingAssignee`
 - L364 â€” variÃ¡vel: `mapping`
 - L375 â€” variÃ¡vel: `previousProfessionalId`
-- L385 â€” variÃ¡vel: `explicitDesignation`
-- L386 â€” variÃ¡vel: `isNullOnCreate`
-- L387 â€” variÃ¡vel: `designationAction`
-- L389 â€” variÃ¡vel: `priorDesigneeUserId`
-- L394 â€” variÃ¡vel: `isPriorMappingAssignee`
-- L398 â€” variÃ¡vel: `canCreateByInheritance`
-- L402 â€” variÃ¡vel: `isCurrentMappingAssignee`
-- L406 â€” variÃ¡vel: `canDesignate`
-- L407 â€” variÃ¡vel: `canEditContent`
-- L412 â€” variÃ¡vel: `contentAction`
-- L460 â€” variÃ¡vel: `candidate`
-- L480 â€” variÃ¡vel: `currentValues`
-- L481 â€” variÃ¡vel: `values`
-- L483 â€” variÃ¡vel: `concluding`
-- L493 â€” variÃ¡vel: `target`
-- L524 â€” variÃ¡vel: `missing`
-- L534 â€” variÃ¡vel: `resolvedParticipants`
-- L541 â€” variÃ¡vel: `designationChanged`
-- L580 â€” variÃ¡vel: `changeOrigin`
-- L584 â€” variÃ¡vel: `previousAuditValues`
-- L591 â€” variÃ¡vel: `nextAuditValues`
-- L695 â€” parÃ¢metro: `participant`
-- L695 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L702 â€” variÃ¡vel: `assigneeCandidate`
+- L386 â€” variÃ¡vel: `explicitDesignation`
+- L387 â€” variÃ¡vel: `isNullOnCreate`
+- L388 â€” variÃ¡vel: `designationAction`
+- L390 â€” variÃ¡vel: `priorDesigneeUserId`
+- L395 â€” variÃ¡vel: `isPriorMappingAssignee`
+- L399 â€” variÃ¡vel: `canCreateByInheritance`
+- L403 â€” variÃ¡vel: `isCurrentMappingAssignee`
+- L407 â€” variÃ¡vel: `canDesignate`
+- L408 â€” variÃ¡vel: `canEditContent`
+- L413 â€” variÃ¡vel: `contentAction`
+- L461 â€” variÃ¡vel: `candidate`
+- L481 â€” variÃ¡vel: `currentValues`
+- L482 â€” variÃ¡vel: `values`
+- L484 â€” variÃ¡vel: `concluding`
+- L494 â€” variÃ¡vel: `target`
+- L525 â€” variÃ¡vel: `missing`
+- L535 â€” variÃ¡vel: `resolvedParticipants`
+- L542 â€” variÃ¡vel: `designationChanged`
+- L581 â€” variÃ¡vel: `changeOrigin`
+- L585 â€” variÃ¡vel: `previousAuditValues`
+- L592 â€” variÃ¡vel: `nextAuditValues`
+- L696 â€” parÃ¢metro: `participant`
+- L696 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L703 â€” variÃ¡vel: `assigneeCandidate`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
@@ -4914,7 +4915,7 @@ interface GroupedIssues {
 - L193 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L194 â€” variÃ¡vel: `hasAssignee`
 - L195 â€” variÃ¡vel: `hasMapping`
-- L213 â€” variÃ¡vel: `updateStatusSchema`
+- L214 â€” variÃ¡vel: `updateStatusSchema`
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
@@ -5481,7 +5482,8 @@ interface GroupedIssues {
 
 - L34 â€” variÃ¡vel: `ASSET_KEYS`
 - L56 â€” variÃ¡vel: `THEME_TOKEN_KEYS`
-- L152 â€” variÃ¡vel: `PRIORITIZATION_CRITERIA`
+- L122 â€” variÃ¡vel: `STATUS_MODES`
+- L153 â€” variÃ¡vel: `PRIORITIZATION_CRITERIA`
 
 ### [src/shared/types/requests.ts](../src/shared/types/requests.ts)
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   CORE_STATUS_IDS,
   PRIORITIZATION_CRITERIA,
+  STATUS_MODES,
   THEME_TOKEN_KEYS,
   type AccessSection,
   type CategoriesSection,
@@ -141,7 +142,7 @@ export const updateCategoriesSchema = z
   })
   .strict() satisfies z.ZodType<CategoriesSection>;
 
-const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
+const StatusModeSchema = z.enum(STATUS_MODES, {
   error: "Modo inválido — opções: none, free ou conclusion_only.",
 });
 

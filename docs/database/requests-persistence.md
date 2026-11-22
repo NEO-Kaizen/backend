@@ -240,7 +240,7 @@ renomeada/ajustada pela migration
   aqui e continua logando;
 - índice em `status` (`idx_details_professional_status`).
 
-Elegibilidade para atribuição (ver `docs/rules/assignment.md`):
+Atribuibilidade (ver `docs/rules/assignment.md`):
 `status = 'active'` **e** `users.is_active` **e** perfil `analista`.
 
 ## Tabela `requests`
@@ -292,7 +292,7 @@ identificador interno sequencial.
 
 | Campo                     | Tipo         | Obrigatório | Restrição / Default                                                          | Finalidade                                                                           |
 | ------------------------- | ------------ | ----------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `category_id`             | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Categoria da demanda                                                                 |
+| `category_id`             | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Categoria da solicitação                                                             |
 | `status_id`               | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Status atual do pedido                                                               |
 | `priority_id`             | INTEGER      | Não         | Foreign Key, NULL permitido                                                  | Prioridade, preenchida após a triagem                                                |
 | `preliminary_complexity`  | VARCHAR(50)  | Não         | NULL permitido                                                               | Complexidade preliminar                                                              |
@@ -337,8 +337,8 @@ responsabilidade da aplicação.
 
 ## Tabela `pending_items`
 
-Armazena pendências por campo/observação (contrato 02). As regras de ciclo de
-vida estão em [`docs/rules/pending-items.md`](../rules/pending-items.md).
+Armazena pendências por campo/observação. As regras de ciclo de vida estão em
+[`docs/rules/pending-items.md`](../rules/pending-items.md).
 
 ### Estrutura
 
