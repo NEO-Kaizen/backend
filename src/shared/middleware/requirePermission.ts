@@ -26,7 +26,7 @@ async function recordDeniedPermissionAttempt(
   if (resources.size !== 1) return;
 
   const [resource] = resources;
-  if (resource !== "queue" && resource !== "reports") return;
+  if (resource !== "queue" && resource !== "reports" && resource !== "prioritization") return;
 
   const routePath =
     typeof req.route?.path === "string" ? `${req.baseUrl}${req.route.path}` : req.baseUrl;

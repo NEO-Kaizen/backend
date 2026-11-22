@@ -1,7 +1,7 @@
 import db from "../../database/conection.ts";
 import { recordAudit } from "./auditLogger.ts";
 
-export type AccessDeniedEntity = "request" | "queue" | "reports";
+export type AccessDeniedEntity = "request" | "queue" | "reports" | "prioritization";
 
 export interface AccessDeniedAttempt {
   readonly entityType: AccessDeniedEntity;
@@ -44,6 +44,19 @@ export async function recordAccessDeniedAttempt(entry: AccessDeniedAttempt): Pro
         await recordAudit(trx, {
           entityType: "reports",
           actionType: "reports.access_denied",
+          entityId: entry.entityId,
+          userId: entry.userId,
+          previousValue: null,
+          newValue: null,
+          note: entry.note,
+          ipAddress: entry.ipAddress,
+          changeOrigin: "system",
+        });
+        return;
+      case "prioritization":
+        await recordAudit(trx, {
+          entityType: "prioritization",
+          actionType: "prioritization.access_denied",
           entityId: entry.entityId,
           userId: entry.userId,
           previousValue: null,

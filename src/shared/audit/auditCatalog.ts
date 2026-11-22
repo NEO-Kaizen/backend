@@ -25,7 +25,7 @@ export const auditCatalog = {
   },
   prioritization: {
     label: "Priorização",
-    actions: ["evaluate"],
+    actions: ["evaluate", "access_denied"],
   },
   request: {
     label: "Solicitações",
