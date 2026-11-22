@@ -47,7 +47,6 @@ export const mappingScheduledPayloadSchema = requestPointerPayloadSchema
   })
   .strict();
 
-
 export const pendingItemCreatedPayloadSchema = pendingItemPayloadSchema("pending_item_created");
 
 export const pendingItemReopenedPayloadSchema = pendingItemPayloadSchema("pending_item_reopened");
@@ -138,7 +137,6 @@ export const mappingScheduledEventSchema = notificationEventSchemaFor(
   "mapping_scheduled",
   mappingScheduledPayloadSchema,
 );
-
 
 export const pendingItemCreatedEventSchema = notificationEventSchemaFor(
   "pending_item_created",
