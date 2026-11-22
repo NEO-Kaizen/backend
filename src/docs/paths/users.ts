@@ -30,7 +30,7 @@ export default {
       tags: ["Usuários"],
       summary: "Atualizar meu perfil",
       description:
-        "Atualiza nome, dados do solicitante e/ou remove a foto do próprio usuário (self-service). Multipart: campo `payload` (JSON) + campo `avatar` (arquivo opcional, JPEG/PNG até 2MB). Somente o Administrador pode alterar área, departamento e gestor pelo self-service.",
+        "Atualiza nome, dados do solicitante e/ou remove a foto do próprio usuário (self-service). Multipart: campo `payload` (JSON) + campo `avatar` (arquivo opcional, JPEG/PNG até 2MB). Área, departamento e gestor exigem a permissão `user:manage`.",
       operationId: "updateMyProfile",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -44,7 +44,7 @@ export default {
                 payload: {
                   type: "string",
                   description:
-                    "JSON com os campos a atualizar: fullName, requester (área/departamento/gestor só por Administrador) e removeAvatar.",
+                    "JSON com os campos a atualizar: fullName, requester (área/departamento/gestor exigem `user:manage`) e removeAvatar.",
                   example: JSON.stringify({
                     fullName: "Maria Silva",
                     requester: { additionalContact: "contato@email.com" },
@@ -85,8 +85,7 @@ export default {
           },
         },
         "403": {
-          description:
-            "Perfil sem acesso (área/departamento/gestor só podem ser alterados por Administrador).",
+          description: "Área, departamento e gestor exigem a permissão `user:manage`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -148,8 +147,7 @@ export default {
     get: {
       tags: ["Usuários"],
       summary: "Métricas de Usuários",
-      description:
-        "Retorna Métricas consolidadas de Usuários. Exige autenticação e perfil `Administrador`.",
+      description: "Retorna Métricas consolidadas de Usuários. Exige a permissão `user:read`.",
       operationId: "getUserMetrics",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -170,7 +168,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -184,7 +182,7 @@ export default {
     get: {
       tags: ["Usuários"],
       summary: "Listar Usuários",
-      description: "Lista todos os Usuários cadastrados. Exige perfil `Administrador`.",
+      description: "Lista todos os Usuários cadastrados. Exige a permissão `user:read`.",
       operationId: "listUsers",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -208,7 +206,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -220,7 +218,8 @@ export default {
     post: {
       tags: ["Usuários"],
       summary: "Criar usuário",
-      description: "Cadastra um novo usuário. Exige perfil `Administrador`.",
+      description:
+        "Cadastra um novo usuário. Exige a permissão `user:manage`; a matriz de contas (§ 4.2) recusa Perfis de autoridade igual ou maior (403 `account_out_of_authority`), o Perfil Admin Root (403 `root_account_protected`) e Perfil inativo (409 `profile_inactive`).",
       operationId: "createUser",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -356,7 +355,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -370,7 +369,7 @@ export default {
     get: {
       tags: ["Usuários"],
       summary: "Consultar usuário por ID",
-      description: "Retorna os dados de um usuário pelo seu ID. Exige perfil `Administrador`.",
+      description: "Retorna os dados de um usuário pelo seu ID. Exige a permissão `user:read`.",
       operationId: "getUser",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -399,7 +398,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -419,7 +418,8 @@ export default {
     put: {
       tags: ["Usuários"],
       summary: "Atualizar usuário",
-      description: "Atualiza os dados de um usuário pelo ID. Exige perfil `Administrador`.",
+      description:
+        "Atualiza os dados de um usuário pelo ID. Exige a permissão `user:manage`; a matriz de contas (§ 4.2) recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`), conta de autoridade igual ou maior (403 `account_out_of_authority`) e Perfil inativo na designação (409 `profile_inactive`).",
       operationId: "updateUser",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -506,7 +506,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -528,7 +528,8 @@ export default {
     patch: {
       tags: ["Usuários"],
       summary: "Alterar status do usuário",
-      description: "Ativa ou desativa um usuário. Exige perfil `Administrador`.",
+      description:
+        "Ativa ou desativa um usuário. Exige a permissão `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`) e conta de autoridade igual ou maior (403 `account_out_of_authority`).",
       operationId: "changeUserStatus",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -571,7 +572,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -593,7 +594,8 @@ export default {
     post: {
       tags: ["Usuários"],
       summary: "Redefinir senha do usuário",
-      description: "Gera uma senha temporária para o usuário. Exige perfil `Administrador`.",
+      description:
+        "Gera uma senha temporária para o usuário. Exige a permissão `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`) e conta de autoridade igual ou maior (403 `account_out_of_authority`).",
       operationId: "resetUserPassword",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -628,7 +630,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

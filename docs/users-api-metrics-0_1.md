@@ -9,7 +9,7 @@ base de usuários exibidas no painel administrativo (`/metricas`).
 - Referências: `src/shared/types/user.ts` (`UserMetricsResponse`),
   `src/modules/users/*` (router/service/repository/controller),
   `src/shared/types/queue.types.ts` (padrão `QueueMetricsResponse`),
-  `src/shared/middleware/requireRole.ts` e `src/shared/middleware/auth.ts`
+  `src/shared/middleware/requirePermission.ts` e `src/shared/middleware/auth.ts`
 - Erros sempre no envelope: `{ "status": "error", "statusCode": number, "message": string }`
 
 ---
@@ -34,10 +34,11 @@ export interface UserMetricsResponse {
 
 ## 1. GET /users/metrics — Métricas de usuários (painel administrativo)
 
-Protegido por autenticação e restrito ao perfil `Administrador` — as rotas do
-módulo `users` aplicam `authMiddleware` + `requireRole("Administrador")` no
-nível do router, portanto todas as rotas, inclusive esta, exigem cookie de
-sessão JWT válido e perfil de administrador.
+Protegido por autenticação e pela permissão `user:read` — as rotas de leitura do
+módulo `users` aplicam `authMiddleware` + `requirePermission("user:read")`,
+portanto esta rota exige cookie de sessão JWT válido e a chave de leitura de
+contas. A matriz de contas (§ 4.2 de [`rbac.md`](./rbac.md)) não se aplica à
+leitura; ela governa apenas as rotas de `user:manage`.
 
 Endpoint sem query params e sem body. As contagens são derivadas em uma única
 consulta com `COUNT` condicionais sobre a tabela `users` (JOIN em `profiles`
@@ -88,7 +89,7 @@ HTTP/1.1 401 Unauthorized
 }
 ```
 
-**Exemplo de erro** — perfil sem permissão (ex.: Analista):
+**Exemplo de erro** — sem a chave `user:read` (ex.: Analista):
 
 ```json
 HTTP/1.1 403 Forbidden
@@ -96,7 +97,7 @@ HTTP/1.1 403 Forbidden
 {
   "status": "error",
   "statusCode": 403,
-  "message": "Acesso restrito ao perfil Administrador"
+  "message": "Acesso restrito à permissão user:read"
 }
 ```
 
@@ -119,7 +120,7 @@ HTTP/1.1 403 Forbidden
 | 401    | Sem cookie de sessão — `Token não fornecido`                                                                                                                                    |
 | 401    | Token inválido ou expirado; usuário ou perfil desativado; sessão revogada após troca de senha (`Token inválido ou expirado` / `Sua sessão foi revogada. Faça login novamente.`) |
 | 403    | Sessão com `must_change_password = true` (bloqueada até concluir a troca) — `Troca de senha obrigatória antes de continuar`                                                     |
-| 403    | Perfil diferente de `Administrador` — `Acesso restrito ao perfil Administrador`                                                                                                 |
+| 403    | Perfil sem `user:read` — `Acesso restrito à permissão user:read`                                                                                                                |
 
 ---
 

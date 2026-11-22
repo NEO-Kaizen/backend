@@ -1,8 +1,12 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "../../shared/middleware/requirePermission.ts";
 import { uploadAssetFields, validateAssetSizes } from "../../shared/middleware/uploadAssets.ts";
 import {
+  getAdminConfig,
   getConfig,
   updateAccess,
   updateAssets,
@@ -12,22 +16,37 @@ import {
   updateStatuses,
   updateTheme,
 } from "./portalConfig.controller.ts";
+import { PORTAL_SECTION_READ_KEYS } from "./portalConfig.service.ts";
 
 const portalConfigRoutes = express.Router();
 
-// R1 — GET público (sem auth)
+// R1 — projeção pública da configuração (sem chave, sem sessão).
 portalConfigRoutes.get("/", getConfig);
 
-// Todos os PATCH exigem Administrador
+// Visão administrativa e edições exigem sessão; cada seção decide pela própria
+// chave (contrato RBAC § 3.7).
 portalConfigRoutes.use(authMiddleware);
-portalConfigRoutes.use(requireRole("Administrador"));
 
-portalConfigRoutes.patch("/access", updateAccess);
-portalConfigRoutes.patch("/identity", updateIdentity);
-portalConfigRoutes.patch("/theme", updateTheme);
-portalConfigRoutes.patch("/assets", uploadAssetFields, validateAssetSizes, updateAssets);
-portalConfigRoutes.patch("/categories", updateCategories);
-portalConfigRoutes.patch("/statuses", updateStatuses);
-portalConfigRoutes.patch("/prioritization-weights", updatePrioritizationWeights);
+// R0 — devolve apenas as seções que o ator pode ler.
+portalConfigRoutes.get("/admin", requireAnyPermission(PORTAL_SECTION_READ_KEYS), getAdminConfig);
+
+portalConfigRoutes.patch("/access", requirePermission("portal_setting:manage"), updateAccess);
+portalConfigRoutes.patch("/identity", requirePermission("portal_setting:manage"), updateIdentity);
+portalConfigRoutes.patch("/theme", requirePermission("theme:manage"), updateTheme);
+// O gate vem antes do upload para não processar multipart de uma seção negada.
+portalConfigRoutes.patch(
+  "/assets",
+  requirePermission("theme:manage"),
+  uploadAssetFields,
+  validateAssetSizes,
+  updateAssets,
+);
+portalConfigRoutes.patch("/categories", requirePermission("category:manage"), updateCategories);
+portalConfigRoutes.patch("/statuses", requirePermission("status:manage"), updateStatuses);
+portalConfigRoutes.patch(
+  "/prioritization-weights",
+  requirePermission("prioritization_config:manage"),
+  updatePrioritizationWeights,
+);
 
 export default portalConfigRoutes;

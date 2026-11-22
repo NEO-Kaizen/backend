@@ -3,7 +3,8 @@
 Contrato de comunicação Frontend ↔ Backend para a tela "Meus dados" e para
 a edição administrativa: consulta (`GET /users/me`) e atualização
 (`PUT /users/me`) do próprio usuário, além de `GET /users/:id` e
-`PUT /users/:id` exclusivos do Administrador.
+`PUT /users/:id` exclusivos de quem gerencia contas (`user:manage`), dentro da
+matriz de contas (RBAC § 4.2).
 
 - Fonte de verdade: `docs/issues/125-user-profile-self-service.md`
 - Épico: nenhum (issue isolada — Issue #125)
@@ -54,7 +55,7 @@ export interface ProfessionalProfileBlock {
 export interface UpdateProfilePayload {
   fullName?: string; // máx. 150
   requester?: {
-    // Somente no self-service do perfil Administrador:
+    // Somente no self-service de quem tem `user:manage`:
     area?: string; // máx. 100
     department?: string | null; // máx. 100; null limpa
     manager?: string; // máx. 150
@@ -65,7 +66,7 @@ export interface UpdateProfilePayload {
 
 // Campos não declarados são recusados. E-mail, perfil e dados profissionais
 // são administrados fora do self-service. Área, departamento e gestor só são
-// aceitos quando o próprio usuário autenticado tem perfil Administrador.
+// aceitos quando o próprio usuário autenticado tem a permissão `user:manage`.
 
 // Meta do arquivo de avatar (derivado no servidor a partir da parte
 // `avatar` do multipart): Content-Disposition → fileName, Content-Type
@@ -238,8 +239,8 @@ Autenticado (qualquer perfil interno). Self-service exclusivo: o actor deve ser 
 > - `upload.single("avatar")` com `multer.memoryStorage()` — o buffer chega em `req.file`;
 > - `req.body.payload` chega como string → `JSON.parse` no controller;
 > - Campos do JSON `payload`: `fullName?`, `requester?`, `removeAvatar?`.
->   Em `requester`, todos podem alterar `additionalContact`; somente o próprio
->   Administrador pode alterar também `area`, `department` e `manager`.
+>   Em `requester`, todos podem alterar `additionalContact`; somente quem tem
+>   `user:manage` pode alterar também `area`, `department` e `manager`.
 > - `removeAvatar: true` no JSON + ausência de `avatar` → remove a foto atual;
 > - `removeAvatar: true` no JSON + `avatar` presente → erro `400`; o cliente deve escolher uma operação;
 > - Erros do multer são mapeados para o envelope de erros:
@@ -362,8 +363,8 @@ HTTP/1.1 403 Forbidden
 }
 ```
 
-**Exemplo de erro** — campo administrativo enviado no self-service por perfil
-que não seja Administrador:
+**Exemplo de erro** — campo administrativo enviado no self-service por quem não
+tem `user:manage`:
 
 ```json
 HTTP/1.1 403 Forbidden
@@ -371,7 +372,7 @@ HTTP/1.1 403 Forbidden
 {
   "status": "error",
   "statusCode": 403,
-  "message": "Área, departamento e gestor só podem ser alterados por administrador. Use PUT /users/:id."
+  "message": "Área, departamento e gestor só podem ser alterados por quem tem a permissão user:manage. Use PUT /users/:id."
 }
 ```
 
@@ -437,38 +438,41 @@ HTTP/1.1 413 Payload Too Large
 
 **Erros:**
 
-| Status | Quando                                                                      |
-| ------ | --------------------------------------------------------------------------- |
-| 400    | Parte `payload` ausente ou com JSON inválido                                |
-| 400    | Validação Zod falha (limites de caracteres ou campos fora do contrato)      |
-| 401    | Sem sessão JWT válida ou token expirado                                     |
-| 403    | Perfil não Administrador envia área, departamento ou gestor no self-service |
-| 404    | Usuário não encontrado no banco                                             |
-| 413    | Arquivo `avatar` > 2 MB                                                     |
-| 415    | Arquivo `avatar` com extensão/MIME fora de JPEG/PNG                         |
-| 415    | Parte de arquivo inesperada no multipart (campo diferente de `avatar`)      |
+| Status | Quando                                                                 |
+| ------ | ---------------------------------------------------------------------- |
+| 400    | Parte `payload` ausente ou com JSON inválido                           |
+| 400    | Validação Zod falha (limites de caracteres ou campos fora do contrato) |
+| 401    | Sem sessão JWT válida ou token expirado                                |
+| 403    | Sem `user:manage` e envia área, departamento ou gestor no self-service |
+| 404    | Usuário não encontrado no banco                                        |
+| 413    | Arquivo `avatar` > 2 MB                                                |
+| 415    | Arquivo `avatar` com extensão/MIME fora de JPEG/PNG                    |
+| 415    | Parte de arquivo inesperada no multipart (campo diferente de `avatar`) |
 
 ---
 
 ## 3. GET /users/:id — Consultar perfil para edição administrativa
 
-Exclusivo para o perfil Administrador. Retorna o mesmo `UserProfileResponseDTO`
+Exclusivo para quem tem `user:read`. Retorna o mesmo `UserProfileResponseDTO`
 de `GET /users/me`, incluindo os blocos `requester` e `professional`. A rota é
 usada para preencher o modal "Alterar dados" sem ampliar a resposta paginada de
 `GET /users`.
 
 **Response 200:** `UserProfileResponseDTO`.
 
-**Erros:** `401` sem sessão, `403` para perfil não Administrador e `404` quando
+**Erros:** `401` sem sessão, `403` sem `user:read` e `404` quando
 o usuário não existe ou o identificador é inválido.
 
 ---
 
 ## 4. PUT /users/:id — Atualizar dados administrativos
 
-Exclusivo para o perfil Administrador. O corpo é JSON e funciona como merge:
-campos ausentes preservam o valor atual. O modal desta versão envia somente os
-dados administrados pelo portal:
+Exclusivo para quem tem `user:manage`, dentro da matriz de contas (RBAC § 4.2):
+o Perfil-alvo precisa estar **estritamente abaixo** do ator; o Perfil Admin Root
+é fora de rota; a própria conta é recusada; e Perfil inativo não recebe conta
+nova nem designação. O corpo é JSON e funciona como merge: campos ausentes
+preservam o valor atual. O modal desta versão envia somente os dados
+administrados pelo portal:
 
 ```ts
 interface UpdateUserRequest {
@@ -493,14 +497,17 @@ reenviar `role`; o service valida o papel atual do usuário no banco.
 
 **Response 200:** `UserProfileResponseDTO` atualizado.
 
-**Erros:** `400` para payload inválido, `401` sem sessão, `403` para perfil não
-Administrador ou operação não permitida e `404` para usuário inexistente.
+**Erros:** `400` para payload inválido, `401` sem sessão, `403` sem
+`user:manage`, fora da matriz de contas (`account_out_of_authority`), conta
+Admin Root (`root_account_protected`) ou própria conta
+(`self_management_forbidden`), `409` para Perfil inativo (`profile_inactive`) e
+`404` para usuário inexistente.
 
 ---
 
 ## Observações do contrato
 
-- `fullName`, `requester.additionalContact` e avatar são autoeditáveis por qualquer perfil. O próprio Administrador também pode editar `requester.area`, `requester.department` e `requester.manager`; para os demais perfis, esses campos continuam exclusivos do fluxo administrativo em `PUT /users/:id`.
+- `fullName`, `requester.additionalContact` e avatar são autoeditáveis por qualquer perfil. Quem tem `user:manage` também pode editar `requester.area`, `requester.department` e `requester.manager`; para os demais perfis, esses campos continuam exclusivos do fluxo administrativo em `PUT /users/:id`.
 - O campo `role` na resposta é o **nome legível** do perfil (ex.: "Analista"), resolvido a partir do `profiles.name` do banco — não é o slug interno.
 - `avatarUrl` é `null` quando o usuário não tem foto. A URL é relativa ao host: `/uploads/avatars/<storageKey>`. O servidor serve `/uploads/*` via `express.static` (conforme `app.ts`).
 - O bloco `professional` só está presente (não `null`) quando o actor tem perfil Analista E a extensão `details_professional` existe. Analistas legados (sem linha) recebem `professional` com defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`).
@@ -509,7 +516,7 @@ Administrador ou operação não permitida e `404` para usuário inexistente.
 - Atualização de nome, dados permitidos de requester, referência do avatar e auditoria ocorre na **mesma transação** de banco.
 - Auditoria: toda atualização gera evento `user.update_profile` no catálogo de auditoria (`src/shared/audit/auditCatalog.ts`), com `previousValue` (snapshot anterior em JSON) e `newValue` (JSON resumido dos campos alterados + `avatarChanged`).
 - Valores de `role` são strings PT-BR (nomes legíveis dos perfis). Limites de caracteres (Especificação 3.0 §4 / validação Zod) são espelhados entre UI e backend.
-- A rota `PUT /users/me` está posicionada **antes** do `requireRole("Administrador")` no router — é acessível a qualquer perfil interno autenticado (self-service).
+- A rota `PUT /users/me` está posicionada **antes** dos gates de chave no router — é acessível a qualquer perfil interno autenticado (self-service); a exceção de área/departamento/gestor é decidida pela chave `user:manage`.
 - `POST /requests` e `GET /requests` continuam inalterados por esta issue; o `corporate_email` do bloco requester de `PUT /users/me` não afeta a lógica de criação de solicitações (que usa `resolveRequesterId` por e-mail independentemente).
 - Foto de perfil é pública via `GET /uploads/*` (decisão MVP). Restrição de visibilidade pode ser adicionada em issue futura.
 - O parser de `req.body.payload` como string depende da ordem do multer; o controller valida explicitamente (400 se ausente ou não-string) antes do `JSON.parse`.

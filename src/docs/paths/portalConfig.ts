@@ -27,12 +27,52 @@ export default {
       },
     },
   },
+  "/portal-config/admin": {
+    get: {
+      tags: ["Configuração do portal"],
+      summary: "Consultar configuração do portal (visão administrativa)",
+      description:
+        "Visão administrativa da configuração. Exige ao menos uma chave de leitura de seção — `theme:read`, `category:read`, `status:read`, " +
+        "`portal_setting:read` ou `prioritization_config:read` — e devolve apenas as seções que o ator pode ler: " +
+        "`portal_setting:read` → platformName, solicitationMode, protocolMask; `theme:read` → theme, assets; " +
+        "`category:read` → categories; `status:read` → statuses; `prioritization_config:read` → prioritizationWeights. " +
+        "A projeção pública de `GET /portal-config` permanece sem chave.",
+      operationId: "getAdminPortalConfig",
+      security: [{ cookieAuth: [] }],
+      responses: {
+        "200": {
+          description: "Configuração administrativa recortada pelas seções legíveis.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PortalAdminConfig" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem nenhuma chave de leitura do portal.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+  },
   "/portal-config/access": {
     patch: {
       tags: ["Configuração do portal"],
       summary: "Alterar modo de acesso do portal",
       description:
-        "Altera o modo de abertura do portal (`PUBLIC` ou `AUTHENTICATED`). Exige perfil `Administrador`.",
+        "Altera o modo de abertura do portal (`PUBLIC` ou `AUTHENTICATED`). Exige a permissão `portal_setting:manage`.",
       operationId: "updatePortalAccess",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -79,7 +119,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -94,7 +134,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar identidade do portal",
       description:
-        "Altera o nome da plataforma (`platformName`) e/ou a máscara do protocolo (`protocolMask`). Exige perfil `Administrador`.",
+        "Altera o nome da plataforma (`platformName`) e/ou a máscara do protocolo (`protocolMask`). Exige a permissão `portal_setting:manage`.",
       operationId: "updatePortalIdentity",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -137,7 +177,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -152,7 +192,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar tema do portal",
       description:
-        "Altera o tema completo (light/dark) de forma atômica. Exige perfil `Administrador`.",
+        "Altera o tema completo (light/dark) de forma atômica. Exige a permissão `theme:manage`.",
       operationId: "updatePortalTheme",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -189,7 +229,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -204,7 +244,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar assets do portal",
       description:
-        "Altera assets (logo, avatar, login image, favicon em claro/escuro) via multipart/form-data. Aceita JSON na parte `assets` e/ou arquivos binários. Exige perfil `Administrador`.",
+        "Altera assets (logo, avatar, login image, favicon em claro/escuro) via multipart/form-data. Aceita JSON na parte `assets` e/ou arquivos binários. Exige a permissão `theme:manage`.",
       operationId: "updatePortalAssets",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -297,7 +337,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -312,7 +352,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar categorias do portal",
       description:
-        "Substitui a lista completa de categorias de forma atômica. Exige perfil `Administrador`.",
+        "Substitui a lista completa de categorias de forma atômica. Exige a permissão `category:manage`.",
       operationId: "updatePortalCategories",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -358,7 +398,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -381,7 +421,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar status do ciclo do portal",
       description:
-        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige perfil `Administrador`.",
+        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige a permissão `status:manage`.",
       operationId: "updatePortalStatuses",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -427,7 +467,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -450,7 +490,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar pesos de priorização",
       description:
-        "Altera os pesos (inteiro 1–10) de todos os critérios de priorização de forma atômica. Exige perfil `Administrador`.",
+        "Altera os pesos (inteiro 1–10) de todos os critérios de priorização de forma atômica. Exige a permissão `prioritization_config:manage`.",
       operationId: "updatePortalPrioritizationWeights",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -495,7 +535,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Administrador).",
+          description: "Sem a permissão exigida para a operação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

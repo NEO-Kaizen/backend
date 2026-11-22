@@ -2,11 +2,13 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import db from "../../database/conection.ts";
+import type { EffectivePermission, PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
 import type {
   AccessSection,
   AssetsSection,
   CategoriesSection,
   IdentitySection,
+  PortalAdminConfig,
   PortalAssetsPatch,
   PortalCategory,
   PortalStatus,
@@ -22,6 +24,19 @@ import type { SystemSettingsRow } from "../../shared/types/systemSettings.ts";
 import { themeFromRow, themeToColumns } from "./portalConfig.mappers.ts";
 import * as repository from "./portalConfig.repository.ts";
 import type { PortalConfigResponse } from "../DTOs/portalConfig/PortalConfigResponse.dto.ts";
+
+/**
+ * Chaves de leitura das seções da visão administrativa (contrato RBAC § 3.7).
+ * Quem tem ao menos uma delas acessa `GET /portal-config/admin`; a resposta
+ * devolve apenas as seções legíveis.
+ */
+export const PORTAL_SECTION_READ_KEYS = [
+  "theme:read",
+  "category:read",
+  "status:read",
+  "portal_setting:read",
+  "prioritization_config:read",
+] as const satisfies readonly PermissionKey[];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,6 +71,49 @@ function statusToPortal(st: StatusRow): PortalStatus {
     tone: st.tone,
     isActive: st.is_active ?? true,
   };
+}
+
+// ---------------------------------------------------------------------------
+// R0 — GET /portal-config/admin (visão administrativa, por seção)
+// ---------------------------------------------------------------------------
+
+/**
+ * Projeção consolidada recortada pelas seções que o ator pode ler. Cada seção
+ * exige a própria chave de leitura (RBAC § 3.7); a projeção pública de
+ * `GET /portal-config` permanece sem chave.
+ */
+export async function getAdminPortalConfig(
+  permissions: readonly EffectivePermission[],
+): Promise<PortalAdminConfig> {
+  const readableKeys = new Set(permissions.map((permission) => permission.key));
+  const config = await getPortalConfig();
+  const response: PortalAdminConfig = {};
+
+  if (readableKeys.has("portal_setting:read")) {
+    response.platformName = config.platformName;
+    response.solicitationMode = config.solicitationMode;
+    response.protocolMask = config.protocolMask;
+  }
+
+  // A chave `theme:read` cobre tema e assets (RBAC § 3.7).
+  if (readableKeys.has("theme:read")) {
+    response.theme = config.theme;
+    response.assets = config.assets;
+  }
+
+  if (readableKeys.has("category:read")) {
+    response.categories = config.categories;
+  }
+
+  if (readableKeys.has("status:read")) {
+    response.statuses = config.statuses;
+  }
+
+  if (readableKeys.has("prioritization_config:read")) {
+    response.prioritizationWeights = config.prioritizationWeights;
+  }
+
+  return response;
 }
 
 // ---------------------------------------------------------------------------

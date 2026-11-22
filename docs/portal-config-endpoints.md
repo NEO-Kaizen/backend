@@ -4,16 +4,23 @@ Contrato completo: `portal-config-api-0_4.md` (issue #90).
 
 ## Resumo dos endpoints
 
-| Método | Rota                                    | Auth    | Descrição                              |
-| ------ | --------------------------------------- | ------- | -------------------------------------- |
-| GET    | `/portal-config`                        | Público | Config consolidada do portal           |
-| PATCH  | `/portal-config/access`                 | Admin   | Modo de acesso (PUBLIC/AUTHENTICATED)  |
-| PATCH  | `/portal-config/identity`               | Admin   | Nome da plataforma + máscara protocolo |
-| PATCH  | `/portal-config/theme`                  | Admin   | Tema visual (light + dark completos)   |
-| PATCH  | `/portal-config/assets`                 | Admin   | Assets (multipart/form-data)           |
-| PATCH  | `/portal-config/categories`             | Admin   | Categorias da demanda                  |
-| PATCH  | `/portal-config/statuses`               | Admin   | Ciclo de vida (status)                 |
-| PATCH  | `/portal-config/prioritization-weights` | Admin   | Pesos dos critérios de priorização     |
+| Método | Rota                                    | Auth                           | Descrição                                 |
+| ------ | --------------------------------------- | ------------------------------ | ----------------------------------------- |
+| GET    | `/portal-config`                        | Público                        | Config consolidada do portal              |
+| GET    | `/portal-config/admin`                  | Chave por seção                | Visão administrativa (só seções legíveis) |
+| PATCH  | `/portal-config/access`                 | `portal_setting:manage`        | Modo de acesso (PUBLIC/AUTHENTICATED)     |
+| PATCH  | `/portal-config/identity`               | `portal_setting:manage`        | Nome da plataforma + máscara protocolo    |
+| PATCH  | `/portal-config/theme`                  | `theme:manage`                 | Tema visual (light + dark completos)      |
+| PATCH  | `/portal-config/assets`                 | `theme:manage`                 | Assets (multipart/form-data)              |
+| PATCH  | `/portal-config/categories`             | `category:manage`              | Categorias da demanda                     |
+| PATCH  | `/portal-config/statuses`               | `status:manage`                | Ciclo de vida (status)                    |
+| PATCH  | `/portal-config/prioritization-weights` | `prioritization_config:manage` | Pesos dos critérios de priorização        |
+
+A leitura administrativa (`GET /portal-config/admin`) exige ao menos uma chave de
+leitura de seção — `theme:read`, `category:read`, `status:read`,
+`portal_setting:read` ou `prioritization_config:read` — e devolve apenas as
+seções que o ator pode ler (contrato RBAC § 7). A projeção pública de
+`GET /portal-config` continua sem chave.
 
 ## Decisões de produto (divergentes do contrato)
 
@@ -211,7 +218,7 @@ curl -s -X PATCH http://localhost:3000/portal-config/assets \
 
 - **400**: payload inválido (zod)
 - **401**: sem cookie/session inválido
-- **403**: perfil não Administrador
+- **403**: sem a permissão `*:manage` da seção
 - **409**: tentativa de renomear/remover status protegido
 - **413**: arquivo excede tamanho máximo da chave
 - **415**: MIME/extensão não permitido para a chave
