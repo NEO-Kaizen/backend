@@ -4,7 +4,7 @@ import { z } from "zod";
 import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
+import type { PendingItem, ReviewDecision } from "../DTOs/pendingItems/PendingItems.dto.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
 export interface RequestRef {
@@ -328,7 +328,7 @@ export async function findStatusIdByName(name: string, trx: Knex.Transaction): P
   return row.status_id;
 }
 
-// --- Use-cases transacionais (transação pertence ao repository; service só decide) ---
+// --- Use-cases transacionais (create/review recebem `trx`; respond/attach abrem a própria) ---
 
 /** Linha de `pending_items` a inserir — ids/timestamps/estado são preenchidos aqui. */
 export type PendingItemInsert = {
@@ -394,6 +394,35 @@ async function updateRequestStatusId(
   });
 }
 
+/**
+ * A criação/reabertura da Pendência também muda o Status da solicitação. Essa
+ * mudança é auditada aqui, mas não gera Evento `status_changed`: o Evento
+ * emitido é o da Pendência.
+ */
+async function recordPendingItemStatusChangeAudit(
+  trx: Knex.Transaction,
+  input: {
+    protocol: string;
+    actorUserId: number;
+    previousStatusName: string;
+    newStatusName: string;
+    note?: string;
+    ip: string | undefined;
+  },
+): Promise<void> {
+  await recordAudit(trx, {
+    entityType: "request",
+    actionType: "request.status_change",
+    entityId: input.protocol,
+    userId: input.actorUserId,
+    previousValue: input.previousStatusName,
+    newValue: input.newStatusName,
+    note: input.note ?? null,
+    ipAddress: input.ip ?? null,
+    changeOrigin: "system",
+  });
+}
+
 export async function findProfessionalIdByUserId(userId: number): Promise<string | null> {
   const row = await db("details_professional").where({ user_id: userId }).first("professional_id");
   return (row?.professional_id as string | undefined) ?? null;
@@ -417,75 +446,75 @@ export async function findPendingItemsByBatchId(
   return mapPendingItemRows(rows);
 }
 
-export async function createPendingItemsBatch(input: {
-  requestId: string;
-  protocol: string;
-  batchId: string;
-  rows: PendingItemInsert[];
-  actor: { id: number; email: string };
-  ip: string | undefined;
-}): Promise<PendingItemRow[]> {
-  return db.transaction(async (trx) => {
-    const toInsert = input.rows.map((row) => ({
-      ...row,
-      pending_item_id: randomUUID(),
-      status: "requested",
-      corrected_value: null,
-      response_text: null,
-      deadline: null,
-      responded_at: null,
-      validated_at: null,
-      created_at: trx.fn.now(),
-    }));
+export async function createPendingItemsBatchInTransaction(
+  trx: Knex.Transaction,
+  input: {
+    requestId: string;
+    protocol: string;
+    batchId: string;
+    rows: PendingItemInsert[];
+    actor: { id: number; email: string };
+    ip: string | undefined;
+  },
+): Promise<{ rows: PendingItemRow[]; auditId: string }> {
+  const toInsert = input.rows.map((row) => ({
+    ...row,
+    pending_item_id: randomUUID(),
+    status: "requested",
+    corrected_value: null,
+    response_text: null,
+    deadline: null,
+    responded_at: null,
+    validated_at: null,
+    created_at: trx.fn.now(),
+  }));
 
-    if (toInsert.length > 0) {
-      await trx("pending_items").insert(toInsert);
-    }
+  if (toInsert.length > 0) {
+    await trx("pending_items").insert(toInsert);
+  }
 
-    const current = await currentRequestStatus(trx, input.requestId);
-    const pendingStatusId = await findStatusIdByName("Pendente de informações", trx);
+  const current = await currentRequestStatus(trx, input.requestId);
+  const pendingStatusId = await findStatusIdByName("Pendente de informações", trx);
 
-    if (current.statusId !== pendingStatusId) {
-      await updateRequestStatusId(trx, input.requestId, pendingStatusId, input.actor.email);
-      await recordAudit(trx, {
-        entityType: "pending_item",
-        actionType: "pending_item.create",
-        entityId: input.protocol,
-        userId: input.actor.id,
-        previousValue: current.statusName,
-        newValue: "Pendente de informações",
-        ipAddress: input.ip ?? null,
-        changeOrigin: "admin",
-      });
-      await recordAudit(trx, {
-        entityType: "request",
-        actionType: "request.status_change",
-        entityId: input.protocol,
-        userId: input.actor.id,
-        previousValue: current.statusName,
-        newValue: "Pendente de informações",
-        ipAddress: input.ip ?? null,
-        changeOrigin: "system",
-      });
-    } else {
-      await recordAudit(trx, {
-        entityType: "pending_item",
-        actionType: "pending_item.create",
-        entityId: input.protocol,
-        userId: input.actor.id,
-        previousValue: null,
-        newValue: input.batchId,
-        ipAddress: input.ip ?? null,
-        changeOrigin: "admin",
-      });
-    }
+  let createAuditId: string;
+  if (current.statusId !== pendingStatusId) {
+    await updateRequestStatusId(trx, input.requestId, pendingStatusId, input.actor.email);
+    createAuditId = await recordAudit(trx, {
+      entityType: "pending_item",
+      actionType: "pending_item.create",
+      entityId: input.protocol,
+      userId: input.actor.id,
+      previousValue: current.statusName,
+      newValue: "Pendente de informações",
+      ipAddress: input.ip ?? null,
+      changeOrigin: "admin",
+    });
+    await recordPendingItemStatusChangeAudit(trx, {
+      protocol: input.protocol,
+      actorUserId: input.actor.id,
+      previousStatusName: current.statusName,
+      newStatusName: "Pendente de informações",
+      ip: input.ip,
+    });
+  } else {
+    createAuditId = await recordAudit(trx, {
+      entityType: "pending_item",
+      actionType: "pending_item.create",
+      entityId: input.protocol,
+      userId: input.actor.id,
+      previousValue: null,
+      newValue: input.batchId,
+      ipAddress: input.ip ?? null,
+      changeOrigin: "admin",
+    });
+  }
 
-    const rows = (await trx("pending_items")
-      .where({ batch_id: input.batchId, request_id: input.requestId })
-      .select("*")
-      .orderBy("created_at", "asc")) as unknown as Record<string, unknown>[];
-    return mapPendingItemRows(rows);
-  });
+  const rows = (await trx("pending_items")
+    .where({ batch_id: input.batchId, request_id: input.requestId })
+    .select("*")
+    .orderBy("created_at", "asc")) as unknown as Record<string, unknown>[];
+
+  return { rows: mapPendingItemRows(rows), auditId: createAuditId };
 }
 
 /** Colunas de `pending_items` alteradas pela resposta do item. */
@@ -619,102 +648,111 @@ export async function addPendingItemAttachmentTx(input: {
   });
 }
 
-export async function applyReviewDecisionsTx(input: {
-  requestId: string;
-  protocol: string;
-  batchId: string;
-  decisions: ReviewDecisionInput[];
-  requestAttachment: boolean | undefined;
-  actor: { id: number; email: string };
-  ip: string | undefined;
-  currentStatusName: string;
-  decideStatus: (facts: ReviewFacts) => string | null;
-}): Promise<PendingItemRow[]> {
-  return db.transaction(async (trx) => {
-    if (typeof input.requestAttachment === "boolean") {
-      await trx("pending_items")
-        .where({ batch_id: input.batchId, request_id: input.requestId })
-        .update({ request_attachment: input.requestAttachment });
-    }
+export async function applyReviewDecisionsInTransaction(
+  trx: Knex.Transaction,
+  input: {
+    requestId: string;
+    protocol: string;
+    batchId: string;
+    decisions: ReviewDecisionInput[];
+    requestAttachment: boolean | undefined;
+    actor: { id: number; email: string };
+    ip: string | undefined;
+    currentStatusName: string;
+    decideStatus: (facts: ReviewFacts) => string | null;
+  },
+): Promise<{
+  rows: PendingItemRow[];
+  actionAuditIds: ReadonlyMap<ReviewDecision, string>;
+}> {
+  if (typeof input.requestAttachment === "boolean") {
+    await trx("pending_items")
+      .where({ batch_id: input.batchId, request_id: input.requestId })
+      .update({ request_attachment: input.requestAttachment });
+  }
 
-    let hasReopen = false;
+  let hasReopen = false;
+  /** Primeiro `audit_id` de cada ação, na ordem em que apareceu na revisão. */
+  const actionAuditIds = new Map<ReviewDecision, string>();
+  const rememberFirstAudit = (action: ReviewDecision, auditId: string): void => {
+    if (!actionAuditIds.has(action)) actionAuditIds.set(action, auditId);
+  };
 
-    for (const dec of input.decisions) {
-      const row = (await trx("pending_items")
-        .where({ pending_item_id: dec.id })
-        .first("*")) as unknown as Record<string, unknown> | undefined;
-      if (!row) continue;
+  for (const dec of input.decisions) {
+    const row = (await trx("pending_items").where({ pending_item_id: dec.id }).first("*")) as
+      Record<string, unknown> | undefined;
+    if (!row) continue;
 
-      const currentStatus = mapPendingItemRow(row).status;
-      if (dec.decision === "validate" && currentStatus === "validated") continue;
-      if (dec.decision === "reopen" && currentStatus === "requested") continue;
+    const currentStatus = mapPendingItemRow(row).status;
+    if (dec.decision === "validate" && currentStatus === "validated") continue;
+    if (dec.decision === "reopen" && currentStatus === "requested") continue;
 
-      if (dec.decision === "validate") {
-        if (dec.fieldKey) {
-          await applyFieldToRequest(trx, input.requestId, dec.fieldKey, dec.value);
-        }
-        await trx("pending_items")
-          .where({ pending_item_id: dec.id })
-          .update({ status: "validated", validated_at: trx.fn.now() });
-        await recordAudit(trx, {
-          entityType: "pending_item",
-          actionType: "pending_item.validate",
-          entityId: dec.id,
-          userId: input.actor.id,
-          previousValue: "responded",
-          newValue: "validated",
-          note: dec.note ?? null,
-          ipAddress: input.ip ?? null,
-          changeOrigin: "admin",
-        });
-      } else {
-        hasReopen = true;
-        await trx("pending_items").where({ pending_item_id: dec.id }).update({
-          status: "requested",
-          comment: dec.comment,
-          corrected_value: null,
-          response_text: null,
-          responded_at: null,
-          validated_at: null,
-          created_at: trx.fn.now(),
-        });
-        await recordAudit(trx, {
-          entityType: "pending_item",
-          actionType: "pending_item.reopen",
-          entityId: dec.id,
-          userId: input.actor.id,
-          previousValue: "responded",
-          newValue: "requested",
-          note: dec.comment,
-          changeOrigin: "admin",
-        });
+    if (dec.decision === "validate") {
+      if (dec.fieldKey) {
+        await applyFieldToRequest(trx, input.requestId, dec.fieldKey, dec.value);
       }
-    }
-
-    const nextStatusName = input.decideStatus({ hasReopen });
-    if (nextStatusName) {
-      const statusId = await findStatusIdByName(nextStatusName, trx);
-      await updateRequestStatusId(trx, input.requestId, statusId, input.actor.email);
-      await recordAudit(trx, {
-        entityType: "request",
-        actionType: "request.status_change",
-        entityId: input.protocol,
+      await trx("pending_items")
+        .where({ pending_item_id: dec.id })
+        .update({ status: "validated", validated_at: trx.fn.now() });
+      const validateAuditId = await recordAudit(trx, {
+        entityType: "pending_item",
+        actionType: "pending_item.validate",
+        entityId: dec.id,
         userId: input.actor.id,
-        previousValue: input.currentStatusName,
-        newValue: nextStatusName,
-        note: "reopen pending",
-        changeOrigin: "system",
+        previousValue: "responded",
+        newValue: "validated",
+        note: dec.note ?? null,
+        ipAddress: input.ip ?? null,
+        changeOrigin: "admin",
       });
+      rememberFirstAudit("validate", validateAuditId);
+    } else {
+      hasReopen = true;
+      await trx("pending_items").where({ pending_item_id: dec.id }).update({
+        status: "requested",
+        comment: dec.comment,
+        corrected_value: null,
+        response_text: null,
+        responded_at: null,
+        validated_at: null,
+        created_at: trx.fn.now(),
+      });
+      const reopenAuditId = await recordAudit(trx, {
+        entityType: "pending_item",
+        actionType: "pending_item.reopen",
+        entityId: dec.id,
+        userId: input.actor.id,
+        previousValue: "responded",
+        newValue: "requested",
+        note: dec.comment,
+        changeOrigin: "admin",
+      });
+      rememberFirstAudit("reopen", reopenAuditId);
     }
+  }
 
-    const rows = (await trx("pending_items")
-      .whereIn(
-        "pending_item_id",
-        input.decisions.map((d) => d.id),
-      )
-      .select("*")) as unknown as Record<string, unknown>[];
-    return mapPendingItemRows(rows);
-  });
+  const nextStatusName = input.decideStatus({ hasReopen });
+  if (nextStatusName) {
+    const statusId = await findStatusIdByName(nextStatusName, trx);
+    await updateRequestStatusId(trx, input.requestId, statusId, input.actor.email);
+    await recordPendingItemStatusChangeAudit(trx, {
+      protocol: input.protocol,
+      actorUserId: input.actor.id,
+      previousStatusName: input.currentStatusName,
+      newStatusName: nextStatusName,
+      note: "reopen pending",
+      ip: input.ip,
+    });
+  }
+
+  const rows = (await trx("pending_items")
+    .whereIn(
+      "pending_item_id",
+      input.decisions.map((d) => d.id),
+    )
+    .select("*")) as unknown as Record<string, unknown>[];
+
+  return { rows: mapPendingItemRows(rows), actionAuditIds };
 }
 
 /** Aplica `correctedValue` validado da revisão no campo correspondente da solicitação. */

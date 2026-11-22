@@ -68,6 +68,10 @@ function notification({
   };
 }
 
+function seedNotificationId(value) {
+  return `f0000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
+}
+
 function buildNotifications({ requestPointers, unassignedAdminIds }) {
   const pointer = (requestId) => {
     const value = requestPointers.get(requestId);
@@ -77,7 +81,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
 
   return [
     notification({
-      id: "f0000000-0000-4000-8000-000000000001",
+      id: seedNotificationId(1),
       recipientUserId: 112, // Fabio Solicitante
       requestId: 1,
       payload: {
@@ -89,7 +93,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       createdAt: "2026-11-18 09:15:00",
     }),
     notification({
-      id: "f0000000-0000-4000-8000-000000000002",
+      id: seedNotificationId(2),
       recipientUserId: 112, // Fabio Solicitante
       requestId: 1,
       payload: {
@@ -102,7 +106,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       createdAt: "2026-11-17 14:00:00",
     }),
     notification({
-      id: "f0000000-0000-4000-8000-000000000003",
+      id: seedNotificationId(3),
       recipientUserId: 104, // Solicitante Teste
       requestId: 3,
       payload: {
@@ -114,7 +118,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       createdAt: "2026-11-19 10:00:00",
     }),
     notification({
-      id: "f0000000-0000-4000-8000-000000000004",
+      id: seedNotificationId(4),
       recipientUserId: 101, // Analista Teste — Responsável pela request 1
       requestId: 1,
       payload: {
@@ -126,7 +130,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
     }),
     ...unassignedAdminIds.map((recipientUserId, index) =>
       notification({
-        id: `f0000000-0000-4000-8000-00000000000${5 + index}`,
+        id: seedNotificationId(5 + index),
         recipientUserId,
         requestId: 3,
         payload: {
@@ -138,6 +142,39 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
         createdAt: "2026-11-19 16:42:00",
       }),
     ),
+    notification({
+      id: seedNotificationId(8),
+      recipientUserId: 104, // Solicitante Teste
+      requestId: 3,
+      payload: {
+        type: "pending_item_created",
+        ...pointer(3),
+      },
+      dedupKey: "seed:pending_item.create:3:104",
+      createdAt: "2026-11-19 10:05:00",
+    }),
+    notification({
+      id: seedNotificationId(9),
+      recipientUserId: 104, // Solicitante Teste
+      requestId: 3,
+      payload: {
+        type: "pending_item_reopened",
+        ...pointer(3),
+      },
+      dedupKey: "seed:pending_item.reopen:3:104",
+      createdAt: "2026-11-19 11:20:00",
+    }),
+    notification({
+      id: seedNotificationId(10),
+      recipientUserId: 104, // Solicitante Teste
+      requestId: 3,
+      payload: {
+        type: "pending_item_validated",
+        ...pointer(3),
+      },
+      dedupKey: "seed:pending_item.validate:3:104",
+      createdAt: "2026-11-20 09:40:00",
+    }),
   ];
 }
 
@@ -145,12 +182,17 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
  * Massa fictícia dos Eventos de Notificação do RF20.
  *
  * - issue #157: `status_changed` para os solicitantes dos seeds 004 e 006;
+ * - issue #158: `pending_item_created`, `pending_item_reopened` e
+ *   `pending_item_validated` para o solicitante da request 3;
  * - issue #159: `pending_item_responded` na request 1 (com Responsável) e
  *   `pending_item_responded_unassigned` na request 3 (sem Responsável), com o
  *   aviso explícito e os Administradores ativos do seed 004 como destinatários.
  *
- * Os ids dos Administradores e os ponteiros das solicitações vêm do banco para
- * não duplicar números/strings mágicas do seed 004/006.
+ * A massa é histórica: os Eventos de Pendência não replicam o estado atual de
+ * `pending_items` (um lote aberto pode conviver com Notificações antigas de
+ * criação, reabertura e validação). Os ids dos Administradores e os ponteiros
+ * das solicitações vêm do banco para não duplicar números/strings mágicas do
+ * seed 004/006.
  *
  * Pré-requisitos: seeds 004_users e 006_requests (as FKs de destinatário e
  * solicitação precisam existir). Idempotente por `dedup_key`: apaga as

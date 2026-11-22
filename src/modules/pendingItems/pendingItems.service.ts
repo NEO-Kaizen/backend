@@ -23,11 +23,15 @@ import type { RequestStatus } from "../../shared/types/requests.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
 import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts";
 import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
+import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
+import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
+import {
+  emitPendingItemNotifications,
+  type PendingItemNotificationRequest,
+} from "../../shared/notifications/pendingItemNotification.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
-import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
-import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 import {
   emitPendingItemRespondedNotification,
   type PendingItemRespondedAudience,
@@ -38,6 +42,38 @@ import type { PendingItemResponseBody } from "./pendingItems.schema.ts";
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
 const PENDING_INFO_STATUS: RequestStatus = "Pendente de informações";
+
+/**
+ * Relê a solicitação dentro da transação para que uma correção de título
+ * validada na mesma revisão apareça no Payload.
+ */
+async function readPendingItemNotificationRequest(
+  trx: Knex.Transaction,
+  requestId: string,
+): Promise<PendingItemNotificationRequest> {
+  const request = await repo.findRequestById(requestId, trx);
+  if (!request) throw new AppError("Solicitação não encontrada", 404);
+  return {
+    requestId: request.request_id,
+    requesterUserId: request.requester_user_id,
+    pointer: { protocol: request.protocol, title: request.title },
+  };
+}
+
+/**
+ * Executa o evento de negócio e publica as Notificações somente após o commit
+ * (ADR-0001); se a transação falhar, nada é publicado.
+ */
+async function commitPendingItemAction<TResult>(
+  action: (trx: Knex.Transaction) => Promise<{
+    result: TResult;
+    notifications: readonly CommittedNotification[];
+  }>,
+): Promise<TResult> {
+  const { result, notifications } = await db.transaction(action);
+  publishCommittedNotifications(notifications);
+  return result;
+}
 
 function normalizeSummaryFieldKey(fieldKey: string): string {
   return fieldKey.trim();
@@ -184,13 +220,23 @@ export async function createPendingItems(
     });
   }
 
-  const createdRows = await repo.createPendingItemsBatch({
-    requestId: request.request_id,
-    protocol,
-    batchId,
-    rows,
-    actor,
-    ip,
+  const { rows: createdRows } = await commitPendingItemAction(async (trx) => {
+    const { rows: insertedRows, auditId } = await repo.createPendingItemsBatchInTransaction(trx, {
+      requestId: request.request_id,
+      protocol,
+      batchId,
+      rows,
+      actor,
+      ip,
+    });
+
+    const notifications = await emitPendingItemNotifications(trx, {
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
+      actorUserId: actor.id,
+      events: [{ action: "create", auditId }],
+    });
+
+    return { result: { rows: insertedRows }, notifications };
   });
 
   const mapped = await buildPendingItems(protocol, createdRows);
@@ -617,16 +663,29 @@ export async function reviewPendingItems(
     return { id: decision.id, decision: "validate", note: decision.note ?? null, fieldKey, value };
   });
 
-  const decidedRows = await repo.applyReviewDecisionsTx({
-    requestId: request.request_id,
-    protocol,
-    batchId,
-    decisions,
-    requestAttachment: body.requestAttachment,
-    actor,
-    ip,
-    currentStatusName: request.status,
-    decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
+  const { rows: decidedRows } = await commitPendingItemAction(async (trx) => {
+    const { rows: reviewedRows, actionAuditIds } = await repo.applyReviewDecisionsInTransaction(
+      trx,
+      {
+        requestId: request.request_id,
+        protocol,
+        batchId,
+        decisions,
+        requestAttachment: body.requestAttachment,
+        actor,
+        ip,
+        currentStatusName: request.status,
+        decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
+      },
+    );
+
+    const notifications = await emitPendingItemNotifications(trx, {
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
+      actorUserId: actor.id,
+      events: [...actionAuditIds].map(([action, auditId]) => ({ action, auditId })),
+    });
+
+    return { result: { rows: reviewedRows }, notifications };
   });
 
   const mapped = await buildPendingItems(protocol, decidedRows);

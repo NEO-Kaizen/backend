@@ -1,6 +1,6 @@
 # Persistência de Notificações (RF20)
 
-Issues: #157 e #159. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
+Issues: #157, #158 e #159. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
 
 ## Objetivo
 
@@ -38,7 +38,10 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 - `dedup_key` = `<eventKey>:<recipient_user_id>`. O formato de `eventKey` por
   Evento está em `docs/notifications-contract.md`; a chave de negócio preserva
-  eventos distintos ao longo do ciclo de vida.
+  eventos distintos ao longo do ciclo de vida. Nos Eventos de criação,
+  reabertura e validação, o prefixo é `pending_item.create`,
+  `pending_item.reopen` ou `pending_item.validate` seguido do `audit_id` da
+  primeira transição da ação; na resposta, é `request.pending_responded`.
 - O emissor valida o Evento com Zod antes do INSERT. Payload fora da Allowlist
   é erro de programação e aborta a transação.
 - O ator é removido da lista de destinatários na emissão.
@@ -51,9 +54,10 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 `seeds/requester_request/013_notifications.js` cria massa fictícia dos Eventos:
 `status_changed` para os solicitantes dos seeds 004 e 006;
-`pending_item_responded` para o Responsável da request 1; e
-`pending_item_responded_unassigned` para os Administradores ativos da request 3,
-com o aviso explícito. Os destinatários Administradores e os ponteiros
+`pending_item_created`, `pending_item_reopened` e `pending_item_validated` para o
+solicitante da request 3; `pending_item_responded` para o Responsável da request
+1; e `pending_item_responded_unassigned` para os Administradores ativos da
+request 3, com o aviso explícito. Os destinatários Administradores e os ponteiros
 (`protocol`/`title`) são resolvidos do banco a partir dos e-mails e das requests
 do seed, sem repetir ids ou strings. O seed é idempotente por `dedup_key`: apaga
 as Notificações pelos ids fixos e pelas chaves que ele mesmo cria e as recria,

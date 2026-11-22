@@ -248,6 +248,10 @@ export interface PendingSummary {
   (regra de negócio interna — D-P18). O novo status **não** é devolvido nesta
   resposta; o frontend o observa via `GET /requests/:protocol/internal` (interno)
   ou `GET /requests/:protocol/tracking` (solicitante).
+- **Notificação:** na mesma transação, grava uma `pending_item_created` para o
+  solicitante autenticado (`requests.requester_user_id`), uma por lote. A mudança
+  de Status **não** gera `status_changed`. Regras em
+  [`notifications-contract.md`](notifications-contract.md).
 - **Response `201`:** `CreatePendingItemsResponse`:
   ```ts
   export interface CreatePendingItemsResponse {
@@ -379,6 +383,11 @@ chamada posterior. O lote só fecha quando não restar nenhum `responded`.
   zerar os `responded` com tudo `validate`, status da solicitação inalterado.
   O novo status **não** é devolvido aqui — observa-se
   via `GET /internal` / `tracking`. Toda decisão nova grava `audit_history` (anterior/novo).
+- **Notificação:** na mesma transação, grava uma `pending_item_reopened` por
+  chamada com ≥1 `reopen` e uma `pending_item_validated` por chamada com ≥1
+  `validate`, para o solicitante autenticado. Reenvio idempotente não notifica
+  e a mudança de Status **não** gera `status_changed`. Regras em
+  [`notifications-contract.md`](notifications-contract.md).
 - **Response `200`:**
   ```ts
   export interface ReviewPendingItemsResponse {

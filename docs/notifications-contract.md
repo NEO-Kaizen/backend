@@ -1,15 +1,18 @@
 # Contrato HTTP — Notificações (RF20)
 
-Issues: #157 e #159. Issue pai: #156.
+Issues: #157, #158 e #159. Issue pai: #156.
 
 ## Escopo desta entrega
 
-A plataforma de Notificações in-app, a mudança de Status feita pelo analista no
-`PATCH /requests/:protocol/status` ou pelo veredito da Triagem e a resposta de
-Pendência. As Notificações são entregues por SSE em até 5 segundos.
+A plataforma de Notificações in-app e os primeiros Eventos ponta a ponta:
 
-Os demais Eventos de Pendência (criação, reabertura e validação), Mapeamento e
-Designação entram nas issues filhas do RF20 e reutilizam a mesma seam de
+- a mudança de Status feita pelo analista no `PATCH /requests/:protocol/status`
+  ou pelo veredito da Triagem;
+- a criação, a reabertura e a validação de uma Pendência;
+- a resposta de uma Pendência, com Responsável designado ou sem Responsável.
+
+As Notificações são entregues por SSE em até 5 segundos. Eventos de Mapeamento e
+Designação entram nas demais issues filhas do RF20 e reutilizam a mesma seam de
 emissão.
 
 ## Modelo
@@ -17,7 +20,8 @@ emissão.
 - **Notificação**: projeção por destinatário criada na mesma transação do
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
-  emissão. A v1 tem `status_changed`, `pending_item_responded` e
+  emissão. Tipos atuais: `status_changed`, `pending_item_created`,
+  `pending_item_reopened`, `pending_item_validated`, `pending_item_responded` e
   `pending_item_responded_unassigned`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
   `type`, `protocol`, `title` e `newStatus`; para os Eventos de Pendência, os
@@ -48,6 +52,31 @@ emissão.
 - Após o commit, a publicação ocorre no `EventEmitter` tipado com
   `{ userId, notificationIds }`.
 
+## Regras dos Eventos de criação, reabertura e validação
+
+- `pending_item_created` é emitido pelo `POST /requests/:protocol/pending-items`,
+  uma vez por lote, na mesma transação da criação dos itens e da auditoria.
+- `pending_item_reopened` é emitido pelo `PATCH /requests/:protocol/pending-items/review`
+  quando ao menos um item é reaberto, uma vez por chamada (não por item).
+- `pending_item_validated` é emitido pela mesma revisão quando ao menos um item
+  é validado, uma vez por chamada (não por item).
+- Uma mesma revisão pode gerar as duas Notificações quando decide reabrir e
+  validar itens distintos; cada tipo é uma ação.
+- A revisão parcial (D-P23) é uma ação por chamada: decidir outros itens depois
+  gera nova Notificação; itens omitidos não notificam.
+- O destinatário é o `requests.requester_user_id`. Solicitação sem solicitante
+  autenticado não gera Notificação in-app na v1.
+- O ator não recebe Notificação da própria ação; o emissor o remove da
+  audiência.
+- `eventKey`: `pending_item.create:<audit_id>`, `pending_item.reopen:<audit_id>`
+  ou `pending_item.validate:<audit_id>`, usando o `audit_id` da primeira
+  transição daquele tipo na chamada. Reenvio idempotente não gera nova
+  Notificação.
+- A mudança de Status disparada pela criação ou pela reabertura **não** gera
+  Evento `status_changed`; o Evento emitido é o da Pendência.
+- Se a transação falhar, nem a alteração de negócio nem a Notificação são
+  gravadas.
+
 ## Regras do Evento `pending_item_responded`
 
 - Emitido no `PATCH /requests/:protocol/pending-items/:pendingItemId` quando o
@@ -75,6 +104,8 @@ emissão.
   ao `requests.requester_user_id` (quando houver) ou, sem vínculo, à conta cujo
   e-mail coincide com a identidade verificada, para a exclusão. O emissor
   reaplica a exclusão do ator como defesa em profundidade.
+- A mudança de Status para `Em triagem` disparada pela resposta completa
+  **não** gera Evento `status_changed`; o Evento emitido é o de resposta.
 - Se a transação falhar, nem a resposta, nem o Status, nem a Notificação são
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de
@@ -84,6 +115,9 @@ emissão.
 
 | Evento                              | Campos obrigatórios                                                   |
 | ----------------------------------- | --------------------------------------------------------------------- |
+| `pending_item_created`              | `type`, `protocol`, `title`                                           |
+| `pending_item_reopened`             | `type`, `protocol`, `title`                                           |
+| `pending_item_validated`            | `type`, `protocol`, `title`                                           |
 | `pending_item_responded`            | `type`, `protocol`, `title`                                           |
 | `pending_item_responded_unassigned` | `type`, `protocol`, `title`, `notice` (`"Sem responsável designado"`) |
 
@@ -136,6 +170,17 @@ antiga, com estado de leitura.
       },
       "readAt": null,
       "createdAt": "2026-11-18T12:15:00.000Z"
+    },
+    {
+      "id": "f0000000-0000-4000-8000-000000000008",
+      "type": "pending_item_created",
+      "payload": {
+        "type": "pending_item_created",
+        "protocol": "MAAT-2R7Q-4M1C",
+        "title": "Analisar inadimplência por região"
+      },
+      "readAt": null,
+      "createdAt": "2026-11-19T10:05:00.000Z"
     }
   ],
   "nextCursor": null
@@ -214,6 +259,22 @@ reenviado. O cliente também deduplica por `id`.
 Eventos ao vivo são enfileirados durante o replay e liberados depois, para não
 se perderem entre a consulta e a assinatura.
 
+## Verificação reproduzível
+
+Os scripts cobrem os critérios da issue #158 contra um PostgreSQL descartável
+migrado e com as seeds-base:
+
+- `npm run verify:notifications` (API em `http://127.0.0.1:3000`, sobrescrita
+  por `API_URL`) usa a request `MAAT-2R7Q-4M1C`, fecha o lote do seed, cria um
+  lote com uma observação e dois campos, responde os três itens e faz uma
+  revisão mista (`validate` + `reopen`) na mesma chamada. Confere uma
+  Notificação por ação, payload na Allowlist, título corrigido, ausência de
+  `status_changed`, ator fora da audiência e reenvio idempotente.
+- `npm run verify:notifications:rollback` emite uma Notificação dentro de uma
+  transação, força o rollback e confirma que nenhuma linha permanece.
+
+O job `database` da CI executa os dois depois do smoke HTTP.
+
 ## Persistência
 
 O schema e os índices estão em
@@ -221,8 +282,7 @@ O schema e os índices estão em
 
 ## Fora de escopo nesta entrega
 
-- Notificações de criação, reabertura e validação de Pendência, Mapeamento e
-  Designação (demais issues filhas do RF20).
+- Mapeamento e Designação (demais issues filhas do RF20).
 - Canal de e-mail (RF31).
 - WebSocket e outbox durável.
 - Poda e retenção automática.
