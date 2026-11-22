@@ -81,18 +81,20 @@ Cobre:
 - **Sessão:** cookie **`session_id`** (JWT opaco `HttpOnly`, `SameSite=Lax`,
   `Secure` só em produção), front envia `credentials: "include"` — mesmo modelo
   do contrato `auth.md`.
-- **Perfis permitidos:** `Analista`, `Gestor`, `Administrador`
-  (`authMiddleware` + `requireRole` no router). `Solicitante` → `403`.
+- **Acesso por chave:** leitura e `PUT /read` exigem `internal_note:read`;
+  `POST` exige `internal_note:write`. A chave é `custodial`: `assigned` alcança
+  apenas a solicitação em que o ator é o Responsável corrente e `all` dispensa o
+  filtro de linha (contrato `rbac.md` §5). O Perfil não decide acesso.
 - Sem cookie/sessão inválida/expirada → `401`.
-- Sessão no scope `change_password` → `403 Troca de senha obrigatórica antes de
+- Sessão no scope `change_password` → `403 Troca de senha obrigatória antes de
 continuar` (convenção `auth.md` §3).
-- As três rotas (GET, POST, PUT) usam **exatamente** o mesmo gate; o perfil é
-  relido do banco a cada request (não é confiado ao JWT).
+- As três rotas usam o gate da própria chave; a Custódia é resolvida no serviço,
+  que relê a linha a cada operação. Linha inexistente ou fora da Custódia → `404`
+  genérico, com Tentativa em `request.access_denied`.
 - **Leitura embutida dos históricos `triages`/`mappings` (divergência
-  consciente — D-N11):** `GET /requests/:protocol/triage` nega o Analista que
-  não é responsável (`triage.service.ts:26-31` → `403 "Acesso negado a esta
-solicitação"`); os históricos embutidos seguem o gate desta rota (3 perfis
-  internos), sem o check de assignee. Ver decisão **D-N11**.
+  consciente — D-N11):** os históricos seguem o gate desta rota, agora com
+  Custódia: o Analista lê os registros das solicitações que custodía; `all` lê
+  qualquer linha.
 - Nenhum dado deste contrato é exposto em rotas públicas ou de acompanhamento.
 
 ## 4. Convenções transversais
@@ -121,7 +123,7 @@ chaves/estruturas em inglês `camelCase`, valores de domínio (labels, statuses,
 | `TimelineItemType`                     | `note` \| `event`                                                                                           | este contrato §7 (D-N1)                                      | Backend |
 | `TimelineEventAction`                  | `request.assign` \| `request.reassign` \| `request.unassign` \| `request.status_change` \| `mapping.assign` | subconjunto de `auditCatalog.ts`, fixado em D-N4/D-N12/D-N15 | Backend |
 | `TimelineChangeOrigin`                 | `admin` \| `system` \| `internal`                                                                           | `audit_history.change_origin`                                | Backend |
-| `InternalRole` (autor/ator)            | `Analista` \| `Gestor` \| `Administrador`                                                                   | `Exclude<Role, "Solicitante">` — capitalizado no JSON        | Produto |
+| `Role` (autor/ator)                    | `Solicitante` \| `Analista` \| `Gestor` \| `Administrador` \| `Admin Root`                                  | snapshot do Perfil (`shared/types/role.ts`)                  | Produto |
 | `RequestStatus` (composição de `text`) | os status vigentes do portal                                                                                | mesmos nomes compostos em `text` de `request.status_change`  | Produto |
 
 > `TimelineEventAction` é **lista fechada**: ações fora dela são ignoradas na
@@ -152,11 +154,11 @@ checkpoint = N ──PUT /read { lastReadNoteId: M }, M < N──▶ checkpoint 
 
 ## 7. Endpoints
 
-| Método | Rota                                      | Auth                                                        | Response                                                                                       |
-| ------ | ----------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| GET    | `/requests/:protocol/internal-notes`      | cookie `session_id` (`Analista`\|`Gestor`\|`Administrador`) | `200` `InternalNotesResponse` (página da timeline + `nextCursor` + `unseenCount` + históricos) |
-| POST   | `/requests/:protocol/internal-notes`      | idem                                                        | `201` `TimelineNote`                                                                           |
-| PUT    | `/requests/:protocol/internal-notes/read` | idem                                                        | `204` sem corpo                                                                                |
+| Método | Rota                                      | Auth                             | Response                                                                                       |
+| ------ | ----------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| GET    | `/requests/:protocol/internal-notes`      | `internal_note:read` + Custódia  | `200` `InternalNotesResponse` (página da timeline + `nextCursor` + `unseenCount` + históricos) |
+| POST   | `/requests/:protocol/internal-notes`      | `internal_note:write` + Custódia | `201` `TimelineNote`                                                                           |
+| PUT    | `/requests/:protocol/internal-notes/read` | `internal_note:read` + Custódia  | `204` sem corpo                                                                                |
 
 ### Tipos
 
@@ -173,7 +175,7 @@ interface TimelineNote {
   id: string; // internal_note_id (numérico) — usado no PUT /read
   content: string; // 1..4000 (trim), imutável
   createdAt: string; // ISO-8601 UTC
-  author: { id: string; name: string; role: InternalRole };
+  author: { id: string; name: string; role: Role };
 }
 
 interface TimelineEvent {
@@ -183,7 +185,7 @@ interface TimelineEvent {
   text: string; // frase completa já renderizada no BE, pt-BR (§8)
   // ex.: "Status alterado: Em triagem" · "Responsável removido"
   occurredAt: string; // ISO-8601 UTC (audit_history.occurred_at)
-  actor: { id: string; name: string; role: InternalRole } | null; // null = ação de sistema/usuário removido
+  actor: { id: string; name: string; role: Role } | null; // null = usuário removido/inexistente
   changeOrigin: TimelineChangeOrigin;
   // Opcionais e restritos a `request.status_change` (issue #124):
   justification?: string | null; // justificativa INTERNA (audit_history.note); nunca o retorno público
@@ -227,14 +229,14 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
 
 ### GET /requests/:protocol/internal-notes — listar página da timeline
 
-- **Auth:** cookie `session_id` (perfis internos).
+- **Auth:** cookie `session_id` + `internal_note:read`/`write` sob Custódia.
 - **Query:**
   - `limit` — inteiro `1..50`, default **20**; fora da faixa → `400`;
   - `cursor` — string opcional (cursor opaco acima). **Ausente = página mais
     recente** da timeline (lazy load inicial, D-N7).
 - **Response:** `200` `InternalNotesResponse`.
-- **Erros:** `400` protocolo/`limit`/`cursor` inválidos · `401` sessão · `403`
-  `Solicitante` · `404` solicitação não encontrada.
+- **Erros:** `400` protocolo/`limit`/`cursor` inválidos · `401` sessão · `403` chave
+  ausente · `404` solicitação inexistente ou fora da Custódia.
 - **Comportamento:** o serviço pagina o **merge de duas fontes** por keyset
   (algoritmo em §8), ordenado mais-recente-primeiro (D-N7):
   1. **Notas** — `request_internal_notes` ⋈ `users` (autor);
@@ -264,7 +266,7 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
 
 ### POST /requests/:protocol/internal-notes — publicar nota
 
-- **Auth:** cookie `session_id` (perfis internos).
+- **Auth:** cookie `session_id` + `internal_note:read`/`write` sob Custódia.
 - **Body:** `{ "content": "<1..4000 após trim>" }`
 - **Response:** `201` `TimelineNote` completa (`type: "note"` incluído, para o
   frontend poder inserir na timeline sem transformação).
@@ -276,7 +278,7 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
 
 ### PUT /requests/:protocol/internal-notes/read — marcar como visto
 
-- **Auth:** cookie `session_id` (perfis internos).
+- **Auth:** cookie `session_id` + `internal_note:read`/`write` sob Custódia.
 - **Body:** `{ "lastReadNoteId": "12" }` — string numérica
   (`/^[1-9]\d*$/`), ID de **nota** BIGINT (string para não perder precisão).
 - **Response:** `204` sem corpo.
@@ -407,8 +409,8 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
 | `400`  | `lastReadNoteId` fora de `/^[1-9]\d*$/` (PUT)                                                    |
 | `400`  | `lastReadNoteId` não pertence à solicitação da URL (PUT)                                         |
 | `401`  | Cookie ausente, sessão inválida/expirada, ou scope `change_password` nas rotas que não o aceitam |
-| `403`  | Perfil `Solicitante`                                                                             |
-| `404`  | Solicitação (protocolo) não encontrada — em qualquer das 3 rotas                                 |
+| `403`  | Sessão sem a chave da rota (`internal_note:read`/`write`)                                        |
+| `404`  | Solicitação inexistente ou fora da Custódia do ator — em qualquer das 3 rotas                    |
 | `500`  | Detalhe interno nunca vazado (envelope padrão)                                                   |
 
 ## 10. Exemplos
@@ -597,7 +599,11 @@ Sem corpo na resposta.
 ### Erro (403)
 
 ```json
-{ "status": "error", "statusCode": 403, "message": "Acesso restrito aos perfis internos" }
+{
+  "status": "error",
+  "statusCode": 403,
+  "message": "Acesso restrito à permissão internal_note:read"
+}
 ```
 
 ## 11. Implementação
@@ -638,7 +644,7 @@ Sem corpo na resposta.
 | D-N14 | Históricos versionados: `triages` (snapshot normalizado; proveniência via `audit_history`) + `mappings` por `request_id` (`oldest→newest`)                                                                                                                                                                                                  | conversa, 2026-09-22            |
 | D-N13 | Alinhar família `Responsável …`: `mapping.assign` `text` → `Responsável pelo mapeamento alterado: <nome>` / `Responsável pelo mapeamento removido` (antes `Designação de mapeamento alterada`)                                                                                                                                              | conversa, 2026-09-22            |
 | D-N6  | `request.update` e `pending_item.*` **não** entram na timeline — pertencem ao futuro `GET /audit/:protocol`                                                                                                                                                                                                                                 | conversa, 2026-09-22            |
-| D-N11 | O histórico de triagem embutido (`triages`) é acessível aos 3 perfis internos sob o gate desta rota, **sem** o check de assignee do `GET .../triage`                                                                                                                                                                                        | conversa, 2026-09-22            |
+| D-N11 | O histórico de triagem embutido (`triages`) segue o gate desta rota, agora `internal_note:read` + Custódia; não reaplica o check isolado do `GET .../triage`                                                                                                                                                                                | conversa, 2026-09-22            |
 
 | D-N15 | `request.override_status_admin` (bypass de Admin no `PATCH /requests/:protocol/status`, issue #124) é **persistido** no `audit_history`, **entra no filtro** `IN` da timeline e é **normalizado na leitura** para `action: "request.status_change"` (`text`/`justification`/`lastTechnicalMessage` idênticos; `changeOrigin: "admin"` preservado); a API nunca expõe a ação bruta e a gravação permanece intocada | conversa, 2026-09-24 |
 

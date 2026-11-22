@@ -55,3 +55,21 @@ export function requireAnyPermission(keys: readonly PermissionKey[]) {
 export function requirePermission(key: PermissionKey) {
   return requireAnyPermission([key]);
 }
+
+/**
+ * Gate de chave para rotas que também aceitam a porta pública. Sem sessão não
+ * há ator nem chave: a validação fica com o fluxo público do serviço. Com
+ * sessão, exige ao menos uma das chaves informadas.
+ */
+export function requirePermissionIfSession(keys: PermissionKey | readonly PermissionKey[]) {
+  const gate = requireAnyPermission(typeof keys === "string" ? [keys] : keys);
+
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      next();
+      return;
+    }
+
+    await gate(req, res, next);
+  };
+}

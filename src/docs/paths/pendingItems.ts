@@ -4,7 +4,7 @@ export default {
       tags: ["Pendências"],
       summary: "Listar Pendências",
       description:
-        "Lista as Pendências de uma solicitação via dual-auth (cookie ou header `X-Requester-Identity`). Retorna o envelope do lote vigente (`batchId`, `requestAttachment` e `items`).",
+        "Lista as Pendências de uma solicitação via dual-auth (cookie ou header `X-Requester-Identity`). Com sessão, a porta interna exige `pending_item:read` sob Custódia; a porta do Solicitante aceita `pending_item:respond` em `own`. Sem sessão, a identidade pública continua validando protocolo + nome + e-mail. Retorna o envelope do lote vigente (`batchId`, `requestAttachment` e `items`).",
       operationId: "listPendingItems",
       security: [],
       parameters: [
@@ -135,8 +135,17 @@ export default {
             },
           },
         },
+        "403": {
+          description:
+            "Sessão sem `pending_item:read` nem `pending_item:respond` para a porta do Solicitante.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
         "404": {
-          description: "Solicitação não encontrada.",
+          description: "Solicitação não encontrada ou fora da Custódia/Posse do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -149,7 +158,7 @@ export default {
       tags: ["Pendências"],
       summary: "Criar Pendências",
       description:
-        "Cria Pendências para uma solicitação. Exige autenticação e perfil interno. Aceita `observation` (texto livre) e/ou `items` (edições de campo).",
+        "Cria Pendências para uma solicitação. Exige `pending_item:write` sob Custódia do Responsável corrente. Aceita `observation` (texto livre) e/ou `items` (edições de campo).",
       operationId: "createPendingItems",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -230,7 +239,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `pending_item:write`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -238,7 +247,7 @@ export default {
           },
         },
         "404": {
-          description: "Solicitação não encontrada.",
+          description: "Solicitação não encontrada ou fora da Custódia/Posse do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -261,7 +270,7 @@ export default {
       tags: ["Pendências"],
       summary: "Revisar Pendências",
       description:
-        "Revisa (valida/reabre) Pendências de um lote. Exige autenticação e perfil interno (Administrador ou responsável pela solicitação).",
+        "Revisa (valida/reabre) Pendências de um lote. Exige `pending_item:review` sob Custódia do Responsável corrente.",
       operationId: "reviewPendingItems",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -352,7 +361,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `pending_item:review`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -360,7 +369,7 @@ export default {
           },
         },
         "404": {
-          description: "Solicitação ou lote não encontrado.",
+          description: "Solicitação/lote não encontrado ou fora da Custódia do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -383,7 +392,7 @@ export default {
       tags: ["Pendências"],
       summary: "Responder pendência",
       description:
-        "Responde a uma pendência específica. Via dual-auth (cookie ou header `X-Requester-Identity`). Para `field_edit` envia `correctedValue`; para `observation` envia `response`.",
+        "Responde a uma pendência específica. Com sessão, exige `pending_item:respond` em `own` e Posse sobre a solicitação; sem sessão, usa a identidade pública validada. Para `field_edit` envia `correctedValue`; para `observation` envia `response`.",
       operationId: "respondPendingItem",
       security: [],
       parameters: [
@@ -510,8 +519,16 @@ export default {
             },
           },
         },
+        "403": {
+          description: "Sessão sem `pending_item:respond` em `own`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
         "404": {
-          description: "Solicitação ou pendência não encontrada.",
+          description: "Solicitação/pendência não encontrada ou fora da Posse do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -534,7 +551,7 @@ export default {
       tags: ["Pendências"],
       summary: "Anexar arquivo à pendência",
       description:
-        "Anexa um arquivo a uma pendência. Via dual-auth (cookie ou header `X-Requester-Identity`).",
+        "Anexa um arquivo a uma pendência. Com sessão, exige `pending_item:respond` em `own` e Posse sobre a solicitação; sem sessão, usa a identidade pública validada.",
       operationId: "attachPendingItem",
       security: [],
       parameters: [
@@ -600,8 +617,16 @@ export default {
             },
           },
         },
+        "403": {
+          description: "Sessão sem `pending_item:respond` em `own`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
         "404": {
-          description: "Solicitação ou pendência não encontrada.",
+          description: "Solicitação/pendência não encontrada ou fora da Posse do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
