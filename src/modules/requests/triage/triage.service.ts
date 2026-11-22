@@ -99,10 +99,9 @@ export async function createTriage(
     throw new AppError("Solicitação encerrada.", 422);
   }
 
-  // `isRestricted` só é atravessado por quem tem `request:status_override`
-  // global (o override libera o alvo protegido; a decisão continua na etapa).
-  const hasStatusOverride = custodyFor(actor.permissions, "request:status_override") === "global";
-  if (request.status_is_restricted && !hasStatusOverride) {
+  // `request:status_override` libera alvos de transição; não libera a Triagem
+  // de uma solicitação que já está em Status restrito.
+  if (request.status_is_restricted) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação priorizada");
     throw new AppError(
       "A Triagem não pode ser registrada enquanto a solicitação estiver em status restrito.",
