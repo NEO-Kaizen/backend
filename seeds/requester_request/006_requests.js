@@ -6,6 +6,10 @@
 // vinculam contas de perfis distintos sem alterar os e-mails dos seeds.
 // Proposital: `created_by` e o snapshot em `requesters` mantêm os dados
 // originais do formulário, mesmo quando divergem da conta vinculada.
+
+/** Status `Mapeamento agendado` (id 6) — conclusão dos Mapeamentos para status 6, ver seed 012. */
+const MAPPING_SCHEDULED_STATUS_ID = 6;
+
 export async function seed(knex) {
   await knex("requests").insert([
     {
@@ -44,7 +48,7 @@ export async function seed(knex) {
       restricted_info_detail: "Contém dados financeiros sensíveis — sigilo.",
       additional_notes: "Planilha modelo anexa para referência.",
       category_id: 1,
-      status_id: 6, // Mapeamento agendado — conclusão do seed 012
+      status_id: MAPPING_SCHEDULED_STATUS_ID,
       priority_id: 3,
       preliminary_complexity: "media",
       screening_result: "elegivel",

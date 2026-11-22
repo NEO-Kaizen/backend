@@ -204,7 +204,7 @@ antiga, com estado de leitura.
         "scheduledAt": "2026-09-15T14:00:00Z"
       },
       "readAt": null,
-      "createdAt": "2026-09-10T11:10:00.000Z"
+      "createdAt": "2026-09-10T11:10:00Z"
     }
   ],
   "nextCursor": null

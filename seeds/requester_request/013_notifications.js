@@ -21,6 +21,9 @@ const MAPPING_SCHEDULING_REQUEST_ID = 1;
  */
 const MAPPING_NOTIFICATIONS_OFFSET = 20;
 
+/** Minutos após a conclusão — cronologia: conclusão antes da Notificação. */
+const MINUTES_AFTER_CONCLUSION = 10;
+
 async function findRequestPointers(knex) {
   const rows = await knex("requests")
     .whereIn("request_id", SEED_REQUEST_IDS)
@@ -148,7 +151,7 @@ async function findMappingScheduledNotifications(knex, requestPointers, requestI
         scheduledAt: conclusion.scheduledAt,
       },
       dedupKey: `seed:mapping.complete:${conclusion.mappingId}`,
-      createdAt: minutesAfter(conclusion.concludedAt, 10),
+      createdAt: minutesAfter(conclusion.concludedAt, MINUTES_AFTER_CONCLUSION),
     }),
   );
 }
