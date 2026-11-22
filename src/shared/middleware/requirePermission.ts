@@ -2,8 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { buildEffectivePermissions, type PermissionKey } from "../catalog/permissionCatalog.ts";
 import { listUserPermissions } from "../../modules/auth/auth.repository.ts";
-import db from "../../database/conection.ts";
-import { recordAudit } from "../audit/auditLogger.ts";
+import { recordAccessDeniedAttempt } from "../audit/accessDenied.ts";
 
 async function recordDeniedPermissionAttempt(
   req: Request,
@@ -11,20 +10,32 @@ async function recordDeniedPermissionAttempt(
   keys: readonly PermissionKey[],
 ): Promise<void> {
   const protocol = req.params.protocol;
-  if (typeof protocol !== "string" || protocol.trim() === "") return;
-
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
+  const note = `Permissão ausente: ${keys.join(", ")}`;
+  if (typeof protocol === "string" && protocol.trim() !== "") {
+    await recordAccessDeniedAttempt({
       entityType: "request",
-      actionType: "request.access_denied",
       entityId: protocol.trim(),
       userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: `Permissão ausente: ${keys.join(", ")}`,
+      note,
       ipAddress: req.ip,
-      changeOrigin: "system",
     });
+    return;
+  }
+
+  const resources = new Set(keys.map((key) => key.split(":")[0]));
+  if (resources.size !== 1) return;
+
+  const [resource] = resources;
+  if (resource !== "queue" && resource !== "reports") return;
+
+  const routePath =
+    typeof req.route?.path === "string" ? `${req.baseUrl}${req.route.path}` : req.baseUrl;
+  await recordAccessDeniedAttempt({
+    entityType: resource,
+    entityId: routePath || keys.join(", "),
+    userId: actorId,
+    note,
+    ipAddress: req.ip,
   });
 }
 

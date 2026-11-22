@@ -43,6 +43,14 @@ export const auditCatalog = {
       "access_denied",
     ],
   },
+  queue: {
+    label: "Fila",
+    actions: ["access_denied"],
+  },
+  reports: {
+    label: "Relatórios",
+    actions: ["access_denied"],
+  },
   mapping: {
     label: "Mapeamento",
     actions: ["assign", "save", "complete"],

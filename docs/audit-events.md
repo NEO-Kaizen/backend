@@ -17,6 +17,8 @@ Documentação interna do serviço de registro de eventos (issue #52).
 | `user`           | `create`, `activate`, `deactivate`, `reset_password`, `change_password`                                                  | gestão de contas                                                                                                                    |
 | `prioritization` | `evaluate` (avaliação e reavaliação)                                                                                     | `PUT /prioritization/:protocol/score`                                                                                               |
 | `request`        | `assign`, `reassign`, `unassign`, `status_change`, `status_override`, `triage`, `override_status_admin`, `access_denied` | `PATCH /requests/:protocol/assignee` + RN-010; `POST triage`; `PATCH /requests/:protocol/status` (override por permissão / negação) |
+| `queue`          | `access_denied`                                                                                                          | Recusa por permissão nas rotas `/queue`                                                                                             |
+| `reports`        | `access_denied`                                                                                                          | Recusa por permissão nas rotas `/reports`                                                                                           |
 | `settings`       | `update`                                                                                                                 | portal-config                                                                                                                       |
 
 ## Padrão obrigatório
