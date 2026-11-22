@@ -1,3 +1,5 @@
+import { error } from "../components/responses.ts";
+
 export default {
   "/auth/login": {
     post: {
@@ -25,22 +27,8 @@ export default {
             },
           },
         },
-        "400": {
-          description: "E-mail ou senha ausentes.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Credenciais inválidas.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("E-mail ou senha ausentes."),
+        "401": error("Credenciais inválidas."),
       },
     },
   },
@@ -51,6 +39,7 @@ export default {
       description:
         "Remove o cookie de sessão do navegador. Idempotente — retorna sucesso mesmo sem sessão ativa.",
       operationId: "authLogout",
+      security: [],
       responses: {
         "200": {
           description: "Sessão encerrada com sucesso.",
@@ -80,14 +69,7 @@ export default {
             },
           },
         },
-        "401": {
-          description: "Sem cookie ou sessão inválida/expirada/inativa.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sem cookie ou sessão inválida/expirada/inativa."),
       },
     },
   },
@@ -124,14 +106,7 @@ export default {
             },
           },
         },
-        "401": {
-          description: "Sem cookie ou sessão inválida/expirada.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sem cookie ou sessão inválida/expirada."),
       },
     },
   },

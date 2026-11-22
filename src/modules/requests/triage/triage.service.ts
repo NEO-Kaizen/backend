@@ -70,7 +70,8 @@ export async function createTriage(
 
   // Priorizado (isRestricted) bloqueia triagem de não-Admin — inclusive
   // assignee → movimentação de/r para Priorizado só via `PATCH /status` com
-  // bypass Admin (delta §3.1). Fluxo encerrado (isTerminal) não reabre.
+  // bypass Admin (ver `docs/rules/requests-lifecycle.md`). Fluxo encerrado
+  // (isTerminal) não reabre.
   if (request.status_is_terminal) {
     throw new AppError("Solicitação encerrada.", 422);
   }

@@ -4,13 +4,24 @@ export const openapiBase = {
     title: "MAAT API",
     version: "1.0.0",
     description:
-      "API do MAAT" +
-      "Autenticação: JWT em cookie HttpOnly (`session_id`). " +
+      "API do MAAT. Autenticação: JWT em cookie HttpOnly (`session_id`). " +
       "Faça login via `POST /auth/login` no Swagger UI para definir o cookie, " +
-      "e então teste os endpoints protegidos.",
+      "e então teste os endpoints protegidos.\n\n" +
+      'Convenções: erros usam `{ status: "error", statusCode, message }`, com `code` e `fields` opcionais. ' +
+      "Listagens usam `{ data, page, pageSize, total, totalPages }` ou `{ items, nextCursor }`. " +
+      "Datas são ISO-8601 UTC (`yyyy-mm-dd` para datas puras); ids de catálogo (`statusId`, `categoryId`, `priorityId`) são inteiros, " +
+      "enquanto ids de usuário/profissional são strings.",
     contact: {
       name: "NEO Kaizen",
     },
+    license: {
+      name: "ISC",
+      url: "https://opensource.org/license/isc-license-txt",
+    },
+  },
+  externalDocs: {
+    description: "Regras de negócio, ADRs e mapa de documentos substituídos",
+    url: "https://github.com/NEO-Kaizen/backend/tree/main/docs/rules",
   },
   servers: [
     {
@@ -30,7 +41,7 @@ export const openapiBase = {
     },
     { name: "Priorização", description: "Critérios e pontuação de priorização" },
     { name: "Relatórios", description: "Relatórios e exportações" },
-    { name: "Auditoria", description: "Histórico de auditoria e logs" },
+    { name: "Auditoria", description: "Trilha de auditoria" },
     { name: "Notas internas", description: "Notas internas de solicitações" },
     { name: "Pendências", description: "Pendências e verificação pública" },
     { name: "Notificações", description: "Notificações in-app e entrega SSE" },
