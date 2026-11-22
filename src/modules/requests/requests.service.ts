@@ -1,6 +1,7 @@
 ﻿import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
+import type { Knex } from "knex";
 import type {
   RequestStatus,
   RequestPriority,
@@ -918,12 +919,13 @@ export async function assignResponsible(
     // Designação de Responsável (issue #161): notifica o analista designado —
     // o Administrador que designou não recebe. Sem troca de designado, não
     // há Notificação duplicada.
-    if (assignee !== null && hasDesignationChanged(auditPrev, Number(assignee.id))) {
-      committedNotifications = await emitResponsibleAssignedNotification(trx, {
+    if (assignee !== null) {
+      committedNotifications = await notifyResponsibleAssignedIfNeeded(trx, {
         auditId,
         requestId: request.request_id,
         actorUserId: actor.id,
         recipientUserId: Number(assignee.id),
+        previousUserId: auditPrev,
         protocol: request.protocol,
         title: request.title,
         category: request.category,
@@ -1052,18 +1054,17 @@ export async function assignAnalyst(
         }
 
         // Designação de Responsável (issue #161)
-        if (hasDesignationChanged(auditPrev, Number(resolved.id))) {
-          committedNotifications = await emitResponsibleAssignedNotification(trx, {
-            auditId,
-            requestId: request.request_id,
-            actorUserId: actor.id,
-            recipientUserId: Number(resolved.id),
-            protocol: request.protocol,
-            title: request.title,
-            category: request.category,
-            status: shouldAdvance ? RN010_TO_STATUS : request.status,
-          });
-        }
+        committedNotifications = await notifyResponsibleAssignedIfNeeded(trx, {
+          auditId,
+          requestId: request.request_id,
+          actorUserId: actor.id,
+          recipientUserId: Number(resolved.id),
+          previousUserId: auditPrev,
+          protocol: request.protocol,
+          title: request.title,
+          category: request.category,
+          status: shouldAdvance ? RN010_TO_STATUS : request.status,
+        });
       });
     }
   } else if (hasMapping) {
@@ -1134,18 +1135,17 @@ export async function assignAnalyst(
 
         // Designação de Responsável (issue #161): notifica o analista designado
         // do mapeamento — o Administrador que designou não recebe.
-        if (hasDesignationChanged(auditPrev, Number(resolved.id))) {
-          committedNotifications = await emitResponsibleAssignedNotification(trx, {
-            auditId,
-            requestId: request.request_id,
-            actorUserId: actor.id,
-            recipientUserId: Number(resolved.id),
-            protocol: request.protocol,
-            title: request.title,
-            category: request.category,
-            status: request.status,
-          });
-        }
+        committedNotifications = await notifyResponsibleAssignedIfNeeded(trx, {
+          auditId,
+          requestId: request.request_id,
+          actorUserId: actor.id,
+          recipientUserId: Number(resolved.id),
+          previousUserId: auditPrev,
+          protocol: request.protocol,
+          title: request.title,
+          category: request.category,
+          status: request.status,
+        });
       });
     }
   }
@@ -1159,6 +1159,35 @@ export async function assignAnalyst(
  * Designação real (primeira designação ou troca de designado) — a única
  * condição em que a emissão de "Designação de Responsável" (issue #161) acontece.
  */
+async function notifyResponsibleAssignedIfNeeded(
+  trx: Knex.Transaction,
+  input: {
+    auditId: string;
+    requestId: string;
+    actorUserId: number;
+    recipientUserId: number;
+    previousUserId: number | null;
+    protocol: string;
+    title: string;
+    category: string;
+    status: string;
+  },
+): Promise<CommittedNotification[]> {
+  if (!hasDesignationChanged(input.previousUserId, input.recipientUserId)) {
+    return [];
+  }
+  return emitResponsibleAssignedNotification(trx, {
+    auditId: input.auditId,
+    requestId: input.requestId,
+    actorUserId: input.actorUserId,
+    recipientUserId: input.recipientUserId,
+    protocol: input.protocol,
+    title: input.title,
+    category: input.category,
+    status: input.status,
+  });
+}
+
 function hasDesignationChanged(previousUserId: number | null, nextUserId: number): boolean {
   return previousUserId === null || previousUserId !== nextUserId;
 }
