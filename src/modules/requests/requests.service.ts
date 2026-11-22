@@ -55,6 +55,7 @@ import {
   type StatusTarget,
 } from "../../shared/notifications/statusChangedNotification.ts";
 import { emitResponsibleAssignedNotification } from "../../shared/notifications/responsibleAssignedNotification.ts";
+import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
 
 import type {
   AssignAnalystPayload,
@@ -859,6 +860,15 @@ export async function assignResponsible(
     request.status === RN010_FROM_STATUS &&
     request.screening_result === RN010_ELIGIBLE_SCREENING;
 
+  // Exclusividade triagem/mapeamento (issue #161): designar Responsável na
+  // triagem desatribui o designado do mapeamento — mesmo contrato da rota
+  // interna. Sem isso a rota legada deixava os dois lados preenchidos.
+  const previousMapping = request.mapping_professional_id;
+  const auditPrevMapping = previousMapping
+    ? ((await repository.findAssignmentCandidateById(previousMapping))?.user_id ?? null)
+    : null;
+
+  let committedNotifications: CommittedNotification[] = [];
   await db.transaction(async (trx) => {
     await repository.updateAssignee(trx, request.request_id, nextId, actor.email);
 
@@ -872,6 +882,25 @@ export async function assignResponsible(
       ipAddress,
       changeOrigin: "admin",
     });
+
+    // Exclusividade: atribuir triagem desatribui mapeamento (apenas na designação)
+    if (auditNext !== null) {
+      if (previousMapping) {
+        await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
+        await recordAudit(trx, {
+          entityType: "request",
+          entityId: request.protocol,
+          actionType: "request.unassign",
+          userId: actor.id,
+          previousValue: auditPrevMapping ? String(auditPrevMapping) : null,
+          newValue: null,
+          ipAddress,
+          changeOrigin: "admin",
+        });
+      } else {
+        await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
+      }
+    }
 
     if (shouldAdvanceStatus) {
       await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
@@ -892,7 +921,7 @@ export async function assignResponsible(
     // o Administrador que designou não recebe. Sem troca de designado, não
     // há Notificação duplicada.
     if (assignee !== null && hasDesignationChanged(auditPrev, Number(assignee.id))) {
-      await emitResponsibleAssignedNotification(trx, {
+      committedNotifications = await emitResponsibleAssignedNotification(trx, {
         auditId,
         requestId: request.request_id,
         actorUserId: actor.id,
@@ -904,6 +933,10 @@ export async function assignResponsible(
       });
     }
   });
+
+  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
+  // fonte de verdade para quem reconectar via `Last-Event-ID`.
+  publishCommittedNotifications(committedNotifications);
 
   return {
     protocol: request.protocol,
@@ -935,6 +968,8 @@ export async function assignAnalyst(
 
   const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
   const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
+
+  let committedNotifications: CommittedNotification[] = [];
 
   if (hasAssignee) {
     const raw = payload.assigneeId as string | null | undefined;
@@ -1019,11 +1054,10 @@ export async function assignAnalyst(
             changeOrigin: "system",
           });
         }
-        // Designação de Responsável (issue #161): notifica o analista
-        // designado — o Administrador que designou não recebe. Sem troca de
-        // designado, não há Notificação duplicada.
+
+        // Designação de Responsável (issue #161)
         if (hasDesignationChanged(auditPrev, Number(resolved.id))) {
-          await emitResponsibleAssignedNotification(trx, {
+          committedNotifications = await emitResponsibleAssignedNotification(trx, {
             auditId,
             requestId: request.request_id,
             actorUserId: actor.id,
@@ -1103,11 +1137,11 @@ export async function assignAnalyst(
         } else {
           await repository.updateAssignee(trx, request.request_id, null, actor.email);
         }
-        // Designação de Responsável (issue #161): notifica o analista
-        // designado — o Administrador que designou não recebe. Sem troca de
-        // designado, não há Notificação duplicada.
+
+        // Designação de Responsável (issue #161): notifica o analista designado
+        // do mapeamento — o Administrador que designou não recebe.
         if (hasDesignationChanged(auditPrev, Number(resolved.id))) {
-          await emitResponsibleAssignedNotification(trx, {
+          committedNotifications = await emitResponsibleAssignedNotification(trx, {
             auditId,
             requestId: request.request_id,
             actorUserId: actor.id,
@@ -1121,6 +1155,8 @@ export async function assignAnalyst(
       });
     }
   }
+
+  publishCommittedNotifications(committedNotifications);
 
   return findInternalByProtocol(protocol.trim());
 }

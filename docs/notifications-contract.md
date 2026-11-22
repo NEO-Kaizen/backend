@@ -1,34 +1,50 @@
 # Contrato HTTP — Notificações (RF20)
 
-Issues: #157, #159 e #161. Issue pai: #156.
+Issues: #157, #159, #160 e #161. Issue pai: #156.
 
 ## Escopo desta entrega
 
-A plataforma de Notificações in-app, a mudança de Status feita pelo analista no
-`PATCH /requests/:protocol/status` ou pelo veredito da Triagem, a resposta de
-Pendência e a Designação de Responsável. As Notificações são entregues por SSE
-em até 5 segundos.
+A plataforma de Notificações in-app e os Eventos ponta a ponta já integrados:
 
-Os demais Eventos de Pendência (criação, reabertura e validação) e do Mapeamento
-entram nas issues filhas do RF20 e reutilizam a mesma seam de emissão.
+- `status_changed` (#157): a mudança de Status no `PATCH /requests/:protocol/status`
+  ou no veredito da Triagem gera Notificação para o solicitante autenticado.
+- `mapping_scheduled` (#160): a conclusão do Mapeamento para o Status
+  `Mapeamento agendado` gera Notificação para o solicitante autenticado e para
+  o designado do Mapeamento, com a data/hora do Agendamento.
+- `pending_item_responded` e `pending_item_responded_unassigned` (#159): a
+  resposta de Pendência gera Notificação para o Responsável ou, na ausência
+  dele, para os Administradores ativos.
+- `responsible_assigned` (#161): a Designação de Responsável nas rotas interna
+  e legada gera Notificação para o analista designado.
+
+As Notificações são entregues por SSE em até 5 segundos. Os demais Eventos de
+Pendência (criação, reabertura e validação) e do Mapeamento entram nas issues
+filhas do RF20 e reutilizam a mesma seam de emissão.
 
 ## Modelo
 
 - **Notificação**: projeção por destinatário criada na mesma transação do
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
-  emissão. A v1 tem `status_changed`, `pending_item_responded`,
-  `pending_item_responded_unassigned` e `responsible_assigned`.
+  emissão. A v1 tem `status_changed`, `mapping_scheduled`,
+  `pending_item_responded`, `pending_item_responded_unassigned` e
+  `responsible_assigned`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
-  `type`, `protocol`, `title` e `newStatus`; para os Eventos de Pendência, os
+  `type`, `protocol`, `title` e `newStatus`; para `mapping_scheduled`, somente
+  `type`, `protocol`, `title` e `scheduledAt`; para os Eventos de Pendência, os
   campos da seção própria — nunca mensagem técnica, scores, notas internas ou
-  campos de triagem.
+  campos de triagem. Para `responsible_assigned`, somente `type`, `protocol`,
+  `title`, `category` e `status`.
 - **Canal**: `NotificationChannel`. O canal in-app grava a Notificação na
   transação; o canal de e-mail do RF31 entra como outra implementação.
 - **Idempotência**: `notifications.dedup_key` é única. A chave é
   `evento:destinatário`; repetir a mesma emissão não duplica a linha.
 - **Audiência**: o ator nunca recebe Notificação da própria ação; o
-  destinatário de cada Evento segue a matriz da seção correspondente.
+  destinatário de cada Evento segue a matriz da seção correspondente. Em
+  `status_changed`, é o `requests.requester_user_id`; em `mapping_scheduled`,
+  o solicitante autenticado e o designado do Mapeamento
+  (`mappings.professional_id`). Em `responsible_assigned`, apenas o analista
+  designado; o Administrador que designou não recebe.
 
 ## Regras do Evento `status_changed`
 
@@ -48,6 +64,30 @@ entram nas issues filhas do RF20 e reutilizam a mesma seam de emissão.
 - Após o commit, a publicação ocorre no `EventEmitter` tipado com
   `{ userId, notificationIds }`.
 
+## Regras do Evento `mapping_scheduled`
+
+- Emitido no `PUT /queue/requests/:protocol/mapping`, na mesma transação da
+  conclusão do Mapeamento (`mapping.complete`), da mudança de Status e da
+  auditoria.
+- Só notifica quando a conclusão tem como destino o Status
+  `Mapeamento agendado` (`status_id` 6). Rascunho (`completeMapping: false`)
+  não notifica; conclusão para outros Status (mapeamento concluído de fato)
+  também não.
+- Destinatários: solicitante autenticado (`requests.requester_user_id`) e
+  designado do Mapeamento — o `mappings.professional_id` do mapeamento
+  concluído, que herda `requests.mapping_professional_id` quando a conclusão
+  não redesigna —, menos o ator.
+- Reagendamento é uma nova conclusão do Mapeamento: gera nova `mapping.complete`
+  (nova `eventKey`) e, portanto, nova Notificação com a nova data/hora.
+- Destinatário ausente (solicitante anônimo ou mapeamento sem designado) não
+  recebe Notificação in-app; os demais destinatários são notificados
+  normalmente.
+- O Payload traz `scheduledAt` em ISO-8601 UTC, normalizado para o Agendamento
+  concluído.
+- Se a transação falhar, nem o Agendamento nem a Notificação são gravados.
+- Após o commit, o aviso é publicado no `EventEmitter` tipado com
+  `{ userId, notificationIds }`.
+
 ## Regras do Evento `pending_item_responded`
 
 - Emitido no `PATCH /requests/:protocol/pending-items/:pendingItemId` quando o
@@ -59,11 +99,22 @@ entram nas issues filhas do RF20 e reutilizam a mesma seam de emissão.
   anexo (`POST .../attachments`) não emite: o Evento é a confirmação da
   resposta, e o anexo aparece no detalhe da solicitação apontada.
 - Com `requests.professional_id` definido, o destinatário é o usuário do
-  Responsável (`details_professional.user_id`).
+  Responsável (`details_professional.user_id`), independentemente do estado
+  atual da conta: a designação é a fonte de verdade; desativação e
+  remanejamento pertencem ao fluxo de atribuição.
 - Sem Responsável designado, os destinatários são os usuários ativos com perfil
-  `administrador` (conta e perfil ativos), com o aviso explícito no payload.
-- O ator nunca recebe. Sem sessão, a identidade pública é associada ao
-  `requests.requester_user_id` (quando houver) para a exclusão.
+  `administrador` (conta e perfil ativos), com o aviso explícito no payload. A
+  lista é deduplicada e o ator é removido antes da montagem do Evento; se não
+  restar destinatário (nenhum Administrador ativo ou somente o ator), a
+  audiência fica vazia e nenhuma Notificação é criada; a resposta continua
+  válida.
+- O ator nunca recebe. A autoexclusão tem precedência sobre o critério de
+  contagem: a resposta do solicitante gera exatamente uma Notificação ao
+  Responsável quando ele não é o ator; quando o próprio Responsável responde,
+  nenhuma Notificação é emitida. Sem sessão, a identidade pública é associada
+  ao `requests.requester_user_id` (quando houver) ou, sem vínculo, à conta cujo
+  e-mail coincide com a identidade verificada, para a exclusão. O emissor
+  reaplica a exclusão do ator como defesa em profundidade.
 - Se a transação falhar, nem a resposta, nem o Status, nem a Notificação são
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de
@@ -82,14 +133,6 @@ entram nas issues filhas do RF20 e reutilizam a mesma seam de emissão.
   não há Notificação duplicada.
 - Payload: `type`, `protocol`, `title`, `category` e `status` — a Allowlist da
   designação, com a categoria e o Status atual da solicitação na emissão.
-
-## Payload do Evento `responsible_assigned`
-
-| Evento                 | Campos obrigatórios                                |
-| ---------------------- | -------------------------------------------------- |
-| `responsible_assigned` | `type`, `protocol`, `title`, `category`, `status`  |
-
-Nenhum outro campo entra no Payload deste Evento.
 
 ## Payload dos Eventos de Pendência
 
@@ -147,6 +190,18 @@ antiga, com estado de leitura.
       },
       "readAt": null,
       "createdAt": "2026-11-18T12:15:00.000Z"
+    },
+    {
+      "id": "f0000000-0000-4000-8000-000000000006",
+      "type": "mapping_scheduled",
+      "payload": {
+        "type": "mapping_scheduled",
+        "protocol": "MAAT-8K3P-9X2M",
+        "title": "Automatizar conciliação bancária",
+        "scheduledAt": "2026-09-15T14:00:00Z"
+      },
+      "readAt": null,
+      "createdAt": "2026-09-10T11:20:00.000Z"
     }
   ],
   "nextCursor": null
@@ -232,8 +287,8 @@ O schema e os índices estão em
 
 ## Fora de escopo nesta entrega
 
-- Notificações de criação, reabertura e validação de Pendência e do Mapeamento
-  (demais issues filhas do RF20).
+- Notificações de criação, reabertura e validação de Pendência e do
+  Mapeamento (demais issues filhas do RF20).
 - Canal de e-mail (RF31).
 - WebSocket e outbox durável.
 - Poda e retenção automática.
