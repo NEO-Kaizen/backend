@@ -7,15 +7,10 @@ import type { QueueCsvExport, QueueExportRow } from "../DTOs/reports/QueueExport
 import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { RequestPriority } from "../../shared/types/requests.ts";
 import type { StatusTone } from "../../shared/types/systemTheme.ts";
-import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { resolveResponsibleScope } from "../../shared/access/custody.ts";
+import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 import * as repository from "./reports.repository.ts";
-
-export interface ReportActor {
-  readonly id: number;
-  readonly permissions: readonly EffectivePermission[];
-}
 
 const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 const CSV_HEADERS = [
@@ -169,7 +164,7 @@ function rowToCsv(row: QueueExportRow): string {
 
 export async function exportQueueCsv(
   filters: QueueFilterQuery,
-  actor: ReportActor,
+  actor: PermissionActor,
 ): Promise<QueueCsvExport> {
   // A exportação usa a mesma Custódia da Fila: `all` exporta tudo; `assigned`
   // exporta só as solicitações em que o ator é Responsável.

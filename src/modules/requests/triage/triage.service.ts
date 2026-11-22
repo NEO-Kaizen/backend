@@ -6,25 +6,16 @@ import {
   hasAdministrativeAuditOrigin,
   hasCustody,
 } from "../../../shared/access/custody.ts";
-import type {
-  EffectivePermission,
-  PermissionKey,
-} from "../../../shared/catalog/permissionCatalog.ts";
+import type { PermissionKey } from "../../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
+import type { NamedPermissionActor } from "../../../shared/access/permissionActor.ts";
 import * as repository from "./triage.repository.ts";
-
-export interface TriageActor {
-  readonly id: number;
-  readonly email: string;
-  readonly name: string;
-  readonly permissions: readonly EffectivePermission[];
-}
 
 /** Custódia da triagem: `requests.responsible_id` (§ 5 do contrato RBAC). */
 function hasTriageCustody(
-  actor: TriageActor,
+  actor: NamedPermissionActor,
   key: PermissionKey,
   assigneeUserId: number | null,
 ): boolean {
@@ -43,7 +34,7 @@ function hasTriageCustody(
 
 async function recordTriageAccessDenied(
   protocol: string,
-  actor: TriageActor,
+  actor: NamedPermissionActor,
   ipAddress: string | undefined,
   detail: string,
 ): Promise<void> {
@@ -64,7 +55,7 @@ async function recordTriageAccessDenied(
 
 export async function getTriage(
   protocol: string,
-  actor: TriageActor,
+  actor: NamedPermissionActor,
   ipAddress?: string,
 ): Promise<TriageAssessment | null> {
   const request = await repository.findRequestContext(protocol);
@@ -84,7 +75,7 @@ export async function getTriage(
 export async function createTriage(
   protocol: string,
   payload: CreateTriagePayload,
-  actor: TriageActor,
+  actor: NamedPermissionActor,
   ipAddress?: string,
 ): Promise<TriageAssessment> {
   const request = await repository.findRequestContext(protocol);

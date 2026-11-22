@@ -1,11 +1,10 @@
 // Handlers HTTP do subfluxo de Mapeamento (`/queue/requests/:protocol/mapping`).
 // Enxutos: validam a forma do request e delegam as regras ao service.
 import type { Request, Response } from "express";
-import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
+import { permissionActorFromRequest } from "../../shared/access/permissionActor.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { buildZodFieldErrors } from "../../shared/validation/zodErrors.ts";
-import type { MappingActor } from "../DTOs/queue/mapping.dto.ts";
 import { mappingPayloadSchema } from "./mapping.schemas.ts";
 import { getMappingService, upsertMappingService } from "./mapping.service.ts";
 
@@ -20,29 +19,12 @@ function assertProtocolParam(req: Request): string {
   return protocol.trim();
 }
 
-/** Ator autenticado com as Permissões carregadas pelo gate da rota. */
-function actorFromRequest(req: Request): MappingActor {
-  if (!req.user) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
-
-  const id = Number(req.user.id);
-  if (!Number.isInteger(id)) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
-
-  const permissions: EffectivePermission[] | undefined = req.permissions;
-  if (!permissions) {
-    throw new AppError("Permissões não carregadas para esta operação", 403);
-  }
-
-  return { id, email: req.user.email, permissions };
-}
-
 export const getMappingController = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocolParam(req);
 
-  return res.status(200).json(await getMappingService(protocol, actorFromRequest(req), req.ip));
+  return res
+    .status(200)
+    .json(await getMappingService(protocol, permissionActorFromRequest(req), req.ip));
 };
 
 export const putMappingController = async (req: Request, res: Response): Promise<Response> => {
@@ -50,7 +32,7 @@ export const putMappingController = async (req: Request, res: Response): Promise
 
   // Ator validado ANTES do parse do payload: sessão inválida/expirada responde
   // 401 mesmo com body malformado (precedência de autenticação sobre validação).
-  const actor = actorFromRequest(req);
+  const actor = permissionActorFromRequest(req);
 
   const body: unknown = req.body;
   if (typeof body !== "object" || body === null || Array.isArray(body)) {

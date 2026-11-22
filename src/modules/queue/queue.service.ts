@@ -4,21 +4,16 @@ import type {
   QueueResponse,
   QueueMetricsResponse,
 } from "../../shared/types/queue.types.ts";
-import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { resolveResponsibleScope } from "../../shared/access/custody.ts";
-
-export interface QueueActor {
-  readonly id: number;
-  readonly permissions: readonly EffectivePermission[];
-}
+import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 
 /**
  * Escopo de visibilidade da fila pela Custódia de `queue:read`: `all` vê tudo,
  * `assigned` vê só as solicitações em que é Responsável. O responsável do
  * mapeamento não amplia o escopo (§ 5 do contrato RBAC).
  */
-const resolveQueueScope = (actor: QueueActor): number | undefined => {
+const resolveQueueScope = (actor: PermissionActor): number | undefined => {
   const scope = resolveResponsibleScope(actor.permissions, "queue:read", actor.id);
   if (!scope) {
     throw new AppError("Custódia inválida para queue:read.", 403);
@@ -27,7 +22,9 @@ const resolveQueueScope = (actor: QueueActor): number | undefined => {
   return scope.kind === "assigned" ? scope.userId : undefined;
 };
 
-export const getQueueMetricsService = async (actor: QueueActor): Promise<QueueMetricsResponse> => {
+export const getQueueMetricsService = async (
+  actor: PermissionActor,
+): Promise<QueueMetricsResponse> => {
   return await fetchQueueMetrics(resolveQueueScope(actor));
 };
 
@@ -38,7 +35,7 @@ function toIso(value: string | Date): string {
 
 export const listQueueService = async (
   filters: QueueQuery,
-  actor: QueueActor,
+  actor: PermissionActor,
 ): Promise<QueueResponse> => {
   const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
   const offset = (page - 1) * pageSize;

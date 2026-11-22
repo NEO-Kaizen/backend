@@ -2,7 +2,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import { custodyFor, hasCustody } from "../../shared/access/custody.ts";
-import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
+import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import type { Classification, CriterionRow } from "../../shared/types/prioritization.ts";
 import type {
@@ -32,12 +32,6 @@ export async function listActiveCriteria(): Promise<ListCriteriaResponse> {
  * imutável (`audit_history`, evento `prioritization.evaluate`, com snapshot
  * anterior e novo).
  */
-export interface PrioritizationActor {
-  readonly id: number;
-  readonly email: string;
-  readonly permissions: readonly EffectivePermission[];
-}
-
 /** Registra a Tentativa negada na trilha de auditoria da solicitação. */
 async function recordAccessDeniedAudit(
   protocol: string,
@@ -63,7 +57,7 @@ async function recordAccessDeniedAudit(
 export async function evaluateScore(
   protocol: string,
   payload: EvaluatePrioritizationRequest,
-  actor: PrioritizationActor,
+  actor: PermissionActor,
   ipAddress?: string,
 ): Promise<EvaluatePrioritizationResponse> {
   const exists = await repository.findRequestByProtocol(protocol);

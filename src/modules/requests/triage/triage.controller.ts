@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import type { EffectivePermission } from "../../../shared/catalog/permissionCatalog.ts";
+import { namedPermissionActorFromRequest } from "../../../shared/access/permissionActor.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import { buildZodFieldErrors, formatZodIssues } from "../../../shared/validation/zodErrors.ts";
@@ -10,29 +10,6 @@ import * as service from "./triage.service.ts";
 const protocolParamsSchema = z.object({
   protocol: z.string().trim().min(1, "Protocolo é obrigatório."),
 });
-
-function actorFromRequest(req: Request): service.TriageActor {
-  if (!req.user) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
-
-  const id = Number(req.user.id);
-  if (!Number.isInteger(id)) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
-
-  const permissions: EffectivePermission[] | undefined = req.permissions;
-  if (!permissions) {
-    throw new AppError("Permissões não carregadas para esta operação", 403);
-  }
-
-  return {
-    id,
-    email: req.user.email,
-    name: req.user.name,
-    permissions,
-  };
-}
 
 function assertProtocol(req: Request): string {
   const parsed = protocolParamsSchema.safeParse(req.params);
@@ -45,7 +22,7 @@ function assertProtocol(req: Request): string {
 
 export const getTriage = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocol(req);
-  const actor = actorFromRequest(req);
+  const actor = namedPermissionActorFromRequest(req);
 
   const triage = await service.getTriage(protocol, actor, req.ip);
 
@@ -54,7 +31,7 @@ export const getTriage = async (req: Request, res: Response): Promise<Response> 
 
 export const saveTriage = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocol(req);
-  const actor = actorFromRequest(req);
+  const actor = namedPermissionActorFromRequest(req);
 
   const parsed = createTriagePayloadSchema.safeParse(req.body);
   if (!parsed.success) {
