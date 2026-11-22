@@ -47,6 +47,8 @@ import { PrioritizationCriteria } from "./prioritization.ts";
 import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
 import {
   AuditActor,
+  AuditHistorySummary,
+  AuditHistoryListResponse,
   AuditHistoryDetail,
   StatusTimeInterval,
   StatusTimeByStatus,
@@ -102,6 +104,8 @@ export {
   ReviewDecisionValidate,
   ReviewDecisionReopen,
   AuditActor,
+  AuditHistorySummary,
+  AuditHistoryListResponse,
   AuditHistoryDetail,
   StatusTimeInterval,
   StatusTimeByStatus,
@@ -154,6 +158,8 @@ export const schemas = {
   ReviewDecisionValidate,
   ReviewDecisionReopen,
   AuditActor,
+  AuditHistorySummary,
+  AuditHistoryListResponse,
   AuditHistoryDetail,
   StatusTimeInterval,
   StatusTimeByStatus,

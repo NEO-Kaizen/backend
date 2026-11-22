@@ -10,6 +10,10 @@ import type {
 import * as repository from "./auditHistory.repository.ts";
 import { auditCatalog, isAuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import {
+  isRequestStatusTransitionAction,
+  parseAuditedStatusName,
+} from "../../shared/audit/statusTransition.ts";
+import {
   findRequestStatusContext,
   INITIAL_REQUEST_STATUS,
   type RequestStatusContext,
@@ -94,39 +98,17 @@ function parseStatusTransition(
   statusIdByName: ReadonlyMap<string, number>,
   statusNameById: ReadonlyMap<number, string>,
 ): { status: string | null; statusId: number | undefined } {
-  if (!value) return { status: null, statusId: undefined };
+  const parsedStatusName = parseAuditedStatusName(value);
+  if (parsedStatusName === null) return { status: null, statusId: undefined };
 
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (typeof parsed === "string") {
-      const statusId = readStatusId(snapshotStatusId) ?? statusIdByName.get(parsed);
-      return {
-        status: statusId !== undefined ? (statusNameById.get(statusId) ?? parsed) : parsed,
-        statusId,
-      };
-    }
-    if (typeof parsed !== "object" || parsed === null || !("status" in parsed)) {
-      return { status: null, statusId: undefined };
-    }
-    if (typeof parsed.status !== "string") {
-      return { status: null, statusId: undefined };
-    }
-    const embeddedStatusId =
-      "status_id" in parsed && typeof parsed.status_id === "number" ? parsed.status_id : undefined;
-    const statusId =
-      embeddedStatusId ?? readStatusId(snapshotStatusId) ?? statusIdByName.get(parsed.status);
-    return {
-      status:
-        statusId !== undefined ? (statusNameById.get(statusId) ?? parsed.status) : parsed.status,
-      statusId,
-    };
-  } catch {
-    const statusId = readStatusId(snapshotStatusId) ?? statusIdByName.get(value);
-    return {
-      status: statusId !== undefined ? (statusNameById.get(statusId) ?? value) : value,
-      statusId,
-    };
-  }
+  const statusId = readStatusId(snapshotStatusId) ?? statusIdByName.get(parsedStatusName);
+  return {
+    status:
+      statusId !== undefined
+        ? (statusNameById.get(statusId) ?? parsedStatusName)
+        : parsedStatusName,
+    statusId,
+  };
 }
 
 function readStatusId(value: number | string | null): number | undefined {
@@ -153,13 +135,7 @@ async function calculateStatusTimeForRequest(
   const transitions: StatusTimeTransition[] = [];
 
   for (const row of chronologicalRows) {
-    if (
-      row.action_type !== "request.status_change" &&
-      row.action_type !== "request.override_status_admin" &&
-      row.action_type !== "request.triage"
-    ) {
-      continue;
-    }
+    if (!isRequestStatusTransitionAction(row.action_type)) continue;
 
     const statusTransition = parseStatusTransition(
       row.new_value,
@@ -198,11 +174,8 @@ async function calculateStatusTimeForRequest(
     throw new AppError("Data de abertura da solicitação inválida", 500);
   }
 
-  const earliestAuditRow = chronologicalRows.find(
-    (row) =>
-      row.action_type === "request.status_change" ||
-      row.action_type === "request.override_status_admin" ||
-      row.action_type === "request.triage",
+  const earliestAuditRow = chronologicalRows.find((row) =>
+    isRequestStatusTransitionAction(row.action_type),
   );
   const previousStatus = parseStatusTransition(
     earliestAuditRow?.previous_value ?? null,

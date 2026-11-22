@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateStatusTime } from "../src/modules/auditHistory/statusTime.ts";
+import {
+  isRequestStatusTransitionAction,
+  parseAuditedStatusName,
+} from "../src/shared/audit/statusTransition.ts";
+
+test("shared audit utility recognizes status actions and supported value formats", () => {
+  assert.equal(isRequestStatusTransitionAction("request.status_change"), true);
+  assert.equal(isRequestStatusTransitionAction("request.triage"), true);
+  assert.equal(isRequestStatusTransitionAction("request.access_denied"), false);
+  assert.equal(parseAuditedStatusName("Em triagem"), "Em triagem");
+  assert.equal(parseAuditedStatusName('{"status":"Em triagem"}'), "Em triagem");
+  assert.equal(parseAuditedStatusName('{"status":4}'), null);
+});
 
 test("status time separates active and paused periods", () => {
   const result = calculateStatusTime({

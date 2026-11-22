@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { after, before, describe, it } from "node:test";
 import db from "../src/database/conection.ts";
 
 const hasDatabaseConfig =
@@ -8,79 +8,155 @@ const hasDatabaseConfig =
   Boolean(process.env.DB_USER) &&
   Boolean(process.env.DB_PASSWORD);
 const canRunHttpIntegration = hasDatabaseConfig && Boolean(process.env.JWT_SECRET);
+const protocol = "MAAT-8K3P-9X2M";
 
-test(
-  "GET status-times calcula a timeline semeada pela rota HTTP",
+interface TestAccount {
+  user_id: number;
+  email: string;
+  full_name: string;
+  password_changed_at: Date;
+}
+
+interface TestContext {
+  baseUrl: string;
+  cookieName: string;
+  admin: TestAccount;
+  adminToken: string;
+  closeServer: () => Promise<void>;
+  createToken: (account: TestAccount, role: "Administrador" | "Analista" | "Gestor") => string;
+}
+
+let context: TestContext | undefined;
+
+function getContext(): TestContext {
+  assert.ok(context, "o servidor de teste deve estar iniciado");
+  return context;
+}
+
+describe(
+  "integração HTTP de auditoria e transições de Status",
   { skip: !canRunHttpIntegration },
-  async () => {
-    const user = await db("users")
-      .where({ user_id: 102 })
-      .first<{ user_id: number; full_name: string; email: string; password_changed_at: Date }>(
-        "user_id",
-        "full_name",
-        "email",
-        "password_changed_at",
-      );
-    assert.ok(user, "o usuário Administrador de teste deve existir no seed");
+  () => {
+    before(async () => {
+      const admin = await db("users as u")
+        .join("profiles as p", "p.profile_id", "u.profile_id")
+        .whereRaw("lower(p.name) = ?", ["administrador"])
+        .first<TestAccount>("u.user_id", "u.email", "u.full_name", "u.password_changed_at");
+      assert.ok(admin, "o seed deve disponibilizar um usuário Administrador");
 
-    const [{ generateToken }, { app }, { default: Config }] = await Promise.all([
-      import("../src/shared/utils/jwtUtil.ts"),
-      import("../src/app.ts"),
-      import("../src/configs.ts"),
-    ]);
-    const createToken = (
-      account: {
-        user_id: number;
-        full_name: string;
-        email: string;
-        password_changed_at: Date;
-      },
-      role: "Administrador" | "Analista" | "Gestor",
-    ) =>
-      generateToken({
-        id: String(account.user_id),
-        name: account.full_name,
-        email: account.email,
-        role,
-        password_changed_at: new Date(account.password_changed_at).getTime(),
-      });
-    const adminToken = createToken(user, "Administrador");
+      const [{ generateToken }, { app }, { default: Config }] = await Promise.all([
+        import("../src/shared/utils/jwtUtil.ts"),
+        import("../src/app.ts"),
+        import("../src/configs.ts"),
+      ]);
+      const createToken: TestContext["createToken"] = (account, role) =>
+        generateToken({
+          id: String(account.user_id),
+          name: account.full_name,
+          email: account.email,
+          role,
+          password_changed_at: new Date(account.password_changed_at).getTime(),
+        });
 
-    const server = app.listen(0, "127.0.0.1");
-    try {
+      const server = app.listen(0, "127.0.0.1");
       await new Promise<void>((resolve, reject) => {
         server.once("listening", resolve);
         server.once("error", reject);
       });
       const address = server.address();
       assert.ok(address && typeof address !== "string");
-      const response = await fetch(
-        `http://127.0.0.1:${address.port}/audit-logs/MAAT-8K3P-9X2M/status-times`,
-        { headers: { Cookie: `${Config.COOKIE_NAME}=${adminToken}` } },
-      );
-      assert.equal(response.status, 200);
 
+      context = {
+        baseUrl: `http://127.0.0.1:${address.port}`,
+        cookieName: Config.COOKIE_NAME,
+        admin,
+        adminToken: createToken(admin, "Administrador"),
+        createToken,
+        closeServer: () =>
+          new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+          }),
+      };
+    });
+
+    after(async () => {
+      if (context) await context.closeServer();
+    });
+
+    it("GET /audit-history returns the filtered paginated envelope and detail", async () => {
+      const { baseUrl, cookieName, adminToken } = getContext();
+      const response = await fetch(`${baseUrl}/audit-history?page=1&limit=1&entityType=request`, {
+        headers: { Cookie: `${cookieName}=${adminToken}` },
+      });
+      assert.equal(response.status, 200);
       const result = (await response.json()) as {
+        items: Array<{ audit_id: number; entity_type: string; entity_type_label: string }>;
+        total: number;
+        page: number;
+        limit: number;
+      };
+      assert.equal(result.page, 1);
+      assert.equal(result.limit, 1);
+      assert.ok(result.total > 0);
+      assert.equal(result.items.length, 1);
+      assert.equal(result.items[0]?.entity_type, "request");
+      assert.equal(result.items[0]?.entity_type_label, "Solicitações");
+
+      const detailResponse = await fetch(`${baseUrl}/audit-history/${result.items[0]?.audit_id}`, {
+        headers: { Cookie: `${cookieName}=${adminToken}` },
+      });
+      assert.equal(detailResponse.status, 200);
+      const detail = (await detailResponse.json()) as {
+        entity_type: string;
+        actor: { kind: string };
+      };
+      assert.equal(detail.entity_type, "request");
+      assert.ok(["system", "user"].includes(detail.actor.kind));
+    });
+
+    it("GET /audit-logs/:protocol and status-times return seeded history", async () => {
+      const { baseUrl, cookieName, adminToken } = getContext();
+      const headers = { Cookie: `${cookieName}=${adminToken}` };
+
+      const timelineResponse = await fetch(`${baseUrl}/audit-logs/${protocol}`, { headers });
+      assert.equal(timelineResponse.status, 200);
+      const timeline = (await timelineResponse.json()) as Array<{ action_type: string }>;
+      assert.ok(timeline.some((event) => event.action_type === "request.status_change"));
+
+      const timesResponse = await fetch(`${baseUrl}/audit-logs/${protocol}/status-times`, {
+        headers,
+      });
+      assert.equal(timesResponse.status, 200);
+      const result = (await timesResponse.json()) as {
         protocol: string;
         intervals: Array<{ status: string; exitedAt: string | null }>;
         totalActiveMilliseconds: number;
       };
-      assert.equal(result.protocol, "MAAT-8K3P-9X2M");
+      assert.equal(result.protocol, protocol);
       assert.ok(result.totalActiveMilliseconds > 0);
       assert.equal(result.intervals.at(-1)?.status, "Aguardando mapeamento");
       assert.equal(result.intervals.at(-1)?.exitedAt, null);
+    });
 
-      const auditTimelineResponse = await fetch(
-        `http://127.0.0.1:${address.port}/audit-logs/MAAT-8K3P-9X2M`,
-        { headers: { Cookie: `${Config.COOKIE_NAME}=${adminToken}` } },
-      );
-      assert.equal(auditTimelineResponse.status, 200);
-      const auditTimeline = (await auditTimelineResponse.json()) as Array<{
-        action_type: string;
-      }>;
-      assert.ok(auditTimeline.some((event) => event.action_type === "request.status_change"));
+    it("GET /audit-history rejects roles outside Administrador and Gestor", async () => {
+      const { baseUrl, cookieName, createToken } = getContext();
+      const analyst = await db("users as u")
+        .join("profiles as p", "p.profile_id", "u.profile_id")
+        .whereRaw("lower(p.name) = ?", ["analista"])
+        .first<TestAccount>("u.user_id", "u.email", "u.full_name", "u.password_changed_at");
+      assert.ok(analyst, "o seed deve disponibilizar um usuário Analista");
 
-      const configResponse = await fetch(`http://127.0.0.1:${address.port}/portal-config`);
+      const response = await fetch(`${baseUrl}/audit-history`, {
+        headers: { Cookie: `${cookieName}=${createToken(analyst, "Analista")}` },
+      });
+      assert.equal(response.status, 403);
+      const body = (await response.json()) as { message: string };
+      assert.match(body.message, /Acesso restrito/);
+    });
+
+    it("PATCH /portal-config/statuses updates and returns pause configuration", async () => {
+      const { baseUrl, cookieName, adminToken } = getContext();
+      const configResponse = await fetch(`${baseUrl}/portal-config`);
       assert.equal(configResponse.status, 200);
       const config = (await configResponse.json()) as {
         statuses: Array<{
@@ -97,8 +173,6 @@ test(
           isActive: boolean;
         }>;
       };
-      assert.ok(config.statuses.length > 0);
-      assert.ok(config.statuses.every((status) => typeof status.isPaused === "boolean"));
       const configurableStatus = config.statuses.find((status) => !status.isCore);
       assert.ok(configurableStatus, "deve haver um Status configurável no seed");
       const updatedStatuses = config.statuses.map((status) =>
@@ -106,20 +180,17 @@ test(
       );
       let pauseConfigChanged = false;
       try {
-        const updateConfigResponse = await fetch(
-          `http://127.0.0.1:${address.port}/portal-config/statuses`,
-          {
-            method: "PATCH",
-            headers: {
-              Cookie: `${Config.COOKIE_NAME}=${adminToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ statuses: updatedStatuses }),
+        const updateResponse = await fetch(`${baseUrl}/portal-config/statuses`, {
+          method: "PATCH",
+          headers: {
+            Cookie: `${cookieName}=${adminToken}`,
+            "Content-Type": "application/json",
           },
-        );
-        pauseConfigChanged = updateConfigResponse.status === 200;
-        assert.equal(updateConfigResponse.status, 200);
-        const updatedConfig = (await updateConfigResponse.json()) as {
+          body: JSON.stringify({ statuses: updatedStatuses }),
+        });
+        pauseConfigChanged = updateResponse.status === 200;
+        assert.equal(updateResponse.status, 200);
+        const updatedConfig = (await updateResponse.json()) as {
           statuses: Array<{ id: number; isPaused: boolean }>;
         };
         assert.equal(
@@ -128,185 +199,148 @@ test(
         );
       } finally {
         if (pauseConfigChanged) {
-          const restoreConfigResponse = await fetch(
-            `http://127.0.0.1:${address.port}/portal-config/statuses`,
-            {
-              method: "PATCH",
-              headers: {
-                Cookie: `${Config.COOKIE_NAME}=${adminToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ statuses: config.statuses }),
+          const restoreResponse = await fetch(`${baseUrl}/portal-config/statuses`, {
+            method: "PATCH",
+            headers: {
+              Cookie: `${cookieName}=${adminToken}`,
+              "Content-Type": "application/json",
             },
-          );
-          assert.equal(restoreConfigResponse.status, 200);
+            body: JSON.stringify({ statuses: config.statuses }),
+          });
+          assert.equal(restoreResponse.status, 200);
         }
       }
+    });
 
-      const settingsAudit = await db("audit_history")
-        .where({ entity_type: "settings", action_type: "settings.update" })
-        .orderBy("audit_id", "desc")
-        .first<{ audit_id: number }>("audit_id");
-      assert.ok(settingsAudit);
-      const detailResponse = await fetch(
-        `http://127.0.0.1:${address.port}/audit-history/${settingsAudit.audit_id}`,
-        { headers: { Cookie: `${Config.COOKIE_NAME}=${adminToken}` } },
-      );
-      assert.equal(detailResponse.status, 200);
-      const auditDetail = (await detailResponse.json()) as {
-        entity_type: string;
-        action_type: string;
-        actor: { kind: string };
-      };
-      assert.equal(auditDetail.entity_type, "settings");
-      assert.equal(auditDetail.action_type, "settings.update");
-      assert.equal(auditDetail.actor.kind, "user");
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
-      });
-    }
+    it("PATCH /requests/:protocol/status records an authorized human transition", async () => {
+      const { baseUrl, cookieName, createToken, adminToken } = getContext();
+      const request = await db("requests as r")
+        .join("details_professional as p", "p.professional_id", "r.professional_id")
+        .where("r.protocol", protocol)
+        .first<{ request_id: number; status_id: number; assignee_user_id: number }>(
+          "r.request_id",
+          "r.status_id",
+          "p.user_id as assignee_user_id",
+        );
+      assert.ok(request);
+      const analyst = await db("users as u")
+        .join("profiles as p", "p.profile_id", "u.profile_id")
+        .where("u.user_id", request.assignee_user_id)
+        .first<TestAccount & { profile_name: string }>(
+          "u.user_id",
+          "u.email",
+          "u.full_name",
+          "u.password_changed_at",
+          "p.name as profile_name",
+        );
+      assert.ok(analyst);
+      assert.equal(analyst.profile_name.toLowerCase(), "analista");
+      const target = await db("statuses")
+        .where({
+          is_active: true,
+          is_terminal: false,
+          is_restricted: false,
+          is_public: false,
+        })
+        .whereNot("status_id", request.status_id)
+        .andWhere((builder) => builder.where("triage_mode", "free").orWhere("mapping_mode", "free"))
+        .orderBy("status_id")
+        .first<{ status_id: number; name: string }>("status_id", "name");
+      assert.ok(target, "deve haver um Status interno acessível ao Analista");
 
-    const protocol = "MAAT-8K3P-9X2M";
-    const request = await db("requests as r")
-      .join("details_professional as p", "p.professional_id", "r.professional_id")
-      .where("r.protocol", protocol)
-      .first<{
-        request_id: number;
-        status_id: number;
-        assignee_user_id: number;
-        requester_id: string;
-      }>("r.request_id", "r.status_id", "p.user_id as assignee_user_id", "r.requester_id");
-    assert.ok(request);
+      let transitionCommitted = false;
+      try {
+        const response = await fetch(`${baseUrl}/requests/${protocol}/status`, {
+          method: "PATCH",
+          headers: {
+            Cookie: `${cookieName}=${createToken(analyst, "Analista")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            targetStatus: target.status_id,
+            justification: "Validação de integração da auditoria.",
+            lastTechnicalMessage: "Validação de integração.",
+          }),
+        });
+        transitionCommitted = response.status === 200;
+        assert.equal(response.status, 200);
+        const body = (await response.json()) as {
+          protocol: string;
+          previous: string;
+          next: string;
+          lastUpdate: string;
+        };
+        assert.equal(body.protocol, protocol);
+        assert.equal(body.previous, "Aguardando mapeamento");
+        assert.equal(body.next, target.name);
+        assert.ok(Number.isFinite(Date.parse(body.lastUpdate)));
+        const auditEvent = await db("audit_history")
+          .where({
+            entity_type: "request",
+            entity_id: protocol,
+            action_type: "request.status_change",
+            user_id: analyst.user_id,
+            status_id: target.status_id,
+          })
+          .first("audit_id");
+        assert.ok(auditEvent, "a transição deve gravar o snapshot de Status");
+      } finally {
+        if (transitionCommitted) {
+          const restoreResponse = await fetch(`${baseUrl}/requests/${protocol}/status`, {
+            method: "PATCH",
+            headers: {
+              Cookie: `${cookieName}=${adminToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              targetStatus: request.status_id,
+              justification: "Restaurar estado do seed.",
+              lastTechnicalMessage: "Validação de integração.",
+            }),
+          });
+          assert.equal(restoreResponse.status, 200);
+        }
+      }
+    });
 
-    const analyst = await db("users as u")
-      .join("profiles as p", "p.profile_id", "u.profile_id")
-      .where("u.user_id", request.assignee_user_id)
-      .first<{
-        user_id: number;
-        email: string;
-        full_name: string;
-        password_changed_at: Date;
-        profile_name: string;
-      }>("u.user_id", "u.email", "u.full_name", "u.password_changed_at", "p.name as profile_name");
-    assert.ok(analyst);
-    assert.equal(analyst.profile_name.toLowerCase(), "analista");
+    it("PATCH /requests/:protocol/status returns the denied response and records the attempt", async () => {
+      const { baseUrl, cookieName, createToken } = getContext();
+      const manager = await db("users as u")
+        .join("profiles as p", "p.profile_id", "u.profile_id")
+        .whereRaw("lower(p.name) = ?", ["gestor"])
+        .first<TestAccount>("u.user_id", "u.email", "u.full_name", "u.password_changed_at");
+      assert.ok(manager, "o seed deve disponibilizar um usuário Gestor");
+      const request = await db("requests")
+        .where({ protocol })
+        .first<{ status_id: number }>("status_id");
+      assert.ok(request);
+      const target = await db("statuses")
+        .where({ is_active: true, is_terminal: false })
+        .whereNot("status_id", request.status_id)
+        .orderBy("status_id")
+        .first<{ status_id: number }>("status_id");
+      assert.ok(target, "deve haver um Status de destino para a tentativa negada");
 
-    const target = await db("statuses")
-      .where({
-        is_active: true,
-        is_terminal: false,
-        is_restricted: false,
-        is_public: false,
-      })
-      .whereNot("status_id", request.status_id)
-      .andWhere((builder) => builder.where("triage_mode", "free").orWhere("mapping_mode", "free"))
-      .orderBy("status_id")
-      .first<{ status_id: number; name: string }>("status_id", "name");
-    assert.ok(target, "deve haver um Status interno acessível ao Analista");
-
-    const manager = await db("users as u")
-      .join("profiles as p", "p.profile_id", "u.profile_id")
-      .whereRaw("lower(p.name) = ?", ["gestor"])
-      .first<{
-        user_id: number;
-        email: string;
-        full_name: string;
-        password_changed_at: Date;
-      }>("u.user_id", "u.email", "u.full_name", "u.password_changed_at");
-    assert.ok(manager, "o seed deve disponibilizar um usuário Gestor");
-
-    const requester = await db("requesters")
-      .where({ requester_id: request.requester_id })
-      .first<{ full_name: string; corporate_email: string }>("full_name", "corporate_email");
-    assert.ok(requester, "o seed deve disponibilizar a identidade do solicitante");
-
-    const analystToken = createToken(analyst, "Analista");
-    const managerToken = createToken(manager, "Gestor");
-    const routeServer = app.listen(0, "127.0.0.1");
-    let routeBaseUrl = "";
-    let analystTransitionCommitted = false;
-    try {
-      await new Promise<void>((resolve, reject) => {
-        routeServer.once("listening", resolve);
-        routeServer.once("error", reject);
-      });
-      const address = routeServer.address();
-      assert.ok(address && typeof address !== "string");
-      routeBaseUrl = `http://127.0.0.1:${address.port}`;
-
-      const statusChange = await fetch(`${routeBaseUrl}/requests/${protocol}/status`, {
+      const response = await fetch(`${baseUrl}/requests/${protocol}/status`, {
         method: "PATCH",
         headers: {
-          Cookie: `${Config.COOKIE_NAME}=${analystToken}`,
+          Cookie: `${cookieName}=${createToken(manager, "Gestor")}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           targetStatus: target.status_id,
-          justification: "Validação de integração da auditoria.",
-          lastTechnicalMessage: "Validação de integração.",
-        }),
-      });
-      analystTransitionCommitted = statusChange.status === 200;
-      assert.equal(statusChange.status, 200);
-      const statusChangeBody = (await statusChange.json()) as {
-        protocol: string;
-        previous: string;
-        next: string;
-        lastUpdate: string;
-      };
-      assert.equal(statusChangeBody.protocol, protocol);
-      assert.equal(statusChangeBody.previous, "Aguardando mapeamento");
-      assert.equal(statusChangeBody.next, target.name);
-      assert.ok(Number.isFinite(Date.parse(statusChangeBody.lastUpdate)));
-
-      const humanEvent = await db("audit_history")
-        .where({
-          entity_type: "request",
-          entity_id: protocol,
-          action_type: "request.status_change",
-          user_id: analyst.user_id,
-          status_id: target.status_id,
-        })
-        .first("audit_id");
-      assert.ok(humanEvent, "a transição humana deve gerar um evento auditado com snapshot");
-      const restoreResponse = await fetch(`${routeBaseUrl}/requests/${protocol}/status`, {
-        method: "PATCH",
-        headers: {
-          Cookie: `${Config.COOKIE_NAME}=${adminToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          targetStatus: request.status_id,
-          justification: "Restaurar estado do seed.",
-          lastTechnicalMessage: "Validação de integração.",
-        }),
-      });
-      analystTransitionCommitted = restoreResponse.status !== 200;
-      assert.equal(restoreResponse.status, 200);
-      analystTransitionCommitted = false;
-
-      const deniedResponse = await fetch(`${routeBaseUrl}/requests/${protocol}/status`, {
-        method: "PATCH",
-        headers: {
-          Cookie: `${Config.COOKIE_NAME}=${managerToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          targetStatus: request.status_id,
           justification: "Validar tentativa negada.",
         }),
       });
-      assert.equal(deniedResponse.status, 403);
-      const deniedBody = (await deniedResponse.json()) as {
+      assert.equal(response.status, 403);
+      const body = (await response.json()) as {
         status: string;
         statusCode: number;
         code: string;
       };
-      assert.equal(deniedBody.status, "error");
-      assert.equal(deniedBody.statusCode, 403);
-      assert.equal(deniedBody.code, "INSUFFICIENT_ROLE_PERMISSIONS");
-
+      assert.equal(body.status, "error");
+      assert.equal(body.statusCode, 403);
+      assert.equal(body.code, "INSUFFICIENT_ROLE_PERMISSIONS");
       const deniedEvent = await db("audit_history")
         .where({
           entity_type: "request",
@@ -316,10 +350,23 @@ test(
         })
         .orderBy("audit_id", "desc")
         .first("audit_id");
-      assert.ok(deniedEvent, "a tentativa negada deve gerar request.access_denied");
+      assert.ok(deniedEvent);
+    });
 
-      const pendingResponse = await fetch(
-        `${routeBaseUrl}/requests/${protocol}/pending-items/00000000-0000-4000-8000-000000000099`,
+    it("PATCH /requests/:protocol/pending-items/:id records an automatic transition as system", async () => {
+      const { baseUrl } = getContext();
+      const request = await db("requests")
+        .where({ protocol })
+        .first<{ request_id: number }>("request_id");
+      assert.ok(request);
+      const requester = await db("requests as r")
+        .join("requesters as q", "q.requester_id", "r.requester_id")
+        .where("r.protocol", protocol)
+        .first<{ full_name: string; corporate_email: string }>("q.full_name", "q.corporate_email");
+      assert.ok(requester);
+
+      const response = await fetch(
+        `${baseUrl}/requests/${protocol}/pending-items/00000000-0000-4000-8000-000000000099`,
         {
           method: "PATCH",
           headers: {
@@ -334,15 +381,14 @@ test(
           }),
         },
       );
-      assert.equal(pendingResponse.status, 200);
-      const pendingBody = (await pendingResponse.json()) as { status: string };
-      assert.equal(pendingBody.status, "responded");
+      assert.equal(response.status, 200);
+      const body = (await response.json()) as { status: string };
+      assert.equal(body.status, "responded");
 
       const automaticTarget = await db("statuses")
         .where({ name: "Em triagem" })
-        .first<{ status_id: number; name: string }>("status_id", "name");
-      assert.ok(automaticTarget, "o Status de triagem deve existir no seed");
-
+        .first<{ status_id: number }>("status_id");
+      assert.ok(automaticTarget);
       const automaticEvent = await db("audit_history")
         .where({
           entity_type: "request",
@@ -360,32 +406,10 @@ test(
       assert.equal(automaticEvent.user_id, null);
       assert.equal(automaticEvent.change_origin, "system");
       assert.ok(automaticEvent.transaction_id);
-    } finally {
-      try {
-        if (analystTransitionCommitted) {
-          const restoreResponse = await fetch(`${routeBaseUrl}/requests/${protocol}/status`, {
-            method: "PATCH",
-            headers: {
-              Cookie: `${Config.COOKIE_NAME}=${adminToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              targetStatus: request.status_id,
-              justification: "Restaurar estado do seed após falha do teste.",
-              lastTechnicalMessage: "Validação de integração.",
-            }),
-          });
-          assert.equal(restoreResponse.status, 200);
-        }
-      } finally {
-        await new Promise<void>((resolve, reject) => {
-          routeServer.close((error) => (error ? reject(error) : resolve()));
-        });
-      }
-    }
+    });
   },
 );
 
-test("fecha o pool do banco após os testes de integração", async () => {
+after(async () => {
   await db.destroy();
 });

@@ -8,6 +8,7 @@ import {
   type ChangeOrigin,
   type ComposedAuditAction,
 } from "./auditCatalog.ts";
+import { isRequestStatusTransitionAction, parseAuditedStatusName } from "./statusTransition.ts";
 
 export interface AuditEntryBase {
   /** Identificador da entidade afetada. */
@@ -24,32 +25,6 @@ export interface AuditEntryBase {
   ipAddress?: string | null;
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
   changeOrigin?: ChangeOrigin | null;
-}
-
-const requestStatusTransitionActions = new Set([
-  "request.status_change",
-  "request.override_status_admin",
-  "request.triage",
-]);
-
-function extractStatusName(value: string | null | undefined): string | null {
-  if (value == null) return null;
-
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (typeof parsed === "string") return parsed;
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "status" in parsed &&
-      typeof parsed.status === "string"
-    ) {
-      return parsed.status;
-    }
-    return null;
-  } catch {
-    return value;
-  }
 }
 
 async function findStatusIdByName(
@@ -101,11 +76,11 @@ export async function recordAudit<E extends AuditEntityType, A extends ComposedA
   }
 
   const isStatusTransition =
-    entry.entityType === "request" && requestStatusTransitionActions.has(entry.actionType);
+    entry.entityType === "request" && isRequestStatusTransitionAction(entry.actionType);
   const [statusId, previousStatusId] = isStatusTransition
     ? await Promise.all([
-        findStatusIdByName(trx, extractStatusName(entry.newValue)),
-        findStatusIdByName(trx, extractStatusName(entry.previousValue)),
+        findStatusIdByName(trx, parseAuditedStatusName(entry.newValue)),
+        findStatusIdByName(trx, parseAuditedStatusName(entry.previousValue)),
       ])
     : [null, null];
 

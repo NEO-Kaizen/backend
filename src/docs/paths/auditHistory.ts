@@ -1,3 +1,7 @@
+import { auditCatalog } from "../../shared/audit/auditCatalog.ts";
+
+const auditEntityTypes = Object.keys(auditCatalog);
+
 export default {
   "/audit-history": {
     get: {
@@ -7,12 +11,43 @@ export default {
         "Lista o histórico de auditoria. Exige autenticação e perfil Administrador ou Gestor.",
       operationId: "listAuditHistory",
       security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "page",
+          in: "query",
+          required: false,
+          description: "Página solicitada (padrão: 1).",
+          schema: { type: "integer", minimum: 1, default: 1, example: 1 },
+        },
+        {
+          name: "limit",
+          in: "query",
+          required: false,
+          description: "Itens por página (padrão: 20; máximo: 100).",
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 20, example: 20 },
+        },
+        {
+          name: "entityType",
+          in: "query",
+          required: false,
+          description: "Filtra pelo tipo de entidade auditada.",
+          schema: { type: "string", enum: auditEntityTypes, example: "request" },
+        },
+      ],
       responses: {
         "200": {
-          description: "Lista de registros de auditoria.",
+          description: "Lista paginada de registros de auditoria.",
           content: {
             "application/json": {
-              schema: { type: "array", items: { type: "object" } },
+              schema: { $ref: "#/components/schemas/AuditHistoryListResponse" },
+            },
+          },
+        },
+        "400": {
+          description: "Parâmetros de consulta inválidos.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
             },
           },
         },
@@ -25,7 +60,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso ou protocolo não visível ao Analista sem custódia.",
+          description: "Perfil diferente de Administrador ou Gestor.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -69,7 +104,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso ou protocolo não visível ao Analista sem custódia.",
+          description: "Perfil diferente de Administrador ou Gestor.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

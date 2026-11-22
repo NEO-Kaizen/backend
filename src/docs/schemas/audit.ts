@@ -15,6 +15,37 @@ export const AuditActor = {
   },
 };
 
+export const AuditHistorySummary = {
+  type: "object",
+  required: ["audit_id", "entity_type", "entity_type_label", "action_type", "actor", "occurred_at"],
+  properties: {
+    audit_id: { type: "integer", minimum: 1, example: 17 },
+    entity_type: { type: "string", enum: auditEntityTypes, example: "request" },
+    entity_type_label: { type: "string", example: "Solicitações" },
+    action_type: { type: "string", enum: auditActionTypes, example: "request.status_change" },
+    actor: { $ref: "#/components/schemas/AuditActor" },
+    occurred_at: {
+      type: "string",
+      format: "date-time",
+      example: "2026-11-20T14:22:45.736Z",
+    },
+  },
+};
+
+export const AuditHistoryListResponse = {
+  type: "object",
+  required: ["items", "total", "page", "limit"],
+  properties: {
+    items: {
+      type: "array",
+      items: { $ref: "#/components/schemas/AuditHistorySummary" },
+    },
+    total: { type: "integer", minimum: 0, example: 42 },
+    page: { type: "integer", minimum: 1, example: 1 },
+    limit: { type: "integer", minimum: 1, maximum: 100, example: 20 },
+  },
+};
+
 export const AuditHistoryDetail = {
   type: "object",
   required: [
