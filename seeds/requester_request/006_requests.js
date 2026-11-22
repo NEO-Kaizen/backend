@@ -56,7 +56,7 @@ export async function seed(knex) {
       last_technical_message:
         "Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.",
       estimated_completion: "2026-10-18",
-      meeting_scheduled_for: "2026-10-15T10:30:00-03:00",
+      meeting_scheduled_for: "2026-09-15T11:00:00-03:00",
       meeting_link: null,
       created_by: "maria.silva@empresa.com",
       created_at: "2026-07-01 09:00:00",

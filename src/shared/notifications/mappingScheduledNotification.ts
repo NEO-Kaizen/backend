@@ -22,7 +22,7 @@ export interface MappingScheduledNotificationInput extends Omit<
 /**
  * Emite o Evento "Agendamento do Mapeamento" (issue #160).
  *
- * Audiência: o solicitante autenticado e o designado de custódia da
+ * Audiência: o solicitante autenticado e o Responsável do Mapeamento da
  * solicitação — a matriz #156 declara `requests.mapping_professional_id`;
  * sem ele, não há destinatário designado. O ator é removido pelo
  * emissor, e dedup garante uma Notificação por destinatário.
