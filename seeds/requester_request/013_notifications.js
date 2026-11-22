@@ -13,10 +13,19 @@ const UNASSIGNED_ADMIN_EMAILS = [
 async function findRequestPointers(knex) {
   const rows = await knex("requests")
     .whereIn("request_id", SEED_REQUEST_IDS)
-    .select("request_id", "protocol", "title");
+    .join("categories", "categories.category_id", "requests.category_id")
+    .select(
+      "requests.request_id",
+      "requests.protocol",
+      "requests.title",
+      "categories.name as category",
+    );
 
   const byId = new Map(
-    rows.map((row) => [Number(row.request_id), { protocol: row.protocol, title: row.title }]),
+    rows.map((row) => [
+      Number(row.request_id),
+      { protocol: row.protocol, title: row.title, category: row.category },
+    ]),
   );
 
   return new Map(
@@ -68,20 +77,21 @@ function notification({
   };
 }
 
-function seedNotificationId(value) {
-  return `f0000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
+/** Id fixo com sufixo hexadecimal — evita colisão com os ids dos Eventos anteriores. */
+function notificationId(offset) {
+  return `f0000000-0000-4000-8000-00000000000${offset.toString(16)}`;
 }
 
 function buildNotifications({ requestPointers, unassignedAdminIds }) {
   const pointer = (requestId) => {
     const value = requestPointers.get(requestId);
     if (!value) throw new Error(`Ponteiro da solicitação ${requestId} ausente.`);
-    return value;
+    return { protocol: value.protocol, title: value.title };
   };
 
   return [
     notification({
-      id: seedNotificationId(1),
+      id: notificationId(1),
       recipientUserId: 112, // Fabio Solicitante
       requestId: 1,
       payload: {
@@ -93,7 +103,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       createdAt: "2026-11-18 09:15:00",
     }),
     notification({
-      id: seedNotificationId(2),
+      id: notificationId(2),
       recipientUserId: 112, // Fabio Solicitante
       requestId: 1,
       payload: {
@@ -106,7 +116,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       createdAt: "2026-11-17 14:00:00",
     }),
     notification({
-      id: seedNotificationId(3),
+      id: notificationId(3),
       recipientUserId: 104, // Solicitante Teste
       requestId: 3,
       payload: {
@@ -118,7 +128,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       createdAt: "2026-11-19 10:00:00",
     }),
     notification({
-      id: seedNotificationId(4),
+      id: notificationId(4),
       recipientUserId: 101, // Analista Teste — Responsável pela request 1
       requestId: 1,
       payload: {
@@ -130,7 +140,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
     }),
     ...unassignedAdminIds.map((recipientUserId, index) =>
       notification({
-        id: seedNotificationId(5 + index),
+        id: notificationId(5 + index),
         recipientUserId,
         requestId: 3,
         payload: {
@@ -142,38 +152,33 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
         createdAt: "2026-11-19 16:42:00",
       }),
     ),
+    // issue #161: Designação de Responsável (request 1) — designação do Analista
+    // Teste e redesignação da Roberta Analista. Idempotente por ids/chaves fixas.
     notification({
-      id: seedNotificationId(8),
-      recipientUserId: 104, // Solicitante Teste
-      requestId: 3,
+      id: notificationId(12),
+      recipientUserId: 101, // Analista Teste — primeira designação
+      requestId: 1,
       payload: {
-        type: "pending_item_created",
-        ...pointer(3),
+        type: "responsible_assigned",
+        ...pointer(1),
+        category: requestPointers.get(1).category,
+        status: "Aguardando mapeamento",
       },
-      dedupKey: "seed:pending_item.create:3:104",
-      createdAt: "2026-11-19 10:05:00",
+      dedupKey: "seed:request.assigned:1:101",
+      createdAt: "2026-11-19 17:00:00",
     }),
     notification({
-      id: seedNotificationId(9),
-      recipientUserId: 104, // Solicitante Teste
-      requestId: 3,
+      id: notificationId(13),
+      recipientUserId: 107, // Roberta Analista — redesignação
+      requestId: 1,
       payload: {
-        type: "pending_item_reopened",
-        ...pointer(3),
+        type: "responsible_assigned",
+        ...pointer(1),
+        category: requestPointers.get(1).category,
+        status: "Aguardando mapeamento",
       },
-      dedupKey: "seed:pending_item.reopen:3:104",
-      createdAt: "2026-11-19 11:20:00",
-    }),
-    notification({
-      id: seedNotificationId(10),
-      recipientUserId: 104, // Solicitante Teste
-      requestId: 3,
-      payload: {
-        type: "pending_item_validated",
-        ...pointer(3),
-      },
-      dedupKey: "seed:pending_item.validate:3:104",
-      createdAt: "2026-11-20 09:40:00",
+      dedupKey: "seed:request.assigned:1:107",
+      createdAt: "2026-11-19 17:05:00",
     }),
   ];
 }
@@ -182,17 +187,12 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
  * Massa fictícia dos Eventos de Notificação do RF20.
  *
  * - issue #157: `status_changed` para os solicitantes dos seeds 004 e 006;
- * - issue #158: `pending_item_created`, `pending_item_reopened` e
- *   `pending_item_validated` para o solicitante da request 3;
  * - issue #159: `pending_item_responded` na request 1 (com Responsável) e
  *   `pending_item_responded_unassigned` na request 3 (sem Responsável), com o
- *   aviso explícito e os Administradores ativos do seed 004 como destinatários.
+ *   aviso explícito e os Administradores ativos do seed 004 como destinatários;
  *
- * A massa é histórica: os Eventos de Pendência não replicam o estado atual de
- * `pending_items` (um lote aberto pode conviver com Notificações antigas de
- * criação, reabertura e validação). Os ids dos Administradores e os ponteiros
- * das solicitações vêm do banco para não duplicar números/strings mágicas do
- * seed 004/006.
+ * Os ids dos Administradores e os ponteiros das solicitações vêm do banco para
+ * não duplicar números/strings mágicas do seed 004/006.
  *
  * Pré-requisitos: seeds 004_users e 006_requests (as FKs de destinatário e
  * solicitação precisam existir). Idempotente por `dedup_key`: apaga as
