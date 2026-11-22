@@ -397,7 +397,7 @@ export async function findRequestsByRequesterEmail(
       protocol: "requests.protocol",
       process_name: "requests.process_name",
       priority: "priorities.level",
-      status: db.raw(`${PUBLIC_STATUS_SUMMARY_SQL} as status`),
+      status: db.raw(PUBLIC_STATUS_SUMMARY_SQL),
       assignee: "assignee_user.full_name",
       requester_name: "requesters.full_name",
       created_at: "requests.created_at",
@@ -427,6 +427,7 @@ export async function findRequestsByRequesterEmail(
 export interface RequestWithOwner {
   detail: RequestDetail;
   requesterEmail: string;
+  requesterUserId: number | null;
 }
 
 export async function findRequestByProtocolWithOwner(
@@ -458,6 +459,7 @@ export async function findRequestByProtocolWithOwner(
       "r.meeting_link as meetingLink",
       "r.last_external_update_at as lastUpdate",
       "requester.corporate_email as requesterEmail",
+      "r.requester_user_id as requesterUserId",
     )
     .where("r.protocol", protocol)
     .first();
@@ -490,6 +492,7 @@ export async function findRequestByProtocolWithOwner(
       conclusion: null,
     } satisfies RequestDetail,
     requesterEmail: response.requesterEmail ?? "",
+    requesterUserId: response.requesterUserId ?? null,
   };
 }
 

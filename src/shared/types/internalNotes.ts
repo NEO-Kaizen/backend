@@ -2,6 +2,11 @@ import type { Role } from "./role.ts";
 
 export type InternalRole = Exclude<Role, "Solicitante">;
 
+/** Estreita o Perfil exibido para a composição interna do contrato da timeline. */
+export function isInternalRole(role: Role): role is InternalRole {
+  return role !== "Solicitante";
+}
+
 export interface InternalNoteRow {
   internal_note_id: string;
   request_id: string;

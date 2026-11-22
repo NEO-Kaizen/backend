@@ -1,7 +1,10 @@
 import express from "express";
 import multer from "multer";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import {
+  requirePermission,
+  requirePermissionIfSession,
+} from "../../shared/middleware/requirePermission.ts";
 import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import {
   createPendingItems,
@@ -33,23 +36,29 @@ const upload = multer({
 const uploadSingle = upload.single("file");
 
 // rotas de pendência: :protocol no mergeParams do mount /requests/:protocol/pending-items
-router.post(
+router.post("/", authMiddleware, requirePermission("pending_item:write"), createPendingItems);
+router.get(
   "/",
-  authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
-  createPendingItems,
+  requesterDualAuth,
+  requirePermissionIfSession(["pending_item:read", "pending_item:respond"]),
+  listPendingItems,
 );
-router.get("/", requesterDualAuth, listPendingItems);
 router.patch(
   "/review",
   authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
+  requirePermission("pending_item:review"),
   reviewPendingItems,
 );
-router.patch("/:pendingItemId", requesterDualAuth, respondPendingItem);
+router.patch(
+  "/:pendingItemId",
+  requesterDualAuth,
+  requirePermissionIfSession("pending_item:respond"),
+  respondPendingItem,
+);
 router.post(
   "/:pendingItemId/attachments",
   requesterDualAuth,
+  requirePermissionIfSession("pending_item:respond"),
   (req, res, next) => {
     uploadSingle(req, res, (err) => {
       if (err) {

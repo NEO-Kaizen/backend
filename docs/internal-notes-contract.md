@@ -3,8 +3,9 @@
 Contrato Frontend ↔ Backend das observações privadas vinculadas a uma solicitação
 (issue #98).
 
-- Acesso exclusivo aos perfis `Analista`, `Gestor` e `Administrador`.
-- O perfil `Solicitante` não consulta, publica nem marca observações como visualizadas.
+- GET e `PUT /read` exigem `internal_note:read`; `POST` exige `internal_note:write`.
+- As duas chaves são `custodial`: `assigned` alcança a solicitação em que o ator é o Responsável corrente; `all` dispensa o filtro de linha.
+- Sem a chave, a rota responde `403`; solicitação inexistente ou fora da Custódia responde `404` genérico e registra a Tentativa.
 - As observações são imutáveis no MVP: não há edição nem exclusão.
 - `requests.internal_notes` é legado e não participa deste contrato.
 - Erros usam o envelope
@@ -153,8 +154,8 @@ ocorre quando o usuário abre efetivamente a aba.
 | `400`  | Protocolo, conteúdo ou ID de observação inválido  |
 | `400`  | A observação informada não pertence à solicitação |
 | `401`  | Cookie ausente, sessão inválida ou expirada       |
-| `403`  | Perfil `Solicitante`                              |
-| `404`  | Solicitação não encontrada                        |
+| `403`  | Sessão sem a chave da rota                        |
+| `404`  | Solicitação inexistente ou fora da Custódia       |
 
 ---
 

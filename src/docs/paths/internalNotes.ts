@@ -4,7 +4,8 @@ export default {
       tags: ["Notas internas"],
       summary: "Listar notas internas",
       description:
-        "Lista as notas internas de uma solicitação. Exige autenticação e perfil interno.",
+        "Lista as notas internas e a Linha do tempo da solicitação. " +
+        "Exige `internal_note:read` sob Custódia do Responsável corrente; `all` dispensa o filtro de linha.",
       operationId: "listInternalNotes",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -33,7 +34,15 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `internal_note:read`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação inexistente ou fora da Custódia do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -46,7 +55,8 @@ export default {
       tags: ["Notas internas"],
       summary: "Criar nota interna",
       description:
-        "Cria uma nova nota interna para a solicitação. Exige autenticação e perfil interno.",
+        "Cria uma nova nota interna para a solicitação. " +
+        "Exige `internal_note:write` sob Custódia do Responsável corrente; a autoria vem da sessão.",
       operationId: "createInternalNote",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -89,7 +99,15 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `internal_note:write`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação inexistente ou fora da Custódia do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -102,7 +120,8 @@ export default {
       tags: ["Notas internas"],
       summary: "Marcar notas internas como lidas",
       description:
-        "Marca as notas internas de uma solicitação como lidas. Exige autenticação e perfil interno.",
+        "Avança o checkpoint de leitura até a última nota carregada. " +
+        "Exige `internal_note:read` sob Custódia do Responsável corrente.",
       operationId: "markInternalNotesRead",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -113,9 +132,31 @@ export default {
           schema: { type: "string", example: "MAAT-8K3P-9X2M" },
         },
       ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["lastReadNoteId"],
+              properties: {
+                lastReadNoteId: { type: "string", example: "12" },
+              },
+            },
+          },
+        },
+      },
       responses: {
-        "200": {
-          description: "Notas marcadas como lidas.",
+        "204": {
+          description: "Checkpoint de leitura atualizado.",
+        },
+        "400": {
+          description: "ID de nota inválido ou de outra solicitação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
         },
         "401": {
           description: "Sem sessão ou token inválido.",
@@ -126,7 +167,15 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `internal_note:read`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação inexistente ou fora da Custódia do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

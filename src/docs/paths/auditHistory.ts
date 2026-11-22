@@ -4,7 +4,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Listar histórico de auditoria",
       description:
-        "Lista o histórico de auditoria. Exige autenticação e perfil Administrador ou Gestor.",
+        "Lista o histórico de auditoria. Exige `audit:read`. Em Custódia `assigned`, a listagem traz apenas eventos ligados às solicitações do Responsável corrente; `all` vê todas as entidades.",
       operationId: "listAuditHistory",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -25,7 +25,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `audit:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -40,7 +40,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Consultar detalhe de auditoria",
       description:
-        "Consulta um registro específico de auditoria pelo ID. Exige autenticação e perfil Administrador ou Gestor.",
+        "Consulta um registro específico de auditoria pelo ID. Exige `audit:read`. Em Custódia `assigned`, o registro precisa pertencer a uma solicitação do Responsável corrente; fora do recorte responde 404 sem revelar existência.",
       operationId: "getAuditHistoryDetail",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -69,7 +69,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `audit:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -77,7 +77,7 @@ export default {
           },
         },
         "404": {
-          description: "Registro de auditoria não encontrado.",
+          description: "Registro não encontrado ou fora da Custódia do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -92,7 +92,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Consultar logs de auditoria por protocolo",
       description:
-        "Retorna a timeline de auditoria de uma solicitação. Exige autenticação e perfil interno (Analista, Gestor ou Administrador).",
+        "Retorna a timeline de auditoria de uma solicitação. Exige `audit:read` sob Custódia do Responsável corrente; `all` dispensa o filtro de linha. Protocolo inexistente ou fora da Custódia responde 404 genérico.",
       operationId: "getAuditLogsByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -121,7 +121,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso.",
+          description: "Sessão sem `audit:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -129,7 +129,7 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo inexistente.",
+          description: "Protocolo inexistente ou fora da Custódia do ator.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

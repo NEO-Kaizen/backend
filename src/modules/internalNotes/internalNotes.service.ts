@@ -1,3 +1,9 @@
+import type { PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
+import {
+  denyRequestAccess,
+  hasResponsibleCustody,
+  type PermissionActor,
+} from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type {
@@ -10,6 +16,7 @@ import type {
   TimelineEventRow,
   TriageHistoryRow,
 } from "../../shared/types/internalNotes.ts";
+import { isInternalRole } from "../../shared/types/internalNotes.ts";
 import type {
   CreateInternalNoteRequest,
   InternalNotesResponse,
@@ -42,11 +49,22 @@ function toNoteDTO(row: InternalNoteRow): TimelineNote {
   };
 }
 
-async function requireRequestId(protocol: string): Promise<string> {
+export interface InternalNotesActor extends PermissionActor {
+  readonly role: InternalRole;
+}
+
+async function requireRequestAccess(
+  protocol: string,
+  actor: InternalNotesActor,
+  key: PermissionKey,
+  ipAddress: string | undefined,
+): Promise<string> {
   const request = await repository.findRequestIdByProtocol(protocol);
-  if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
+
+  if (!request || !hasResponsibleCustody(actor, key, request.responsible_user_id)) {
+    return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`);
   }
+
   return String(request.request_id);
 }
 
@@ -182,9 +200,10 @@ function toActorDTO(row: ActorSource): TimelineActorDTO | null {
   }
 
   const role = resolveRole(row.actor_profile_name);
-  if (role === "Solicitante") {
+  if (!isInternalRole(role)) {
     return null;
   }
+
   return { id: String(row.actor_user_id), name: row.actor_name, role };
 }
 
@@ -305,19 +324,20 @@ async function buildEventDTOs(rows: TimelineEventRow[]): Promise<TimelineEvent[]
 
 export async function listInternalNotes(
   protocol: string,
-  actorUserId: number,
+  actor: InternalNotesActor,
   query: ListTimelineQuery,
+  ipAddress: string | undefined,
 ): Promise<InternalNotesResponse> {
-  const requestId = await requireRequestId(protocol);
+  const requestId = await requireRequestAccess(protocol, actor, "internal_note:read", ipAddress);
   const cursor = toRepositoryCursor(query.cursor);
   const pageLimit = query.limit + 1;
 
-  const readState = await repository.findReadState(requestId, actorUserId);
+  const readState = await repository.findReadState(requestId, actor.id);
 
   const [noteRows, eventRows, unseenCount, triageRows, mappingRows] = await Promise.all([
     repository.listNotesPage(requestId, cursor, pageLimit),
     repository.listEventsPage(protocol, requestId, cursor, pageLimit),
-    repository.countUnseen(requestId, actorUserId, readState?.last_read_note_id),
+    repository.countUnseen(requestId, actor.id, readState?.last_read_note_id),
     repository.listTriageHistory(requestId),
     repository.listMappingHistory(requestId),
   ]);
@@ -338,10 +358,15 @@ export async function listInternalNotes(
 export async function createInternalNote(
   protocol: string,
   payload: CreateInternalNoteRequest,
-  actor: { userId: number; role: InternalRole },
+  actor: InternalNotesActor,
+  ipAddress: string | undefined,
 ): Promise<TimelineNote> {
-  const requestId = await requireRequestId(protocol);
-  const internalNoteId = await repository.insert(requestId, actor, payload.content);
+  const requestId = await requireRequestAccess(protocol, actor, "internal_note:write", ipAddress);
+  const internalNoteId = await repository.insert(
+    requestId,
+    { userId: actor.id, role: actor.role },
+    payload.content,
+  );
   const note = await repository.findById(internalNoteId);
 
   if (!note) {
@@ -353,14 +378,15 @@ export async function createInternalNote(
 export async function markInternalNotesRead(
   protocol: string,
   payload: MarkInternalNotesReadRequest,
-  actorUserId: number,
+  actor: InternalNotesActor,
+  ipAddress: string | undefined,
 ): Promise<void> {
-  const requestId = await requireRequestId(protocol);
+  const requestId = await requireRequestAccess(protocol, actor, "internal_note:read", ipAddress);
   const note = await repository.findById(payload.lastReadNoteId);
 
   if (!note || String(note.request_id) !== requestId) {
     throw new AppError("Observação interna não pertence à solicitação", 400);
   }
 
-  await repository.upsertReadState(requestId, actorUserId, payload.lastReadNoteId);
+  await repository.upsertReadState(requestId, actor.id, payload.lastReadNoteId);
 }

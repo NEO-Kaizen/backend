@@ -83,17 +83,22 @@ export interface AuditHistoryDetail {
 
 ## 0. Autenticação e autorização (transversal a este contrato)
 
-Os dois endpoints deste contrato exigem sessão JWT (cookie `session_id`,
-`HttpOnly`) **e** perfil `Administrador` ou `Gestor` — guardas `authMiddleware`
+Os dois endpoints administrativos deste contrato exigem sessão JWT (cookie
+`session_id`, `HttpOnly`) **e** a chave `audit:read` — `authMiddleware` +
+`requirePermission("audit:read")` (`src/shared/middleware/`), aplicados antes de
+qualquer processamento. A chave é `custodial`:
 
-- `requireRole("Administrador", "Gestor")` (`src/shared/middleware/`),
-  aplicados antes de qualquer processamento:
+- `all` lê qualquer evento;
+- `assigned` lê apenas os eventos ligados às solicitações em que o ator é o
+  Responsável corrente; eventos de entidades globais (`user`, `settings`) ficam
+  fora do recorte. A Custódia é resolvida no serviço, não no Perfil.
 
-| Situação                                    | Resposta                                                    |
-| ------------------------------------------- | ----------------------------------------------------------- |
-| Sem cookie `session_id`                     | `401` `"Token não fornecido"`                               |
-| Sessão inválida/expirada/revogada           | `401` no envelope padrão                                    |
-| Perfil diferente de Administrador ou Gestor | `403` `"Acesso restrito ao perfil Administrador ou Gestor"` |
+| Situação                           | Resposta                                         |
+| ---------------------------------- | ------------------------------------------------ |
+| Sem cookie `session_id`            | `401` `"Token não fornecido"`                    |
+| Sessão inválida/expirada/revogada  | `401` no envelope padrão                         |
+| Sessão sem `audit:read`            | `403` `"Acesso restrito à permissão audit:read"` |
+| Evento fora da Custódia `assigned` | `404` `"Log não encontrado"`                     |
 
 - O papel é resolvido do banco a cada request (`profiles.name` → `Role`);
   troca de perfil passa a valer imediatamente, mesmo com cookie antigo.
@@ -258,7 +263,7 @@ HTTP/1.1 400 Bad Request
 | 400    | `entityType` fora do catálogo (a mensagem lista os valores válidos) |
 | 400    | Query param desconhecido (schema `.strict()` — ex.: `?foo=1`)       |
 | 401    | Sem sessão válida (seção 0)                                         |
-| 403    | Perfil diferente de Administrador ou Gestor (seção 0)               |
+| 403    | Sessão sem `audit:read` (seção 0)                                   |
 
 ---
 
@@ -316,12 +321,12 @@ HTTP/1.1 404 Not Found
 
 **Erros:**
 
-| Status | Quando                                                |
-| ------ | ----------------------------------------------------- |
-| 400    | `:id` não numérico ou < 1 (`"ID inválido"`)           |
-| 401    | Sem sessão válida (seção 0)                           |
-| 403    | Perfil diferente de Administrador ou Gestor (seção 0) |
-| 404    | `audit_id` inexistente (`"Log não encontrado"`)       |
+| Status | Quando                                                                      |
+| ------ | --------------------------------------------------------------------------- |
+| 400    | `:id` não numérico ou < 1 (`"ID inválido"`)                                 |
+| 401    | Sem sessão válida (seção 0)                                                 |
+| 403    | Sessão sem `audit:read` (seção 0)                                           |
+| 404    | `audit_id` inexistente ou fora da Custódia do ator (`"Log não encontrado"`) |
 
 ---
 
@@ -340,18 +345,19 @@ Cookie: session_id=<jwt>
 
 **Permissão:**
 
-- `Administrador` ou `Gestor` (admin-like) — qualquer solicitação.
-- `ANALYST_ASSIGNEE` da solicitação — responsável da triagem **ou** designado
-  do mapeamento (guard `listAuditLogsByProtocol`).
+- `audit:read` em `all` — qualquer solicitação.
+- `audit:read` em `assigned` — apenas solicitações em que o ator é o
+  Responsável corrente (`requests.responsible_id`). O designado do mapeamento
+  não amplia a Custódia da auditoria.
 
 **Erros:**
 
-| Status | Quando                                                                                                                        |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 400    | `:protocol` vazio                                                                                                             |
-| 401    | Sem sessão válida (seção 0)                                                                                                   |
-| 403    | Perfil/sem custódia: não é Administrador/Gestor nem `ANALYST_ASSIGNEE` da solicitação (`code: INSUFFICIENT_ROLE_PERMISSIONS`) |
-| 404    | Protocolo inexistente (`"Protocolo não encontrado"`)                                                                          |
+| Status | Quando                                                                                                |
+| ------ | ----------------------------------------------------------------------------------------------------- |
+| 400    | `:protocol` vazio                                                                                     |
+| 401    | Sem sessão válida (seção 0)                                                                           |
+| 403    | Sessão sem `audit:read`                                                                               |
+| 404    | Protocolo inexistente ou fora da Custódia (`"Solicitação não encontrada"`, `code: request_not_found`) |
 
 ---
 

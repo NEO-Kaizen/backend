@@ -1,4 +1,12 @@
 import { randomUUID } from "node:crypto";
+import type { PermissionActor } from "../../shared/access/requestAccess.ts";
+import {
+  custodyFor,
+  denyRequestAccess,
+  hasResponsibleCustody,
+  isRequesterOwner,
+} from "../../shared/access/requestAccess.ts";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { FIELD_KEY_SET, getFieldSnapshot } from "../../shared/catalog/fieldCatalog.ts";
 import * as repo from "./pendingItems.repository.ts";
@@ -80,11 +88,16 @@ async function buildPendingItems(
 export async function createPendingItems(
   protocol: string,
   body: CreatePendingItemsBody,
-  actor: { id: number; email: string; role: string },
+  actor: PermissionActor,
   ip: string | undefined,
 ): Promise<{ batchId: string; requestAttachment: boolean; items: PendingItem[] }> {
   const request = await repo.findRequestByProtocol(protocol);
-  if (!request) throw new AppError("Solicitação não encontrada", 404);
+  if (!request) {
+    return denyRequestAccess(protocol, actor.id, ip, "pending_item:write sem solicitação");
+  }
+  if (!hasResponsibleCustody(actor, "pending_item:write", request.responsible_user_id)) {
+    return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:write sem custódia");
+  }
   if (TERMINAL_STATUSES.has(request.status)) {
     throw new AppError("Solicitação já concluída ou cancelada", 409);
   }
@@ -133,8 +146,6 @@ export async function createPendingItems(
       }
     }
   }
-
-  await assertCanCreateOrReview(request.request_id, actor);
 
   const batchId = randomUUID();
   const requestAttachment = body.requestAttachment ?? false;
@@ -188,57 +199,124 @@ export async function createPendingItems(
 
 export type PendingCaller = {
   user?: AuthenticatedUser;
+  permissions?: readonly EffectivePermission[];
   requesterIdentity?: { name: string; email: string } | null;
 };
 
-/**
- * Criar/revisar exige Administrador ou o assignee atual (contrato 03 §3,
- * mesma regra do botão "Editar" / `canTriage`). Gestor é read-only.
- */
-async function assertCanCreateOrReview(
-  requestId: string,
-  actor: { id: number; role: string },
-): Promise<void> {
-  if (actor.role === "Administrador") return;
-  const professionalId = await repo.findProfessionalIdByUserId(actor.id);
-  const requestProfessionalId = await repo.findProfessionalIdByRequestId(requestId);
-  if (!professionalId || professionalId !== requestProfessionalId) {
-    throw new AppError("Acesso restrito ao responsável pela solicitação", 403);
+const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitação.";
+
+function actorFromCaller(caller: PendingCaller): PermissionActor {
+  if (!caller.user || !caller.permissions) {
+    throw new AppError("Permissões não carregadas para esta operação", 403);
+  }
+
+  const id = Number(caller.user.id);
+  if (!Number.isInteger(id)) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+
+  return { id, email: caller.user.email, permissions: caller.permissions };
+}
+
+function isRequesterOf(request: repo.RequestRef, actor: PermissionActor): boolean {
+  return isRequesterOwner(actor, {
+    requesterUserId: request.requester_user_id,
+    requesterEmail: request.requester_email,
+  });
+}
+
+function assertPublicIdentity(
+  request: repo.RequestRef,
+  identity: { name: string; email: string } | null,
+): void {
+  if (!identity) {
+    throw new AppError(TRACKING_INVALID_IDENTITY, 401);
+  }
+
+  const nameOk = normalizeName(request.requester_name) === normalizeName(identity.name);
+  const emailOk = normalizeEmail(request.requester_email) === normalizeEmail(identity.email);
+
+  if (!nameOk || !emailOk) {
+    throw new AppError(TRACKING_INVALID_IDENTITY, 401);
   }
 }
 
-async function assertRequesterAccess(protocol: string, caller: PendingCaller): Promise<void> {
+/**
+ * Leitura da Pendência: a porta interna exige `pending_item:read` sob Custódia;
+ * a porta do Solicitante aceita `pending_item:respond` em `own` sobre a própria
+ * solicitação. Sem sessão, a identidade pública é validada como antes.
+ */
+async function requireReadableRequest(
+  protocol: string,
+  caller: PendingCaller,
+  ip: string | undefined,
+): Promise<repo.RequestRef> {
   const request = await repo.findRequestByProtocol(protocol);
-  if (!request) throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
 
-  if (caller.user?.role === "Solicitante") {
-    const nameOk = normalizeName(request.requester_name) === normalizeName(caller.user.name);
-    const emailOk = normalizeEmail(request.requester_email) === normalizeEmail(caller.user.email);
-    if (!nameOk || !emailOk) {
-      throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
+  if (caller.user) {
+    const actor = actorFromCaller(caller);
+    if (!request) {
+      return denyRequestAccess(protocol, actor.id, ip, "pending_item:read sem solicitação");
     }
-    return;
+
+    const canReadAssigned = hasResponsibleCustody(
+      actor,
+      "pending_item:read",
+      request.responsible_user_id,
+    );
+    const canRespondOwn =
+      custodyFor(actor, "pending_item:respond") === "own" && isRequesterOf(request, actor);
+
+    if (!canReadAssigned && !canRespondOwn) {
+      return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:read sem custódia");
+    }
+
+    return request;
   }
 
-  // Interna (Analista/Gestor/Admin) — sem checagem de ownership
-  if (caller.user) return;
-
-  const identity = caller.requesterIdentity;
-  if (!identity) throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
-  const nameOk = normalizeName(request.requester_name) === normalizeName(identity.name);
-  const emailOk = normalizeEmail(request.requester_email) === normalizeEmail(identity.email);
-  if (!nameOk || !emailOk) {
-    throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
+  if (!request) {
+    throw new AppError(TRACKING_INVALID_IDENTITY, 401);
   }
+  assertPublicIdentity(request, caller.requesterIdentity ?? null);
+  return request;
+}
+
+/**
+ * Resposta e anexo pela Posse: qualquer sessão passa pelo vínculo
+ * `requester_user_id`/e-mail; a porta pública continua validando nome+e-mail.
+ */
+async function requireOwnedRequest(
+  protocol: string,
+  caller: PendingCaller,
+  ip: string | undefined,
+  detail: string,
+): Promise<{ request: repo.RequestRef; actorEmail: string | undefined }> {
+  const request = await repo.findRequestByProtocol(protocol);
+
+  if (caller.user) {
+    const actor = actorFromCaller(caller);
+    if (!request) {
+      return denyRequestAccess(protocol, actor.id, ip, `${detail} sem solicitação`);
+    }
+    if (!isRequesterOf(request, actor)) {
+      return denyRequestAccess(request.protocol, actor.id, ip, detail);
+    }
+    return { request, actorEmail: actor.email };
+  }
+
+  if (!request) {
+    throw new AppError(TRACKING_INVALID_IDENTITY, 401);
+  }
+  assertPublicIdentity(request, caller.requesterIdentity ?? null);
+  return { request, actorEmail: undefined };
 }
 
 export async function listPendingItems(
   protocol: string,
   caller: PendingCaller,
+  ip: string | undefined,
 ): Promise<ListPendingItemsResponse> {
-  await assertRequesterAccess(protocol, caller);
-  const request = await repo.findRequestByProtocol(protocol);
-  if (!request) throw new AppError("Solicitação não encontrada", 404);
+  const request = await requireReadableRequest(protocol, caller, ip);
   const rows = await repo.findPendingItemsByRequestId(request.request_id);
   const items = await buildPendingItems(protocol, rows);
 
@@ -265,14 +343,15 @@ export async function respondPendingItem(
   protocol: string,
   pendingItemId: string,
   body: Record<string, unknown>,
-  actorEmail: string | undefined,
-  isInternal: boolean,
   ip: string | undefined,
   caller: PendingCaller,
 ): Promise<PendingItem> {
-  await assertRequesterAccess(protocol, caller);
-  const request = await repo.findRequestByProtocol(protocol);
-  if (!request) throw new AppError("Solicitação não encontrada", 404);
+  const { request, actorEmail } = await requireOwnedRequest(
+    protocol,
+    caller,
+    ip,
+    "pending_item:respond sem posse",
+  );
   const row = await repo.findPendingItemById(pendingItemId);
   if (!row || (row["request_id"] as string) !== request.request_id) {
     throw new AppError("Solicitação não encontrada", 404);
@@ -319,7 +398,7 @@ export async function respondPendingItem(
     batchId: row["batch_id"] as string,
     patch,
     actorEmail,
-    isInternal,
+    isSession: caller.user !== undefined,
     ip,
     decideStatus: (facts) =>
       facts.requestedRemaining === 0 &&
@@ -346,9 +425,12 @@ export async function addAttachment(
   downloadUrl: string | null;
   canDownload: boolean;
 }> {
-  await assertRequesterAccess(protocol, caller);
-  const request = await repo.findRequestByProtocol(protocol);
-  if (!request) throw new AppError("Solicitação não encontrada", 404);
+  const { request } = await requireOwnedRequest(
+    protocol,
+    caller,
+    ip,
+    "pending_item:respond sem posse",
+  );
   const row = await repo.findPendingItemById(pendingItemId);
   if (!row || (row["request_id"] as string) !== request.request_id) {
     throw new AppError("Solicitação não encontrada", 404);
@@ -464,13 +546,16 @@ function parseCorrectedValue(raw: string | null): unknown {
 export async function reviewPendingItems(
   protocol: string,
   body: ReviewPendingItemsBody,
-  actor: { id: number; email: string; role: string },
+  actor: PermissionActor,
   ip: string | undefined,
 ): Promise<{ batchId: string; items: PendingItem[] }> {
   const request = await repo.findRequestByProtocol(protocol);
-  if (!request) throw new AppError("Solicitação não encontrada", 404);
-
-  await assertCanCreateOrReview(request.request_id, actor);
+  if (!request) {
+    return denyRequestAccess(protocol, actor.id, ip, "pending_item:review sem solicitação");
+  }
+  if (!hasResponsibleCustody(actor, "pending_item:review", request.responsible_user_id)) {
+    return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:review sem custódia");
+  }
 
   const batchId = body.batchId.trim();
   const batchRows = await repo.findPendingItemsByBatchId(batchId, request.request_id);
