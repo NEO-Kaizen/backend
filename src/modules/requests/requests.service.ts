@@ -55,8 +55,14 @@ import type {
   UpdateRequestPayload,
   UpdateStatusPayload,
 } from "./requests.schema.ts";
-import { hasCustody } from "../../shared/access/custody.ts";
-import type { EffectivePermission, PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
+import {
+  custodyFor,
+  denyRequestAccess,
+  hasResponsibleCustody,
+  isRequesterOwner,
+  recordAccessDeniedAttempt,
+  type PermissionActor,
+} from "../../shared/access/requestAccess.ts";
 import type { UpdateStatusResponse } from "../DTOs/requests/RequestRequests.dto.ts";
 
 interface AuthenticatedIdentity {
@@ -64,66 +70,11 @@ interface AuthenticatedIdentity {
   email: string;
 }
 
-interface RequestActor {
-  readonly id: number;
-  readonly email: string;
-  readonly permissions: readonly EffectivePermission[];
-}
+type RequestActor = PermissionActor;
 
 interface RequestMutationAcknowledgement {
   readonly protocol: string;
   readonly updated: true;
-}
-
-function custodyFor(actor: RequestActor, key: PermissionKey) {
-  return actor.permissions.find((permission) => permission.key === key)?.custody;
-}
-
-function hasRequestCustody(
-  actor: RequestActor,
-  key: PermissionKey,
-  assigneeUserId: unknown,
-): boolean {
-  const custody = custodyFor(actor, key);
-  if (!custody) return false;
-  const responsibleId =
-    typeof assigneeUserId === "number" ? assigneeUserId : Number(assigneeUserId);
-  return hasCustody(
-    custody,
-    { userId: actor.id, email: actor.email },
-    {
-      responsibleIds: Number.isInteger(responsibleId) && responsibleId > 0 ? [responsibleId] : [],
-    },
-  );
-}
-
-/**
- * Registra a tentativa de acesso negado na auditoria. Usado em todos os
- * guards de custódia de requests.
- */
-async function recordAccessDeniedAudit(
-  protocol: string,
-  actorId: number,
-  ipAddress: string | undefined,
-  detail: string,
-): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      entityId: protocol,
-      actionType: "request.access_denied",
-      userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: "Access denied: " + detail,
-      ipAddress,
-      changeOrigin: "system",
-    });
-  });
-}
-
-function inaccessibleRequestError(): AppError {
-  return new AppError("Solicitação não encontrada", 404, "request_not_found");
 }
 
 async function requireRequestCustody<T>(
@@ -135,8 +86,7 @@ async function requireRequestCustody<T>(
   canAccess: (request: T) => boolean,
 ): Promise<T> {
   if (request === null || request === undefined || !canAccess(request)) {
-    await recordAccessDeniedAudit(protocol, actor.id, ipAddress, detail);
-    throw inaccessibleRequestError();
+    return denyRequestAccess(protocol, actor.id, ipAddress, detail);
   }
 
   return request;
@@ -170,10 +120,19 @@ export async function findRequest(
   }
 
   // No modo AUTHENTICATED só o dono enxerga a solicitação. Retornamos 404 (e
-  // não 403) para não revelar a existência de um protocolo de terceiros.
+  // não 403) para não revelar a existência de um protocolo de terceiros. A
+  // Posse usa o vínculo `requester_user_id` e, em linhas legadas, o e-mail.
   if (authenticatedUserId !== undefined) {
     const identity = await resolveAuthenticatedIdentity(authenticatedUserId);
-    if (found.requesterEmail.trim().toLowerCase() !== identity.email.trim().toLowerCase()) {
+    const isOwner = isRequesterOwner(
+      { id: authenticatedUserId, email: identity.email },
+      {
+        requesterUserId: found.requesterUserId,
+        requesterEmail: found.requesterEmail,
+      },
+    );
+
+    if (!isOwner) {
       throw new AppError("Protocolo não encontrado", 404);
     }
   }
@@ -284,7 +243,7 @@ export async function findInternalByProtocol(
     protocol,
     ipAddress,
     "request:read sem custódia",
-    (row) => hasRequestCustody(actor, "request:read", row["assignee_user_id"]),
+    (row) => hasResponsibleCustody(actor, "request:read", row["assignee_user_id"]),
   );
 
   const requestId = request["request_id"] as string;
@@ -639,37 +598,28 @@ async function buildAuthenticatedDetails(
  * e-mail/nome no cadastro.
  */
 function isTrackingOwner(row: Record<string, unknown>, user: AuthenticatedUser): boolean {
-  const requesterUserId = row["requester_user_id"] as number | null;
-
-  if (requesterUserId !== null && requesterUserId !== undefined) {
-    return requesterUserId === Number(user.id);
-  }
-
-  // Fallback: solicitações sem vínculo (`requester_user_id` NULL) — criadas em
-  // modo PUBLIC/anônimo antes da curadoria do 1:1. Compara o e-mail
-  // normalizado do snapshot `requesters`; o vínculo é curado progressivamente
-  // por `resolveRequesterId` a cada nova solicitação autenticada.
-  return normalizeEmail((row["requester_email"] as string) ?? "") === normalizeEmail(user.email);
+  return isRequesterOwner(
+    { id: Number(user.id), email: user.email },
+    {
+      requesterUserId: row["requester_user_id"] as number | null | undefined,
+      requesterEmail: row["requester_email"] as string | null | undefined,
+    },
+  );
 }
 
 async function getAuthenticatedTracking(
   protocol: string,
   user: AuthenticatedUser,
 ): Promise<TrackingDetailsResponse> {
-  // Perfis internos têm a consulta administrativa própria (`/internal`); o
-  // acompanhamento é exclusivo do solicitante. 403 uniforme (independe do
-  // protocolo) — não revela existência.
-  if (user.role !== "Solicitante") {
-    throw new AppError("Perfis internos devem acompanhar pela consulta interna.", 403);
-  }
-
   const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
     string,
     unknown
   > | null;
 
   // Protocolo inexistente ou de terceiro: mesma resposta (404), para não
-  // revelar a existência de solicitações alheias (anti-enumeração).
+  // revelar a existência de solicitações alheias (anti-enumeração). A chave
+  // `request:track` é o gate da rota; a linha é resolvida pela Posse — qualquer
+  // Perfil que abriu a solicitação recebe a projeção do Solicitante.
   if (!row || !isTrackingOwner(row, user)) {
     throw new AppError("Protocolo não encontrado", 404);
   }
@@ -855,7 +805,7 @@ export async function updateInternalRequest(
     protocol.trim(),
     ipAddress,
     "request:write sem custódia",
-    (row) => hasRequestCustody(actor, "request:write", row.assignee_user_id),
+    (row) => hasResponsibleCustody(actor, "request:write", row.assignee_user_id),
   );
 
   await db.transaction(async (trx) => {
@@ -878,7 +828,10 @@ export async function updateInternalRequest(
   // o DTO completo. Caso contrário (ex.: request:write sem request:read), cumpre
   // o contrato com 200 { protocol, updated: true } sem exigir leitura da linha.
   const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
-  if (updatedRequest && hasRequestCustody(actor, "request:read", updatedRequest.assignee_user_id)) {
+  if (
+    updatedRequest &&
+    hasResponsibleCustody(actor, "request:read", updatedRequest.assignee_user_id)
+  ) {
     return findInternalByProtocol(protocol.trim(), actor, ipAddress);
   }
 
@@ -960,7 +913,7 @@ async function validateAssignmentTarget<T>(
     return await resolve();
   } catch (error) {
     if (error instanceof AppError && error.code === "assignee_not_assignable") {
-      await recordAccessDeniedAudit(protocol, actor.id, ipAddress, "alvo de atribuição inválido");
+      await recordAccessDeniedAttempt(protocol, actor.id, ipAddress, "alvo de atribuição inválido");
     }
     throw error;
   }
@@ -978,7 +931,7 @@ export async function assignResponsible(
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
+    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
   );
 
   // A atribuição é autorizada por request:assign e Custódia, sem decisão por
@@ -1053,7 +1006,7 @@ export async function assignAnalyst(
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) => hasRequestCustody(actor, "request:assign", row.assignee_user_id),
+    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
   );
 
   // A atribuição é autorizada por request:assign e Custódia, sem decisão por
@@ -1222,7 +1175,10 @@ export async function assignAnalyst(
   }
 
   const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
-  if (updatedRequest && hasRequestCustody(actor, "request:read", updatedRequest.assignee_user_id)) {
+  if (
+    updatedRequest &&
+    hasResponsibleCustody(actor, "request:read", updatedRequest.assignee_user_id)
+  ) {
     return findInternalByProtocol(protocol.trim(), actor, ipAddress);
   }
 
@@ -1246,7 +1202,7 @@ export async function updateRequestStatus(
     protocol.trim(),
     ipAddress,
     "request:status_change sem custódia",
-    (row) => hasRequestCustody(actor, "request:status_change", row.assignee_user_id),
+    (row) => hasResponsibleCustody(actor, "request:status_change", row.assignee_user_id),
   );
 
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
@@ -1259,7 +1215,7 @@ export async function updateRequestStatus(
   }
 
   if (!target.is_active) {
-    await recordAccessDeniedAudit(
+    await recordAccessDeniedAttempt(
       request.protocol,
       actor.id,
       ipAddress,
@@ -1272,7 +1228,7 @@ export async function updateRequestStatus(
     target.is_restricted || (target.triage_mode !== "free" && target.mapping_mode !== "free");
   const hasStatusOverride = custodyFor(actor, "request:status_override") === "global";
   if (requiresOverride && !hasStatusOverride) {
-    await recordAccessDeniedAudit(
+    await recordAccessDeniedAttempt(
       request.protocol,
       actor.id,
       ipAddress,

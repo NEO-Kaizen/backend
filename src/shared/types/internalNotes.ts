@@ -1,12 +1,11 @@
 import type { Role } from "./role.ts";
 
-export type InternalRole = Exclude<Role, "Solicitante">;
-
 export interface InternalNoteRow {
   internal_note_id: string;
   request_id: string;
   author_user_id: number;
-  author_role_at_creation: InternalRole;
+  /** Snapshot do Perfil na época da criação; não participa da autorização. */
+  author_role_at_creation: Role;
   content: string;
   created_at: Date;
   author_name: string;

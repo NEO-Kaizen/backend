@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import { requirePermission } from "../../shared/middleware/requirePermission.ts";
 import {
   listAuditHistoryController,
   getAuditHistoryDetailController,
@@ -19,14 +19,14 @@ auditHistoryRoutes.use((_req, res, next) => {
 auditHistoryRoutes.get(
   "/",
   authMiddleware,
-  requireRole("Administrador", "Gestor"),
+  requirePermission("audit:read"),
   listAuditHistoryController,
 );
 
 auditHistoryRoutes.get(
   "/:id",
   authMiddleware,
-  requireRole("Administrador", "Gestor"),
+  requirePermission("audit:read"),
   getAuditHistoryDetailController,
 );
 
@@ -40,6 +40,6 @@ export const auditLogsRouter = express.Router();
 auditLogsRouter.get(
   "/:protocol",
   authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
+  requirePermission("audit:read"),
   getAuditLogsByProtocolController,
 );

@@ -408,7 +408,7 @@ sem mudar a permissão.
 | `GET /requests/:protocol/internal-notes`                                                              | `internal_note:read` + custódia                                                                          |
 | `POST /requests/:protocol/internal-notes`                                                             | `internal_note:write` + custódia                                                                         |
 | `PUT /requests/:protocol/internal-notes/read`                                                         | `internal_note:read` + custódia                                                                          |
-| `GET /audit-history`, `GET /audit-logs/:protocol`                                                     | `audit:read` + custódia                                                                                  |
+| `GET /audit-history`, `GET /audit-history/:id`, `GET /audit-logs/:protocol`                           | `audit:read` + custódia                                                                                  |
 | `GET /users`, `GET /users/:id`, `GET /users/metrics`                                                  | `user:read`                                                                                              |
 | `POST /users`, `PUT /users/:id`, `PATCH /users/:id/status`, `POST /users/:id/reset-password`          | `user:manage` + matriz de contas                                                                         |
 | `GET /users/me`, `PUT /users/me`                                                                      | sessão; autoatendimento sem chave                                                                        |

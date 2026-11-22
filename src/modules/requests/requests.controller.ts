@@ -157,10 +157,11 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
 };
 
 export const getRequestsByEmail = async (req: Request, res: Response): Promise<Response> => {
-  // Modo autenticado: a listagem é sempre escopada à identidade da sessão.
-  if (req.accessMode === "AUTHENTICATED") {
+  // Sessão presente: a listagem é sempre escopada à identidade da sessão,
+  // mesmo com o portal em `PUBLIC` (a sessão decide qual porta o ator usa).
+  if (req.user) {
     if (req.query.email !== undefined) {
-      throw new AppError("O parâmetro 'email' não é aceito no modo autenticado.", 400);
+      throw new AppError("O parâmetro 'email' não é aceito com sessão autenticada.", 400);
     }
 
     const parsed = listAuthenticatedRequestsQuerySchema.safeParse(req.query);
