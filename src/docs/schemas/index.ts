@@ -47,6 +47,9 @@ import { PrioritizationCriteria } from "./prioritization.ts";
 import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
 
 import {
+  NotificationStatusChangedPayload,
+  NotificationPendingItemRespondedPayload,
+  NotificationPendingItemRespondedUnassignedPayload,
   NotificationPayload,
   NotificationItem,
   NotificationListResponse,
@@ -141,6 +144,9 @@ export const schemas = {
   PrioritizationCriteria,
   ReviewDecisionValidate,
   ReviewDecisionReopen,
+  NotificationStatusChangedPayload,
+  NotificationPendingItemRespondedPayload,
+  NotificationPendingItemRespondedUnassignedPayload,
   NotificationPayload,
   NotificationItem,
   NotificationListResponse,

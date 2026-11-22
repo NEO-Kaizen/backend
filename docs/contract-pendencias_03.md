@@ -318,7 +318,11 @@ solicitante (sem chat livre).
   no lote/solicitação **e** a exigência de anexo do lote estiver satisfeita, aplica
   `status → "Em triagem"`; senão mantém `"Pendente de informações"`. O novo status
   **não** é devolvido aqui — observa-se via `GET /internal` / `tracking`. O item
-  migra para o conjunto pendente dos internos (`responded`).
+  migra para o conjunto pendente dos internos (`responded`). Na mesma transação,
+  a resposta gera uma Notificação ao Responsável da solicitação (quando ele não
+  é o ator) ou, sem Responsável designado, aos Administradores ativos com o
+  aviso explícito (RF20 — issue #159; payload e regras de audiência em
+  `docs/notifications-contract.md`).
 - **Response `200`:** o `PendingItem` atualizado.
 - **Erros:** `400` — campo obrigatório ausente, `response` vazio/longo demais,
   tipo trocado, body malformado;
