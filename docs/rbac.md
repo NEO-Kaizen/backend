@@ -28,11 +28,11 @@ Toda chave é `global` ou `custodial`.
 
 A custódia não vai no token e não envelhece com ele. As fontes do vínculo com a linha são:
 
-| Fonte                                            | Vale para                                                                                |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `requests.responsible_id`                        | solicitação, fila, triagem, priorização, pendências internas, notas internas e auditoria |
-| `mappings.responsible_id` do mapeamento corrente | `mapping:read` e `mapping:write`, além do responsável da solicitação                     |
-| `requests.requester_email`                       | posse: `request:track` e `pending_item:respond`, comparando com o e-mail da conta        |
+| Fonte                                                        | Vale para                                                                                                                                                                  |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requests.responsible_id`                                    | solicitação, fila, triagem, priorização, pendências internas, notas internas e auditoria                                                                                   |
+| `mappings.professional_id` do Mapeamento aberto mais recente | `mapping:read` e `mapping:write`, além do Responsável da solicitação; antes da primeira linha de Mapeamento, vale a designação ativa em `requests.mapping_professional_id` |
+| `requests.requester_email`                                   | posse: `request:track` e `pending_item:respond`, comparando com o e-mail da conta                                                                                          |
 
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
@@ -322,18 +322,18 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 
 ## 5. Como a custódia é resolvida
 
-| Chave                                                                      | Fonte do vínculo                                                                          |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                                 |
-| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                                 |
-| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.responsible_id` do mapeamento corrente         |
-| `prioritization:write`                                                     | `requests.responsible_id`                                                                 |
-| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                                 |
-| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                                 |
-| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                      |
-| `queue:read`, `queue:export`                                               | Fila do ator: `requests.responsible_id = ator.id`; o responsável do mapeamento não amplia |
-| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)      |
-| chaves `global`                                                            | nenhuma verificação de linha                                                              |
+| Chave                                                                      | Fonte do vínculo                                                                                                                                         |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                                                                                                |
+| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                                                                                                |
+| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.professional_id` da linha aberta mais recente; antes de existir uma linha, `requests.mapping_professional_id` |
+| `prioritization:write`                                                     | `requests.responsible_id`                                                                                                                                |
+| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                                                                                                |
+| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                                                                                                |
+| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                                                                                     |
+| `queue:read`, `queue:export`                                               | Fila do ator: `requests.responsible_id = ator.id`; o responsável do mapeamento não amplia                                                                |
+| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                                                                     |
+| chaves `global`                                                            | nenhuma verificação de linha                                                                                                                             |
 
 Regras de aplicação:
 
@@ -341,7 +341,7 @@ Regras de aplicação:
 - A rota tem o gate grosso: sessão válida e a chave. O serviço do domínio aplica a custódia, em um lugar só por domínio.
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
 - Sem sessão, não há ator: a porta pública do modo `PUBLIC` é a única que não avalia chaves. Ela usa o e-mail declarado e o protocolo.
-- Snapshots de triagem e de mapeamento não concedem acesso. Mapeamento concluído é histórico.
+- Snapshots de triagem e de mapeamento não concedem acesso. A linha aberta mais recente do Mapeamento é a fonte vigente; quando não há nenhuma linha, vale a designação inicial da solicitação. Mapeamento concluído é histórico.
 - Solicitação órfã não é visível ao Analista custodial; ela é atribuída por quem tem `request:assign` em `all`.
 
 ## 6. Atribuir e ser atribuível

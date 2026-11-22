@@ -89,6 +89,9 @@ export const findMappingRequestContext = async (
   const row = await queryable("requests")
     .join("statuses as s", "s.status_id", "requests.status_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id")
+    // A atribuição do Mapeamento vigente vem da linha aberta mais recente.
+    // Antes de existir qualquer linha de Mapeamento, vale a designação inicial
+    // de requests.mapping_professional_id; depois de concluído, o snapshot não autoriza.
     .joinRaw(
       `
       LEFT JOIN LATERAL (
