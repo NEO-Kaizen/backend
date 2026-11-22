@@ -55,6 +55,10 @@ export const auditCatalog = {
     label: "Pendências",
     actions: ["create", "respond", "attach", "validate", "reopen"],
   },
+  profile: {
+    label: "Perfis",
+    actions: ["create", "update", "activate", "deactivate", "duplicate"],
+  },
 } as const;
 
 /** Nome de entidade auditável — ex.: "user". */
