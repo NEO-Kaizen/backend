@@ -48,7 +48,6 @@ import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts"
 
 import {
   NotificationStatusChangedPayload,
-  NotificationMappingScheduledPayload,
   NotificationPendingItemRespondedPayload,
   NotificationPendingItemRespondedUnassignedPayload,
   NotificationResponsibleAssignedPayload,
@@ -100,7 +99,6 @@ export {
   ReviewDecisionValidate,
   ReviewDecisionReopen,
   NotificationStatusChangedPayload,
-  NotificationMappingScheduledPayload,
   NotificationPendingItemRespondedPayload,
   NotificationPendingItemRespondedUnassignedPayload,
   NotificationResponsibleAssignedPayload,
@@ -152,7 +150,6 @@ export const schemas = {
   ReviewDecisionValidate,
   ReviewDecisionReopen,
   NotificationStatusChangedPayload,
-  NotificationMappingScheduledPayload,
   NotificationPendingItemRespondedPayload,
   NotificationPendingItemRespondedUnassignedPayload,
   NotificationResponsibleAssignedPayload,
