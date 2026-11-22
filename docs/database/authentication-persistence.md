@@ -279,7 +279,7 @@ A atualização posterior de `updated_at` será responsabilidade da aplicação.
 
 Os perfis `solicitante`, `analista`, `gestor`, `administrador` e `admin_root` fazem parte do domínio inicial da aplicação e são necessários para o relacionamento com os usuários.
 
-As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura cada perfil base por `lower(name)` e nunca cria uma segunda linha: não reativa nem altera `is_active` de perfil existente e não remove concessões fora da matriz.
+As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura os perfis base por `lower(name)` e o Admin Root pela marca `is_root` — nunca pelo nome — e nunca cria uma segunda linha: não reativa nem altera `is_active`/nome de perfil existente e não remove concessões fora da matriz.
 
 A conta Admin Root é única e nasce apenas da seed `014_admin_root_account.js`, a partir das variáveis de ambiente `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME`; nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta.
 
