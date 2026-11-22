@@ -8,11 +8,11 @@ const optionalId = z.coerce.number().int().positive().optional();
 
 export const requestPdfExportSchema = z
   .object({
-    request_id: z.string().regex(/^[1-9]\d*$/, "ID inválido."),
+    protocol: z.string().regex(/^MAAT-[A-Z0-9]{6}$/, "Protocolo inválido."),
   })
   .strict()
   .transform((data) => ({
-    id: data.request_id,
+    protocol: data.protocol,
   })) satisfies z.ZodType<RequestPdfExport>;
 
 export const dashboardQuerySchema = z

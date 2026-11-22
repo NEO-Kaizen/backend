@@ -3,7 +3,7 @@ export interface RequestExportRow {
 }
 
 export interface RequestPdfExport {
-  id: string;
+  protocol: string;
 }
 
 export interface RequestPdfSource {

@@ -10,9 +10,9 @@ import {
 const reportsRoutes = express.Router();
 
 reportsRoutes.get(
-  "/request/:request_id/pdf",
+  "/request/protocol/:protocol/pdf",
   authMiddleware,
-  requireRole("Gestor", "Administrador"),
+  requireRole("Analista", "Gestor", "Administrador"),
   getReportPdfController,
 );
 

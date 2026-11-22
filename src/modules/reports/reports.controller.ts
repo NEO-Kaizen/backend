@@ -17,13 +17,13 @@ export async function getReportPdfController(req: Request, res: Response) {
     throw new AppError(formatZodIssues(parsed.error, "params"), 400);
   }
 
-  const pdfBuffer = await getGenerateRequestPDF(parsed.data);
+  const pdfBuffer = await getGenerateRequestPDF({ protocol: parsed.data.protocol });
 
   return res
     .status(200)
     .set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="relatorio-solicitacao-${parsed.data.id}.pdf"`,
+      "Content-Disposition": `attachment; filename="relatorio-solicitacao-${parsed.data.protocol}.pdf"`,
       "Content-Length": pdfBuffer.length.toString(),
     })
     .send(pdfBuffer);

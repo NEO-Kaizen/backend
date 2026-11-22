@@ -530,7 +530,7 @@ function renderRequesterRequestPdf(tracking: TrackingDetailsResponse): Promise<B
  * de logs. A triagem não é incluída (decisão de produto).
  */
 export async function getGenerateRequestPDF(request: RequestPdfExport): Promise<Buffer> {
-  const source = await repository.findRequestProtocolById(request.id);
+  const source = await repository.findRequestProtocolById(request.protocol);
 
   if (!source) {
     throw new AppError("Solicitação não encontrada", 404);
