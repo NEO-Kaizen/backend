@@ -4,6 +4,7 @@ import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
+import { normalizeEmail } from "../../shared/utils/normalizeIdentity.ts";
 import type {
   CreateProfessionalInput,
   CreateUserRequest,
@@ -68,6 +69,24 @@ export async function findActiveAdminUserIds(trx?: Knex.Transaction): Promise<nu
     .orderBy("u.user_id", "asc")) as Array<{ user_id: number }>;
 
   return rows.map((row) => Number(row.user_id));
+}
+
+/**
+ * Conta dona do e-mail informado — usada para excluir o ator de uma resposta
+ * pública sem `requester_user_id` (a identidade foi verificada pelo e-mail).
+ */
+export async function findUserIdByEmail(
+  trx: Knex.Transaction,
+  email: string,
+): Promise<number | null> {
+  // `users.email` é normalizado na aplicação, mas dados legados podem ter
+  // caixa mista; a comparação case-insensitive garante a autoexclusão do ator
+  // em respostas públicas sem `requester_user_id`.
+  const row = (await trx("users")
+    .whereRaw("lower(email) = ?", [normalizeEmail(email)])
+    .first("user_id")) as { user_id: number } | undefined;
+
+  return row ? Number(row.user_id) : null;
 }
 
 /** Perfis que ganham a extensÃ£o de profissional (1:1 user â†’ details_professional)
