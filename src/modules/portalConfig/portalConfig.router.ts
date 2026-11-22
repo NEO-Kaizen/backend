@@ -1,5 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
+import type { PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
 import {
   requireAnyPermission,
   requirePermission,
@@ -16,7 +17,19 @@ import {
   updateStatuses,
   updateTheme,
 } from "./portalConfig.controller.ts";
-import { PORTAL_SECTION_READ_KEYS } from "./portalConfig.service.ts";
+
+/**
+ * Chaves de leitura das seções da visão administrativa (contrato RBAC § 3.7).
+ * Quem tem ao menos uma delas acessa `GET /portal-config/admin`; a resposta
+ * devolve apenas as seções legíveis.
+ */
+const PORTAL_SECTION_READ_KEYS = [
+  "theme:read",
+  "category:read",
+  "status:read",
+  "portal_setting:read",
+  "prioritization_config:read",
+] as const satisfies readonly PermissionKey[];
 
 const portalConfigRoutes = express.Router();
 

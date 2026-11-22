@@ -85,7 +85,8 @@ export default {
           },
         },
         "403": {
-          description: "Área, departamento e gestor exigem a permissão `user:manage`.",
+          description:
+            "Área, departamento e gestor exigem a permissão `user:manage` (403 `user_manage_required`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

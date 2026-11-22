@@ -372,6 +372,7 @@ HTTP/1.1 403 Forbidden
 {
   "status": "error",
   "statusCode": 403,
+  "code": "user_manage_required",
   "message": "Área, departamento e gestor só podem ser alterados por quem tem a permissão user:manage. Use PUT /users/:id."
 }
 ```
@@ -438,16 +439,16 @@ HTTP/1.1 413 Payload Too Large
 
 **Erros:**
 
-| Status | Quando                                                                 |
-| ------ | ---------------------------------------------------------------------- |
-| 400    | Parte `payload` ausente ou com JSON inválido                           |
-| 400    | Validação Zod falha (limites de caracteres ou campos fora do contrato) |
-| 401    | Sem sessão JWT válida ou token expirado                                |
-| 403    | Sem `user:manage` e envia área, departamento ou gestor no self-service |
-| 404    | Usuário não encontrado no banco                                        |
-| 413    | Arquivo `avatar` > 2 MB                                                |
-| 415    | Arquivo `avatar` com extensão/MIME fora de JPEG/PNG                    |
-| 415    | Parte de arquivo inesperada no multipart (campo diferente de `avatar`) |
+| Status | Quando                                                                                          |
+| ------ | ----------------------------------------------------------------------------------------------- |
+| 400    | Parte `payload` ausente ou com JSON inválido                                                    |
+| 400    | Validação Zod falha (limites de caracteres ou campos fora do contrato)                          |
+| 401    | Sem sessão JWT válida ou token expirado                                                         |
+| 403    | Sem `user:manage` e envia área, departamento ou gestor no self-service (`user_manage_required`) |
+| 404    | Usuário não encontrado no banco                                                                 |
+| 413    | Arquivo `avatar` > 2 MB                                                                         |
+| 415    | Arquivo `avatar` com extensão/MIME fora de JPEG/PNG                                             |
+| 415    | Parte de arquivo inesperada no multipart (campo diferente de `avatar`)                          |
 
 ---
 

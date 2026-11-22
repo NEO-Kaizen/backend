@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
-import type { PermissionKey } from "../catalog/permissionCatalog.ts";
-import { loadEffectivePermissions } from "../access/permissions.ts";
+import { buildEffectivePermissions, type PermissionKey } from "../catalog/permissionCatalog.ts";
+import { listUserPermissions } from "../../modules/auth/auth.repository.ts";
 
 function permissionDeniedMessage(keys: readonly PermissionKey[]): string {
   return keys.length === 1
@@ -16,10 +16,15 @@ function permissionDeniedMessage(keys: readonly PermissionKey[]): string {
  * o `authMiddleware`, como o `requireRole`.
  *
  * Dívida deliberada (ticket 06 — contração, #167): este gate lê as concessões
- * do banco a cada requisição com chave. No ticket 06, quando o guard por nome
- * morrer e todas as rotas forem por chave: carregar as Permissões uma vez por
- * requisição no `authMiddleware` (anexando `req.permissions`), deixando este
- * middleware puro e sem I/O.
+ * do banco a cada requisição com chave e importa o repositório de
+ * `modules/auth` (direção shared → modules). Mantido assim na expansão porque
+ * só as rotas com gate pagam a leitura.
+ *
+ * No ticket 06, quando o guard por nome morrer e todas as rotas forem por
+ * chave: carregar as Permissões uma vez por requisição no `authMiddleware`
+ * (anexando `req.permissions`), deixando este middleware puro e sem import de
+ * repositório — e então reavaliar o lugar da consulta em `src/shared/access/`.
+ * Remover este bloco junto com a dívida.
  */
 export function requireAnyPermission(keys: readonly PermissionKey[]) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -33,7 +38,8 @@ export function requireAnyPermission(keys: readonly PermissionKey[]) {
       return;
     }
 
-    const permissions = await loadEffectivePermissions(Number(req.user.id));
+    const grants = await listUserPermissions(Number(req.user.id));
+    const permissions = buildEffectivePermissions(grants);
 
     if (!permissions.some((permission) => keys.includes(permission.key))) {
       next(new AppError(permissionDeniedMessage(keys), 403));

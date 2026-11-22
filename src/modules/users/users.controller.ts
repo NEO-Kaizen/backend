@@ -1,8 +1,6 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
-import { loadEffectivePermissions } from "../../shared/access/permissions.ts";
-import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   changeUserStatusSchema,
@@ -34,10 +32,10 @@ function actorFromRequest(req: Request): AccountActor {
   return { id: actorIdFromRequest(req), permissions: req.permissions };
 }
 
-/** Ator do autoatendimento — carrega as Permissões sem gate de chave. */
+/** Ator do autoatendimento — as Permissões vêm do próprio módulo, sem gate. */
 async function selfActorFromRequest(req: Request): Promise<AccountActor> {
   const id = actorIdFromRequest(req);
-  const permissions: EffectivePermission[] = await loadEffectivePermissions(id);
+  const permissions = await service.loadActorPermissions(id);
   return { id, permissions };
 }
 
@@ -156,45 +154,13 @@ export const updateMyProfile = async (req: Request, res: Response): Promise<Resp
     throw new AppError("A parte 'payload' contém um JSON inválido.", 400);
   }
 
-  // Mensagem explícita para perfis sem `user:manage` que tentem alterar dados
-  // administrativos no self-service.
-  if (
-    parsedPayload !== null &&
-    typeof parsedPayload === "object" &&
-    "requester" in (parsedPayload as Record<string, unknown>)
-  ) {
-    const rawReq = (parsedPayload as Record<string, unknown>).requester as Record<
-      string,
-      unknown
-    > | null;
-    const canManageAccounts = actor.permissions.some(
-      (permission) => permission.key === "user:manage",
-    );
-    if (
-      !canManageAccounts &&
-      rawReq !== null &&
-      typeof rawReq === "object" &&
-      ("area" in rawReq || "department" in rawReq || "manager" in rawReq)
-    ) {
-      throw new AppError(
-        "Área, departamento e gestor só podem ser alterados por quem tem a permissão user:manage. Use PUT /users/:id.",
-        403,
-      );
-    }
-  }
-
   const parsed = updateProfileSchema.safeParse(parsedPayload);
   if (!parsed.success) {
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const updated = await service.updateMyProfile(
-    actor.id,
-    actor.id,
-    actor.permissions,
-    parsed.data,
-    req.file,
-  );
+  // A regra de área/departamento/gestor (`user:manage`) é aplicada no service.
+  const updated = await service.updateMyProfile(actor, parsed.data, req.file);
 
   return res.status(200).json(updated);
 };

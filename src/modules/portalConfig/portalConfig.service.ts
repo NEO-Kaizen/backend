@@ -2,7 +2,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import db from "../../database/conection.ts";
-import type { EffectivePermission, PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import type {
   AccessSection,
   AssetsSection,
@@ -24,19 +24,6 @@ import type { SystemSettingsRow } from "../../shared/types/systemSettings.ts";
 import { themeFromRow, themeToColumns } from "./portalConfig.mappers.ts";
 import * as repository from "./portalConfig.repository.ts";
 import type { PortalConfigResponse } from "../DTOs/portalConfig/PortalConfigResponse.dto.ts";
-
-/**
- * Chaves de leitura das seções da visão administrativa (contrato RBAC § 3.7).
- * Quem tem ao menos uma delas acessa `GET /portal-config/admin`; a resposta
- * devolve apenas as seções legíveis.
- */
-export const PORTAL_SECTION_READ_KEYS = [
-  "theme:read",
-  "category:read",
-  "status:read",
-  "portal_setting:read",
-  "prioritization_config:read",
-] as const satisfies readonly PermissionKey[];
 
 // ---------------------------------------------------------------------------
 // Helpers

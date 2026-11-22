@@ -1,4 +1,4 @@
-import type { Custody } from "../catalog/permissionCatalog.ts";
+import type { EffectivePermission } from "../catalog/permissionCatalog.ts";
 
 /**
  * Autoridade de conta — predicado puro da matriz de contas (contrato RBAC § 4.2).
@@ -10,14 +10,11 @@ import type { Custody } from "../catalog/permissionCatalog.ts";
  * pela marca `is_root`, fora deste módulo.
  */
 
-/** Par chave+vínculo de um Perfil, na forma da lista efetiva de Permissões. */
-export interface AuthorityGrant {
-  readonly key: string;
-  readonly custody: Custody;
-}
-
 /** `all` contém `assigned`; os demais vínculos só contêm a si mesmos (§ 4.2). */
-function custodyContains(actorCustody: Custody, targetCustody: Custody): boolean {
+function custodyContains(
+  actorCustody: EffectivePermission["custody"],
+  targetCustody: EffectivePermission["custody"],
+): boolean {
   if (actorCustody === targetCustody) {
     return true;
   }
@@ -26,8 +23,8 @@ function custodyContains(actorCustody: Custody, targetCustody: Custody): boolean
 }
 
 function containsAll(
-  targetGrants: readonly AuthorityGrant[],
-  actorGrants: readonly AuthorityGrant[],
+  targetGrants: readonly EffectivePermission[],
+  actorGrants: readonly EffectivePermission[],
 ): boolean {
   const actorCustodyByKey = new Map(actorGrants.map((grant) => [grant.key, grant.custody]));
 
@@ -44,8 +41,8 @@ function containsAll(
  * recusada.
  */
 export function isAuthorityStrictlyBelow(
-  targetGrants: readonly AuthorityGrant[],
-  actorGrants: readonly AuthorityGrant[],
+  targetGrants: readonly EffectivePermission[],
+  actorGrants: readonly EffectivePermission[],
 ): boolean {
   return containsAll(targetGrants, actorGrants) && !containsAll(actorGrants, targetGrants);
 }
