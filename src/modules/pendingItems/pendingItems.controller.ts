@@ -19,7 +19,7 @@ function callerFromRequest(req: Request): {
 }
 
 function assertProtocol(req: Request): string {
-  const p = req.params.protocol as string;
+  const p = req.params.protocol;
   if (!p || typeof p !== "string" || p.trim() === "")
     throw new AppError("Protocolo é obrigatório", 400);
   return p.trim();
@@ -38,7 +38,7 @@ export async function createPendingItems(req: Request, res: Response): Promise<R
   if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
   const result = await service.createPendingItems(
     protocol,
-    parsed.data as never,
+    parsed.data,
     actorFromRequest(req),
     req.ip,
   );
@@ -53,8 +53,8 @@ export async function listPendingItems(req: Request, res: Response): Promise<Res
 
 export async function respondPendingItem(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  const pendingItemId = req.params.pendingItemId as string;
-  if (!pendingItemId || pendingItemId.trim() === "")
+  const pendingItemId = req.params.pendingItemId;
+  if (!pendingItemId || typeof pendingItemId !== "string" || pendingItemId.trim() === "")
     throw new AppError("pendingItemId é obrigatório", 400);
   const isInternal = !!req.user;
   const actorEmail = req.user?.email;
@@ -72,10 +72,10 @@ export async function respondPendingItem(req: Request, res: Response): Promise<R
 
 export async function attachPendingItem(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  const pendingItemId = req.params.pendingItemId as string;
-  if (!pendingItemId || pendingItemId.trim() === "")
+  const pendingItemId = req.params.pendingItemId;
+  if (!pendingItemId || typeof pendingItemId !== "string" || pendingItemId.trim() === "")
     throw new AppError("pendingItemId é obrigatório", 400);
-  const file = (req as unknown as { file?: Express.Multer.File }).file;
+  const file = req.file;
   if (!file) throw new AppError("Campos obrigatórios ausentes: file", 400);
   const result = await service.addAttachment(
     protocol,
@@ -93,7 +93,7 @@ export async function reviewPendingItems(req: Request, res: Response): Promise<R
   if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
   const result = await service.reviewPendingItems(
     protocol,
-    parsed.data as never,
+    parsed.data,
     actorFromRequest(req),
     req.ip,
   );

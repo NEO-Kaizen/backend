@@ -1,4 +1,8 @@
 import { z } from "zod";
+import type {
+  CreatePendingItemsBody,
+  ReviewPendingItemsBody,
+} from "../DTOs/pendingItems/PendingItems.dto.ts";
 
 export const createPendingItemsSchema = z
   .object({
@@ -25,7 +29,7 @@ export const createPendingItemsSchema = z
         path: ["observation"],
       });
     }
-  });
+  }) satisfies z.ZodType<CreatePendingItemsBody>;
 
 export const verifySchema = z.object({
   name: z.string().trim().min(3).max(150),
@@ -52,7 +56,7 @@ export const reviewSchema = z.object({
       ]),
     )
     .min(1),
-});
+}) satisfies z.ZodType<ReviewPendingItemsBody>;
 
 export type CreatePendingItemsInput = z.infer<typeof createPendingItemsSchema>;
 export type VerifyInput = z.infer<typeof verifySchema>;

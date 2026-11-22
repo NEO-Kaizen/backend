@@ -23,6 +23,7 @@ const Config = {
   COOKIE_NAME: process.env.COOKIE_NAME ?? "session_id",
   UPLOAD_DIR: process.env.UPLOAD_DIR ?? "uploads",
   PROTOCOL_FPE_KEY: resolveProtocolFpeKey(),
+  SWAGGER_ENABLED: process.env.SWAGGER_ENABLED === "true",
 };
 
 function jwtExpiryToMs(value: string): number {

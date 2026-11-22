@@ -62,19 +62,8 @@ export type TriageResult =
 export type OperationalImpact = "Baixo" | "Médio" | "Alto" | "Crítico";
 
 // Categorias: lista administrável por CRUD nas configurações (Especificação
-// 3.0 §7.4 aba "Categorias"); união reflete as 10 opções base — novas
-// categorias chegam como string livre validada contra o cadastro.
-export type RequestCategory =
-  | "Automação"
-  | "Melhoria de processo"
-  | "Indicador"
-  | "Dashboard ou relatório"
-  | "Análise de dados"
-  | "Padronização"
-  | "Revisão de processo"
-  | "Apoio técnico"
-  | "Estudo de viabilidade"
-  | "Outros";
+// 3.0 §7.4 aba "Categorias"); nomes vêm do cadastro ativo e são validados no backend.
+export type RequestCategory = string;
 
 // Derivado no servidor a partir das partes binárias `attachments` do POST
 // (multipart/form-data): Content-Disposition → fileName, Content-Type da
@@ -106,7 +95,7 @@ export interface DemandBlock {
   title: string; // obrigatório — título resumido, máx. 150
   requestType: string; // obrigatório — Tipo de Solicitação (modalidade macro,
   // ex.: Automação, Manutenção, Nova Demanda), máx. 80
-  category: RequestCategory; // obrigatório — Categoria da Demanda (select funcional), máx. 80
+  category: string; // obrigatório — Categoria da Demanda (nome do cadastro ativo), máx. 80
   processName: string; // obrigatório — nome formal do processo atual, máx. 150
   description: string; // obrigatório — Descrição da Necessidade, máx. 4.000
   problem: string; // obrigatório — Problema ou Oportunidade Identificada, máx. 4.000

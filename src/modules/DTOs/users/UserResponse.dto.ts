@@ -1,5 +1,5 @@
 import type { Role } from "../../../shared/types/role.ts";
-import type { RequestCategory } from "../../../shared/types/requests.ts";
+import type { RequestCategoryName } from "../../../shared/types/requests.ts";
 
 export interface UserSummary {
   id: string;
@@ -17,7 +17,7 @@ export interface AssignAnalyst {
   fullName: string;
   email: string;
   specialty: string;
-  categories: RequestCategory[];
+  categories: RequestCategoryName[];
   notes: string | null;
   requestLoad: number | null;
 }

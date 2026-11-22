@@ -1,0 +1,150 @@
+import { ErrorResponse, ValidationErrorResponse } from "./common.ts";
+
+import {
+  AuthenticatedUser,
+  LoginRequest,
+  LoginResponse,
+  LogoutResponse,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+} from "./auth.ts";
+
+import {
+  UserMetrics,
+  UserListItem,
+  RequesterProfileBlock,
+  ProfessionalProfileBlock,
+  UserProfileResponse,
+} from "./user.ts";
+import { RequestSummary, RequestDetail } from "./request.ts";
+
+import { QueueMetrics, QueueItem, QueueResponse } from "./queue.ts";
+
+import { TriagemResponse } from "./triage.ts";
+
+import { MappingResponse } from "./mapping.ts";
+
+import {
+  PortalConfig,
+  PortalTheme,
+  PortalAssets,
+  PortalCategory,
+  PortalStatus,
+  PrioritizationWeights,
+  ThemeTokens,
+  ThemeGradient,
+  StatusToneTokens,
+  PortalAccessPatchBody,
+  PortalIdentityPatchBody,
+  PortalThemePatchBody,
+  PortalCategoriesPatchBody,
+  PortalStatusesPatchBody,
+  PortalPrioritizationWeightsPatchBody,
+} from "./portal.ts";
+
+import { PrioritizationCriteria } from "./prioritization.ts";
+
+import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
+
+import {
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
+} from "./notifications.ts";
+
+export {
+  ErrorResponse,
+  ValidationErrorResponse,
+  AuthenticatedUser,
+  LoginRequest,
+  LoginResponse,
+  LogoutResponse,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  UserMetrics,
+  UserListItem,
+  RequesterProfileBlock,
+  ProfessionalProfileBlock,
+  UserProfileResponse,
+  RequestSummary,
+  RequestDetail,
+  QueueMetrics,
+  QueueItem,
+  QueueResponse,
+  TriagemResponse,
+  MappingResponse,
+  PortalConfig,
+  PortalTheme,
+  PortalAssets,
+  PortalCategory,
+  PortalStatus,
+  PrioritizationWeights,
+  ThemeTokens,
+  ThemeGradient,
+  StatusToneTokens,
+  PortalAccessPatchBody,
+  PortalIdentityPatchBody,
+  PortalThemePatchBody,
+  PortalCategoriesPatchBody,
+  PortalStatusesPatchBody,
+  PortalPrioritizationWeightsPatchBody,
+  PrioritizationCriteria,
+  ReviewDecisionValidate,
+  ReviewDecisionReopen,
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
+};
+
+export const schemas = {
+  ErrorResponse,
+  ValidationErrorResponse,
+  AuthenticatedUser,
+  LoginRequest,
+  LoginResponse,
+  LogoutResponse,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
+  UserMetrics,
+  UserListItem,
+  RequesterProfileBlock,
+  ProfessionalProfileBlock,
+  UserProfileResponse,
+  RequestSummary,
+  RequestDetail,
+  QueueMetrics,
+  QueueItem,
+  QueueResponse,
+  TriagemResponse,
+  MappingResponse,
+  PortalConfig,
+  PortalTheme,
+  PortalAssets,
+  PortalCategory,
+  PortalStatus,
+  PrioritizationWeights,
+  ThemeTokens,
+  ThemeGradient,
+  StatusToneTokens,
+  PortalAccessPatchBody,
+  PortalIdentityPatchBody,
+  PortalThemePatchBody,
+  PortalCategoriesPatchBody,
+  PortalStatusesPatchBody,
+  PortalPrioritizationWeightsPatchBody,
+  PrioritizationCriteria,
+  ReviewDecisionValidate,
+  ReviewDecisionReopen,
+  NotificationPayload,
+  NotificationItem,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationMarkReadResponse,
+  NotificationMarkAllReadResponse,
+} as const;
