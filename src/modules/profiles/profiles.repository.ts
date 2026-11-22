@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import type {
   ProfilePermissionRow,
   ProfileRow,
@@ -162,7 +163,7 @@ export async function updateProfileFields(
 export async function replacePermissions(
   trx: Knex.Transaction,
   profileId: number,
-  permissions: readonly { key: string; custody: string }[],
+  permissions: readonly EffectivePermission[],
 ): Promise<void> {
   await trx("profile_permissions").where({ profile_id: profileId }).del();
 

@@ -14,6 +14,11 @@ export const profilePermissionSchema = z.object({
   custody: z.enum(CUSTODIES, "Vínculo inválido."),
 });
 
+/** `:id` do Perfil — validado na borda; malformado responde como inexistente (404). */
+export const profileIdParamSchema = z.object({
+  id: z.string().regex(/^\d+$/, "Parâmetro inválido."),
+});
+
 const profilePermissionsSchema = z
   .array(profilePermissionSchema)
   .max(PERMISSION_CATALOG.length, "A composição não pode exceder o catálogo de chaves.");

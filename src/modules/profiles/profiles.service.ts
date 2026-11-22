@@ -1,6 +1,4 @@
-import type { Knex } from "knex";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import {
   ASSIGNABILITY_PREDICATES,
@@ -19,18 +17,16 @@ import type {
   UpdateProfileRequest,
 } from "../DTOs/profiles/Profiles.dto.ts";
 import * as repository from "./profiles.repository.ts";
+import { recordProfileAudit } from "./profiles.audit.ts";
 import {
   assertNoEscalation,
   effectivePermissionsFromGrants,
   findWorkKeyLosses,
-  profileSnapshot,
   STAGE_LABEL,
   validateAssignabilityPredicates,
   validateComposition,
   type CompositionState,
 } from "./profiles.composition.ts";
-
-const CHANGE_ORIGIN_ADMIN = "admin";
 
 /** Ator da operação: id da sessão + conjunto efetivo de Permissões (nunca do body). */
 export interface ProfileActor {
@@ -54,9 +50,28 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+/**
+ * Executa a escrita e traduz a violação do índice único parcial
+ * (`uk_profiles_active_name_lower`) na recusa de negócio — a checagem do
+ * service pode perder a corrida, o banco não.
+ */
+async function runProfileWrite<T>(
+  operation: () => Promise<T>,
+  conflictMessage = "Já existe um perfil ativo com esse nome.",
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new AppError(conflictMessage, 400, "profile_name_taken");
+    }
+    throw error;
+  }
+}
+
 function profileState(
   row: ProfileWithUserCountRow,
-  permissions: readonly { key: string; custody: string }[],
+  permissions: readonly EffectivePermission[],
 ): CompositionState {
   return {
     isAssignableTriage: row.is_assignable_triage,
@@ -67,7 +82,7 @@ function profileState(
 
 function toDTO(
   row: ProfileWithUserCountRow,
-  permissions: readonly { key: string; custody: string }[],
+  permissions: readonly EffectivePermission[],
 ): ProfileDTO {
   return {
     id: String(row.profile_id),
@@ -78,7 +93,7 @@ function toDTO(
     isAssignableTriage: row.is_assignable_triage,
     isAssignableMapping: row.is_assignable_mapping,
     userCount: row.user_count,
-    permissions: effectivePermissionsFromGrants(permissions),
+    permissions: [...permissions],
   };
 }
 
@@ -150,7 +165,9 @@ export async function listProfiles(): Promise<ProfileDTO[]> {
     grantsByProfile.set(grant.profile_id, list);
   }
 
-  return rows.map((row) => toDTO(row, grantsByProfile.get(row.profile_id) ?? []));
+  return rows.map((row) =>
+    toDTO(row, effectivePermissionsFromGrants(grantsByProfile.get(row.profile_id) ?? [])),
+  );
 }
 
 /** Detalhe de um Perfil. */
@@ -197,10 +214,8 @@ export async function createProfile(
   assertNoEscalation(permissions, actor.permissions);
   await assertNameAvailable(payload.name);
 
-  let created: ProfileWithUserCountRow;
-
-  try {
-    created = await db.transaction(async (trx) => {
+  const created = await runProfileWrite(() =>
+    db.transaction(async (trx) => {
       const row = await repository.insertProfile(trx, {
         name: payload.name,
         description: payload.description ?? null,
@@ -208,7 +223,7 @@ export async function createProfile(
       });
 
       await repository.replacePermissions(trx, row.profile_id, permissions);
-      await writeAudit(trx, {
+      await recordProfileAudit(trx, {
         actorUserId: actor.userId,
         profileId: row.profile_id,
         actionType: "profile.create",
@@ -219,13 +234,8 @@ export async function createProfile(
       });
 
       return { ...row, user_count: 0 };
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new AppError("Já existe um perfil ativo com esse nome.", 400, "profile_name_taken");
-    }
-    throw error;
-  }
+    }),
+  );
 
   return toDTO(created, permissions);
 }
@@ -245,10 +255,9 @@ export async function updateProfile(
   }
 
   const currentPermissions = await permissionsOf(id);
-  const isRootProfile = current.is_root;
 
   // Guarda 2 — só o Admin Root edita o Perfil Admin Root.
-  if (isRootProfile && !(await repository.actorIsRoot(actor.userId))) {
+  if (current.is_root && !(await repository.actorIsRoot(actor.userId))) {
     throw new AppError(
       "Apenas o Admin Root edita o perfil Admin Root.",
       403,
@@ -266,7 +275,7 @@ export async function updateProfile(
   };
 
   // Guarda 2 — o Perfil Admin Root nunca perde `profile:manage` nem é atribuível.
-  if (isRootProfile) {
+  if (current.is_root) {
     if (!nextPermissions.some((permission) => permission.key === "profile:manage")) {
       throw new AppError(
         "O perfil Admin Root não pode perder profile:manage.",
@@ -290,10 +299,7 @@ export async function updateProfile(
 
   await assertWorkKeyGuard(
     profileState(current, currentPermissions),
-    {
-      ...nextFlags,
-      permissions: nextPermissions,
-    },
+    { ...nextFlags, permissions: nextPermissions },
     id,
   );
 
@@ -303,17 +309,16 @@ export async function updateProfile(
     await assertNameAvailable(payload.name, id);
   }
 
-  const nextState = {
+  const nextRow: ProfileWithUserCountRow = {
+    ...current,
     name: payload.name ?? current.name,
     description: payload.description !== undefined ? payload.description : current.description,
-    isActive: current.is_active,
-    isRoot: current.is_root,
-    ...nextFlags,
-    permissions: nextPermissions,
+    is_assignable_triage: nextFlags.isAssignableTriage,
+    is_assignable_mapping: nextFlags.isAssignableMapping,
   };
 
-  try {
-    await db.transaction(async (trx) => {
+  await runProfileWrite(() =>
+    db.transaction(async (trx) => {
       await repository.updateProfileFields(trx, id, {
         name: payload.name,
         description: payload.description,
@@ -325,23 +330,17 @@ export async function updateProfile(
         await repository.replacePermissions(trx, id, nextPermissions);
       }
 
-      await recordAudit(trx, {
-        entityType: "profile",
-        entityId: String(id),
+      await recordProfileAudit(trx, {
+        actorUserId: actor.userId,
+        profileId: id,
         actionType: "profile.update",
-        userId: actor.userId,
-        previousValue: profileSnapshot(profileSnapshotSource(current, currentPermissions)),
-        newValue: profileSnapshot(nextState),
+        previous: current,
+        next: nextRow,
+        permissions: nextPermissions,
         ipAddress,
-        changeOrigin: CHANGE_ORIGIN_ADMIN,
       });
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new AppError("Já existe um perfil ativo com esse nome.", 400, "profile_name_taken");
-    }
-    throw error;
-  }
+    }),
+  );
 
   return getProfile(rawId);
 }
@@ -383,30 +382,23 @@ export async function changeProfileStatus(
 
   const currentPermissions = await permissionsOf(id);
 
-  try {
-    await db.transaction(async (trx) => {
-      await repository.updateProfileFields(trx, id, { isActive: payload.isActive });
+  await runProfileWrite(
+    () =>
+      db.transaction(async (trx) => {
+        await repository.updateProfileFields(trx, id, { isActive: payload.isActive });
 
-      await writeAudit(trx, {
-        actorUserId: actor.userId,
-        profileId: id,
-        actionType: payload.isActive ? "profile.activate" : "profile.deactivate",
-        previous: current,
-        next: { ...current, is_active: payload.isActive },
-        permissions: currentPermissions,
-        ipAddress,
-      });
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new AppError(
-        "Já existe um perfil ativo com esse nome. Renomeie-o antes de reativar.",
-        400,
-        "profile_name_taken",
-      );
-    }
-    throw error;
-  }
+        await recordProfileAudit(trx, {
+          actorUserId: actor.userId,
+          profileId: id,
+          actionType: payload.isActive ? "profile.activate" : "profile.deactivate",
+          previous: current,
+          next: { ...current, is_active: payload.isActive },
+          permissions: currentPermissions,
+          ipAddress,
+        });
+      }),
+    "Já existe um perfil ativo com esse nome. Renomeie-o antes de reativar.",
+  );
 
   return { id: String(id), isActive: payload.isActive };
 }
@@ -442,10 +434,8 @@ export async function duplicateProfile(
 
   const description = payload.description !== undefined ? payload.description : source.description;
 
-  let created: ProfileWithUserCountRow;
-
-  try {
-    created = await db.transaction(async (trx) => {
+  const created = await runProfileWrite(() =>
+    db.transaction(async (trx) => {
       const row = await repository.insertProfile(trx, {
         name: payload.name,
         description: description ?? null,
@@ -453,69 +443,20 @@ export async function duplicateProfile(
       });
 
       await repository.replacePermissions(trx, row.profile_id, sourcePermissions);
-      await recordAudit(trx, {
-        entityType: "profile",
-        entityId: String(row.profile_id),
+      await recordProfileAudit(trx, {
+        actorUserId: actor.userId,
+        profileId: row.profile_id,
         actionType: "profile.duplicate",
-        userId: actor.userId,
-        previousValue: null,
-        newValue: profileSnapshot(
-          profileSnapshotSource({ ...row, user_count: 0 }, sourcePermissions),
-        ),
-        note: `Duplicado do perfil ${source.name} (#${source.profile_id})`,
+        previous: null,
+        next: { ...row, user_count: 0 },
+        permissions: sourcePermissions,
         ipAddress,
-        changeOrigin: CHANGE_ORIGIN_ADMIN,
+        note: `Duplicado do perfil ${source.name} (#${source.profile_id})`,
       });
 
       return { ...row, user_count: 0 };
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      throw new AppError("Já existe um perfil ativo com esse nome.", 400, "profile_name_taken");
-    }
-    throw error;
-  }
+    }),
+  );
 
   return toDTO(created, sourcePermissions);
-}
-
-function profileSnapshotSource(
-  row: ProfileWithUserCountRow,
-  permissions: readonly { key: string; custody: string }[],
-) {
-  return {
-    name: row.name,
-    description: row.description,
-    isActive: row.is_active,
-    isRoot: row.is_root,
-    isAssignableTriage: row.is_assignable_triage,
-    isAssignableMapping: row.is_assignable_mapping,
-    permissions,
-  };
-}
-
-async function writeAudit(
-  trx: Knex.Transaction,
-  entry: {
-    actorUserId: number;
-    profileId: number;
-    actionType: "profile.create" | "profile.activate" | "profile.deactivate";
-    previous: ProfileWithUserCountRow | null;
-    next: ProfileWithUserCountRow;
-    permissions: readonly { key: string; custody: string }[];
-    ipAddress: string | undefined;
-  },
-): Promise<void> {
-  await recordAudit(trx, {
-    entityType: "profile",
-    entityId: String(entry.profileId),
-    actionType: entry.actionType,
-    userId: entry.actorUserId,
-    previousValue: entry.previous
-      ? profileSnapshot(profileSnapshotSource(entry.previous, entry.permissions))
-      : null,
-    newValue: profileSnapshot(profileSnapshotSource(entry.next, entry.permissions)),
-    ipAddress: entry.ipAddress,
-    changeOrigin: CHANGE_ORIGIN_ADMIN,
-  });
 }

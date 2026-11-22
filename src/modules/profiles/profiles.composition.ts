@@ -43,8 +43,13 @@ export const STAGE_LABEL = {
 export interface CompositionState {
   isAssignableTriage: boolean;
   isAssignableMapping: boolean;
-  permissions: readonly { key: string; custody: string }[];
+  permissions: readonly EffectivePermission[];
 }
+
+/** Catálogo indexado por chave — evita varredura repetida nas guardas. */
+const CATALOG_BY_KEY: ReadonlyMap<string, (typeof PERMISSION_CATALOG)[number]> = new Map(
+  PERMISSION_CATALOG.map((entry) => [entry.key, entry] as const),
+);
 
 /** Concessão que o ator pode conceder, dado o próprio conjunto (§ 4.1). */
 const CUSTODY_CONTAINMENT: Record<Custody, readonly Custody[]> = {
@@ -99,7 +104,7 @@ export function validateComposition(
   const seen = new Set<string>();
 
   for (const grant of input) {
-    const entry = PERMISSION_CATALOG.find((candidate) => candidate.key === grant.key);
+    const entry = CATALOG_BY_KEY.get(grant.key);
 
     if (!entry) {
       throw unknownKey(grant.key);
@@ -132,7 +137,7 @@ export function validateComposition(
   }
 
   for (const grant of input) {
-    const entry = PERMISSION_CATALOG.find((candidate) => candidate.key === grant.key);
+    const entry = CATALOG_BY_KEY.get(grant.key);
 
     for (const dependency of entry?.dependencies ?? []) {
       if (!seen.has(dependency)) {
@@ -254,13 +259,11 @@ export interface ProfileSnapshotSource {
   isRoot: boolean;
   isAssignableTriage: boolean;
   isAssignableMapping: boolean;
-  permissions: readonly { key: string; custody: string }[];
+  permissions: readonly EffectivePermission[];
 }
 
-/** Antes/depois canônico da Auditoria: JSON com a composição na ordem do catálogo. */
+/** Antes/depois canônico da Auditoria: JSON com a composição já validada e ordenada. */
 export function profileSnapshot(profile: ProfileSnapshotSource): string {
-  const permissions = effectivePermissionsFromGrants(profile.permissions);
-
   return JSON.stringify({
     name: profile.name,
     description: profile.description,
@@ -268,6 +271,6 @@ export function profileSnapshot(profile: ProfileSnapshotSource): string {
     isRoot: profile.isRoot,
     isAssignableTriage: profile.isAssignableTriage,
     isAssignableMapping: profile.isAssignableMapping,
-    permissions,
+    permissions: profile.permissions,
   });
 }

@@ -7,9 +7,21 @@ import {
   changeProfileStatusSchema,
   createProfileSchema,
   duplicateProfileSchema,
+  profileIdParamSchema,
   updateProfileSchema,
 } from "./profiles.schema.ts";
 import * as service from "./profiles.service.ts";
+
+/** `:id` validado na borda — malformado é tratado como perfil inexistente (anti-enumeração). */
+function idParam(req: Request): string {
+  const parsed = profileIdParamSchema.safeParse(req.params);
+
+  if (!parsed.success) {
+    throw new AppError("Perfil não encontrado", 404);
+  }
+
+  return parsed.data.id;
+}
 
 /** Ator da sessão — id do token e conjunto efetivo resolvido pelo gate de chave. */
 function actorOf(req: Request): service.ProfileActor {
@@ -38,7 +50,7 @@ export const getKeyCatalog = async (_req: Request, res: Response): Promise<Respo
 };
 
 export const getProfile = async (req: Request, res: Response): Promise<Response> => {
-  return res.status(200).json(await service.getProfile(req.params.id as string));
+  return res.status(200).json(await service.getProfile(idParam(req)));
 };
 
 export const createProfile = async (req: Request, res: Response): Promise<Response> => {
@@ -62,12 +74,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
     throw new ValidationError(fields, message);
   }
 
-  const updated = await service.updateProfile(
-    req.params.id as string,
-    parsed.data,
-    actorOf(req),
-    req.ip,
-  );
+  const updated = await service.updateProfile(idParam(req), parsed.data, actorOf(req), req.ip);
 
   return res.status(200).json(updated);
 };
@@ -80,7 +87,7 @@ export const changeProfileStatus = async (req: Request, res: Response): Promise<
   }
 
   const updated = await service.changeProfileStatus(
-    req.params.id as string,
+    idParam(req),
     parsed.data,
     actorOf(req),
     req.ip,
@@ -97,12 +104,7 @@ export const duplicateProfile = async (req: Request, res: Response): Promise<Res
     throw new ValidationError(fields, message);
   }
 
-  const created = await service.duplicateProfile(
-    req.params.id as string,
-    parsed.data,
-    actorOf(req),
-    req.ip,
-  );
+  const created = await service.duplicateProfile(idParam(req), parsed.data, actorOf(req), req.ip);
 
   return res.status(201).json(created);
 };
