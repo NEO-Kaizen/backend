@@ -130,14 +130,14 @@ export default {
   "/requests/assignees": {
     get: {
       tags: ["Solicitações"],
-      summary: "Listar responsáveis elegíveis",
+      summary: "Listar responsáveis atribuíveis",
       description:
-        "Lista os responsáveis técnicos elegíveis (profissional ativo, usuário ativo e perfil analista). Leitura liberada aos perfis internos.",
+        "Lista os Responsáveis atribuíveis (profissional ativo, usuário ativo e perfil analista). Leitura liberada aos perfis internos.",
       operationId: "getAssignees",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Responsáveis elegíveis, ordenados por nome.",
+          description: "Responsáveis atribuíveis, ordenados por nome.",
           content: {
             "application/json": {
               schema: {
@@ -277,7 +277,7 @@ export default {
       tags: ["Solicitações"],
       summary: "Acompanhamento do solicitante",
       description:
-        "Acompanhamento bimodal. Cookie de sessão do dono → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. " +
+        "Acompanhamento bimodal. Cookie de sessão do Solicitante → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. " +
         "O recorte nunca inclui triagem, priorização ou notas internas.",
       operationId: "getTracking",
       security: [{ cookieAuth: [] }, { requesterIdentity: [] }],
@@ -365,7 +365,7 @@ export default {
   "/requests/{protocol}/assignee": {
     patch: {
       tags: ["Solicitações"],
-      summary: "Atribuir responsável técnico (legado)",
+      summary: "Atribuir Responsável (legado)",
       description:
         "Rota legada de atribuição por `professionalId` (UUID de `details_professional`). Use `PATCH /requests/{protocol}/internal/assignee`. " +
         "⚠ O schema atual aceita `{}` e remove o responsável silenciosamente.",

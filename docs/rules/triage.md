@@ -13,11 +13,11 @@ custódia, a operação é recusada.
 
 ## Regras condicionais
 
-- `adherentJustification` só existe quando a demanda não é aderente ao escopo;
+- `adherentJustification` só existe quando a solicitação não é aderente ao escopo;
   fora desse caso é limpo.
 - `newCategory` só é aplicado quando há troca de categoria e precisa ser o nome
   de uma categoria ativa; fora desse caso é limpo.
-- `preliminaryComplexity` e `perceivedRisks` só são exigidos quando a demanda é
+- `preliminaryComplexity` e `perceivedRisks` só são exigidos quando a solicitação é
   aderente ao escopo.
 - `lastTechnicalMessage` é exigido quando o Status de saída é público.
 - Os demais campos são declarativos e não alteram regra de domínio.

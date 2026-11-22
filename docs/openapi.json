@@ -26,7 +26,7 @@
     },
     { "name": "Priorização", "description": "Critérios e pontuação de priorização" },
     { "name": "Relatórios", "description": "Relatórios e exportações" },
-    { "name": "Auditoria", "description": "Histórico de auditoria e logs" },
+    { "name": "Auditoria", "description": "Trilha de auditoria" },
     { "name": "Notas internas", "description": "Notas internas de solicitações" },
     { "name": "Pendências", "description": "Pendências e verificação pública" },
     { "name": "Notificações", "description": "Notificações in-app e entrega SSE" }
@@ -290,7 +290,7 @@
           "requestLoad": {
             "type": "integer",
             "nullable": true,
-            "description": "Demandas atribuídas; `null` quando não calculado."
+            "description": "Solicitações atribuídas; `null` quando não calculado."
           }
         }
       },
@@ -429,7 +429,7 @@
       },
       "RequestCategory": {
         "type": "string",
-        "description": "Nome da categoria da demanda (`categories.name`). O cadastro é administrável em `PATCH /portal-config/categories`; os 10 nomes base são: Automação, Melhoria de processo, Indicador, Dashboard ou relatório, Análise de dados, Padronização, Revisão de processo, Apoio técnico, Estudo de viabilidade, Outros.",
+        "description": "Nome da categoria da solicitação (`categories.name`). O cadastro é administrável em `PATCH /portal-config/categories`; os 10 nomes base são: Automação, Melhoria de processo, Indicador, Dashboard ou relatório, Análise de dados, Padronização, Revisão de processo, Apoio técnico, Estudo de viabilidade, Outros.",
         "maxLength": 40,
         "example": "Automação"
       },
@@ -1190,7 +1190,7 @@
           "totalPages": { "type": "integer", "example": 5 },
           "assignees": {
             "type": "array",
-            "description": "Responsáveis elegíveis para o filtro da fila.",
+            "description": "Responsáveis atribuíveis para o filtro da fila.",
             "items": { "$ref": "#/components/schemas/QueueAssignee" }
           }
         }
@@ -1289,12 +1289,12 @@
               "justification": {
                 "type": "string",
                 "nullable": true,
-                "description": "Justificativa interna da conclusão (somente histórico)."
+                "description": "Justificativa interna da conclusão (somente registro)."
               },
               "lastTechnicalMessage": {
                 "type": "string",
                 "nullable": true,
-                "description": "Snapshot do retorno público da conclusão (somente histórico)."
+                "description": "Snapshot do retorno público da conclusão (somente registro)."
               }
             }
           }
@@ -1835,7 +1835,7 @@
         "properties": {
           "items": {
             "type": "array",
-            "description": "Página da timeline em ordem mais recente primeiro.",
+            "description": "Página da Linha do tempo em ordem mais recente primeiro.",
             "items": { "$ref": "#/components/schemas/TimelineItem" }
           },
           "nextCursor": {
@@ -1849,12 +1849,12 @@
           },
           "triages": {
             "type": "array",
-            "description": "Histórico completo, oldest → newest, idêntico em todas as páginas.",
+            "description": "Registros completos, oldest → newest, idênticos em todas as páginas.",
             "items": { "$ref": "#/components/schemas/TriageHistoryEntry" }
           },
           "mappings": {
             "type": "array",
-            "description": "Histórico completo, oldest → newest, idêntico em todas as páginas.",
+            "description": "Registros completos, oldest → newest, idênticos em todas as páginas.",
             "items": { "$ref": "#/components/schemas/MappingHistoryEntry" }
           }
         }
@@ -1898,7 +1898,7 @@
           "audit_id": { "type": "integer", "example": 1 },
           "entity_type": {
             "type": "string",
-            "description": "Valor persistido em `audit_history.entity_type`. O catálogo atual é `user`, `prioritization`, `request`, `mapping`, `settings`, `pending_item`; valores históricos fora do catálogo continuam legíveis.",
+            "description": "Valor persistido em `audit_history.entity_type`. O catálogo atual é `user`, `prioritization`, `request`, `mapping`, `settings`, `pending_item`; valores anteriores fora do catálogo continuam legíveis.",
             "example": "request"
           },
           "entity_type_label": { "type": "string", "example": "Usuários" },
@@ -2200,7 +2200,7 @@
           "description": {
             "type": "string",
             "maxLength": 200,
-            "example": "Demandas de TI e infraestrutura"
+            "example": "Solicitações de TI e infraestrutura"
           },
           "isActive": { "type": "boolean", "example": true }
         }
@@ -2829,13 +2829,13 @@
     "/requests/assignees": {
       "get": {
         "tags": ["Solicitações"],
-        "summary": "Listar responsáveis elegíveis",
-        "description": "Lista os responsáveis técnicos elegíveis (profissional ativo, usuário ativo e perfil analista). Leitura liberada aos perfis internos.",
+        "summary": "Listar responsáveis atribuíveis",
+        "description": "Lista os Responsáveis atribuíveis (profissional ativo, usuário ativo e perfil analista). Leitura liberada aos perfis internos.",
         "operationId": "getAssignees",
         "security": [{ "cookieAuth": [] }],
         "responses": {
           "200": {
-            "description": "Responsáveis elegíveis, ordenados por nome.",
+            "description": "Responsáveis atribuíveis, ordenados por nome.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3138,7 +3138,7 @@
       "get": {
         "tags": ["Solicitações"],
         "summary": "Acompanhamento do solicitante",
-        "description": "Acompanhamento bimodal. Cookie de sessão do dono → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. O recorte nunca inclui triagem, priorização ou notas internas.",
+        "description": "Acompanhamento bimodal. Cookie de sessão do Solicitante → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. O recorte nunca inclui triagem, priorização ou notas internas.",
         "operationId": "getTracking",
         "security": [{ "cookieAuth": [] }, { "requesterIdentity": [] }],
         "parameters": [
@@ -3319,7 +3319,7 @@
     "/requests/{protocol}/assignee": {
       "patch": {
         "tags": ["Solicitações"],
-        "summary": "Atribuir responsável técnico (legado)",
+        "summary": "Atribuir Responsável (legado)",
         "description": "Rota legada de atribuição por `professionalId` (UUID de `details_professional`). Use `PATCH /requests/{protocol}/internal/assignee`. ⚠ O schema atual aceita `{}` e remove o responsável silenciosamente.",
         "operationId": "patchAssignee",
         "deprecated": true,
@@ -4306,8 +4306,8 @@
     "/portal-config/theme": {
       "patch": {
         "tags": ["Configuração do portal"],
-        "summary": "Alterar tema do portal",
-        "description": "Altera o tema completo (light/dark) de forma atômica. Exige perfil `Administrador`.",
+        "summary": "Alterar Aparência do portal",
+        "description": "Altera a Aparência completa (light/dark) de forma atômica. Exige perfil `Administrador`.",
         "operationId": "updatePortalTheme",
         "security": [{ "cookieAuth": [] }],
         "requestBody": {
@@ -4320,7 +4320,7 @@
         },
         "responses": {
           "200": {
-            "description": "Tema alterado com sucesso.",
+            "description": "Aparência alterada com sucesso.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4879,7 +4879,7 @@
     "/audit-history": {
       "get": {
         "tags": ["Auditoria"],
-        "summary": "Listar histórico de auditoria",
+        "summary": "Listar trilha de auditoria",
         "description": "Lista paginada dos eventos de auditoria, ordenada por `occurred_at DESC`. Query é estrita (parâmetro desconhecido → `400`). `total` é a contagem antes da paginação; `page`/`limit` ecoam os valores aplicados. Perfis: Administrador ou Gestor. Respostas com `Cache-Control: private, no-store`.",
         "operationId": "listAuditHistory",
         "security": [{ "cookieAuth": [] }],
@@ -4991,7 +4991,7 @@
     "/audit-logs/{protocol}": {
       "get": {
         "tags": ["Auditoria"],
-        "summary": "Timeline de auditoria por protocolo",
+        "summary": "Linha do tempo de auditoria por protocolo",
         "description": "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Perfis internos; Analista precisa ser responsável (triagem ou mapeamento).",
         "operationId": "getAuditLogsByProtocol",
         "security": [{ "cookieAuth": [] }],
@@ -5046,8 +5046,8 @@
     "/requests/{protocol}/internal-notes": {
       "get": {
         "tags": ["Notas internas"],
-        "summary": "Listar timeline de observações internas",
-        "description": "Página da timeline unificada (notas + eventos de auditoria selecionados + históricos completos de triagem/mapeamento). Ordem mais recente primeiro, cursor keyset opaco. `unseenCount` conta somente notas de outros autores.",
+        "summary": "Listar a Linha do tempo de notas internas",
+        "description": "Página da Linha do tempo unificada (notas internas + eventos de auditoria selecionados + registros completos de triagem/mapeamento). Ordem mais recente primeiro, cursor keyset opaco. `unseenCount` conta somente notas de outros autores.",
         "operationId": "listInternalNotes",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5074,7 +5074,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Página da timeline.",
+            "description": "Página da Linha do tempo.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/InternalNotesResponse" }
@@ -5110,7 +5110,7 @@
       "post": {
         "tags": ["Notas internas"],
         "summary": "Publicar nota interna",
-        "description": "Cria uma nota imutável na timeline. Exige perfil interno.",
+        "description": "Cria uma nota interna imutável na Linha do tempo. Exige perfil interno.",
         "operationId": "createInternalNote",
         "security": [{ "cookieAuth": [] }],
         "parameters": [

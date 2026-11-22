@@ -65,7 +65,7 @@ export const QueueResponse = {
     totalPages: { type: "integer", example: 5 },
     assignees: {
       type: "array",
-      description: "Responsáveis elegíveis para o filtro da fila.",
+      description: "Responsáveis atribuíveis para o filtro da fila.",
       items: { $ref: "#/components/schemas/QueueAssignee" },
     },
   },
@@ -170,12 +170,12 @@ export const MappingHistoryResponse = {
         justification: {
           type: "string",
           nullable: true,
-          description: "Justificativa interna da conclusão (somente histórico).",
+          description: "Justificativa interna da conclusão (somente registro).",
         },
         lastTechnicalMessage: {
           type: "string",
           nullable: true,
-          description: "Snapshot do retorno público da conclusão (somente histórico).",
+          description: "Snapshot do retorno público da conclusão (somente registro).",
         },
       },
     },

@@ -5,9 +5,9 @@ export default {
   "/requests/{protocol}/internal-notes": {
     get: {
       tags: ["Notas internas"],
-      summary: "Listar timeline de observações internas",
+      summary: "Listar a Linha do tempo de notas internas",
       description:
-        "Página da timeline unificada (notas + eventos de auditoria selecionados + históricos completos de triagem/mapeamento). " +
+        "Página da Linha do tempo unificada (notas internas + eventos de auditoria selecionados + registros completos de triagem/mapeamento). " +
         "Ordem mais recente primeiro, cursor keyset opaco. `unseenCount` conta somente notas de outros autores.",
       operationId: "listInternalNotes",
       security: [{ cookieAuth: [] }],
@@ -28,7 +28,7 @@ export default {
         },
       ],
       responses: {
-        "200": { description: "Página da timeline.", ...json("InternalNotesResponse") },
+        "200": { description: "Página da Linha do tempo.", ...json("InternalNotesResponse") },
         "400": error("Protocolo, `limit` ou cursor inválido."),
         "401": error("Sem sessão ou token inválido."),
         "403": error("Perfil Solicitante."),
@@ -38,7 +38,7 @@ export default {
     post: {
       tags: ["Notas internas"],
       summary: "Publicar nota interna",
-      description: "Cria uma nota imutável na timeline. Exige perfil interno.",
+      description: "Cria uma nota interna imutável na Linha do tempo. Exige perfil interno.",
       operationId: "createInternalNote",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],

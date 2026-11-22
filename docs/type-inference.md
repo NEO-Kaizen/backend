@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **172**.
 - Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1822** â€” 1357 variÃ¡veis, 237 parÃ¢metros e 228 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1815** â€” 1358 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -3693,16 +3693,9 @@ interface GroupedIssues {
 
 ### [src/modules/auditHistory/auditHistory.router.ts](../src/modules/auditHistory/auditHistory.router.ts)
 
-- L10 â€” variÃ¡vel: `auditHistoryRoutes`
-- L14 â€” parÃ¢metro: `_req`
-- L14 â€” parÃ¢metro: `next`
-- L14 â€” parÃ¢metro: `res`
-- L14 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L38 â€” variÃ¡vel: `auditLogsRouter`
-- L42 â€” parÃ¢metro: `_req`
-- L42 â€” parÃ¢metro: `next`
-- L42 â€” parÃ¢metro: `res`
-- L42 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L10 â€” variÃ¡vel: `noStore`
+- L19 â€” variÃ¡vel: `auditHistoryRoutes`
+- L44 â€” variÃ¡vel: `auditLogsRouter`
 
 ### [src/modules/auditHistory/auditHistory.schema.ts](../src/modules/auditHistory/auditHistory.schema.ts)
 

@@ -5,7 +5,7 @@ export default {
   "/audit-history": {
     get: {
       tags: ["Auditoria"],
-      summary: "Listar histórico de auditoria",
+      summary: "Listar trilha de auditoria",
       description:
         "Lista paginada dos eventos de auditoria, ordenada por `occurred_at DESC`. Query é estrita (parâmetro desconhecido → `400`). `total` é a contagem antes da paginação; `page`/`limit` ecoam os valores aplicados. Perfis: Administrador ou Gestor. Respostas com `Cache-Control: private, no-store`.",
       operationId: "listAuditHistory",
@@ -71,7 +71,7 @@ export default {
   "/audit-logs/{protocol}": {
     get: {
       tags: ["Auditoria"],
-      summary: "Timeline de auditoria por protocolo",
+      summary: "Linha do tempo de auditoria por protocolo",
       description:
         "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Perfis internos; Analista precisa ser responsável (triagem ou mapeamento).",
       operationId: "getAuditLogsByProtocol",

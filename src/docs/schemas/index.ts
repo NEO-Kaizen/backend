@@ -267,7 +267,7 @@ export const schemas = {
   PublicVerifyBody,
   PublicVerifyResponse,
 
-  // Internal notes / timeline
+  // Internal notes
   TimelineActor,
   TimelineNote,
   TimelineEvent,

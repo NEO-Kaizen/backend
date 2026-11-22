@@ -1102,8 +1102,8 @@ function canAssignRequest(
 // - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
 //   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
 //   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
-// - status terminais (`isTerminal`) nunca são saída — fluxo encerrado não
-//   reabre por este endpoint (→ 422).
+// - status terminais (`isTerminal`) não bloqueiam a saída hoje — reabrir uma
+//   solicitação encerrada por esta rota é decisão pendente (issue #148).
 // Auditoria: bypass → `request.override_status_admin`; normal →
 // `request.status_change`; negado → `request.access_denied`.
 

@@ -141,7 +141,7 @@ export const AssignAnalyst = {
     requestLoad: {
       type: "integer",
       nullable: true,
-      description: "Demandas atribuídas; `null` quando não calculado.",
+      description: "Solicitações atribuídas; `null` quando não calculado.",
     },
   },
 };

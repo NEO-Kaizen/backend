@@ -1,4 +1,4 @@
-# Observações internas (Linha do tempo unificada)
+# Notas internas (Linha do tempo unificada)
 
 A Linha do tempo privada combina três fontes:
 
@@ -54,8 +54,8 @@ informação de triagem/mapeamento vive nos registros anteriores.
 - Notas são imutáveis; não há edição nem exclusão.
 - O backend compõe uma frase completa em pt-BR para cada evento; o texto nunca é
   nulo nem JSON bruto.
-- O ator pode ser nulo (sistema/usuário removido) e seu papel é o **atual**, não
-  o anterior.
+- O ator pode ser nulo (sistema/usuário removido) e seu Perfil é o **atual**,
+  não o anterior.
 - A justificativa interna e o retorno público são campos distintos e nunca se
   misturam.
 - Liberações automáticas na conclusão de triagem/mapeamento aparecem como

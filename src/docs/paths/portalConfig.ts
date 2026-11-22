@@ -143,9 +143,9 @@ export default {
   "/portal-config/theme": {
     patch: {
       tags: ["Configuração do portal"],
-      summary: "Alterar tema do portal",
+      summary: "Alterar Aparência do portal",
       description:
-        "Altera o tema completo (light/dark) de forma atômica. Exige perfil `Administrador`.",
+        "Altera a Aparência completa (light/dark) de forma atômica. Exige perfil `Administrador`.",
       operationId: "updatePortalTheme",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -158,7 +158,7 @@ export default {
       },
       responses: {
         "200": {
-          description: "Tema alterado com sucesso.",
+          description: "Aparência alterada com sucesso.",
           content: {
             "application/json": {
               schema: {

@@ -16,7 +16,7 @@ export const AuditHistorySummary = {
     entity_type: {
       type: "string",
       description:
-        "Valor persistido em `audit_history.entity_type`. O catálogo atual é `user`, `prioritization`, `request`, `mapping`, `settings`, `pending_item`; valores históricos fora do catálogo continuam legíveis.",
+        "Valor persistido em `audit_history.entity_type`. O catálogo atual é `user`, `prioritization`, `request`, `mapping`, `settings`, `pending_item`; valores anteriores fora do catálogo continuam legíveis.",
       example: "request",
     },
     entity_type_label: { type: "string", example: "Usuários" },

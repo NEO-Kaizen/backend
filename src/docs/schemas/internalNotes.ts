@@ -102,7 +102,7 @@ export const InternalNotesResponse = {
   properties: {
     items: {
       type: "array",
-      description: "Página da timeline em ordem mais recente primeiro.",
+      description: "Página da Linha do tempo em ordem mais recente primeiro.",
       items: { $ref: "#/components/schemas/TimelineItem" },
     },
     nextCursor: {
@@ -116,12 +116,12 @@ export const InternalNotesResponse = {
     },
     triages: {
       type: "array",
-      description: "Histórico completo, oldest → newest, idêntico em todas as páginas.",
+      description: "Registros completos, oldest → newest, idênticos em todas as páginas.",
       items: { $ref: "#/components/schemas/TriageHistoryEntry" },
     },
     mappings: {
       type: "array",
-      description: "Histórico completo, oldest → newest, idêntico em todas as páginas.",
+      description: "Registros completos, oldest → newest, idênticos em todas as páginas.",
       items: { $ref: "#/components/schemas/MappingHistoryEntry" },
     },
   },

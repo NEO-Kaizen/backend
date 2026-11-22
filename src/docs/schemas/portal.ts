@@ -170,7 +170,7 @@ export const PortalCategory = {
   properties: {
     id: { type: "integer", example: 1 },
     name: { type: "string", maxLength: 40, example: "Infraestrutura" },
-    description: { type: "string", maxLength: 200, example: "Demandas de TI e infraestrutura" },
+    description: { type: "string", maxLength: 200, example: "Solicitações de TI e infraestrutura" },
     isActive: { type: "boolean", example: true },
   },
 };

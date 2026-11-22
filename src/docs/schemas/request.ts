@@ -19,7 +19,7 @@ export const RequestPriority = {
 export const RequestCategory = {
   type: "string",
   description:
-    "Nome da categoria da demanda (`categories.name`). O cadastro é administrável em `PATCH /portal-config/categories`; os 10 nomes base são: Automação, Melhoria de processo, Indicador, Dashboard ou relatório, Análise de dados, Padronização, Revisão de processo, Apoio técnico, Estudo de viabilidade, Outros.",
+    "Nome da categoria da solicitação (`categories.name`). O cadastro é administrável em `PATCH /portal-config/categories`; os 10 nomes base são: Automação, Melhoria de processo, Indicador, Dashboard ou relatório, Análise de dados, Padronização, Revisão de processo, Apoio técnico, Estudo de viabilidade, Outros.",
   maxLength: 40,
   example: "Automação",
 };

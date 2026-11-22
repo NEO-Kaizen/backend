@@ -7,14 +7,20 @@ import {
   getAuditLogsByProtocolController,
 } from "./auditHistory.controller.ts";
 
+const noStore = (
+  _req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+): void => {
+  res.setHeader("Cache-Control", "private, no-store");
+  next();
+};
+
 const auditHistoryRoutes = express.Router();
 
 // Dados administrativos autenticados: impede armazenamento das respostas
 // pelo navegador ou por intermediários.
-auditHistoryRoutes.use((_req, res, next) => {
-  res.setHeader("Cache-Control", "private, no-store");
-  next();
-});
+auditHistoryRoutes.use(noStore);
 
 auditHistoryRoutes.get(
   "/",
@@ -39,10 +45,7 @@ export const auditLogsRouter = express.Router();
 
 // Mesma postura de cache da listagem administrativa: dados sensíveis não devem
 // ser armazenados por navegador ou intermediários.
-auditLogsRouter.use((_req, res, next) => {
-  res.setHeader("Cache-Control", "private, no-store");
-  next();
-});
+auditLogsRouter.use(noStore);
 
 auditLogsRouter.get(
   "/:protocol",

@@ -41,7 +41,7 @@ export const openapiBase = {
     },
     { name: "Priorização", description: "Critérios e pontuação de priorização" },
     { name: "Relatórios", description: "Relatórios e exportações" },
-    { name: "Auditoria", description: "Histórico de auditoria e logs" },
+    { name: "Auditoria", description: "Trilha de auditoria" },
     { name: "Notas internas", description: "Notas internas de solicitações" },
     { name: "Pendências", description: "Pendências e verificação pública" },
     { name: "Notificações", description: "Notificações in-app e entrega SSE" },

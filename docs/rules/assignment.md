@@ -8,9 +8,9 @@ A solicitação tem **duas responsabilidades**:
 Ambas referenciam `details_professional.professional_id`. Nome e e-mail vêm de
 `users`; o profissional guarda rotação, capacidade, cargo e especialidades.
 
-## Elegibilidade
+## Atribuibilidade
 
-Um profissional é elegível quando, ao mesmo tempo:
+Um profissional é atribuível quando, ao mesmo tempo:
 
 1. `details_professional.status = 'active'`;
 2. `users.is_active = true`;
@@ -24,12 +24,12 @@ Solicitações antigas mantêm o vínculo se o profissional for desativado;
 
 ### Duas listas com filtros diferentes
 
-- A lista de responsáveis elegíveis exige extensão profissional e **não** checa
+- A lista de Responsáveis atribuíveis exige extensão profissional e **não** checa
   se o Perfil está ativo.
 - A lista de analistas inclui analistas **sem** extensão profissional, mas exige
   Perfil ativo.
 
-O modal de atribuição usa a lista mais permissiva; a fila usa a de elegíveis.
+O modal de atribuição usa a lista mais permissiva; a fila usa a de atribuíveis.
 
 ## Custódia × executor do mapeamento
 
