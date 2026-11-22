@@ -7,10 +7,6 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      sha:
-        description: "Commit SHA to deploy (defaults to main HEAD)"
-        required: false
-        type: string
       skip_migrations:
         description: "Skip knex migrate:latest"
         required: false
@@ -21,37 +17,160 @@ on:
         required: false
         default: false
         type: boolean
+  pull_request:
+    paths:
+      - ".github/workflows/deploy.yml"
+      - "deploy/**"
 
 permissions:
   contents: read
-
-concurrency:
-  group: cd-production
-  cancel-in-progress: false
+  actions: read
 
 jobs:
-  package:
-    name: package
+  verify:
+    name: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: >-
-      ${{ !inputs.rollback && (
-            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-            (github.event.workflow_run.event == 'push' &&
-             github.event.workflow_run.conclusion == 'success' &&
-             github.event.workflow_run.head_branch == 'main')
-          ) }}
-    outputs:
-      sha: ${{ steps.meta.outputs.sha }}
+    timeout-minutes: 10
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
-      - name: Resolve commit
-        id: meta
-        run: echo "sha=${{ inputs.sha || github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ steps.meta.outputs.sha }}
+          persist-credentials: false
+
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.7
+          ACTIONLINT_SHA256: 023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+        run: |
+          set -euo pipefail
+          tarball="$RUNNER_TEMP/actionlint.tgz"
+          curl -fsSL \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            -o "$tarball"
+          echo "$ACTIONLINT_SHA256  $tarball" | sha256sum -c -
+          tar -xzf "$tarball" -C "$RUNNER_TEMP" actionlint
+
+      - name: Lint workflows
+        run: |
+          "$RUNNER_TEMP/actionlint" -color \
+            .github/workflows/deploy.yml \
+            .github/workflows/ci.yml
+
+      - name: Install ShellCheck if missing
+        run: |
+          if ! command -v shellcheck >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq shellcheck
+          fi
+
+      - name: Lint deploy scripts
+        run: shellcheck deploy/deploy.sh deploy/deploy.test.sh
+
+      - name: Test deploy script arguments
+        run: bash deploy/deploy.test.sh
+
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'workflow_run' &&
+           github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.head_branch == 'main') }}
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      proceed: ${{ steps.validate.outputs.proceed }}
+    steps:
+      - name: Checkout main history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve commit
+        id: resolve
+        env:
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$EVENT_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::invalid commit sha: $EVENT_SHA"
+            exit 1
+          fi
+          printf 'sha=%s\n' "$EVENT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Validate commit, CI status and ordering
+        id: validate
+        env:
+          SHA: ${{ steps.resolve.outputs.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          TRIGGER_EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          ROLLBACK: ${{ inputs.rollback }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            if [ "$TRIGGER_EVENT" != "push" ] || [ "$HEAD_BRANCH" != "main" ]; then
+              echo "::notice::ignoring CI run from event '$TRIGGER_EVENT' on branch '$HEAD_BRANCH'"
+              printf 'proceed=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$EVENT_CONCLUSION" != "success" ]; then
+              echo "::notice::CI for $SHA concluded '$EVENT_CONCLUSION'; nothing to deploy"
+              printf 'proceed=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::$SHA is not an ancestor of origin/main"
+            exit 1
+          fi
+          if [ "$ROLLBACK" = "true" ]; then
+            printf 'proceed=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          main_sha="$(git rev-parse origin/main)"
+          if [ "$SHA" != "$main_sha" ]; then
+            echo "::notice::$SHA is not the tip of main ($main_sha); skipping this deploy"
+            printf 'proceed=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            conclusion="$(
+              gh run list \
+                --repo "$GITHUB_REPOSITORY" \
+                --workflow CI \
+                --event push \
+                --branch main \
+                --status completed \
+                --commit "$SHA" \
+                --limit 20 \
+                --json conclusion \
+                --jq 'if any(.[]; .conclusion == "success") then "success" else (map(.conclusion) | join(",")) end'
+            )"
+            if [ "$conclusion" != "success" ]; then
+              echo "::error::no successful CI push run for $SHA (found: ${conclusion:-none})"
+              exit 1
+            fi
+          fi
+          printf 'proceed=true\n' >> "$GITHUB_OUTPUT"
+
+  package:
+    name: package
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ inputs.rollback != true && needs.gate.outputs.proceed == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
           persist-credentials: false
 
       - name: Set up Node.js 24
@@ -64,8 +183,8 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Typecheck, lint and format
-        # A workflow_dispatch can bypass CI, so the deploy gate re-runs the
-        # same checks that CI runs on main.
+        # The gate requires a green CI push run for this commit. The build still
+        # repeats the cheap checks so a broken checkout cannot be packaged.
         run: npm run check
 
       - name: Build
@@ -96,22 +215,33 @@ jobs:
 
   deploy:
     name: deploy
-    needs: package
+    needs: [gate, package]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Only the deploy job takes the production lock, so PR verification runs
+    # never queue behind (or cancel) a production deployment.
+    concurrency:
+      group: cd-production
+      cancel-in-progress: false
     # Secrets and variables are repository-level: this team has no access to
     # environments, so there is no deployment-branch policy. See docs/cd.md.
     if: >-
       ${{ always() &&
-          (github.event_name == 'workflow_run' || github.ref == 'refs/heads/main') &&
+          needs.gate.result == 'success' &&
+          needs.gate.outputs.proceed == 'true' &&
           (needs.package.result == 'success' || inputs.rollback == true) }}
+    env:
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      APP_PORT: ${{ vars.APP_PORT }}
+      PUBLIC_PATH: ${{ vars.PUBLIC_PATH }}
+      MIGRATION_DB_PORT: ${{ vars.MIGRATION_DB_PORT }}
     steps:
       - name: Checkout
         # The remote script is streamed from this checkout, so the deploy job
         # runs the script that belongs to the commit being deployed.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.package.outputs.sha }}
+          ref: ${{ inputs.rollback == true && 'main' || needs.gate.outputs.sha }}
           persist-credentials: false
 
       - name: Download release artifact
@@ -133,6 +263,9 @@ jobs:
           DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
         run: |
           set -euo pipefail
+          : "${OVPN_CONFIG:?OVPN_CONFIG secret is required}"
+          : "${DEPLOY_HOST:?DEPLOY_HOST variable is required}"
+          : "${DEPLOY_PORT:?DEPLOY_PORT variable is required}"
           umask 077
           printf '%s' "$OVPN_CONFIG" > "$RUNNER_TEMP/client.ovpn"
           sudo openvpn --config "$RUNNER_TEMP/client.ovpn" \
@@ -171,40 +304,53 @@ jobs:
             echo "  IdentitiesOnly yes"
             echo "  StrictHostKeyChecking yes"
             echo "  UserKnownHostsFile $HOME/.ssh/known_hosts"
-            echo "  ConnectTimeout 10"
+            echo "  BatchMode yes"
+            echo "  ConnectTimeout 15"
+            echo "  ServerAliveInterval 15"
+            echo "  ServerAliveCountMax 4"
           } > "$HOME/.ssh/config"
           chmod 600 "$HOME/.ssh/config"
-          ssh -o BatchMode=yes deploy-target 'echo ssh-ok'
+          ssh deploy-target 'echo ssh-ok'
 
       - name: Deploy release
         if: ${{ inputs.rollback != true }}
         env:
-          SHA: ${{ needs.package.outputs.sha }}
+          SHA: ${{ needs.gate.outputs.sha }}
           SKIP_MIGRATIONS: ${{ inputs.skip_migrations }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          APP_PORT: ${{ vars.APP_PORT }}
-          PUBLIC_PATH: ${{ vars.PUBLIC_PATH }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          skip_flag=""
-          if [ "$SKIP_MIGRATIONS" = "true" ]; then
-            skip_flag="--skip-migrations"
+          : "${DEPLOY_PATH:?DEPLOY_PATH variable is required}"
+          : "${APP_PORT:?APP_PORT variable is required}"
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [ -z "$main_sha" ]; then
+            echo "::error::could not resolve the current main commit"
+            exit 1
           fi
-          scp -q release.tgz "deploy-target:/tmp/release-${SHA}.tgz"
-          ssh -o BatchMode=yes deploy-target \
-            "export DEPLOY_PATH='$DEPLOY_PATH' APP_PORT='$APP_PORT' PUBLIC_PATH='$PUBLIC_PATH'; bash -s -- '$SHA' '$skip_flag'" \
+          if [ "$main_sha" != "$SHA" ]; then
+            echo "::notice::main moved to $main_sha; skipping the deploy of $SHA"
+            exit 0
+          fi
+          args=("$SHA")
+          if [ "$SKIP_MIGRATIONS" = "true" ]; then
+            args+=("--skip-migrations")
+          fi
+          artifact="/tmp/neo-deploy/release-${SHA}.tgz"
+          ssh deploy-target 'umask 077 && mkdir -p /tmp/neo-deploy && chmod 700 /tmp/neo-deploy'
+          scp -q release.tgz "deploy-target:$artifact"
+          ssh deploy-target chmod 600 "$artifact"
+          remote_env="DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") APP_PORT=$(printf '%q' "$APP_PORT") PUBLIC_PATH=$(printf '%q' "$PUBLIC_PATH") MIGRATION_DB_PORT=$(printf '%q' "${MIGRATION_DB_PORT:-}") DEPLOY_ARTIFACT=$(printf '%q' "$artifact")"
+          ssh deploy-target "export $remote_env; bash -s -- $(printf '%q ' "${args[@]}")" \
             < deploy/deploy.sh
 
       - name: Roll back
         if: ${{ inputs.rollback == true }}
-        env:
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          APP_PORT: ${{ vars.APP_PORT }}
-          PUBLIC_PATH: ${{ vars.PUBLIC_PATH }}
         run: |
           set -euo pipefail
-          ssh -o BatchMode=yes deploy-target \
-            "export DEPLOY_PATH='$DEPLOY_PATH' APP_PORT='$APP_PORT' PUBLIC_PATH='$PUBLIC_PATH'; bash -s -- --rollback" \
+          : "${DEPLOY_PATH:?DEPLOY_PATH variable is required}"
+          : "${APP_PORT:?APP_PORT variable is required}"
+          remote_env="DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") APP_PORT=$(printf '%q' "$APP_PORT") PUBLIC_PATH=$(printf '%q' "$PUBLIC_PATH")"
+          ssh deploy-target "export $remote_env; bash -s -- --rollback" \
             < deploy/deploy.sh
 
       - name: Disconnect VPN and remove credentials
@@ -223,7 +369,7 @@ jobs:
             echo ""
             echo "| item | value |"
             echo "| --- | --- |"
-            echo "| commit | \`${{ needs.package.outputs.sha || 'n/a' }}\` |"
+            echo "| commit | \`${{ needs.gate.outputs.sha || 'n/a' }}\` |"
             echo "| rollback | ${{ inputs.rollback || false }} |"
             echo "| migrations | ${{ (inputs.rollback || inputs.skip_migrations) && 'skipped' || 'applied' }} |"
           } >> "$GITHUB_STEP_SUMMARY"

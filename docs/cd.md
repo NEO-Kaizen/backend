@@ -3,25 +3,29 @@
 Workflow de entrega contínua do `NEO-Kaizen/backend` (issue #137). O CI que o
 dispara está no `ci.yml` e foi entregue pela issue #143.
 
-O CD publica o backend na VM `desafio03` sem Docker e sem build na VM: o runner do
+O CD publica o backend na VM de produção sem Docker e sem build na VM: o runner do
 GitHub monta o artefato, conecta na VPN, envia o pacote por SSH e o `deploy.sh` o
 aplica no diretório da aplicação. O processo roda como serviço de usuário
-(`systemd --user`), sem `sudo` em nenhuma etapa do pipeline.
+(`systemd --user`), sem `sudo` **na VM**. O runner usa `sudo` para instalar o
+OpenVPN, abrir o túnel e encerrá-lo.
+
+Este documento é público: use placeholders para hosts, IPs e portas internas. Os
+valores reais ficam nas variables/secrets do repositório e em um runbook privado.
 
 ## Escopo
 
 Entra neste workflow:
 
-- empacotamento (`dist`, `node_modules` de produção, `assets`, `knexfile.js`,
-  `migrations`) no runner;
+- empacotamento (`dist`, `node_modules` de produção, `assets`, `package.json`,
+  `package-lock.json`, `knexfile.js`, `migrations`) no runner;
 - aplicação do pacote no diretório da aplicação, com migrations, restart e smoke
   test direto e através do Nginx;
-- rollback automático em falha e rollback manual sem rebuild.
+- rollback automático em qualquer falha depois do snapshot e rollback manual sem
+  rebuild.
 
 Não entra (issues futuras):
 
 - endpoint de health e encerramento gracioso;
-- bloco `production` no `knexfile.js`;
 - backups do banco;
 - zero-downtime;
 - restrição do bind do backend a `127.0.0.1`.
@@ -36,21 +40,22 @@ GitHub main ── CI (quality + database) ──► CD
                        │ deploy: OpenVPN + SSH + deploy.sh        │
                        └────────────────────┬────────────────────┘
                                             │
-navegador ── HTTPS ──► proxy externo ──► Nginx 10.10.0.203:4189
-                                            ├── /api/ → 127.0.0.1:3000 (backend)
-                                            └── /     → 127.0.0.1:4190 (frontend)
+navegador ── HTTPS ──► proxy externo ──► Nginx <deploy-host>:<nginx-port>
+                                            ├── /api/ → 127.0.0.1:<app-port>
+                                            └── /     → 127.0.0.1:<frontend-port>
                                                           │
-                                                Supabase pooler :6543
+                                                banco PostgreSQL externo
 ```
 
-O vhost `default_server` na porta 80 encaminha para `maat_backend`/`maat_frontend`
-e não pertence a este backend. O CD não altera configuração de Nginx.
+O vhost `default_server` na porta 80 encaminha para outros backends e não
+pertence a este projeto. O CD não altera configuração de Nginx.
 
 ## Estrutura no host
 
 O deploy é feito no lugar, em `~/NEO/backend`. Nada de releases paralelas ou
-symlinks: o artefato sobrescreve `dist/` e `node_modules/`, enquanto `.env` e
-`uploads/` nunca são tocados.
+symlinks: o artefato é extraído em `.deploy-staging/`, trocado pelos arquivos da
+aplicação e o release anterior fica em `.deploy-previous/`. `.env` e `uploads/`
+nunca são tocados.
 
 ```text
 ~/NEO/backend/
@@ -59,13 +64,20 @@ symlinks: o artefato sobrescreve `dist/` e `node_modules/`, enquanto `.env` e
 ├── assets/
 ├── knexfile.js
 ├── migrations/
+├── package.json
+├── package-lock.json
 ├── .env                  # segredos e configuração, preservado
 ├── uploads/              # arquivos enviados em runtime, preservados
 ├── .deployed-sha         # commit ativo
-├── .previous-sha         # commit do build anterior
-├── dist.prev/            # build anterior, usado no rollback
-└── node_modules.prev/
+├── .deploy-previous/     # release anterior completo, usado no rollback
+├── .deploy-staging/      # temporário durante o deploy
+└── .deploy-lock          # flock que serializa deploys
 ```
+
+O snapshot inclui **todos** os arquivos que o pacote sobrescreve (`dist`,
+`node_modules`, `assets`, `package.json`, `package-lock.json`, `knexfile.js` e
+`migrations`), além do `.deployed-sha`. Por isso o rollback devolve o release
+anterior inteiro, e não apenas `dist`/`node_modules`.
 
 O `deploy.sh` não fica armazenado na VM: o workflow o envia por SSH a cada
 execução, então sempre roda a versão do commit que está sendo publicado. O unit do
@@ -73,8 +85,7 @@ systemd também não fica no diretório da aplicação: ele é instalado em
 `~/.config/systemd/user/neo-backend.service` no setup inicial, a partir do
 `deploy/neo-backend.service` do repositório.
 
-Como o deploy sobrescreve arquivos versionados (`package.json`, `package-lock.json`,
-`knexfile.js`, `migrations/`, `assets/`, `dist/`), o diretório deixa de ser um
+Como o deploy sobrescreve arquivos versionados, o diretório deixa de ser um
 checkout limpo. Não use `git pull` ali depois do primeiro deploy: o CD é a única
 fonte do código. Se quiser evitar confusão, remova o `.git` do diretório após a
 primeira publicação.
@@ -83,40 +94,89 @@ primeira publicação.
 
 | Job       | O que faz                                                                                                                                                        |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify`  | só em PR que mexe em `deploy/**` ou no workflow: `actionlint`, `shellcheck` e os testes de argumentos do `deploy.sh`. Não recebe segredos.                       |
+| `gate`    | resolve o SHA, exige que ele seja ancestral do topo da `main`, que a CI de `push` tenha passado e que ele ainda seja o topo; para `rollback`, só valida o ref.   |
 | `package` | checkout do SHA, `npm ci`, `npm run check`, `npm run build`, `npm prune --omit=dev`, `tar` do artefato e upload como artifact. Não recebe segredos.              |
 | `deploy`  | baixa o artifact, instala e conecta o OpenVPN, configura SSH, envia `release.tgz`, executa `deploy.sh` na VM e publica o resumo. Usa os segredos do repositório. |
 
-O job `deploy` só roda se o `package` passou (ou em rollback manual). O portão de
-qualidade é reexecutado no `package` porque um `workflow_dispatch` pode não ter
-passado pelo CI.
+O job `deploy` só roda se o `gate` e o `package` passaram, ou em rollback manual.
+O `gate` também impede deploys fora de ordem: quando um `workflow_run` antigo
+termina depois de um commit mais novo na `main`, o SHA não é mais o topo e o
+deploy é pulado. O `deploy` repete essa checagem com a API do GitHub
+imediatamente antes de publicar. O `concurrency` fica só no job `deploy`, então
+os PRs que rodam o `verify` não entram na fila de produção.
 
 ## Pré-requisitos (uma única vez, no host)
 
+O caminho recomendado é uma conta dedicada `deploy`, dona da aplicação e do
+serviço de usuário. Se a aplicação ainda está em `<old-user>`, faça a migração uma
+vez e depois siga esta seção.
+
 ```bash
-# 1. serviço de usuário sobrevive ao logout e inicia no boot (única etapa com root)
-sudo loginctl enable-linger desafio03
+# no host, como um usuário com sudo (a senha é pedida só no setup)
+sudo useradd -m -s /bin/bash deploy
+sudo loginctl enable-linger deploy
 
-# 2. modo produção: habilita o cookie Secure (o preflight do deploy falha sem isso)
-sed -i 's/^NODE_ENV=.*/NODE_ENV=production/' ~/NEO/backend/.env
+# Node 24 para a conta nova (o nvm não vem no sistema)
+sudo -iu deploy bash -lc 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash'
+sudo -iu deploy bash -lc 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install 24'
 
-# 3. instala e habilita o serviço (a partir do repositório local; o primeiro deploy o inicia)
-ssh desafio03@desafio03.alphaedtech 'mkdir -p ~/.config/systemd/user'
-scp deploy/neo-backend.service desafio03@desafio03.alphaedtech:.config/systemd/user/neo-backend.service
-ssh desafio03@desafio03.alphaedtech 'systemctl --user daemon-reload && systemctl --user enable neo-backend'
+# migrando de <old-user>: mova a aplicação parada (pule este bloco num host novo)
+sudo mkdir -p /home/deploy/NEO
+sudo mv /home/<old-user>/NEO/backend /home/deploy/NEO/backend
+sudo chown -R deploy:deploy /home/deploy/NEO/backend
+sudo install -d -o deploy -g deploy /home/deploy/NEO/backend/uploads
 
-# 4. confirmações
-loginctl show-user desafio03 | grep Linger          # Linger=yes
-node -v                                             # v24.x
-systemctl --user is-system-running                  # running
+# modo produção: habilita o cookie Secure (o preflight falha sem isso)
+sudo -iu deploy bash -c '
+  env_file="$HOME/NEO/backend/.env"
+  if grep -q "^NODE_ENV=" "$env_file"; then
+    sed -i "s/^NODE_ENV=.*/NODE_ENV=production/" "$env_file"
+  else
+    printf "NODE_ENV=production\n" >> "$env_file"
+  fi
+'
+
+# a aplicação precisa existir aqui, com o .env de produção. Num host novo,
+# copie o diretório (sem dist/node_modules, que vêm no artefato) ou clone o
+# repositório uma vez antes do primeiro deploy.
+
+# autorize a chave do CI (e a sua) na conta deploy antes de conectar como ela
+ssh <old-user>@<deploy-host> 'sudo -u deploy bash -lc "umask 077; mkdir -p ~/.ssh; chmod 700 ~/.ssh"'
+{ printf 'no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty '; cat ~/.ssh/neo_backend_cd.pub; } |
+  ssh <old-user>@<deploy-host> 'sudo -u deploy tee -a /home/deploy/.ssh/authorized_keys >/dev/null'
+ssh <old-user>@<deploy-host> 'sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys'
+
+# instala e habilita o serviço (a partir do repositório local; o primeiro deploy o inicia)
+ssh deploy@<deploy-host> 'mkdir -p ~/.config/systemd/user'
+scp deploy/neo-backend.service deploy@<deploy-host>:.config/systemd/user/neo-backend.service
+ssh deploy@<deploy-host> 'systemctl --user daemon-reload && systemctl --user enable neo-backend'
+
+# confirmações
+loginctl show-user deploy -p Linger       # Linger=yes
+sudo -iu deploy bash -lc 'node -v'        # v24.x
+sudo -iu deploy bash -lc 'systemctl --user is-system-running'  # running
 ```
 
+Antes da primeira publicação, confirme no `.env` da VM:
+
+- `NODE_ENV=production`;
+- `PORT` igual à variable `APP_PORT` (o preflight compara os dois);
+- `DB_PORT` do pooler de runtime (normalmente `6543`);
+- as credenciais de banco, JWT e FPE que a aplicação já usa.
+
 O unit é estático e usa `%h` (home do usuário), então o mesmo arquivo serve para
-`desafio03` ou para uma conta dedicada: `WorkingDirectory` é `%h/NEO/backend` e
-`ExecStart` é o Node 24 do nvm daquele usuário. Se o caminho do Node mudar (upgrade
-do nvm), atualize o `ExecStart`, repita o `scp` do setup inicial e rode
-`systemctl --user daemon-reload`. O preflight do `deploy.sh` falha com mensagem
-clara se o `WorkingDirectory` do unit divergir de `DEPLOY_PATH` ou se o binário do
-`ExecStart` não existir.
+`deploy` ou para outra conta: `WorkingDirectory` é `%h/NEO/backend` e `ExecStart` é
+o Node 24 do nvm daquele usuário. Se o caminho do Node mudar (upgrade do nvm),
+atualize o `ExecStart`, repita o `scp` do setup e rode `systemctl --user
+daemon-reload`. O preflight falha com mensagem clara se o `WorkingDirectory`
+divergir de `DEPLOY_PATH`, se o binário do `ExecStart` não existir ou se o linger
+estiver desligado.
+
+O ideal é um **forced command** na `authorized_keys` que aceite apenas o wrapper
+de deploy. O custo é perder `scp` (o artefato teria de ir por stdin) e manter a
+lógica de deploy em um script fixo no host, fora do versionamento por commit. Só
+vale se a política de segurança exigir.
 
 ## Segredos e variáveis
 
@@ -124,26 +184,32 @@ Secrets e variables **do repositório** (Settings → Secrets and variables → 
 O time não tem acesso a Environments: o job não declara `environment:` e os
 segredos não têm escopo por branch.
 
-| Tipo   | Nome              | Conteúdo                                                                  |
-| ------ | ----------------- | ------------------------------------------------------------------------- |
-| secret | `OVPN_CONFIG`     | perfil de cliente OpenVPN do CI, com `route-nopull` e rota fixa para a VM |
-| secret | `SSH_PRIVATE_KEY` | chave dedicada do deploy                                                  |
-| secret | `SSH_KNOWN_HOSTS` | saída de `ssh-keyscan 10.10.0.203`, conferida manualmente                 |
-| var    | `DEPLOY_HOST`     | `10.10.0.203`                                                             |
-| var    | `DEPLOY_PORT`     | `22`                                                                      |
-| var    | `DEPLOY_USER`     | `deploy`                                                                  |
-| var    | `DEPLOY_PATH`     | `/home/deploy/NEO/backend`                                                |
-| var    | `APP_PORT`        | `3000`                                                                    |
-| var    | `PUBLIC_PATH`     | `http://10.10.0.203:4189/api/portal-config` (opcional)                    |
+| Tipo   | Nome                | Conteúdo                                                                  |
+| ------ | ------------------- | ------------------------------------------------------------------------- |
+| secret | `OVPN_CONFIG`       | perfil de cliente OpenVPN do CI, com `route-nopull` e rota fixa para a VM |
+| secret | `SSH_PRIVATE_KEY`   | chave dedicada do deploy                                                  |
+| secret | `SSH_KNOWN_HOSTS`   | saída de `ssh-keyscan <deploy-host>`, conferida manualmente               |
+| var    | `DEPLOY_HOST`       | IP ou nome da VM na VPN                                                   |
+| var    | `DEPLOY_PORT`       | `22`                                                                      |
+| var    | `DEPLOY_USER`       | `deploy`                                                                  |
+| var    | `DEPLOY_PATH`       | `/home/deploy/NEO/backend`                                                |
+| var    | `APP_PORT`          | porta do backend (igual a `PORT` no `.env`)                               |
+| var    | `PUBLIC_PATH`       | URL de smoke pelo Nginx, no endereço em que o Nginx escuta (opcional)     |
+| var    | `MIGRATION_DB_PORT` | porta usada só pelas migrations (opcional; default `5432`)                |
+
+`PUBLIC_PATH` deve usar o endereço real do Nginx (por exemplo
+`http://<deploy-host>:<nginx-port>/api/portal-config`), não `127.0.0.1`, a menos
+que o Nginx esteja de fato escutando em loopback. Sem `PUBLIC_PATH`, o smoke
+público é pulado e só o smoke direto roda.
 
 O perfil da VPN deve conter `route-nopull` e uma rota explícita para o IP da VM,
-para que o tráfego do runner para o GitHub não passe pelo túnel. `DEPLOY_HOST` usa
-o IP, e não o nome DNS, para não depender do resolvedor entregue pela VPN.
+para que o tráfego do runner para o GitHub não passe pelo túnel. Prefira o IP ao
+nome DNS para não depender do resolvedor entregue pela VPN.
 
 ```ini
 # trechos obrigatórios no perfil do CI
 route-nopull
-route 10.10.0.203 255.255.255.255
+route <deploy-ip> 255.255.255.255
 auth-nocache
 ```
 
@@ -160,9 +226,15 @@ rede da pessoa, não apenas acesso a esta VM. As proteções abaixo assumem isso
 
 ### No workflow
 
-- o job `package` não recebe segredos;
+- o job `package` e o `verify` não recebem segredos;
 - o `deploy` só roda para `push` na `main` (`workflow_run.event == 'push'`) ou
-  `workflow_dispatch` disparado a partir da `main`;
+  `workflow_dispatch`;
+- no disparo manual, o `gate` sempre avalia o topo da `main`: o ref escolhido na
+  UI/API é aceito apenas se o SHA for ancestral e igual ao topo;
+- o `gate` exige que o SHA seja ancestral do topo da `main`, que seja o próprio
+  topo e que exista uma execução verde da CI de `push` para ele;
+- não existe input de `sha`: o deploy manual publica o topo da `main`, então não
+  há como executar código de branch não mergeada na VM;
 - o perfil da VPN e a chave SSH são apagados do runner no passo final
   (`if: always()`);
 - actions fixadas por SHA de commit.
@@ -190,121 +262,88 @@ arquivo.
 
 ### No host
 
-Duas opções, em ordem de isolamento:
-
-1. **Conta dedicada `deploy`** (recomendado): sem sudo, dona do diretório da
-   aplicação e do serviço. Requer mover a aplicação e instalar Node 24 para a conta
-   nova; veja "Conta dedicada" abaixo.
-2. **Conta atual `desafio03`**: a chave é restrita a
-   `no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty`, e o `sudo` da
-   conta exige senha, então o pipeline não escala privilégio.
-
-O gateway da VPN deveria limitar essa conta a `10.10.0.203` tcp/22. Isso é
-configuração do servidor, fora do alcance deste repositório — quando existir, um
-segredo vazado deixa de dar acesso ao resto da rede.
-
-### Conta dedicada
-
-```bash
-# no host, como desafio03 (a senha de sudo é pedida aqui)
-sudo useradd -m -s /bin/bash deploy
-sudo loginctl enable-linger deploy
-
-# Node 24 para a conta nova (o nvm não vem no sistema)
-sudo -iu deploy bash -lc 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash'
-sudo -iu deploy bash -lc 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install 24'
-
-# move a aplicação (está parada, é o momento seguro)
-sudo mkdir -p /home/deploy/NEO
-sudo mv /home/desafio03/NEO/backend /home/deploy/NEO/backend
-sudo chown -R deploy:deploy /home/deploy/NEO/backend
-sudo install -d -o deploy -g deploy /home/deploy/NEO/backend/uploads
-
-# autoriza a chave do CI para o novo usuário (a partir do laptop)
-# ssh desafio03@desafio03.alphaedtech 'sudo -u deploy bash -lc "umask 077; mkdir -p ~/.ssh; chmod 700 ~/.ssh"'
-# { printf 'no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty '; cat ~/.ssh/neo_backend_cd.pub; } \
-#   | ssh desafio03@desafio03.alphaedtech 'sudo -u deploy tee -a /home/deploy/.ssh/authorized_keys >/dev/null'
-# ssh desafio03@desafio03.alphaedtech 'sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys'
-# ssh desafio03@desafio03.alphaedtech "sed -i '/neo-backend-cd/d' ~/.ssh/authorized_keys"
-
-# instala o unit como deploy (a partir do repositório local)
-# ssh deploy@10.10.0.203 'mkdir -p ~/.config/systemd/user'
-# scp deploy/neo-backend.service deploy@10.10.0.203:.config/systemd/user/neo-backend.service
-# ssh deploy@10.10.0.203 'systemctl --user daemon-reload && systemctl --user enable neo-backend'
-```
-
-Depois, nas variables do repositório, ajuste `DEPLOY_USER=deploy` e
-`DEPLOY_PATH=/home/deploy/NEO/backend` (o `SSH_KNOWN_HOSTS` continua o mesmo). O
-unit usa `%h`, então não muda entre as duas contas.
-
-A opção mais restritiva é um **forced command** na `authorized_keys`
-(`command="…"`), que impede qualquer comando além do wrapper de deploy. O custo é
-perder `scp` (o artefato teria de ir por stdin) e manter a lógica de deploy em um
-script fixo no host, fora do versionamento por commit. Só vale se a política de
-segurança exigir.
+- a conta `deploy` não tem sudo;
+- a chave do CI é dedicada e restrita a
+  `no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty`;
+- o gateway da VPN deveria limitar essa conta a `<deploy-host>` tcp/22. Isso é
+  configuração do servidor, fora do alcance deste repositório.
 
 ## Operação
 
 - **Automático:** merge na `main` → CI verde → CD. O `workflow_run` só existe
-  depois que o `ci.yml` estiver na `main` (issue #143); até lá, use o disparo
-  manual.
-- **Manual com commit específico:** `workflow_dispatch` com `sha`.
+  depois que o `ci.yml` estiver na `main`; até lá, use o disparo manual.
+- **Manual:** `workflow_dispatch` a partir da `main`, sem input de SHA. O `gate`
+  aceita apenas o topo da `main` e exige CI de `push` verde.
 - **Sem migrations:** `workflow_dispatch` com `skip_migrations`.
 - **Rollback:** `workflow_dispatch` com `rollback` (não faz build; restaura
-  `dist.prev` e `node_modules.prev`).
+  `.deploy-previous` inteiro).
 
 ## O que o `deploy.sh` verifica e faz
 
 Preflight (aborta antes de tocar em qualquer coisa):
 
 1. `~/NEO/backend/.env` existe e contém `NODE_ENV=production`;
-2. arquitetura `x64` e Node 24, compatíveis com o artefato;
-3. `systemd --user` acessível (linger habilitado);
-4. unit instalado, com `WorkingDirectory` igual a `DEPLOY_PATH` e um `ExecStart`
-   válido.
+2. `APP_PORT` é igual ao `PORT` do `.env`;
+3. o `ExecStart` do unit aponta para um Node 24 `x64` existente;
+4. o linger está ligado para o usuário e o `systemd --user` responde;
+5. o unit existe e `WorkingDirectory` é igual a `DEPLOY_PATH`.
 
 Depois:
 
-1. guarda o build atual em `dist.prev`/`node_modules.prev` e o SHA atual em
-   `.previous-sha`;
-2. extrai o artefato sobre `dist/` e `node_modules/` (sem tocar em `.env` e
+1. copia o release atual completo para `.deploy-previous/`, incluindo o SHA ativo;
+2. extrai o artefato em `.deploy-staging/` e confere que todos os caminhos
+   esperados estão presentes;
+3. troca os arquivos da aplicação pelos do staging (sem tocar em `.env` e
    `uploads/`);
-3. aplica as migrations pendentes;
-4. reinicia o serviço;
-5. faz smoke test em `http://127.0.0.1:3000/portal-config` e, quando
-   `PUBLIC_PATH` está definido, nesse endereço (a porta que o nginx escuta, não
-   `127.0.0.1`);
-6. em falha, restaura os diretórios `.prev`, reinicia e falha o job;
-7. grava o SHA ativo em `.deployed-sha`.
+4. aplica as migrations pendentes com `--env production` e porta de sessão;
+5. reinicia o serviço;
+6. faz smoke test em `http://127.0.0.1:<app-port>/portal-config` e, quando
+   `PUBLIC_PATH` está definido, nesse endereço;
+7. em **qualquer** falha a partir do snapshot, restaura `.deploy-previous`
+   inteiro, reinicia e falha o job;
+8. em sucesso, grava o SHA ativo em `.deployed-sha`.
 
 Sobrescrever `dist/` com o processo em execução é seguro: o Node já carregou os
-módulos em memória e o restart só acontece depois que a cópia e as migrations
-terminam. Se a cópia falhar, o processo antigo continua servindo.
+módulos em memória e o restart só acontece depois que a troca e as migrations
+terminam. Se a troca ou uma migration falhar, o processo antigo continua servindo
+até o restart, e o snapshot é restaurado.
+
+O rollback automático usa um `trap ERR` (com `set -E`) e `restore_snapshot()`
+confere cada comando explicitamente, sem depender do `set -e` dentro da função
+(ShellCheck SC2310). Antes de escrever, o script adquire `.deploy-lock` com
+`flock`; uma execução manual concorrente com o pipeline falha com mensagem clara.
 
 ## Migrations e Supabase
 
-O banco é externo (Supabase) e o `.env` aponta para o pooler na porta `6543`
-(transaction mode). Consultas em runtime funcionam. Migrations usam a mesma porta,
-mas o modo transação não preserva estado de sessão; se a primeira execução pelo CD
-falhar, rode a migration com a porta `5432` (session mode) a partir de um diretório
-**sem `.env`** — o `knexfile.js` carrega o arquivo com `dotenv` e `override: true`,
-então exportar `DB_PORT` no shell não basta enquanto o `.env` estiver no diretório
-de trabalho.
+O banco é externo (Supabase). O `.env` aponta para o pooler na porta `6543`
+(transaction mode) para o runtime. O `knexfile.js` agora tem um bloco
+`production`, e o `deploy.sh` roda migrations com `--env production` e
+`MIGRATION_DB_PORT=5432` (session mode), porque transaction mode não preserva
+estado de sessão e não é o modo recomendado para migrations.
 
-O `deploy.sh` usa `--env development` porque o `knexfile.js` não tem bloco
-`production`. Corrigir isso é uma issue separada.
+`MIGRATION_DB_PORT` é exportado só durante o comando de migration. A variable do
+repositório (ou o `.env` da VM, que tem precedência por causa do `override: true`)
+permite trocar a porta sem mudar o `DB_PORT` do runtime.
+
+Se o pooler do projeto não aceitar session mode na `5432`, use a conexão direta do
+Supabase no `.env` ou ajuste `MIGRATION_DB_PORT` (variable do repositório ou `.env`
+da VM) para a porta correta antes de rodar o workflow. O smoke test cobre a conexão
+de runtime, porque `GET /portal-config` lê do PostgreSQL.
+
+Migrations destrutivas continuam sendo operação de risco (issue #142).
 
 ## Rollback
 
-| Nível             | Gatilho                        | Efeito                                              |
-| ----------------- | ------------------------------ | --------------------------------------------------- |
-| automático        | smoke falha após o restart     | restaura `*.prev`, reinicia e falha o job           |
-| manual, sem build | `workflow_dispatch` `rollback` | restaura `*.prev` e reinicia                        |
-| manual, com build | `workflow_dispatch` `sha`      | deploy completo daquele commit                      |
-| banco             | manual                         | restore no Supabase — migrations não são revertidas |
+| Nível             | Gatilho                            | Efeito                                                      |
+| ----------------- | ---------------------------------- | ----------------------------------------------------------- |
+| automático        | qualquer falha após o snapshot     | restaura `.deploy-previous` inteiro, reinicia e falha o job |
+| manual, sem build | `workflow_dispatch` `rollback`     | restaura `.deploy-previous` e reinicia                      |
+| manual, com build | `workflow_dispatch` (topo da main) | deploy completo do commit atual da `main`                   |
+| banco             | manual                             | restore no Supabase — migrations não são revertidas         |
 
-Na primeira execução não existe snapshot: o rollback fica disponível a partir do
-segundo deploy. O snapshot é consumido pelo rollback; um segundo rollback exige um
+Na primeira execução não existe snapshot completo em `.deploy-previous`, então não
+há rollback
+disponível. O snapshot é consumido pelo rollback; um segundo rollback exige um
 novo deploy.
 
 O rollback da aplicação **não** desfaz migrations. Trate migrations destrutivas
@@ -316,38 +355,56 @@ como operação de risco (issue #142).
 systemctl --user status neo-backend --no-pager
 journalctl --user -u neo-backend -n 80 --no-pager
 cat ~/NEO/backend/.deployed-sha
-curl -fsS http://127.0.0.1:3000/portal-config > /dev/null && echo "direto ok"
-curl -fsS http://127.0.0.1:4189/api/portal-config > /dev/null && echo "nginx ok"
+curl -fsS "http://127.0.0.1:<app-port>/portal-config" > /dev/null && echo "direto ok"
+curl -fsS "http://<deploy-host>:<nginx-port>/api/portal-config" > /dev/null && echo "nginx ok"
 ```
 
 O smoke test cobre a conexão com o banco, porque `GET /portal-config` lê do
 PostgreSQL.
 
+## Testes do deploy
+
+O workflow `CD` roda em PRs que alteram `deploy/**` ou o próprio workflow:
+
+- `actionlint` nos dois workflows (`.github/workflows/deploy.yml` e `ci.yml`);
+- `shellcheck` no `deploy.sh` e no `deploy.test.sh`;
+- `bash deploy/deploy.test.sh`, que exercita o parsing de argumentos nos dois
+  formatos usados pelo workflow (`bash -s -- <sha>` e `bash -s -- <sha> ""`) e
+  nos casos de erro.
+
+Localmente:
+
+```bash
+bash -n deploy/deploy.sh
+bash deploy/deploy.test.sh
+shellcheck deploy/deploy.sh deploy/deploy.test.sh
+```
+
 ## Limitações conhecidas
 
 - sem `/health`: o smoke usa `GET /portal-config`; não há readiness/liveness;
 - sem encerramento gracioso: o restart pode derrubar requisições em andamento;
-- `server.listen(PORT)` publica o backend em `0.0.0.0:3000` na rede de laboratório,
-  embora o Nginx só use `127.0.0.1`;
-- `knexfile.js` sem bloco `production` (workaround `--env development`);
+- a troca de arquivos e o restart não são atômicos: há uma janela curta de
+  indisponibilidade e de arquivos novos com processo antigo;
+- `server.listen(PORT)` publica o backend em `0.0.0.0:<app-port>` na rede do
+  laboratório, embora o Nginx só use `127.0.0.1`;
 - sem backup no pipeline: responsabilidade do Supabase;
-- sem zero-downtime: há uma janela curta de indisponibilidade no restart;
-- o artefato não remove arquivos antigos de `dist/` e `node_modules/` que não
-  existem mais no build novo (inofensivo, acumula poucos kilobytes);
+- o rollback não reverte migrations;
 - o disparo automático depende do `ci.yml` na `main`.
 
 ## Primeira execução
 
 1. Cadastrar os secrets e variables do repositório (veja "Segredos e variáveis").
-2. Aplicar os pré-requisitos no host (linger e `NODE_ENV=production`) e instalar o unit.
+2. Aplicar o setup único no host (conta `deploy`, linger, Node 24, `.env` e unit).
 3. Rodar o workflow via `workflow_dispatch`, sem `skip_migrations`.
 4. Conferir a seção de verificação pós-deploy.
-5. Só então habilitar o disparo automático (merge do `ci.yml` na `main`).
+5. Validar o rollback com um `workflow_dispatch` com `rollback` (depois de um
+   segundo deploy, para existir `.deploy-previous`).
+6. Só então habilitar o disparo automático (merge do `ci.yml` na `main`).
 
 ## Referências
 
 - issue #137 — CI/CD do backend;
 - issue #143 — workflow de CI;
 - issue #142 — rollback da migration de auditoria de mapping;
-- `issues/audit-2026-11/03-migrations-destructive.md` — ACH-03-21 e ACH-03-22;
-- `issues/audit-2026-11/07-runtime-resilience.md` — ACH-07-04.
+- `docs/ci.md` — checks executados pela CI.
