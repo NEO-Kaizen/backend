@@ -6,17 +6,16 @@ import {
 } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
+import type { Role } from "../../shared/types/role.ts";
 import type {
   AuditTimelineAction,
   InternalNoteRow,
-  InternalRole,
   MappingHistoryRow,
   TimelineCursor,
   TimelineEventAction,
   TimelineEventRow,
   TriageHistoryRow,
 } from "../../shared/types/internalNotes.ts";
-import { isInternalRole } from "../../shared/types/internalNotes.ts";
 import type {
   CreateInternalNoteRequest,
   InternalNotesResponse,
@@ -50,7 +49,7 @@ function toNoteDTO(row: InternalNoteRow): TimelineNote {
 }
 
 export interface InternalNotesActor extends PermissionActor {
-  readonly role: InternalRole;
+  readonly role: Role;
 }
 
 async function requireRequestAccess(
@@ -199,12 +198,11 @@ function toActorDTO(row: ActorSource): TimelineActorDTO | null {
     return null;
   }
 
-  const role = resolveRole(row.actor_profile_name);
-  if (!isInternalRole(role)) {
-    return null;
-  }
-
-  return { id: String(row.actor_user_id), name: row.actor_name, role };
+  return {
+    id: String(row.actor_user_id),
+    name: row.actor_name,
+    role: resolveRole(row.actor_profile_name),
+  };
 }
 
 /** Serializa instante para ISO-8601 UTC com sufixo `Z` e precisão de segundos. */

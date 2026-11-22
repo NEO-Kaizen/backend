@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { permissionActorFromRequest } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { isInternalRole } from "../../shared/types/internalNotes.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   createInternalNoteSchema,
@@ -24,8 +23,8 @@ function actorFromRequest(req: Request): InternalNotesActor {
   const actor = permissionActorFromRequest(req);
   const role = req.user?.role;
 
-  if (!role || !isInternalRole(role)) {
-    throw new AppError("Acesso restrito às permissões internas", 403);
+  if (!role) {
+    throw new AppError("Token inválido ou expirado", 401);
   }
 
   return { ...actor, role };

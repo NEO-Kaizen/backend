@@ -1,9 +1,9 @@
 import db from "../../database/conection.ts";
+import type { Role } from "../../shared/types/role.ts";
 import type {
   AuditTimelineAction,
   InternalNoteReadStateRow,
   InternalNoteRow,
-  InternalRole,
   MappingHistoryAssignee,
   MappingHistoryParticipant,
   MappingHistoryRow,
@@ -361,7 +361,7 @@ export async function findReadState(
 
 export async function insert(
   requestId: string,
-  author: { userId: number; role: InternalRole },
+  author: { userId: number; role: Role },
   content: string,
 ): Promise<string> {
   const rows = (await db("request_internal_notes")

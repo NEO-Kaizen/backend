@@ -123,7 +123,7 @@ chaves/estruturas em inglês `camelCase`, valores de domínio (labels, statuses,
 | `TimelineItemType`                     | `note` \| `event`                                                                                           | este contrato §7 (D-N1)                                      | Backend |
 | `TimelineEventAction`                  | `request.assign` \| `request.reassign` \| `request.unassign` \| `request.status_change` \| `mapping.assign` | subconjunto de `auditCatalog.ts`, fixado em D-N4/D-N12/D-N15 | Backend |
 | `TimelineChangeOrigin`                 | `admin` \| `system` \| `internal`                                                                           | `audit_history.change_origin`                                | Backend |
-| `InternalRole` (autor/ator)            | `Analista` \| `Gestor` \| `Administrador`                                                                   | `Exclude<Role, "Solicitante">` — capitalizado no JSON        | Produto |
+| `Role` (autor/ator)                    | `Solicitante` \| `Analista` \| `Gestor` \| `Administrador` \| `Admin Root`                                  | snapshot do Perfil (`shared/types/role.ts`)                  | Produto |
 | `RequestStatus` (composição de `text`) | os status vigentes do portal                                                                                | mesmos nomes compostos em `text` de `request.status_change`  | Produto |
 
 > `TimelineEventAction` é **lista fechada**: ações fora dela são ignoradas na
@@ -154,11 +154,11 @@ checkpoint = N ──PUT /read { lastReadNoteId: M }, M < N──▶ checkpoint 
 
 ## 7. Endpoints
 
-| Método | Rota                                      | Auth                                                        | Response                                                                                       |
-| ------ | ----------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| GET    | `/requests/:protocol/internal-notes`      | cookie `session_id` (`Analista`\|`Gestor`\|`Administrador`) | `200` `InternalNotesResponse` (página da timeline + `nextCursor` + `unseenCount` + históricos) |
-| POST   | `/requests/:protocol/internal-notes`      | idem                                                        | `201` `TimelineNote`                                                                           |
-| PUT    | `/requests/:protocol/internal-notes/read` | idem                                                        | `204` sem corpo                                                                                |
+| Método | Rota                                      | Auth                             | Response                                                                                       |
+| ------ | ----------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| GET    | `/requests/:protocol/internal-notes`      | `internal_note:read` + Custódia  | `200` `InternalNotesResponse` (página da timeline + `nextCursor` + `unseenCount` + históricos) |
+| POST   | `/requests/:protocol/internal-notes`      | `internal_note:write` + Custódia | `201` `TimelineNote`                                                                           |
+| PUT    | `/requests/:protocol/internal-notes/read` | `internal_note:read` + Custódia  | `204` sem corpo                                                                                |
 
 ### Tipos
 
@@ -175,7 +175,7 @@ interface TimelineNote {
   id: string; // internal_note_id (numérico) — usado no PUT /read
   content: string; // 1..4000 (trim), imutável
   createdAt: string; // ISO-8601 UTC
-  author: { id: string; name: string; role: InternalRole };
+  author: { id: string; name: string; role: Role };
 }
 
 interface TimelineEvent {
@@ -185,7 +185,7 @@ interface TimelineEvent {
   text: string; // frase completa já renderizada no BE, pt-BR (§8)
   // ex.: "Status alterado: Em triagem" · "Responsável removido"
   occurredAt: string; // ISO-8601 UTC (audit_history.occurred_at)
-  actor: { id: string; name: string; role: InternalRole } | null; // null = ação de sistema/usuário removido
+  actor: { id: string; name: string; role: Role } | null; // null = usuário removido/inexistente
   changeOrigin: TimelineChangeOrigin;
   // Opcionais e restritos a `request.status_change` (issue #124):
   justification?: string | null; // justificativa INTERNA (audit_history.note); nunca o retorno público

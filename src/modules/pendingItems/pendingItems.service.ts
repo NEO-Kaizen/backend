@@ -5,6 +5,7 @@ import {
   denyRequestAccess,
   hasResponsibleCustody,
   isRequesterOwner,
+  permissionActorFromRequest,
 } from "../../shared/access/requestAccess.ts";
 import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
@@ -205,19 +206,6 @@ export type PendingCaller = {
 
 const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitação.";
 
-function actorFromCaller(caller: PendingCaller): PermissionActor {
-  if (!caller.user || !caller.permissions) {
-    throw new AppError("Permissões não carregadas para esta operação", 403);
-  }
-
-  const id = Number(caller.user.id);
-  if (!Number.isInteger(id)) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
-
-  return { id, email: caller.user.email, permissions: caller.permissions };
-}
-
 function isRequesterOf(request: repo.RequestRef, actor: PermissionActor): boolean {
   return isRequesterOwner(actor, {
     requesterUserId: request.requester_user_id,
@@ -254,7 +242,7 @@ async function requireReadableRequest(
   const request = await repo.findRequestByProtocol(protocol);
 
   if (caller.user) {
-    const actor = actorFromCaller(caller);
+    const actor = permissionActorFromRequest(caller);
     if (!request) {
       return denyRequestAccess(protocol, actor.id, ip, "pending_item:read sem solicitação");
     }
@@ -294,7 +282,7 @@ async function requireOwnedRequest(
   const request = await repo.findRequestByProtocol(protocol);
 
   if (caller.user) {
-    const actor = actorFromCaller(caller);
+    const actor = permissionActorFromRequest(caller);
     if (!request) {
       return denyRequestAccess(protocol, actor.id, ip, `${detail} sem solicitação`);
     }
