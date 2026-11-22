@@ -6,6 +6,8 @@ import { getFieldSnapshot, isFieldKey, type FieldKey } from "../../shared/catalo
 import * as repo from "./pendingItems.repository.ts";
 import type {
   PendingItemInsert,
+  PendingItemResponsePatch,
+  PendingItemRow,
   RequestRef,
   ReviewDecisionInput,
 } from "./pendingItems.repository.ts";
@@ -57,10 +59,7 @@ function parsePendingFieldValue(value: unknown): PendingFieldValue {
   return null;
 }
 
-async function buildPendingItems(
-  protocol: string,
-  rows: Record<string, unknown>[],
-): Promise<PendingItem[]> {
+async function buildPendingItems(protocol: string, rows: PendingItemRow[]): Promise<PendingItem[]> {
   const bases = rows.map((row) => {
     const base = repo.mapRowToPendingItemBase(row);
     base.protocol = protocol;
@@ -72,9 +71,9 @@ async function buildPendingItems(
   for (const base of bases) {
     const atts = attachmentsByItem.get(base.id) ?? [];
     const attachments = atts.map((a) => ({
-      fileName: a["file_name"] as string,
-      mimeType: a["content_type"] as string,
-      sizeBytes: Number(a["size_bytes"]),
+      fileName: a.file_name,
+      mimeType: a.content_type,
+      sizeBytes: Number(a.size_bytes),
       downloadUrl: null as string | null,
       canDownload: false,
     }));
@@ -263,14 +262,12 @@ export async function listPendingItems(
   // Lote vigente = primeiro com item open (requested/responded); senão o mais
   // recente (rows em ordem cronológica asc). `requestAttachment` é uniforme no
   // lote (D-P8) — basta achar `true` em qualquer linha do lote alvo.
-  const openRow = rows.find(
-    (row) => row["status"] === "requested" || row["status"] === "responded",
-  );
+  const openRow = rows.find((row) => row.status === "requested" || row.status === "responded");
   const targetRow = openRow ?? rows[rows.length - 1];
-  const batchId = (targetRow?.["batch_id"] as string | undefined) ?? null;
+  const batchId = targetRow?.batch_id ?? null;
   const requestAttachment =
     batchId !== null &&
-    rows.some((row) => row["batch_id"] === batchId && row["request_attachment"] === true);
+    rows.some((row) => row.batch_id === batchId && row.request_attachment === true);
 
   return { batchId, requestAttachment, items };
 }
@@ -309,13 +306,13 @@ interface PendingItemResponseCommitInput {
   request: RequestRef;
   pendingItemId: string;
   batchId: string;
-  patch: Record<string, unknown>;
+  patch: PendingItemResponsePatch;
   actor: PendingResponseActor;
   ip: string | undefined;
 }
 
 interface PendingItemResponseCommitResult {
-  row: Record<string, unknown>;
+  row: PendingItemRow;
   committedNotifications: CommittedNotification[];
 }
 
@@ -374,16 +371,16 @@ export async function respondPendingItem(
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) throw new AppError("Solicitação não encontrada", 404);
   const row = await repo.findPendingItemById(pendingItemId);
-  if (!row || (row["request_id"] as string) !== request.request_id) {
+  if (!row || row.request_id !== request.request_id) {
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  if ((row["status"] as string) !== "requested") {
+  if (row.status !== "requested") {
     throw new AppError("Esta pendência já foi respondida.", 409);
   }
-  const type = row["type"] as "field_edit" | "observation";
+  const type = row.type;
 
-  let patch: Record<string, unknown>;
+  let patch: PendingItemResponsePatch;
   if (type === "field_edit") {
     if (!Object.prototype.hasOwnProperty.call(body, "correctedValue")) {
       throw new AppError("Campos obrigatórios ausentes: correctedValue", 400);
@@ -394,12 +391,16 @@ export async function respondPendingItem(
     if (Object.prototype.hasOwnProperty.call(body, "response")) {
       throw new AppError("Campos inválidos: response — não permitido para field_edit", 400);
     }
-    patch = { corrected_value: JSON.stringify(body["correctedValue"]) };
+    const serialized = JSON.stringify(body["correctedValue"]);
+    if (serialized === undefined) {
+      throw new AppError("Campos inválidos: correctedValue", 400);
+    }
+    patch = { corrected_value: serialized };
   } else {
     if (!Object.prototype.hasOwnProperty.call(body, "response")) {
       throw new AppError("Campos obrigatórios ausentes: response", 400);
     }
-    const response = body["response"] as string;
+    const response = body["response"];
     if (typeof response !== "string" || response.trim().length === 0) {
       throw new AppError("Campos inválidos: response — Campo obrigatório.", 400);
     }
@@ -415,7 +416,7 @@ export async function respondPendingItem(
   const { row: updated, committedNotifications } = await commitPendingItemResponse({
     request,
     pendingItemId,
-    batchId: row["batch_id"] as string,
+    batchId: row.batch_id,
     patch,
     actor,
     ip,
@@ -446,7 +447,7 @@ export async function addAttachment(
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) throw new AppError("Solicitação não encontrada", 404);
   const row = await repo.findPendingItemById(pendingItemId);
-  if (!row || (row["request_id"] as string) !== request.request_id) {
+  if (!row || row.request_id !== request.request_id) {
     throw new AppError("Solicitação não encontrada", 404);
   }
 
@@ -496,7 +497,7 @@ function validateCorrectedValueForField(fieldKey: string, value: unknown): void 
     return;
   }
   if (fieldKey === "operational.hasManualControls") {
-    if (value !== false && (typeof value !== "string" || (value as string).trim() === "")) {
+    if (value !== false && (typeof value !== "string" || value.trim() === "")) {
       throw new AppError(
         "Campos inválidos: correctedValue — hasManualControls deve ser false ou texto não vazio",
         400,
@@ -518,13 +519,13 @@ function validateCorrectedValueForField(fieldKey: string, value: unknown): void 
     return;
   }
   if (fieldKey === "operational.operationalImpact") {
-    if (!["Baixo", "Médio", "Alto", "Crítico"].includes(value as string)) {
+    if (typeof value !== "string" || !["Baixo", "Médio", "Alto", "Crítico"].includes(value)) {
       throw new AppError("Campos inválidos: correctedValue — operationalImpact inválido", 400);
     }
     return;
   }
   if (fieldKey === "operational.perceivedCriticality") {
-    if (!["Baixa", "Média", "Alta", "Crítica"].includes(value as string)) {
+    if (typeof value !== "string" || !["Baixa", "Média", "Alta", "Crítica"].includes(value)) {
       throw new AppError("Campos inválidos: correctedValue — perceivedCriticality inválido", 400);
     }
     return;
@@ -572,12 +573,12 @@ export async function reviewPendingItems(
   const batchRows = await repo.findPendingItemsByBatchId(batchId, request.request_id);
   if (batchRows.length === 0) throw new AppError("Lote não encontrado", 404);
 
-  const byId = new Map(batchRows.map((row) => [row["pending_item_id"] as string, row]));
+  const byId = new Map(batchRows.map((row) => [row.pending_item_id, row]));
 
   for (const decision of body.items) {
     const row = byId.get(decision.id);
     if (!row) throw new AppError(`Item ${decision.id} não pertence ao lote`, 404);
-    const status = row["status"] as string;
+    const status = row.status;
     // idempotência: reenvio mesmo id+decision não duplica audit nem altera estado
     if (decision.decision === "validate" && status === "validated") continue;
     if (decision.decision === "reopen" && status === "requested") continue;
@@ -593,11 +594,12 @@ export async function reviewPendingItems(
     if (decision.decision === "reopen") {
       return { id: decision.id, decision: "reopen", comment: decision.comment };
     }
-    const row = byId.get(decision.id) as Record<string, unknown>;
-    const fieldKey = (row["field_key"] as string | null) ?? null;
+    const row = byId.get(decision.id);
+    if (!row) throw new AppError(`Item ${decision.id} não pertence ao lote`, 404);
+    const fieldKey = row.field_key;
     let value: unknown = null;
     if (fieldKey) {
-      value = parseCorrectedValue(row["corrected_value"] as string | null);
+      value = parseCorrectedValue(row.corrected_value);
       validateCorrectedValueForField(fieldKey, value);
     }
     return { id: decision.id, decision: "validate", note: decision.note ?? null, fieldKey, value };

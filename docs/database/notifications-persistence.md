@@ -53,8 +53,9 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 `status_changed` para os solicitantes dos seeds 004 e 006;
 `pending_item_responded` para o Responsável da request 1; e
 `pending_item_responded_unassigned` para os Administradores ativos da request 3,
-com o aviso explícito. O seed é idempotente: apaga apenas os ids fixos que ele
-mesmo cria e os recria.
+com o aviso explícito. O seed é idempotente por `dedup_key`: apaga as
+Notificações pelos ids fixos e pelas chaves que ele mesmo cria e as recria, sem
+tocar nas Notificações geradas pela API.
 
 ## Migration
 

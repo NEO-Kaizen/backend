@@ -4,7 +4,11 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
-import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
+import type {
+  PendencyStatus,
+  PendingFieldValue,
+  PendingItemType,
+} from "../../shared/types/pendingItems.ts";
 
 export interface RequestRef {
   request_id: string;
@@ -15,6 +19,70 @@ export interface RequestRef {
   requester_user_id: number | null;
   requester_name: string;
   requester_email: string;
+}
+
+/** Projeção de `pending_items` normalizada na fronteira do repository. */
+export interface PendingItemRow {
+  pending_item_id: string;
+  request_id: string;
+  batch_id: string;
+  type: PendingItemType;
+  field_key: string | null;
+  field_label: string | null;
+  current_value: string | null;
+  comment: string | null;
+  description: string | null;
+  status: PendencyStatus;
+  corrected_value: string | null;
+  response_text: string | null;
+  request_attachment: boolean;
+  deadline: Date | string | null;
+  created_at: Date | string;
+  responded_at: Date | string | null;
+  validated_at: Date | string | null;
+}
+
+/** Anexo de Pendência usado pelo `buildPendingItems` (evita N+1). */
+export interface PendingAttachmentRow {
+  pending_item_id: string;
+  file_name: string;
+  content_type: string;
+  size_bytes: number | string;
+}
+
+function mapPendingItemRow(row: Record<string, unknown>): PendingItemRow {
+  return {
+    pending_item_id: row["pending_item_id"] as string,
+    request_id: row["request_id"] as string,
+    batch_id: row["batch_id"] as string,
+    type: row["type"] as PendingItemType,
+    field_key: (row["field_key"] as string | null) ?? null,
+    field_label: (row["field_label"] as string | null) ?? null,
+    current_value: (row["current_value"] as string | null) ?? null,
+    comment: (row["comment"] as string | null) ?? null,
+    description: (row["description"] as string | null) ?? null,
+    status: row["status"] as PendencyStatus,
+    corrected_value: (row["corrected_value"] as string | null) ?? null,
+    response_text: (row["response_text"] as string | null) ?? null,
+    request_attachment: Boolean(row["request_attachment"]),
+    deadline: (row["deadline"] as Date | string | null) ?? null,
+    created_at: row["created_at"] as Date | string,
+    responded_at: (row["responded_at"] as Date | string | null) ?? null,
+    validated_at: (row["validated_at"] as Date | string | null) ?? null,
+  };
+}
+
+function mapPendingItemRows(rows: Record<string, unknown>[]): PendingItemRow[] {
+  return rows.map(mapPendingItemRow);
+}
+
+function mapPendingAttachmentRow(row: Record<string, unknown>): PendingAttachmentRow {
+  return {
+    pending_item_id: row["pending_item_id"] as string,
+    file_name: row["file_name"] as string,
+    content_type: row["content_type"] as string,
+    size_bytes: row["size_bytes"] as number | string,
+  };
 }
 
 export async function findRequestByProtocol(
@@ -95,29 +163,32 @@ export async function hasOpenPending(requestId: string, trx?: Knex.Transaction):
 export async function findPendingItemsByRequestId(
   requestId: string,
   trx?: Knex.Transaction,
-): Promise<Record<string, unknown>[]> {
+): Promise<PendingItemRow[]> {
   const conn = trx ?? db;
-  return (await conn("pending_items")
+  const rows = (await conn("pending_items")
     .where("pending_items.request_id", requestId)
     .orderBy("pending_items.created_at", "asc")
     .select("*")) as unknown as Record<string, unknown>[];
+  return mapPendingItemRows(rows);
 }
 
 export async function findPendingItemById(
   pendingItemId: string,
   trx?: Knex.Transaction,
-): Promise<Record<string, unknown> | null> {
+): Promise<PendingItemRow | null> {
   const conn = trx ?? db;
-  const row = await conn("pending_items").where({ pending_item_id: pendingItemId }).first("*");
-  return (row as unknown as Record<string, unknown> | undefined) ?? null;
+  const row = (await conn("pending_items")
+    .where({ pending_item_id: pendingItemId })
+    .first("*")) as unknown as Record<string, unknown> | undefined;
+  return row ? mapPendingItemRow(row) : null;
 }
 
 /** Busca em lote — evita N+1 no `buildPendingItems`. */
 export async function findAttachmentsByPendingItemIds(
   pendingItemIds: string[],
   trx?: Knex.Transaction,
-): Promise<Map<string, Record<string, unknown>[]>> {
-  const grouped = new Map<string, Record<string, unknown>[]>();
+): Promise<Map<string, PendingAttachmentRow[]>> {
+  const grouped = new Map<string, PendingAttachmentRow[]>();
   if (pendingItemIds.length === 0) return grouped;
 
   const conn = trx ?? db;
@@ -127,10 +198,10 @@ export async function findAttachmentsByPendingItemIds(
     .select("*")) as unknown as Record<string, unknown>[];
 
   for (const row of rows) {
-    const key = row["pending_item_id"] as string;
-    const list = grouped.get(key) ?? [];
-    list.push(row);
-    grouped.set(key, list);
+    const attachment = mapPendingAttachmentRow(row);
+    const list = grouped.get(attachment.pending_item_id) ?? [];
+    list.push(attachment);
+    grouped.set(attachment.pending_item_id, list);
   }
   return grouped;
 }
@@ -339,12 +410,13 @@ export async function findPendingItemsByBatchId(
   batchId: string,
   requestId: string,
   trx?: Knex.Transaction,
-): Promise<Record<string, unknown>[]> {
+): Promise<PendingItemRow[]> {
   const conn = trx ?? db;
-  return (await conn("pending_items")
+  const rows = (await conn("pending_items")
     .where({ batch_id: batchId, request_id: requestId })
     .orderBy("created_at", "asc")
     .select("*")) as unknown as Record<string, unknown>[];
+  return mapPendingItemRows(rows);
 }
 
 export async function createPendingItemsBatch(input: {
@@ -354,7 +426,7 @@ export async function createPendingItemsBatch(input: {
   rows: PendingItemInsert[];
   actor: { id: number; email: string };
   ip: string | undefined;
-}): Promise<Record<string, unknown>[]> {
+}): Promise<PendingItemRow[]> {
   return db.transaction(async (trx) => {
     const toInsert = input.rows.map((row) => ({
       ...row,
@@ -410,19 +482,23 @@ export async function createPendingItemsBatch(input: {
       });
     }
 
-    return (await trx("pending_items")
+    const rows = (await trx("pending_items")
       .where({ batch_id: input.batchId, request_id: input.requestId })
       .select("*")
       .orderBy("created_at", "asc")) as unknown as Record<string, unknown>[];
+    return mapPendingItemRows(rows);
   });
 }
+
+/** Colunas de `pending_items` alteradas pela resposta do item. */
+export type PendingItemResponsePatch = { corrected_value: string } | { response_text: string };
 
 export interface PendingItemResponseInput {
   requestId: string;
   protocol: string;
   pendingItemId: string;
   batchId: string;
-  patch: Record<string, unknown>;
+  patch: PendingItemResponsePatch;
   actorEmail: string | undefined;
   changeOrigin: "admin" | "requester";
   ip: string | undefined;
@@ -430,7 +506,7 @@ export interface PendingItemResponseInput {
 }
 
 export interface PendingItemResponseResult {
-  row: Record<string, unknown>;
+  row: PendingItemRow;
   /** `audit_id` da resposta; base da `eventKey` do Evento de Notificação. */
   auditId: string;
 }
@@ -445,9 +521,10 @@ export async function applyPendingItemResponse(
 ): Promise<PendingItemResponseResult> {
   const row = (await trx("pending_items")
     .where({ pending_item_id: input.pendingItemId })
-    .first("*")) as Record<string, unknown> | undefined;
+    .first("*")) as unknown as Record<string, unknown> | undefined;
   if (!row) throw new AppError("Solicitação não encontrada", 404);
-  if ((row.status as string) !== "requested") {
+  const currentItem = mapPendingItemRow(row);
+  if (currentItem.status !== "requested") {
     throw new AppError("Esta pendência já foi respondida.", 409);
   }
 
@@ -507,9 +584,9 @@ export async function applyPendingItemResponse(
 
   const updated = (await trx("pending_items")
     .where({ pending_item_id: input.pendingItemId })
-    .first("*")) as Record<string, unknown>;
+    .first("*")) as unknown as Record<string, unknown>;
 
-  return { row: updated, auditId };
+  return { row: mapPendingItemRow(updated), auditId };
 }
 
 export async function addPendingItemAttachmentTx(input: {
@@ -554,7 +631,7 @@ export async function applyReviewDecisionsTx(input: {
   ip: string | undefined;
   currentStatusName: string;
   decideStatus: (facts: ReviewFacts) => string | null;
-}): Promise<Record<string, unknown>[]> {
+}): Promise<PendingItemRow[]> {
   return db.transaction(async (trx) => {
     if (typeof input.requestAttachment === "boolean") {
       await trx("pending_items")
@@ -565,11 +642,12 @@ export async function applyReviewDecisionsTx(input: {
     let hasReopen = false;
 
     for (const dec of input.decisions) {
-      const row = (await trx("pending_items").where({ pending_item_id: dec.id }).first("*")) as
-        Record<string, unknown> | undefined;
+      const row = (await trx("pending_items")
+        .where({ pending_item_id: dec.id })
+        .first("*")) as unknown as Record<string, unknown> | undefined;
       if (!row) continue;
 
-      const currentStatus = row.status as string;
+      const currentStatus = mapPendingItemRow(row).status;
       if (dec.decision === "validate" && currentStatus === "validated") continue;
       if (dec.decision === "reopen" && currentStatus === "requested") continue;
 
@@ -631,12 +709,13 @@ export async function applyReviewDecisionsTx(input: {
       });
     }
 
-    return (await trx("pending_items")
+    const rows = (await trx("pending_items")
       .whereIn(
         "pending_item_id",
         input.decisions.map((d) => d.id),
       )
       .select("*")) as unknown as Record<string, unknown>[];
+    return mapPendingItemRows(rows);
   });
 }
 
@@ -784,31 +863,28 @@ async function applyFieldToRequest(
 
 // Helpers to map DB rows to PendingItem
 export function mapRowToPendingItemBase(
-  row: Record<string, unknown>,
+  row: PendingItemRow,
 ): Omit<PendingItem, "responseAttachments"> {
+  const currentValue = (row.current_value as PendingFieldValue | null) ?? null;
   return {
-    id: row["pending_item_id"] as string,
+    id: row.pending_item_id,
     protocol: "", // preenchido pelo service com request.protocol
-    batchId: row["batch_id"] as string,
-    type: row["type"] as "field_edit" | "observation",
-    field: (row["field_key"] as string | null)
+    batchId: row.batch_id,
+    type: row.type,
+    field: row.field_key
       ? {
-          fieldKey: row["field_key"] as string,
-          fieldLabel: (row["field_label"] as string) ?? (row["field_key"] as string),
-          currentValue: (row["current_value"] as PendingFieldValue | null) ?? null,
+          fieldKey: row.field_key,
+          fieldLabel: row.field_label ?? row.field_key,
+          currentValue,
         }
       : null,
-    comment: (row["comment"] as string) ?? (row["description"] as string) ?? "",
-    status: row["status"] as "requested" | "responded" | "validated",
-    correctedValue: (row["corrected_value"] as PendingFieldValue | null) ?? null,
-    responseText: (row["response_text"] as string | null) ?? null,
-    deadline: row["deadline"]
-      ? new Date(row["deadline"] as string).toISOString().slice(0, 10)
-      : null,
-    createdAt: row["created_at"]
-      ? new Date(row["created_at"] as string).toISOString()
-      : new Date().toISOString(),
-    respondedAt: row["responded_at"] ? new Date(row["responded_at"] as string).toISOString() : null,
-    validatedAt: row["validated_at"] ? new Date(row["validated_at"] as string).toISOString() : null,
+    comment: row.comment ?? row.description ?? "",
+    status: row.status,
+    correctedValue: (row.corrected_value as PendingFieldValue | null) ?? null,
+    responseText: row.response_text,
+    deadline: row.deadline ? new Date(row.deadline).toISOString().slice(0, 10) : null,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+    respondedAt: row.responded_at ? new Date(row.responded_at).toISOString() : null,
+    validatedAt: row.validated_at ? new Date(row.validated_at).toISOString() : null,
   };
 }

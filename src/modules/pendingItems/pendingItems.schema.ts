@@ -34,8 +34,15 @@ export const createPendingItemsSchema = z
 export const verifySchema = z.object({
   name: z.string().trim().min(3).max(150),
   email: z.string().trim().toLowerCase().email("Informe um e-mail válido.").max(254),
-  protocol: z.string().trim().min(1),
+  protocol: z.string().trim().min(1).nullable().optional(),
 });
+
+/**
+ * Corpo cru do PATCH de resposta. O tipo do item (`field_edit` ×
+ * `observation`) só é conhecido no service, então a borda valida apenas que o
+ * corpo é um objeto com chaves string; os campos são estreitados depois.
+ */
+export const pendingItemResponseBodySchema = z.record(z.string(), z.unknown());
 
 export const reviewSchema = z.object({
   batchId: z.string().trim().min(1),

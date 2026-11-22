@@ -1,108 +1,100 @@
+import { PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE } from "../../src/shared/notifications/notificationEvents.ts";
+
+const REQUEST_POINTERS = {
+  1: { protocol: "MAAT-8K3P-9X2M", title: "Automatizar conciliação bancária" },
+  3: { protocol: "MAAT-2R7Q-4M1C", title: "Analisar inadimplência por região" },
+};
+
+const UNASSIGNED_ADMIN_IDS = [
+  102, // Administrador Teste
+  109, // Carina Admin
+  115, // Ines Admin
+];
+
+function notification({
+  id,
+  recipientUserId,
+  requestId,
+  payload,
+  dedupKey,
+  readAt = null,
+  createdAt,
+}) {
+  return {
+    notification_id: id,
+    recipient_user_id: recipientUserId,
+    event_type: payload.type,
+    request_id: requestId,
+    payload,
+    dedup_key: dedupKey,
+    read_at: readAt,
+    created_at: createdAt,
+  };
+}
+
 const NOTIFICATIONS = [
-  {
-    notification_id: "f0000000-0000-4000-8000-000000000001",
-    recipient_user_id: 112, // Fabio Solicitante
-    event_type: "status_changed",
-    request_id: 1,
+  notification({
+    id: "f0000000-0000-4000-8000-000000000001",
+    recipientUserId: 112, // Fabio Solicitante
+    requestId: 1,
     payload: {
       type: "status_changed",
-      protocol: "MAAT-8K3P-9X2M",
-      title: "Automatizar conciliação bancária",
+      ...REQUEST_POINTERS[1],
       newStatus: "Aguardando mapeamento",
     },
-    dedup_key: "seed:request.status_change:1:112",
-    read_at: null,
-    created_at: "2026-11-18 09:15:00",
-  },
-  {
-    notification_id: "f0000000-0000-4000-8000-000000000002",
-    recipient_user_id: 112, // Fabio Solicitante
-    event_type: "status_changed",
-    request_id: 1,
+    dedupKey: "seed:request.status_change:1:112",
+    createdAt: "2026-11-18 09:15:00",
+  }),
+  notification({
+    id: "f0000000-0000-4000-8000-000000000002",
+    recipientUserId: 112, // Fabio Solicitante
+    requestId: 1,
     payload: {
       type: "status_changed",
-      protocol: "MAAT-8K3P-9X2M",
-      title: "Automatizar conciliação bancária",
+      ...REQUEST_POINTERS[1],
       newStatus: "Em triagem",
     },
-    dedup_key: "seed:request.status_change:2:112",
-    read_at: "2026-11-17 14:30:00",
-    created_at: "2026-11-17 14:00:00",
-  },
-  {
-    notification_id: "f0000000-0000-4000-8000-000000000003",
-    recipient_user_id: 104, // Solicitante Teste
-    event_type: "status_changed",
-    request_id: 3,
+    dedupKey: "seed:request.status_change:2:112",
+    readAt: "2026-11-17 14:30:00",
+    createdAt: "2026-11-17 14:00:00",
+  }),
+  notification({
+    id: "f0000000-0000-4000-8000-000000000003",
+    recipientUserId: 104, // Solicitante Teste
+    requestId: 3,
     payload: {
       type: "status_changed",
-      protocol: "MAAT-2R7Q-4M1C",
-      title: "Analisar inadimplência por região",
+      ...REQUEST_POINTERS[3],
       newStatus: "Pendente de informações",
     },
-    dedup_key: "seed:request.status_change:3:104",
-    read_at: null,
-    created_at: "2026-11-19 10:00:00",
-  },
-  {
-    notification_id: "f0000000-0000-4000-8000-000000000004",
-    recipient_user_id: 101, // Analista Teste — Responsável pela request 1
-    event_type: "pending_item_responded",
-    request_id: 1,
+    dedupKey: "seed:request.status_change:3:104",
+    createdAt: "2026-11-19 10:00:00",
+  }),
+  notification({
+    id: "f0000000-0000-4000-8000-000000000004",
+    recipientUserId: 101, // Analista Teste — Responsável pela request 1
+    requestId: 1,
     payload: {
       type: "pending_item_responded",
-      protocol: "MAAT-8K3P-9X2M",
-      title: "Automatizar conciliação bancária",
+      ...REQUEST_POINTERS[1],
     },
-    dedup_key: "seed:request.pending_responded:1:101",
-    read_at: null,
-    created_at: "2026-11-19 16:40:00",
-  },
-  {
-    notification_id: "f0000000-0000-4000-8000-000000000005",
-    recipient_user_id: 102, // Administrador Teste — request 3 sem Responsável
-    event_type: "pending_item_responded_unassigned",
-    request_id: 3,
-    payload: {
-      type: "pending_item_responded_unassigned",
-      protocol: "MAAT-2R7Q-4M1C",
-      title: "Analisar inadimplência por região",
-      notice: "Sem responsável designado",
-    },
-    dedup_key: "seed:request.pending_responded:3:102",
-    read_at: null,
-    created_at: "2026-11-19 16:42:00",
-  },
-  {
-    notification_id: "f0000000-0000-4000-8000-000000000006",
-    recipient_user_id: 109, // Carina Admin — request 3 sem Responsável
-    event_type: "pending_item_responded_unassigned",
-    request_id: 3,
-    payload: {
-      type: "pending_item_responded_unassigned",
-      protocol: "MAAT-2R7Q-4M1C",
-      title: "Analisar inadimplência por região",
-      notice: "Sem responsável designado",
-    },
-    dedup_key: "seed:request.pending_responded:3:109",
-    read_at: null,
-    created_at: "2026-11-19 16:42:00",
-  },
-  {
-    notification_id: "f0000000-0000-4000-8000-000000000007",
-    recipient_user_id: 115, // Ines Admin — request 3 sem Responsável
-    event_type: "pending_item_responded_unassigned",
-    request_id: 3,
-    payload: {
-      type: "pending_item_responded_unassigned",
-      protocol: "MAAT-2R7Q-4M1C",
-      title: "Analisar inadimplência por região",
-      notice: "Sem responsável designado",
-    },
-    dedup_key: "seed:request.pending_responded:3:115",
-    read_at: null,
-    created_at: "2026-11-19 16:42:00",
-  },
+    dedupKey: "seed:request.pending_responded:1:101",
+    createdAt: "2026-11-19 16:40:00",
+  }),
+  ...UNASSIGNED_ADMIN_IDS.map((recipientUserId, index) =>
+    notification({
+      id: `f0000000-0000-4000-8000-00000000000${5 + index}`,
+      recipientUserId,
+      requestId: 3,
+      payload: {
+        type: "pending_item_responded_unassigned",
+        ...REQUEST_POINTERS[3],
+        notice: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
+      },
+      dedupKey: `seed:request.pending_responded:3:${recipientUserId}`,
+      createdAt: "2026-11-19 16:42:00",
+    }),
+  ),
 ];
 
 /**
@@ -114,13 +106,16 @@ const NOTIFICATIONS = [
  *   aviso explícito e os Administradores ativos do seed 004 como destinatários.
  *
  * Pré-requisitos: seeds 004_users e 006_requests (as FKs de destinatário e
- * solicitação precisam existir). Idempotente: apaga apenas as Notificações com
- * os ids fixos deste seed e as recria; o `TRUNCATE requests CASCADE` do seed
- * 001 já remove as demais por causa da FK.
+ * solicitação precisam existir). Idempotente por `dedup_key`: apaga as
+ * Notificações pelos ids fixos e pelas chaves que ele mesmo cria, sem tocar nas
+ * Notificações geradas pela API; o `TRUNCATE requests CASCADE` do seed 001 já
+ * remove as demais por causa da FK.
  */
 export async function seed(knex) {
   const notificationIds = NOTIFICATIONS.map((notification) => notification.notification_id);
+  const dedupKeys = NOTIFICATIONS.map((notification) => notification.dedup_key);
 
   await knex("notifications").whereIn("notification_id", notificationIds).del();
+  await knex("notifications").whereIn("dedup_key", dedupKeys).del();
   await knex("notifications").insert(NOTIFICATIONS);
 }

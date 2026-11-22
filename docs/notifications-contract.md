@@ -63,7 +63,9 @@ emissão.
   atual da conta: a designação é a fonte de verdade; desativação e
   remanejamento pertencem ao fluxo de atribuição.
 - Sem Responsável designado, os destinatários são os usuários ativos com perfil
-  `administrador` (conta e perfil ativos), com o aviso explícito no payload.
+  `administrador` (conta e perfil ativos), com o aviso explícito no payload. Se
+  não houver Administrador ativo, a audiência fica vazia e nenhuma Notificação é
+  criada; a resposta continua válida.
 - O ator nunca recebe. A autoexclusão tem precedência sobre o critério de
   contagem: a resposta do solicitante gera exatamente uma Notificação ao
   Responsável quando ele não é o ator; quando o próprio Responsável responde,
