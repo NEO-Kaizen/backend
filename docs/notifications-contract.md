@@ -14,8 +14,6 @@ A plataforma de Notificações in-app e os Eventos ponta a ponta já integrados:
 - `pending_item_responded` e `pending_item_responded_unassigned` (#159): a
   resposta de Pendência gera Notificação para o Responsável ou, na ausência
   dele, para os Administradores ativos.
-- `responsible_assigned` (#161): a Designação de Responsável nas rotas interna
-  e legada gera Notificação para o analista designado.
 
 As Notificações são entregues por SSE em até 5 segundos. Os demais Eventos de
 Pendência (criação, reabertura e validação) e do Mapeamento entram nas issues
@@ -27,14 +25,12 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   evento de negócio. O banco é a fonte de verdade.
 - **Evento**: união discriminada `NotificationEvent`, validada por Zod na
   emissão. A v1 tem `status_changed`, `mapping_scheduled`,
-  `pending_item_responded`, `pending_item_responded_unassigned` e
-  `responsible_assigned`.
+  `pending_item_responded`, `pending_item_responded_unassigned`
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
   `type`, `protocol`, `title` e `newStatus`; para `mapping_scheduled`, somente
   `type`, `protocol`, `title` e `scheduledAt`; para os Eventos de Pendência, os
   campos da seção própria — nunca mensagem técnica, scores, notas internas ou
-  campos de triagem. Para `responsible_assigned`, somente `type`, `protocol`,
-  `title`, `category` e `status`.
+  campos de triagem.
 - **Canal**: `NotificationChannel`. O canal in-app grava a Notificação na
   transação; o canal de e-mail do RF31 entra como outra implementação.
 - **Idempotência**: `notifications.dedup_key` é única. A chave é
@@ -43,8 +39,7 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   destinatário de cada Evento segue a matriz da seção correspondente. Em
   `status_changed`, é o `requests.requester_user_id`; em `mapping_scheduled`,
   o solicitante autenticado e o designado de custódia da solicitação
-  (`requests.mapping_professional_id`). Em `responsible_assigned`, apenas o
-  analista designado; o Administrador que designou não recebe.
+  (`requests.mapping_professional_id`).
 
 ## Regras do Evento `status_changed`
 
@@ -122,20 +117,6 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de
   Status.
-
-## Regras do Evento `responsible_assigned` (issue #161)
-
-- Emitido nas rotas interna (`PATCH /requests/:protocol/internal/assignee`) e
-  legada (`PATCH /requests/:protocol/assignee`) quando um analista é
-  designado na triagem ou no mapeamento da solicitação, na mesma transação da
-  designação e da auditoria.
-- `eventKey`: `request.assigned:<audit_id>` — cada designação é um Evento
-  distinto.
-- Audiência: apenas o analista designado. O Administrador que designou não
-  recebe. Sem troca de designado — designar o mesmo analista já designado —
-  não há Notificação duplicada.
-- Payload: `type`, `protocol`, `title`, `category` e `status` — a Allowlist da
-  designação, com a categoria e o Status atual da solicitação na emissão.
 
 ## Payload dos Eventos de Pendência
 

@@ -52,7 +52,7 @@ export async function seed(knex) {
       priority_id: 3,
       preliminary_complexity: "media",
       screening_result: "elegivel",
-      professional_id: "650e8400-e29b-41d4-a716-446655440002",
+      professional_id: "650e8400-e29b-41d4-a716-446655440001",
       mapping_professional_id: "650e8400-e29b-41d4-a716-446655440003", // Bruno — designado de custódia do Mapeamento (matriz #156)
       last_technical_message:
         "Sua solicitação está em análise. Assim que houver uma atualização, entraremos em contato.",
@@ -61,7 +61,7 @@ export async function seed(knex) {
       meeting_link: null,
       created_by: "maria.silva@empresa.com",
       created_at: "2026-07-01 09:00:00",
-      updated_by: "roberta.analyst@empresa.com",
+      updated_by: "joao.analyst@empresa.com",
       updated_at: "2026-07-08 12:00:00",
     },
     {
@@ -544,7 +544,7 @@ export async function seed(knex) {
       priority_id: 3,
       preliminary_complexity: "media",
       screening_result: "elegivel",
-      professional_id: "650e8400-e29b-41d4-a716-446655440002",
+      professional_id: "650e8400-e29b-41d4-a716-446655440001",
       last_technical_message: "Priorizado pelo comitê de agosto.",
       estimated_completion: "2027-01-15",
       created_by: "henrique.barros@empresa.com",
@@ -660,7 +660,7 @@ export async function seed(knex) {
       priority_id: 1,
       preliminary_complexity: "baixa",
       screening_result: "elegivel",
-      professional_id: "650e8400-e29b-41d4-a716-446655440002",
+      professional_id: "650e8400-e29b-41d4-a716-446655440001",
       last_technical_message: "Em desenvolvimento pela equipe de padronização.",
       estimated_completion: "2026-12-15",
       created_by: "rafael.martins@empresa.com",

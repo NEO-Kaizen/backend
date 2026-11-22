@@ -47,15 +47,6 @@ export const mappingScheduledPayloadSchema = requestPointerPayloadSchema
   })
   .strict();
 
-export const responsibleAssignedPayloadSchema = requestPointerPayloadSchema
-  .extend({
-    type: z.literal("responsible_assigned"),
-    /** Categoria da solicitação no momento da designação. */
-    category: z.string().trim().min(1).max(100),
-    /** Status atual da solicitação no momento da designação. */
-    status: z.string().trim().min(1).max(100),
-  })
-  .strict();
 
 export const pendingItemCreatedPayloadSchema = pendingItemPayloadSchema("pending_item_created");
 
@@ -75,7 +66,6 @@ export const pendingItemRespondedUnassignedPayloadSchema = requestPointerPayload
 export const notificationPayloadSchema = z.discriminatedUnion("type", [
   statusChangedPayloadSchema,
   mappingScheduledPayloadSchema,
-  responsibleAssignedPayloadSchema,
   pendingItemCreatedPayloadSchema,
   pendingItemReopenedPayloadSchema,
   pendingItemValidatedPayloadSchema,
@@ -85,9 +75,6 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
 
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
 export type MappingScheduledNotificationPayload = z.infer<typeof mappingScheduledPayloadSchema>;
-export type ResponsibleAssignedNotificationPayload = z.infer<
-  typeof responsibleAssignedPayloadSchema
->;
 export type PendingItemRespondedNotificationPayload = z.infer<
   typeof pendingItemRespondedPayloadSchema
 >;
@@ -152,10 +139,6 @@ export const mappingScheduledEventSchema = notificationEventSchemaFor(
   mappingScheduledPayloadSchema,
 );
 
-export const responsibleAssignedEventSchema = notificationEventSchemaFor(
-  "responsible_assigned",
-  responsibleAssignedPayloadSchema,
-);
 
 export const pendingItemCreatedEventSchema = notificationEventSchemaFor(
   "pending_item_created",
@@ -189,7 +172,6 @@ export const pendingItemRespondedUnassignedEventSchema = pendingItemResponseEven
 export const notificationEventSchema = z.discriminatedUnion("type", [
   statusChangedEventSchema,
   mappingScheduledEventSchema,
-  responsibleAssignedEventSchema,
   pendingItemCreatedEventSchema,
   pendingItemReopenedEventSchema,
   pendingItemValidatedEventSchema,
@@ -199,7 +181,6 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
 export type MappingScheduledNotificationEvent = z.infer<typeof mappingScheduledEventSchema>;
-export type ResponsibleAssignedNotificationEvent = z.infer<typeof responsibleAssignedEventSchema>;
 export type PendingItemRespondedNotificationEvent = z.infer<typeof pendingItemRespondedEventSchema>;
 export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
   typeof pendingItemRespondedUnassignedEventSchema
@@ -230,7 +211,6 @@ export const PENDING_ITEM_RESPONSE_EVENT_TYPES = [
 export const NOTIFICATION_EVENT_TYPES = [
   "status_changed",
   "mapping_scheduled",
-  "responsible_assigned",
   ...PENDING_ITEM_EVENT_TYPES,
   ...PENDING_ITEM_RESPONSE_EVENT_TYPES,
 ] as const satisfies readonly NotificationEventType[];

@@ -88,29 +88,10 @@ export const NotificationMappingScheduledPayload = {
   },
 };
 
-export const NotificationResponsibleAssignedPayload = {
-  type: "object",
-  description:
-    "Payload do Evento de Designação de Responsável: categoria e Status atual da solicitação no momento da designação.",
-  required: ["type", "protocol", "title", "category", "status"],
-  properties: {
-    type: {
-      type: "string",
-      enum: ["responsible_assigned"],
-      example: "responsible_assigned",
-    },
-    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-    title: { type: "string", example: "Automatizar conciliação bancária" },
-    category: { type: "string", example: "Automação" },
-    status: { type: "string", example: "Aguardando mapeamento" },
-  },
-};
-
 export const NotificationPayload = {
   oneOf: [
     { $ref: "#/components/schemas/NotificationStatusChangedPayload" },
     { $ref: "#/components/schemas/NotificationMappingScheduledPayload" },
-    { $ref: "#/components/schemas/NotificationResponsibleAssignedPayload" },
     pendingItemLifecyclePayload,
     { $ref: "#/components/schemas/NotificationPendingItemRespondedPayload" },
     { $ref: "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },

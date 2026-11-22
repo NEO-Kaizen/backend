@@ -284,34 +284,6 @@ function buildNotifications({
       dedupKey: "seed:pending_item.validate:3:104",
       createdAt: "2026-11-20 09:40:00",
     }),
-    // issue #161: Designação de Responsável (request 1) — designação do Analista
-    // Teste e redesignação da Roberta Analista. Idempotente por ids/chaves fixas.
-    notification({
-      id: seedNotificationId(12),
-      recipientUserId: 101, // Analista Teste — primeira designação
-      requestId: 1,
-      payload: {
-        type: "responsible_assigned",
-        ...pointerAt(1),
-        category: requestPointers.get(1).category,
-        status: "Aguardando mapeamento",
-      },
-      dedupKey: "seed:request.assigned:1:101",
-      createdAt: "2026-11-19 17:00:00",
-    }),
-    notification({
-      id: seedNotificationId(13),
-      recipientUserId: 107, // Roberta Analista — redesignação
-      requestId: 1,
-      payload: {
-        type: "responsible_assigned",
-        ...pointerAt(1),
-        category: requestPointers.get(1).category,
-        status: "Aguardando mapeamento",
-      },
-      dedupKey: "seed:request.assigned:1:107",
-      createdAt: "2026-11-19 17:05:00",
-    }),
     ...mappingScheduledNotifications,
   ];
 }
@@ -324,10 +296,7 @@ function buildNotifications({
  *   `pending_item_validated` para o solicitante da request 3;
  * - issue #159: `pending_item_responded` na request 1 (com Responsável) e
  *   `pending_item_responded_unassigned` na request 3 (sem Responsável), com o
- *   aviso explícito e os Administradores ativos do seed 004 como destinatários;
- * - issue #161: `responsible_assigned` na request 1 — designação do Analista
- *   Teste e redesignação da Roberta Analista;
- * - issue #160: `mapping_scheduled` para a request 1 — agendamento e
+ *   aviso explícito e os Administradores ativos do seed 004 como destinatários; * - issue #160: `mapping_scheduled` para a request 1 — agendamento e
  *   reagendamento do Mapeamento do seed 012, com destinatário resolvido do
  *   designado de custódia da request (`requests.mapping_professional_id`).
  *
