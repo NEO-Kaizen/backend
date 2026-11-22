@@ -1,10 +1,10 @@
-import { NOTIFICATION_EVENT_TYPES } from "../../shared/notifications/notificationEvents.ts";
+import {
+  NOTIFICATION_EVENT_TYPES,
+  PENDING_ITEM_EVENT_TYPES,
+  PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
+} from "../../shared/notifications/notificationEvents.ts";
 
-const pendingItemEventTypes = NOTIFICATION_EVENT_TYPES.filter((type) =>
-  type.startsWith("pending_item_"),
-);
-
-const statusChangedPayload = {
+export const NotificationStatusChangedPayload = {
   type: "object",
   description:
     "Payload do Evento `status_changed`: tipo, protocolo, título e o novo Status público.",
@@ -17,14 +17,15 @@ const statusChangedPayload = {
   },
 };
 
-const pendingItemPayload = {
+const pendingItemLifecyclePayload = {
   type: "object",
-  description: "Payload dos Eventos do ciclo de Pendência: contém apenas tipo, protocolo e título.",
+  description:
+    "Payload dos Eventos de criação, reabertura e validação de Pendência: contém apenas tipo, protocolo e título.",
   required: ["type", "protocol", "title"],
   properties: {
     type: {
       type: "string",
-      enum: pendingItemEventTypes,
+      enum: PENDING_ITEM_EVENT_TYPES,
       example: "pending_item_created",
     },
     protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
@@ -32,10 +33,53 @@ const pendingItemPayload = {
   },
 };
 
+export const NotificationPendingItemRespondedPayload = {
+  type: "object",
+  description:
+    "Payload do Evento de Pendência respondida com Responsável designado. Aponta para a solicitação sem expor dados internos.",
+  required: ["type", "protocol", "title"],
+  properties: {
+    type: {
+      type: "string",
+      enum: ["pending_item_responded"],
+      example: "pending_item_responded",
+    },
+    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    title: { type: "string", example: "Automatizar conciliação bancária" },
+  },
+};
+
+export const NotificationPendingItemRespondedUnassignedPayload = {
+  type: "object",
+  description:
+    "Payload do Evento de Pendência respondida sem Responsável designado; inclui o aviso explícito para os Administradores ativos.",
+  required: ["type", "protocol", "title", "notice"],
+  properties: {
+    type: {
+      type: "string",
+      enum: ["pending_item_responded_unassigned"],
+      example: "pending_item_responded_unassigned",
+    },
+    protocol: { type: "string", example: "MAAT-2R7Q-4M1C" },
+    title: { type: "string", example: "Analisar inadimplência por região" },
+    notice: {
+      type: "string",
+      enum: [PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE],
+      example: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
+    },
+  },
+};
+
 export const NotificationPayload = {
+  oneOf: [
+    { $ref: "#/components/schemas/NotificationStatusChangedPayload" },
+    pendingItemLifecyclePayload,
+    { $ref: "#/components/schemas/NotificationPendingItemRespondedPayload" },
+    { $ref: "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },
+  ],
+  discriminator: { propertyName: "type" },
   description:
     "Payload reduzido à Allowlist do Evento. Nunca contém mensagem técnica, scores, notas internas ou campos de triagem.",
-  oneOf: [statusChangedPayload, pendingItemPayload],
 };
 
 export const NotificationItem = {
