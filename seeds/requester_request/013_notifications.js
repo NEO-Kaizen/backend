@@ -3,6 +3,18 @@ import { PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE } from "../../src/shared/notif
 /** Requests fictícias dos cenários com e sem Responsável. */
 const SEED_REQUEST_IDS = [1, 3];
 
+/** Mapeamentos concluídos para `Mapeamento agendado` no seed 012 (issue #160). */
+const SCHEDULED_MAPPING_IDS = [
+  "aaaaaaaa-aaaa-4000-8000-000000000020",
+  "aaaaaaaa-aaaa-4000-8000-000000000021",
+  "aaaaaaaa-aaaa-4000-8000-000000000022",
+];
+/** Ids livres (1–4 e 12–13 já ocupados; 5–7 dos Administradores). */
+const MAPPING_NOTIFICATIONS_FIRST_ID = 20;
+
+const mappingNotificationId = (ordinal) =>
+  `f0000000-0000-4000-8000-${String(ordinal).padStart(12, "0")}`;
+
 /** Administradores ativos do seed 004 — destinatários do cenário sem Responsável. */
 const UNASSIGNED_ADMIN_EMAILS = [
   "administrador_teste@email.com",
@@ -82,7 +94,64 @@ function notificationId(offset) {
   return `f0000000-0000-4000-8000-00000000000${offset.toString(16)}`;
 }
 
-function buildNotifications({ requestPointers, unassignedAdminIds }) {
+/** Ponteiro (protocolo/título) de uma solicitação do seed. */
+function pointerFor(pointers, requestId) {
+  const value = pointers.get(requestId);
+  if (!value) throw new Error(`Ponteiro da solicitação ${requestId} ausente.`);
+  return { protocol: value.protocol, title: value.title };
+}
+
+/** Conclusões do seed 012 com seus destinatários (solicitante + Responsável do Mapeamento). */
+async function findMappingScheduledNotifications(knex, requestPointers) {
+  const mappings = await knex("mappings")
+    .whereIn("mapping_id", SCHEDULED_MAPPING_IDS)
+    .where({ is_concluded: true, target_status_id: 6 })
+    .orderBy("concluded_at", "asc")
+    .select("mapping_id", "request_id", "scheduled_for", "concluded_at");
+  if (mappings.length === 0) throw new Error("Mapeamentos agendados do seed 012 não encontrados.");
+
+  const request = await knex("requests as r")
+    .where("r.request_id", mappings[0].request_id)
+    .leftJoin("details_professional as dp", "dp.professional_id", "r.mapping_professional_id")
+    .leftJoin("users as u", "u.user_id", "dp.user_id")
+    .first("r.requester_user_id", "u.user_id as mapping_user_id");
+  if (!request)
+    throw new Error("Solicitação do Agendamento não encontrada. Rode o seed 006 antes.");
+
+  const recipients = [request.requester_user_id, request.mapping_user_id].filter(
+    (userId) => userId !== null,
+  );
+  return mappings.flatMap((mapping) =>
+    recipients.map((recipientUserId) =>
+      notification({
+        id: mappingNotificationId(
+          MAPPING_NOTIFICATIONS_FIRST_ID +
+            mappings.indexOf(mapping) * recipients.length +
+            recipients.indexOf(recipientUserId),
+        ),
+        recipientUserId,
+        requestId: Number(mapping.request_id),
+        payload: {
+          type: "mapping_scheduled",
+          ...pointerFor(requestPointers, Number(mapping.request_id)),
+          scheduledAt: toIsoSeconds(mapping.scheduled_for),
+        },
+        dedupKey: `seed:mapping.complete:${mapping.mapping_id}:${recipientUserId}`,
+        createdAt: toIsoSeconds(new Date(new Date(mapping.concluded_at).getTime() + 10 * 60_000)),
+      }),
+    ),
+  );
+}
+
+function toIsoSeconds(value) {
+  return new Date(value).toISOString().replace(/\.\d+Z$/, "Z");
+}
+
+function buildNotifications({
+  requestPointers,
+  unassignedAdminIds,
+  mappingScheduledNotifications,
+}) {
   const pointer = (requestId) => {
     const value = requestPointers.get(requestId);
     if (!value) throw new Error(`Ponteiro da solicitação ${requestId} ausente.`);
@@ -180,6 +249,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       dedupKey: "seed:request.assigned:1:107",
       createdAt: "2026-11-19 17:05:00",
     }),
+    ...mappingScheduledNotifications,
   ];
 }
 
@@ -206,7 +276,15 @@ export async function seed(knex) {
     findRequestPointers(knex),
     findUnassignedAdminIds(knex),
   ]);
-  const notifications = buildNotifications({ requestPointers, unassignedAdminIds });
+  const mappingScheduledNotifications = await findMappingScheduledNotifications(
+    knex,
+    requestPointers,
+  );
+  const notifications = buildNotifications({
+    requestPointers,
+    unassignedAdminIds,
+    mappingScheduledNotifications,
+  });
   const notificationIds = notifications.map((item) => item.notification_id);
   const dedupKeys = notifications.map((item) => item.dedup_key);
 

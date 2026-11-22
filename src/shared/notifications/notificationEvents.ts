@@ -40,6 +40,14 @@ export const statusChangedPayloadSchema = requestPointerPayloadSchema
   })
   .strict();
 
+/** Agendamento do Mapeamento (issue #160): conclusão com data/hora do Agendamento. */
+export const mappingScheduledPayloadSchema = requestPointerPayloadSchema
+  .extend({
+    type: z.literal("mapping_scheduled"),
+    scheduledAt: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+
 export const pendingItemRespondedPayloadSchema = requestPointerPayloadSchema
   .extend({
     type: z.literal("pending_item_responded"),
@@ -65,6 +73,7 @@ export const responsibleAssignedPayloadSchema = requestPointerPayloadSchema
 
 export const notificationPayloadSchema = z.discriminatedUnion("type", [
   statusChangedPayloadSchema,
+  mappingScheduledPayloadSchema,
   responsibleAssignedPayloadSchema,
   pendingItemCreatedPayloadSchema,
   pendingItemReopenedPayloadSchema,
@@ -74,6 +83,7 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
 ]);
 
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
+export type MappingScheduledNotificationPayload = z.infer<typeof mappingScheduledPayloadSchema>;
 export type PendingItemRespondedNotificationPayload = z.infer<
   typeof pendingItemRespondedPayloadSchema
 >;
@@ -128,6 +138,11 @@ export const statusChangedEventSchema = z
   })
   .strict();
 
+export const mappingScheduledEventSchema = notificationEventSchemaFor(
+  "mapping_scheduled",
+  mappingScheduledPayloadSchema,
+);
+
 export const pendingItemCreatedEventSchema = notificationEventSchemaFor(
   "pending_item_created",
   pendingItemCreatedPayloadSchema,
@@ -181,6 +196,7 @@ export const responsibleAssignedEventSchema = z
 
 export const notificationEventSchema = z.discriminatedUnion("type", [
   statusChangedEventSchema,
+  mappingScheduledEventSchema,
   responsibleAssignedEventSchema,
   pendingItemCreatedEventSchema,
   pendingItemReopenedEventSchema,
@@ -190,6 +206,7 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 ]);
 
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
+export type MappingScheduledNotificationEvent = z.infer<typeof mappingScheduledEventSchema>;
 export type PendingItemRespondedNotificationEvent = z.infer<typeof pendingItemRespondedEventSchema>;
 export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
   typeof pendingItemRespondedUnassignedEventSchema
@@ -211,3 +228,11 @@ export type PendingItemNotificationEvent = Extract<
   NotificationEvent,
   { type: PendingItemEventType }
 >;
+
+/** Fonte única dos tipos para o OpenAPI, `satisfies` mantém a união em sincronia. */
+export const NOTIFICATION_EVENT_TYPES = [
+  "status_changed",
+  "mapping_scheduled",
+  "responsible_assigned",
+  ...PENDING_ITEM_EVENT_TYPES,
+] as const satisfies readonly NotificationEventType[];

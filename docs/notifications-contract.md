@@ -8,6 +8,9 @@ A plataforma de Notificações in-app e os Eventos ponta a ponta já integrados:
 
 - `status_changed` (#157): a mudança de Status no `PATCH /requests/:protocol/status`
   ou no veredito da Triagem gera Notificação para o solicitante autenticado.
+- `mapping_scheduled` (#160): a conclusão do Mapeamento para `Mapeamento agendado`
+  gera Notificação para o solicitante autenticado e o Responsável do Mapeamento
+  (`requests.mapping_professional_id`), com a data/hora do Agendamento.
 - `pending_item_responded` e `pending_item_responded_unassigned` (#159): a
   resposta de Pendência gera Notificação para o Responsável ou, na ausência
   dele, para os Administradores ativos.
@@ -27,7 +30,8 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   `pending_item_responded`, `pending_item_responded_unassigned` e
   `responsible_assigned`.
 - **Payload**: Allowlist do Evento. Para `status_changed`, contém somente
-  `type`, `protocol`, `title` e `newStatus`; para os Eventos de Pendência, os
+  `type`, `protocol`, `title` e `newStatus`; para `mapping_scheduled`, somente
+  `type`, `protocol`, `title` e `scheduledAt`; para os Eventos de Pendência, os
   campos da seção própria — nunca mensagem técnica, scores, notas internas ou
   campos de triagem. Para `responsible_assigned`, somente `type`, `protocol`,
   `title`, `category` e `status`.
@@ -37,7 +41,9 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   `evento:destinatário`; repetir a mesma emissão não duplica a linha.
 - **Audiência**: o ator nunca recebe Notificação da própria ação; o
   destinatário de cada Evento segue a matriz da seção correspondente. Em
-  `status_changed`, é o `requests.requester_user_id`; Em `responsible_assigned`, apenas o analista
+  `status_changed`, é o `requests.requester_user_id`; em `mapping_scheduled`,
+  o solicitante autenticado e o Responsável do Mapeamento
+  (`requests.mapping_professional_id`); Em `responsible_assigned`, apenas o analista
   designado; o Administrador que designou não recebe.
 
 ## Regras do Evento `status_changed`
@@ -89,6 +95,20 @@ filhas do RF20 e reutilizam a mesma seam de emissão.
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de
   Status.
+
+## Regras do Evento `mapping_scheduled`
+
+- Emitido no `PUT /queue/requests/:protocol/mapping`, na mesma transação da
+  conclusão do Mapeamento (`mapping.complete`), da mudança de Status e da
+  auditoria.
+- Só notifica quando a conclusão tem como destino o Status `Mapeamento agendado`
+  (`status_id` 6). Rascunho (`completeMapping: false`) não notifica.
+- Destinatários: solicitante autenticado (`requests.requester_user_id`) e o
+  Responsável do Mapeamento (`requests.mapping_professional_id`), menos o ator.
+- Reagendamento é uma nova conclusão: novo `mapping.complete` (nova `eventKey`)
+  e, portanto, nova Notificação com a nova data/hora.
+- Payload restrito a `type`, `protocol`, `title` e `scheduledAt` (ISO-8601 UTC).
+- Após o commit, o aviso é publicado no `EventEmitter` tipado.
 
 ## Regras do Evento `responsible_assigned` (issue #161)
 

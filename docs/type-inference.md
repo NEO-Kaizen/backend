@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **172**.
-- Tipos nomeados: **326** â€” 218 interfaces, 106 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1810** â€” 1330 variÃ¡veis, 244 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
+- Arquivos-fonte analisados: **173**.
+- Tipos nomeados: **329** â€” 219 interfaces, 108 aliases `type`, 2 classes e 0 enums.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1821** â€” 1340 variÃ¡veis, 245 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **125**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
+- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **126**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -1715,10 +1715,14 @@ export interface MappingRequestContext {
   status_id: number | null;
   is_terminal: boolean;
   is_restricted: boolean;
+  /** Título da solicitação — compõe a Allowlist do Evento de Agendamento. */
+  title: string;
+  /** Destinatário do Evento de Agendamento (solicitante autenticado). */
+  requester_user_id: number | null;
 }
 ```
 
-#### L64 â€” interface MappingAssigneeCandidate
+#### L68 â€” interface MappingAssigneeCandidate
 
 ```ts
 export interface MappingAssigneeCandidate {
@@ -1733,7 +1737,7 @@ export interface MappingAssigneeCandidate {
 }
 ```
 
-#### L118 â€” interface MappingTargetRow
+#### L124 â€” interface MappingTargetRow
 
 ```ts
 export interface MappingTargetRow {
@@ -2359,6 +2363,29 @@ interface InsertedNotificationRow {
 }
 ```
 
+### [src/shared/notifications/mappingScheduledNotification.ts](../src/shared/notifications/mappingScheduledNotification.ts)
+
+#### L5 â€” interface MappingScheduledNotificationInput
+
+```ts
+export interface MappingScheduledNotificationInput extends Omit<
+  MappingScheduledNotificationPayload,
+  "type"
+> {
+  /** `audit_id` do `mapping.complete`; junto do prefixo forma a `eventKey`. */
+  auditId: string;
+  requestId: string;
+  actorUserId: number;
+  /** Solicitante autenticado (`requests.requester_user_id`). */
+  requesterUserId: number | null;
+  /**
+   * Designado de custódia da solicitação (`requests.mapping_professional_id`)
+   * — a audiência declarada na matriz #156.
+   */
+  requestMappingAssigneeUserId: number | null;
+}
+```
+
 ### [src/shared/notifications/notificationChannel.ts](../src/shared/notifications/notificationChannel.ts)
 
 #### L4 â€” interface NotificationToDeliver
@@ -2413,13 +2440,19 @@ export interface NotificationCommittedPayload {
 export type RequestPointer = z.infer<typeof requestPointerPayloadSchema>;
 ```
 
-#### L76 â€” alias StatusChangedNotificationPayload
+#### L85 â€” alias StatusChangedNotificationPayload
 
 ```ts
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
 ```
 
-#### L77 â€” alias PendingItemRespondedNotificationPayload
+#### L86 â€” alias MappingScheduledNotificationPayload
+
+```ts
+export type MappingScheduledNotificationPayload = z.infer<typeof mappingScheduledPayloadSchema>;
+```
+
+#### L87 â€” alias PendingItemRespondedNotificationPayload
 
 ```ts
 export type PendingItemRespondedNotificationPayload = z.infer<
@@ -2427,7 +2460,7 @@ export type PendingItemRespondedNotificationPayload = z.infer<
 >;
 ```
 
-#### L80 â€” alias PendingItemRespondedUnassignedNotificationPayload
+#### L90 â€” alias PendingItemRespondedUnassignedNotificationPayload
 
 ```ts
 export type PendingItemRespondedUnassignedNotificationPayload = z.infer<
@@ -2435,7 +2468,7 @@ export type PendingItemRespondedUnassignedNotificationPayload = z.infer<
 >;
 ```
 
-#### L83 â€” alias ResponsibleAssignedNotificationPayload
+#### L93 â€” alias ResponsibleAssignedNotificationPayload
 
 ```ts
 export type ResponsibleAssignedNotificationPayload = z.infer<
@@ -2443,31 +2476,37 @@ export type ResponsibleAssignedNotificationPayload = z.infer<
 >;
 ```
 
-#### L86 â€” alias NotificationPayload
+#### L96 â€” alias NotificationPayload
 
 ```ts
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 ```
 
-#### L111 â€” alias NotificationEventBase
+#### L121 â€” alias NotificationEventBase
 
 ```ts
 export type NotificationEventBase = z.infer<typeof notificationEventBaseSchema>;
 ```
 
-#### L192 â€” alias StatusChangedNotificationEvent
+#### L208 â€” alias StatusChangedNotificationEvent
 
 ```ts
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
 ```
 
-#### L193 â€” alias PendingItemRespondedNotificationEvent
+#### L209 â€” alias MappingScheduledNotificationEvent
+
+```ts
+export type MappingScheduledNotificationEvent = z.infer<typeof mappingScheduledEventSchema>;
+```
+
+#### L210 â€” alias PendingItemRespondedNotificationEvent
 
 ```ts
 export type PendingItemRespondedNotificationEvent = z.infer<typeof pendingItemRespondedEventSchema>;
 ```
 
-#### L194 â€” alias PendingItemRespondedUnassignedNotificationEvent
+#### L211 â€” alias PendingItemRespondedUnassignedNotificationEvent
 
 ```ts
 export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
@@ -2475,31 +2514,31 @@ export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
 >;
 ```
 
-#### L197 â€” alias ResponsibleAssignedNotificationEvent
+#### L214 â€” alias ResponsibleAssignedNotificationEvent
 
 ```ts
 export type ResponsibleAssignedNotificationEvent = z.infer<typeof responsibleAssignedEventSchema>;
 ```
 
-#### L198 â€” alias NotificationEvent
+#### L215 â€” alias NotificationEvent
 
 ```ts
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 ```
 
-#### L199 â€” alias NotificationEventType
+#### L216 â€” alias NotificationEventType
 
 ```ts
 export type NotificationEventType = NotificationEvent["type"];
 ```
 
-#### L208 â€” alias PendingItemEventType
+#### L225 â€” alias PendingItemEventType
 
 ```ts
 export type PendingItemEventType = (typeof PENDING_ITEM_EVENT_TYPES)[number];
 ```
 
-#### L210 â€” alias PendingItemNotificationEvent
+#### L227 â€” alias PendingItemNotificationEvent
 
 ```ts
 export type PendingItemNotificationEvent = Extract<
@@ -3793,7 +3832,7 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/index.ts](../src/docs/schemas/index.ts)
 
-- L113 â€” variÃ¡vel: `schemas`
+- L115 â€” variÃ¡vel: `schemas`
 
 ### [src/docs/schemas/mapping.ts](../src/docs/schemas/mapping.ts)
 
@@ -3805,12 +3844,13 @@ interface GroupedIssues {
 - L14 â€” variÃ¡vel: `NotificationPendingItemRespondedPayload`
 - L30 â€” variÃ¡vel: `NotificationPendingItemRespondedUnassignedPayload`
 - L51 â€” variÃ¡vel: `NotificationResponsibleAssignedPayload`
-- L69 â€” variÃ¡vel: `NotificationPayload`
-- L81 â€” variÃ¡vel: `NotificationItem`
-- L111 â€” variÃ¡vel: `NotificationListResponse`
-- L128 â€” variÃ¡vel: `NotificationUnreadCountResponse`
-- L136 â€” variÃ¡vel: `NotificationMarkReadResponse`
-- L149 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
+- L69 â€” variÃ¡vel: `NotificationMappingScheduledPayload`
+- L86 â€” variÃ¡vel: `NotificationPayload`
+- L99 â€” variÃ¡vel: `NotificationItem`
+- L129 â€” variÃ¡vel: `NotificationListResponse`
+- L146 â€” variÃ¡vel: `NotificationUnreadCountResponse`
+- L154 â€” variÃ¡vel: `NotificationMarkReadResponse`
+- L167 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
 
 ### [src/docs/schemas/pendingItems.ts](../src/docs/schemas/pendingItems.ts)
 
@@ -4787,36 +4827,36 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-- L82 â€” variÃ¡vel: `findMappingRequestContext`
-- L86 â€” variÃ¡vel: `row`
-- L124 â€” variÃ¡vel: `resolveMappingTarget`
-- L134 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L146 â€” variÃ¡vel: `findMappingAssigneeCandidate`
-- L154 â€” variÃ¡vel: `row`
-- L173 â€” variÃ¡vel: `findCurrentMapping`
-- L177 â€” variÃ¡vel: `row`
-- L187 â€” variÃ¡vel: `findLatestOpenMapping`
-- L191 â€” variÃ¡vel: `row`
-- L201 â€” variÃ¡vel: `findMappingById`
-- L206 â€” variÃ¡vel: `row`
-- L220 â€” variÃ¡vel: `findMappingParticipants`
-- L242 â€” variÃ¡vel: `resolveParticipantUsers`
-- L250 â€” variÃ¡vel: `rows`
-- L261 â€” parÃ¢metro: `id`
-- L261 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L261 â€” variÃ¡vel: `invalid`
-- L262 â€” parÃ¢metro: `r`
-- L262 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L262 â€” variÃ¡vel: `row`
-- L271 â€” parÃ¢metro: `row`
-- L271 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L278 â€” variÃ¡vel: `insertMapping`
-- L290 â€” variÃ¡vel: `[row]`
-- L311 â€” variÃ¡vel: `updateMapping`
-- L349 â€” variÃ¡vel: `clearRequestMappingAssignee`
-- L362 â€” variÃ¡vel: `replaceMappingParticipants`
-- L374 â€” parÃ¢metro: `participant`
-- L374 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L86 â€” variÃ¡vel: `findMappingRequestContext`
+- L90 â€” variÃ¡vel: `row`
+- L130 â€” variÃ¡vel: `resolveMappingTarget`
+- L140 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L152 â€” variÃ¡vel: `findMappingAssigneeCandidate`
+- L160 â€” variÃ¡vel: `row`
+- L179 â€” variÃ¡vel: `findCurrentMapping`
+- L183 â€” variÃ¡vel: `row`
+- L193 â€” variÃ¡vel: `findLatestOpenMapping`
+- L197 â€” variÃ¡vel: `row`
+- L207 â€” variÃ¡vel: `findMappingById`
+- L212 â€” variÃ¡vel: `row`
+- L226 â€” variÃ¡vel: `findMappingParticipants`
+- L248 â€” variÃ¡vel: `resolveParticipantUsers`
+- L256 â€” variÃ¡vel: `rows`
+- L267 â€” parÃ¢metro: `id`
+- L267 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L267 â€” variÃ¡vel: `invalid`
+- L268 â€” parÃ¢metro: `r`
+- L268 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L268 â€” variÃ¡vel: `row`
+- L277 â€” parÃ¢metro: `row`
+- L277 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L284 â€” variÃ¡vel: `insertMapping`
+- L296 â€” variÃ¡vel: `[row]`
+- L317 â€” variÃ¡vel: `updateMapping`
+- L355 â€” variÃ¡vel: `clearRequestMappingAssignee`
+- L368 â€” variÃ¡vel: `replaceMappingParticipants`
+- L380 â€” parÃ¢metro: `participant`
+- L380 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/queue/mapping.schemas.ts](../src/modules/queue/mapping.schemas.ts)
 
@@ -4834,64 +4874,69 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.service.ts](../src/modules/queue/mapping.service.ts)
 
-- L43 â€” parÃ¢metro: `trx`
-- L43 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L62 â€” variÃ¡vel: `date`
-- L125 â€” parÃ¢metro: `participant`
-- L125 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L157 â€” parÃ¢metro: `participant`
-- L157 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L188 â€” variÃ¡vel: `textField`
-- L189 â€” variÃ¡vel: `next`
-- L190 â€” variÃ¡vel: `normalized`
-- L237 â€” parÃ¢metro: `participant`
-- L237 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L237 â€” variÃ¡vel: `userIds`
-- L241 â€” variÃ¡vel: `usersById`
-- L243 â€” parÃ¢metro: `participant`
-- L243 â€” variÃ¡vel: `resolved`
-- L248 â€” variÃ¡vel: `user`
-- L255 â€” variÃ¡vel: `seenEmails`
-- L256 â€” variÃ¡vel: `seenUserIds`
-- L257 â€” variÃ¡vel: `participant`
-- L258 â€” variÃ¡vel: `emailKey`
-- L285 â€” variÃ¡vel: `getMappingService`
-- L286 â€” variÃ¡vel: `context`
-- L291 â€” variÃ¡vel: `mapping`
-- L296 â€” variÃ¡vel: `[participants, assigneeCandidate]`
-- L309 â€” variÃ¡vel: `upsertMappingService`
-- L315 â€” parÃ¢metro: `trx`
-- L315 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L318 â€” variÃ¡vel: `context`
-- L356 â€” variÃ¡vel: `isAdmin`
-- L357 â€” variÃ¡vel: `isRequestAssignee`
-- L359 â€” variÃ¡vel: `isRequestMappingAssignee`
-- L363 â€” variÃ¡vel: `mapping`
-- L374 â€” variÃ¡vel: `previousProfessionalId`
-- L384 â€” variÃ¡vel: `explicitDesignation`
-- L385 â€” variÃ¡vel: `isNullOnCreate`
-- L386 â€” variÃ¡vel: `designationAction`
-- L388 â€” variÃ¡vel: `priorDesigneeUserId`
-- L393 â€” variÃ¡vel: `isPriorMappingAssignee`
-- L397 â€” variÃ¡vel: `canCreateByInheritance`
-- L401 â€” variÃ¡vel: `isCurrentMappingAssignee`
-- L405 â€” variÃ¡vel: `canDesignate`
-- L406 â€” variÃ¡vel: `canEditContent`
-- L411 â€” variÃ¡vel: `contentAction`
-- L459 â€” variÃ¡vel: `candidate`
-- L479 â€” variÃ¡vel: `currentValues`
-- L480 â€” variÃ¡vel: `values`
-- L482 â€” variÃ¡vel: `concluding`
-- L492 â€” variÃ¡vel: `target`
-- L523 â€” variÃ¡vel: `missing`
-- L533 â€” variÃ¡vel: `resolvedParticipants`
-- L540 â€” variÃ¡vel: `designationChanged`
-- L579 â€” variÃ¡vel: `changeOrigin`
-- L583 â€” variÃ¡vel: `previousAuditValues`
-- L590 â€” variÃ¡vel: `nextAuditValues`
-- L694 â€” parÃ¢metro: `participant`
-- L694 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L701 â€” variÃ¡vel: `assigneeCandidate`
+- L56 â€” parÃ¢metro: `trx`
+- L56 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L75 â€” variÃ¡vel: `date`
+- L138 â€” parÃ¢metro: `participant`
+- L138 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L170 â€” parÃ¢metro: `participant`
+- L170 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L201 â€” variÃ¡vel: `textField`
+- L202 â€” variÃ¡vel: `next`
+- L203 â€” variÃ¡vel: `normalized`
+- L250 â€” parÃ¢metro: `participant`
+- L250 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L250 â€” variÃ¡vel: `userIds`
+- L254 â€” variÃ¡vel: `usersById`
+- L256 â€” parÃ¢metro: `participant`
+- L256 â€” variÃ¡vel: `resolved`
+- L261 â€” variÃ¡vel: `user`
+- L268 â€” variÃ¡vel: `seenEmails`
+- L269 â€” variÃ¡vel: `seenUserIds`
+- L270 â€” variÃ¡vel: `participant`
+- L271 â€” variÃ¡vel: `emailKey`
+- L298 â€” variÃ¡vel: `getMappingService`
+- L299 â€” variÃ¡vel: `context`
+- L304 â€” variÃ¡vel: `mapping`
+- L309 â€” variÃ¡vel: `[participants, assigneeCandidate]`
+- L322 â€” variÃ¡vel: `upsertMappingService`
+- L328 â€” variÃ¡vel: `{ response, committed }`
+- L331 â€” parÃ¢metro: `trx`
+- L331 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L334 â€” variÃ¡vel: `context`
+- L372 â€” variÃ¡vel: `isAdmin`
+- L373 â€” variÃ¡vel: `isRequestAssignee`
+- L375 â€” variÃ¡vel: `isRequestMappingAssignee`
+- L379 â€” variÃ¡vel: `mapping`
+- L390 â€” variÃ¡vel: `previousProfessionalId`
+- L400 â€” variÃ¡vel: `explicitDesignation`
+- L401 â€” variÃ¡vel: `isNullOnCreate`
+- L402 â€” variÃ¡vel: `designationAction`
+- L404 â€” variÃ¡vel: `priorDesigneeUserId`
+- L409 â€” variÃ¡vel: `isPriorMappingAssignee`
+- L413 â€” variÃ¡vel: `canCreateByInheritance`
+- L417 â€” variÃ¡vel: `isCurrentMappingAssignee`
+- L421 â€” variÃ¡vel: `canDesignate`
+- L422 â€” variÃ¡vel: `canEditContent`
+- L427 â€” variÃ¡vel: `contentAction`
+- L475 â€” variÃ¡vel: `candidate`
+- L495 â€” variÃ¡vel: `currentValues`
+- L496 â€” variÃ¡vel: `values`
+- L498 â€” variÃ¡vel: `concluding`
+- L508 â€” variÃ¡vel: `target`
+- L539 â€” variÃ¡vel: `missing`
+- L549 â€” variÃ¡vel: `resolvedParticipants`
+- L556 â€” variÃ¡vel: `designationChanged`
+- L591 â€” variÃ¡vel: `changeOrigin`
+- L595 â€” variÃ¡vel: `previousAuditValues`
+- L602 â€” variÃ¡vel: `nextAuditValues`
+- L614 â€” variÃ¡vel: `mappingAuditId`
+- L699 â€” parÃ¢metro: `participant`
+- L699 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L706 â€” variÃ¡vel: `assigneeCandidate`
+- L716 â€” variÃ¡vel: `scheduledAt`
+- L717 â€” variÃ¡vel: `committedNotifications`
+- L731 â€” variÃ¡vel: `response`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
@@ -5679,6 +5724,11 @@ interface GroupedIssues {
 - L25 â€” variÃ¡vel: `rows`
 - L37 â€” variÃ¡vel: `row`
 
+### [src/shared/notifications/mappingScheduledNotification.ts](../src/shared/notifications/mappingScheduledNotification.ts)
+
+- L38 â€” variÃ¡vel: `recipientUserIds`
+- L39 â€” parÃ¢metro: `userId`
+
 ### [src/shared/notifications/notificationEmitter.ts](../src/shared/notifications/notificationEmitter.ts)
 
 - L4 â€” variÃ¡vel: `NOTIFICATIONS_COMMITTED`
@@ -5698,23 +5748,26 @@ interface GroupedIssues {
 - L33 â€” variÃ¡vel: `pendingItemReopenedPayloadSchema`
 - L34 â€” variÃ¡vel: `pendingItemValidatedPayloadSchema`
 - L36 â€” variÃ¡vel: `statusChangedPayloadSchema`
-- L43 â€” variÃ¡vel: `pendingItemRespondedPayloadSchema`
-- L49 â€” variÃ¡vel: `pendingItemRespondedUnassignedPayloadSchema`
-- L56 â€” variÃ¡vel: `responsibleAssignedPayloadSchema`
-- L66 â€” variÃ¡vel: `notificationPayloadSchema`
-- L92 â€” variÃ¡vel: `notificationEventFields`
-- L100 â€” variÃ¡vel: `notificationEventBaseSchema`
-- L114 â€” retorno da funÃ§Ã£o: `notificationEventSchemaFor()`
-- L123 â€” variÃ¡vel: `statusChangedEventSchema`
-- L131 â€” variÃ¡vel: `pendingItemCreatedEventSchema`
-- L136 â€” variÃ¡vel: `pendingItemReopenedEventSchema`
-- L141 â€” variÃ¡vel: `pendingItemValidatedEventSchema`
-- L150 â€” variÃ¡vel: `pendingItemEventBaseSchema`
-- L157 â€” variÃ¡vel: `pendingItemRespondedEventSchema`
-- L164 â€” variÃ¡vel: `pendingItemRespondedUnassignedEventSchema`
-- L171 â€” variÃ¡vel: `responsibleAssignedEventSchema`
-- L182 â€” variÃ¡vel: `notificationEventSchema`
-- L202 â€” variÃ¡vel: `PENDING_ITEM_EVENT_TYPES`
+- L44 â€” variÃ¡vel: `mappingScheduledPayloadSchema`
+- L51 â€” variÃ¡vel: `pendingItemRespondedPayloadSchema`
+- L57 â€” variÃ¡vel: `pendingItemRespondedUnassignedPayloadSchema`
+- L64 â€” variÃ¡vel: `responsibleAssignedPayloadSchema`
+- L74 â€” variÃ¡vel: `notificationPayloadSchema`
+- L102 â€” variÃ¡vel: `notificationEventFields`
+- L110 â€” variÃ¡vel: `notificationEventBaseSchema`
+- L124 â€” retorno da funÃ§Ã£o: `notificationEventSchemaFor()`
+- L133 â€” variÃ¡vel: `statusChangedEventSchema`
+- L141 â€” variÃ¡vel: `mappingScheduledEventSchema`
+- L146 â€” variÃ¡vel: `pendingItemCreatedEventSchema`
+- L151 â€” variÃ¡vel: `pendingItemReopenedEventSchema`
+- L156 â€” variÃ¡vel: `pendingItemValidatedEventSchema`
+- L165 â€” variÃ¡vel: `pendingItemEventBaseSchema`
+- L172 â€” variÃ¡vel: `pendingItemRespondedEventSchema`
+- L179 â€” variÃ¡vel: `pendingItemRespondedUnassignedEventSchema`
+- L186 â€” variÃ¡vel: `responsibleAssignedEventSchema`
+- L197 â€” variÃ¡vel: `notificationEventSchema`
+- L219 â€” variÃ¡vel: `PENDING_ITEM_EVENT_TYPES`
+- L233 â€” variÃ¡vel: `NOTIFICATION_EVENT_TYPES`
 
 ### [src/shared/notifications/pendingItemNotification.ts](../src/shared/notifications/pendingItemNotification.ts)
 
@@ -5971,15 +6024,15 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-- L86 â€” variÃ¡vel: `row`
-- L154 â€” variÃ¡vel: `row`
-- L177 â€” variÃ¡vel: `row`
-- L191 â€” variÃ¡vel: `row`
-- L206 â€” variÃ¡vel: `row`
-- L262 â€” parÃ¢metro: `r`
-- L262 â€” variÃ¡vel: `row`
-- L271 â€” parÃ¢metro: `row`
-- L290 â€” variÃ¡vel: `[row]`
+- L90 â€” variÃ¡vel: `row`
+- L160 â€” variÃ¡vel: `row`
+- L183 â€” variÃ¡vel: `row`
+- L197 â€” variÃ¡vel: `row`
+- L212 â€” variÃ¡vel: `row`
+- L268 â€” parÃ¢metro: `r`
+- L268 â€” variÃ¡vel: `row`
+- L277 â€” parÃ¢metro: `row`
+- L296 â€” variÃ¡vel: `[row]`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
