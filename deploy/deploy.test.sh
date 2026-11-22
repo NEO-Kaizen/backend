@@ -49,6 +49,7 @@ expect_output "action=rollback" run_dry --rollback
 expect_output "action=deploy sha=$SHA migrations=apply" run_streamed "$SHA"
 expect_output "action=deploy sha=$SHA migrations=apply" run_streamed "$SHA" ""
 expect_output "action=deploy sha=$SHA migrations=skip" run_streamed "$SHA" --skip-migrations
+expect_output "action=rollback" run_streamed --rollback
 
 if ! run_dry --help | grep -q '^Usage:'; then
   fail '--help does not print the usage block'

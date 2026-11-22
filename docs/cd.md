@@ -119,7 +119,7 @@ sudo loginctl enable-linger deploy
 
 # Node 24 para a conta nova (o nvm não vem no sistema)
 sudo -iu deploy bash -lc 'curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash'
-sudo -iu deploy bash -lc 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install 24'
+sudo -iu deploy bash -lc 'export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm install 24.21.0'
 
 # migrando de <old-user>: mova a aplicação parada (pule este bloco num host novo)
 sudo mkdir -p /home/deploy/NEO
@@ -154,7 +154,7 @@ ssh deploy@<deploy-host> 'systemctl --user daemon-reload && systemctl --user ena
 
 # confirmações
 loginctl show-user deploy -p Linger       # Linger=yes
-sudo -iu deploy bash -lc 'node -v'        # v24.x
+sudo -iu deploy bash -lc 'node -v'        # v24.21.0
 sudo -iu deploy bash -lc 'systemctl --user is-system-running'  # running
 ```
 
@@ -316,14 +316,15 @@ confere cada comando explicitamente, sem depender do `set -e` dentro da função
 ## Migrations e Supabase
 
 O banco é externo (Supabase). O `.env` aponta para o pooler na porta `6543`
-(transaction mode) para o runtime. O `knexfile.js` agora tem um bloco
-`production`, e o `deploy.sh` roda migrations com `--env production` e
-`MIGRATION_DB_PORT=5432` (session mode), porque transaction mode não preserva
-estado de sessão e não é o modo recomendado para migrations.
+(transaction mode) para o runtime. O `knexfile.js` tem um bloco `production`, e o
+`deploy.sh` roda migrations com `--env production`. A porta default das migrations
+é `5432` (session mode), porque transaction mode não preserva estado de sessão e
+não é o modo recomendado para migrations. `MIGRATION_DB_PORT` (variable do
+repositório ou `.env`) pode substituir esse default.
 
-`MIGRATION_DB_PORT` é exportado só durante o comando de migration. A variable do
-repositório (ou o `.env` da VM, que tem precedência por causa do `override: true`)
-permite trocar a porta sem mudar o `DB_PORT` do runtime.
+O workflow repassa a variable `MIGRATION_DB_PORT` ao shell remoto e o `deploy.sh`
+a define para o comando de migrations. O `.env` tem precedência por causa do
+`override: true`; o serviço de runtime não usa essa variável.
 
 Se o pooler do projeto não aceitar session mode na `5432`, use a conexão direta do
 Supabase no `.env` ou ajuste `MIGRATION_DB_PORT` (variable do repositório ou `.env`
@@ -364,13 +365,13 @@ PostgreSQL.
 
 ## Testes do deploy
 
-O workflow `CD` roda em PRs que alteram `deploy/**` ou o próprio workflow:
+O workflow `CD` roda em PRs que alteram `deploy/**` ou os workflows:
 
 - `actionlint` nos dois workflows (`.github/workflows/deploy.yml` e `ci.yml`);
 - `shellcheck` no `deploy.sh` e no `deploy.test.sh`;
-- `bash deploy/deploy.test.sh`, que exercita o parsing de argumentos nos dois
-  formatos usados pelo workflow (`bash -s -- <sha>` e `bash -s -- <sha> ""`) e
-  nos casos de erro.
+- `bash deploy/deploy.test.sh`, que exercita o parsing de argumentos nos formatos
+  suportados (`<sha>`, `<sha> ""`, `<sha> --skip-migrations`, `--rollback`) e nos
+  casos de erro.
 
 Localmente:
 

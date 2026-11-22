@@ -39,6 +39,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install ShellCheck if missing
+        run: |
+          if ! command -v shellcheck >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq shellcheck
+          fi
+
       - name: Install actionlint
         env:
           ACTIONLINT_VERSION: 1.7.7
@@ -57,13 +64,6 @@ jobs:
           "$RUNNER_TEMP/actionlint" -color \
             .github/workflows/deploy.yml \
             .github/workflows/ci.yml
-
-      - name: Install ShellCheck if missing
-        run: |
-          if ! command -v shellcheck >/dev/null; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq shellcheck
-          fi
 
       - name: Lint deploy scripts
         run: shellcheck deploy/deploy.sh deploy/deploy.test.sh

@@ -94,18 +94,26 @@ resolve_node_from_unit() {
   return 1
 }
 
+# Resolve a key the way dotenv does for the simple KEY=value lines used here:
+# the last occurrence wins and quotes/whitespace/comments are ignored.
+effective_env_value() {
+  local key="$1" file="$2"
+  grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$file" |
+    tail -n 1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//' | tr -d "\"'[:space:]"
+}
+
 preflight() {
   case "$APP_DIR" in
     / | "") die "invalid DEPLOY_PATH: '$APP_DIR'" ;;
   esac
   [ -f "$APP_DIR/.env" ] || die "missing $APP_DIR/.env"
-  grep -qx 'NODE_ENV=production' "$APP_DIR/.env" ||
-    die "$APP_DIR/.env must contain NODE_ENV=production (the session cookie is not Secure otherwise)"
+  local node_env env_port
+  node_env="$(effective_env_value NODE_ENV "$APP_DIR/.env")"
+  [ "$node_env" = "production" ] ||
+    die "$APP_DIR/.env must set NODE_ENV=production as its last NODE_ENV entry (the session cookie is not Secure otherwise)"
 
-  local env_port
   if grep -Eq '^[[:space:]]*(export[[:space:]]+)?PORT[[:space:]]*=' "$APP_DIR/.env"; then
-    env_port="$(grep -E '^[[:space:]]*(export[[:space:]]+)?PORT[[:space:]]*=' "$APP_DIR/.env" |
-      tail -n 1 | cut -d= -f2- | tr -d "\"'[:space:]")"
+    env_port="$(effective_env_value PORT "$APP_DIR/.env")"
     [ -n "$env_port" ] || die "$APP_DIR/.env has PORT set but empty"
   else
     env_port=3000
@@ -146,7 +154,7 @@ preflight() {
 
 run_smoke_check() {
   local url="$1" attempt
-  for attempt in $(seq 1 "$SMOKE_ATTEMPTS"); do
+  for ((attempt = 1; attempt <= SMOKE_ATTEMPTS; attempt++)); do
     if curl -fsS --max-time 5 --output /dev/null "$url"; then
       log "smoke ok: $url (attempt $attempt)"
       return 0
@@ -173,6 +181,9 @@ acquire_deploy_lock() {
 snapshot_current() {
   local destination="$1" staging="$1.tmp" path
   if [ ! -d "$APP_DIR/dist" ] || [ ! -d "$APP_DIR/node_modules" ]; then
+    if [ -e "$destination" ]; then
+      die "inconsistent state: $destination exists but $APP_DIR/dist or node_modules is missing; inspect the host before deploying"
+    fi
     log "no complete previous release to snapshot (first deploy)"
     rm -rf "$staging"
     return 0
@@ -239,6 +250,9 @@ run_migrations() {
   local migration_port="${MIGRATION_DB_PORT:-5432}"
   log "applying migrations (env production, port $migration_port)"
   (
+    # The ERR trap is inherited by subshells under `set -E`; clear it so a
+    # migration failure is handled once, by the parent shell.
+    trap - ERR
     cd "$APP_DIR"
     MIGRATION_DB_PORT="$migration_port" "$NODE_BIN" node_modules/knex/bin/cli.js migrate:latest --env production
   )
@@ -253,12 +267,17 @@ fail_deploy() {
     log "deployment failed (exit $status)"
     journalctl --user -u "$UNIT_NAME" -n 80 --no-pager || true
     if [ -f "$PREVIOUS_DIR/.snapshot-complete" ]; then
+      # Ignore signals while the snapshot is being moved back; an interrupted
+      # restore would leave the application directory half swapped.
+      trap '' HUP INT TERM
       # shellcheck disable=SC2310 # restore_snapshot checks every command itself
       if restore_snapshot "$PREVIOUS_DIR"; then
+        trap - HUP INT TERM
         restart || log "warning: the service did not restart after the restore"
         # shellcheck disable=SC2310 # a failed post-restore smoke must not hide the deploy failure
         run_smoke_check "http://127.0.0.1:$APP_PORT/portal-config" || true
       else
+        trap - HUP INT TERM
         printf '[deploy] ERROR: could not restore the previous release\n' >&2
       fi
     else
@@ -301,7 +320,6 @@ deploy() {
     false
   }
   swap_release
-  rm -f "$tarball"
 
   if [ "$skip_migrations" = "--skip-migrations" ]; then
     log "migrations skipped (--skip-migrations)"
@@ -325,6 +343,7 @@ deploy() {
   printf '%s\n' "$sha" >"$APP_DIR/.deployed-sha"
   IS_DEPLOY_IN_FLIGHT=0
   trap - ERR HUP INT TERM
+  rm -f "$tarball" || log "warning: could not remove $tarball"
   log "release $sha is live ($(systemctl --user is-active "$UNIT_NAME"))"
 }
 
@@ -333,7 +352,13 @@ rollback() {
   acquire_deploy_lock
   [ -f "$PREVIOUS_DIR/.snapshot-complete" ] ||
     die "no previous release snapshot in $PREVIOUS_DIR (the first deploy has no rollback target)"
-  restore_snapshot "$PREVIOUS_DIR" || die "could not restore the previous release"
+  # Ignore signals while the snapshot is moved back; the restore consumes it.
+  trap '' HUP INT TERM
+  if ! restore_snapshot "$PREVIOUS_DIR"; then
+    trap - HUP INT TERM
+    die "could not restore the previous release"
+  fi
+  trap - HUP INT TERM
   restart
   if ! run_smoke_check "http://127.0.0.1:$APP_PORT/portal-config"; then
     log "rollback smoke failed; collecting recent logs"
