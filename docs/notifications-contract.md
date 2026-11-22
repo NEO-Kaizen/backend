@@ -198,6 +198,22 @@ reenviado. O cliente também deduplica por `id`.
 Eventos ao vivo são enfileirados durante o replay e liberados depois, para não
 se perderem entre a consulta e a assinatura.
 
+## Verificação reproduzível
+
+Os scripts cobrem os critérios da issue #158 contra um PostgreSQL descartável
+migrado e com as seeds-base:
+
+- `npm run verify:notifications` (API em `http://127.0.0.1:3000`, sobrescrita
+  por `API_URL`) usa a request `MAAT-2R7Q-4M1C`, fecha o lote do seed, cria um
+  lote com uma observação e dois campos, responde os três itens e faz uma
+  revisão mista (`validate` + `reopen`) na mesma chamada. Confere uma
+  Notificação por ação, payload na Allowlist, título corrigido, ausência de
+  `status_changed`, ator fora da audiência e reenvio idempotente.
+- `npm run verify:notifications:rollback` emite uma Notificação dentro de uma
+  transação, força o rollback e confirma que nenhuma linha permanece.
+
+O job `database` da CI executa os dois depois do smoke HTTP.
+
 ## Persistência
 
 O schema e os índices estão em
