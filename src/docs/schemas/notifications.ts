@@ -70,9 +70,47 @@ export const NotificationPendingItemRespondedUnassignedPayload = {
   },
 };
 
+export const NotificationMappingScheduledPayload = {
+  type: "object",
+  description:
+    "Payload do Evento `mapping_scheduled`: tipo, protocolo, título e data/hora do Agendamento.",
+  required: ["type", "protocol", "title", "scheduledAt"],
+  properties: {
+    type: { type: "string", enum: ["mapping_scheduled"], example: "mapping_scheduled" },
+    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    title: { type: "string", example: "Automatizar conciliação bancária" },
+    scheduledAt: {
+      type: "string",
+      format: "date-time",
+      description: "Data/hora do Agendamento (ISO-8601 UTC).",
+      example: "2026-08-15T14:00:00Z",
+    },
+  },
+};
+
+export const NotificationResponsibleAssignedPayload = {
+  type: "object",
+  description:
+    "Payload do Evento de Designação de Responsável: categoria e Status atual da solicitação no momento da designação.",
+  required: ["type", "protocol", "title", "category", "status"],
+  properties: {
+    type: {
+      type: "string",
+      enum: ["responsible_assigned"],
+      example: "responsible_assigned",
+    },
+    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    title: { type: "string", example: "Automatizar conciliação bancária" },
+    category: { type: "string", example: "Automação" },
+    status: { type: "string", example: "Aguardando mapeamento" },
+  },
+};
+
 export const NotificationPayload = {
   oneOf: [
     { $ref: "#/components/schemas/NotificationStatusChangedPayload" },
+    { $ref: "#/components/schemas/NotificationMappingScheduledPayload" },
+    { $ref: "#/components/schemas/NotificationResponsibleAssignedPayload" },
     pendingItemLifecyclePayload,
     { $ref: "#/components/schemas/NotificationPendingItemRespondedPayload" },
     { $ref: "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },

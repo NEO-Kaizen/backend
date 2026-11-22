@@ -1,4 +1,5 @@
 import { PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE } from "../../src/shared/notifications/notificationEvents.ts";
+import { STATUS_IDS } from "../../src/shared/types/status.ts";
 
 /** Requests fictícias dos cenários com e sem Responsável. */
 const SEED_REQUEST_IDS = [1, 3];
@@ -10,13 +11,32 @@ const UNASSIGNED_ADMIN_EMAILS = [
   "ines.admin@email.com",
 ];
 
+/** Request do cenário de Agendamento do Mapeamento — audiência do seed 012. */
+const MAPPING_SCHEDULING_REQUEST_ID = 1;
+
+/**
+ * Offset dos ids dos Eventos de Agendamento — acima dos ids fixos já ocupados
+ * pelo restante do seed (1–10), pelos Administradores (5–7) e pela Designação
+ * de Responsável (12–13), para evitar colisão.
+ */
+const MAPPING_NOTIFICATIONS_OFFSET = 20;
+
 async function findRequestPointers(knex) {
   const rows = await knex("requests")
     .whereIn("request_id", SEED_REQUEST_IDS)
-    .select("request_id", "protocol", "title");
+    .join("categories", "categories.category_id", "requests.category_id")
+    .select(
+      "requests.request_id",
+      "requests.protocol",
+      "requests.title",
+      "categories.name as category",
+    );
 
   const byId = new Map(
-    rows.map((row) => [Number(row.request_id), { protocol: row.protocol, title: row.title }]),
+    rows.map((row) => [
+      Number(row.request_id),
+      { protocol: row.protocol, title: row.title, category: row.category },
+    ]),
   );
 
   return new Map(
@@ -47,6 +67,92 @@ async function findUnassignedAdminIds(knex) {
   return rows.map((row) => Number(row.user_id));
 }
 
+/**
+ * Designado de custódia da solicitação — `requests.mapping_professional_id`
+ * resolvido para `users.user_id`; é a audiência declarada na matriz #156.
+ */
+async function findMappingDesigneeUserId(knex, requestId) {
+  const row = await knex("requests as r")
+    .join("details_professional as dp", "dp.professional_id", "r.mapping_professional_id")
+    .join("users as u", "u.user_id", "dp.user_id")
+    .where("r.request_id", requestId)
+    .select("u.user_id")
+    .first();
+
+  if (!row) {
+    throw new Error(
+      `Designado de custódia da request ${requestId} ausente` +
+        " (`requests.mapping_professional_id` sem usuário vinculado).",
+    );
+  }
+
+  return Number(row.user_id);
+}
+
+/** ISO-8601 UTC com sufixo `Z` e precisão de segundos — igual à Service. */
+function toIsoSeconds(value) {
+  return new Date(value).toISOString().replace(/\.\d+Z$/, "Z");
+}
+
+/** `iso` somado a minutos — mantém a cronologia: conclusão antes da Notificação. */
+function minutesAfter(iso, minutes) {
+  const date = new Date(iso);
+  return new Date(date.getTime() + minutes * 60_000).toISOString().replace(/\.\d+Z$/, "Z");
+}
+
+/**
+ * Conclusões do Mapeamento para o Status `Mapeamento agendado` no seed 012 —
+ * uma Notificação por conclusão, com o `scheduledAt` do Agendamento.
+ */
+async function findMappingScheduledConclusions(knex, requestId) {
+  const rows = await knex("mappings")
+    .where({
+      request_id: requestId,
+      target_status_id: STATUS_IDS.mappingScheduled,
+      is_concluded: true,
+    })
+    .orderBy("concluded_at", "asc")
+    .select("mapping_id", "scheduled_for", "concluded_at");
+
+  if (rows.length === 0) {
+    throw new Error("Nenhum Mapeamento concluído para 'Mapeamento agendado' no seed 012.");
+  }
+
+  return rows.map((row) => ({
+    mappingId: row.mapping_id,
+    scheduledAt: toIsoSeconds(row.scheduled_for),
+    concludedAt: toIsoSeconds(row.concluded_at),
+  }));
+}
+
+function pointer(requestPointers, requestId) {
+  const value = requestPointers.get(requestId);
+  if (!value) throw new Error(`Ponteiro da solicitação ${requestId} ausente.`);
+  return { protocol: value.protocol, title: value.title };
+}
+
+async function findMappingScheduledNotifications(knex, requestPointers, requestId) {
+  const [designeeUserId, conclusions] = await Promise.all([
+    findMappingDesigneeUserId(knex, requestId),
+    findMappingScheduledConclusions(knex, requestId),
+  ]);
+
+  return conclusions.map((conclusion, index) =>
+    notification({
+      id: seedNotificationId(MAPPING_NOTIFICATIONS_OFFSET + index),
+      recipientUserId: designeeUserId,
+      requestId,
+      payload: {
+        type: "mapping_scheduled",
+        ...pointer(requestPointers, requestId),
+        scheduledAt: conclusion.scheduledAt,
+      },
+      dedupKey: `seed:mapping.complete:${conclusion.mappingId}`,
+      createdAt: minutesAfter(conclusion.concludedAt, 10),
+    }),
+  );
+}
+
 function notification({
   id,
   recipientUserId,
@@ -72,12 +178,12 @@ function seedNotificationId(value) {
   return `f0000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
 }
 
-function buildNotifications({ requestPointers, unassignedAdminIds }) {
-  const pointer = (requestId) => {
-    const value = requestPointers.get(requestId);
-    if (!value) throw new Error(`Ponteiro da solicitação ${requestId} ausente.`);
-    return value;
-  };
+function buildNotifications({
+  requestPointers,
+  unassignedAdminIds,
+  mappingScheduledNotifications,
+}) {
+  const pointerAt = (requestId) => pointer(requestPointers, requestId);
 
   return [
     notification({
@@ -86,7 +192,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       requestId: 1,
       payload: {
         type: "status_changed",
-        ...pointer(1),
+        ...pointerAt(1),
         newStatus: "Aguardando mapeamento",
       },
       dedupKey: "seed:request.status_change:1:112",
@@ -98,7 +204,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       requestId: 1,
       payload: {
         type: "status_changed",
-        ...pointer(1),
+        ...pointerAt(1),
         newStatus: "Em triagem",
       },
       dedupKey: "seed:request.status_change:2:112",
@@ -111,7 +217,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       requestId: 3,
       payload: {
         type: "status_changed",
-        ...pointer(3),
+        ...pointerAt(3),
         newStatus: "Pendente de informações",
       },
       dedupKey: "seed:request.status_change:3:104",
@@ -123,7 +229,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       requestId: 1,
       payload: {
         type: "pending_item_responded",
-        ...pointer(1),
+        ...pointerAt(1),
       },
       dedupKey: "seed:request.pending_responded:1:101",
       createdAt: "2026-11-19 16:40:00",
@@ -135,7 +241,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
         requestId: 3,
         payload: {
           type: "pending_item_responded_unassigned",
-          ...pointer(3),
+          ...pointerAt(3),
           notice: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
         },
         dedupKey: `seed:request.pending_responded:3:${recipientUserId}`,
@@ -148,7 +254,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       requestId: 3,
       payload: {
         type: "pending_item_created",
-        ...pointer(3),
+        ...pointerAt(3),
       },
       dedupKey: "seed:pending_item.create:3:104",
       createdAt: "2026-11-19 10:05:00",
@@ -159,7 +265,7 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       requestId: 3,
       payload: {
         type: "pending_item_reopened",
-        ...pointer(3),
+        ...pointerAt(3),
       },
       dedupKey: "seed:pending_item.reopen:3:104",
       createdAt: "2026-11-19 11:20:00",
@@ -170,11 +276,40 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
       requestId: 3,
       payload: {
         type: "pending_item_validated",
-        ...pointer(3),
+        ...pointerAt(3),
       },
       dedupKey: "seed:pending_item.validate:3:104",
       createdAt: "2026-11-20 09:40:00",
     }),
+    // issue #161: Designação de Responsável (request 1) — designação do Analista
+    // Teste e redesignação da Roberta Analista. Idempotente por ids/chaves fixas.
+    notification({
+      id: seedNotificationId(12),
+      recipientUserId: 101, // Analista Teste — primeira designação
+      requestId: 1,
+      payload: {
+        type: "responsible_assigned",
+        ...pointerAt(1),
+        category: requestPointers.get(1).category,
+        status: "Aguardando mapeamento",
+      },
+      dedupKey: "seed:request.assigned:1:101",
+      createdAt: "2026-11-19 17:00:00",
+    }),
+    notification({
+      id: seedNotificationId(13),
+      recipientUserId: 107, // Roberta Analista — redesignação
+      requestId: 1,
+      payload: {
+        type: "responsible_assigned",
+        ...pointerAt(1),
+        category: requestPointers.get(1).category,
+        status: "Aguardando mapeamento",
+      },
+      dedupKey: "seed:request.assigned:1:107",
+      createdAt: "2026-11-19 17:05:00",
+    }),
+    ...mappingScheduledNotifications,
   ];
 }
 
@@ -186,13 +321,17 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
  *   `pending_item_validated` para o solicitante da request 3;
  * - issue #159: `pending_item_responded` na request 1 (com Responsável) e
  *   `pending_item_responded_unassigned` na request 3 (sem Responsável), com o
- *   aviso explícito e os Administradores ativos do seed 004 como destinatários.
+ *   aviso explícito e os Administradores ativos do seed 004 como destinatários;
+ * - issue #161: `responsible_assigned` na request 1 — designação do Analista
+ *   Teste e redesignação da Roberta Analista;
+ * - issue #160: `mapping_scheduled` para a request 1 — agendamento e
+ *   reagendamento do Mapeamento do seed 012, com destinatário resolvido do
+ *   designado de custódia da request (`requests.mapping_professional_id`).
  *
- * A massa é histórica: os Eventos de Pendência não replicam o estado atual de
- * `pending_items` (um lote aberto pode conviver com Notificações antigas de
- * criação, reabertura e validação). Os ids dos Administradores e os ponteiros
- * das solicitações vêm do banco para não duplicar números/strings mágicas do
- * seed 004/006.
+ * Os ids dos Administradores e os ponteiros das solicitações vêm do banco para
+ * não duplicar números/strings mágicas do seed 004/006. O Agendamento do
+ * Mapeamento deriva também do banco: uma Notificação por conclusão
+ * (`mappings` com `target_status_id` 6), com o `scheduledAt` do Agendamento.
  *
  * Pré-requisitos: seeds 004_users e 006_requests (as FKs de destinatário e
  * solicitação precisam existir). Idempotente por `dedup_key`: apaga as
@@ -206,9 +345,26 @@ export async function seed(knex) {
     findRequestPointers(knex),
     findUnassignedAdminIds(knex),
   ]);
-  const notifications = buildNotifications({ requestPointers, unassignedAdminIds });
+
+  const mappingScheduledNotifications = await findMappingScheduledNotifications(
+    knex,
+    requestPointers,
+    MAPPING_SCHEDULING_REQUEST_ID,
+  );
+
+  const notifications = buildNotifications({
+    requestPointers,
+    unassignedAdminIds,
+    mappingScheduledNotifications,
+  });
   const notificationIds = notifications.map((item) => item.notification_id);
   const dedupKeys = notifications.map((item) => item.dedup_key);
+
+  // Limpa as Notificações de Agendamento antigas da request — o espaço de ids
+  // muda ao deste seed — sem tocar nas de outros Eventos nem do designado.
+  await knex("notifications")
+    .where({ request_id: MAPPING_SCHEDULING_REQUEST_ID, event_type: "mapping_scheduled" })
+    .del();
 
   await knex("notifications").whereIn("notification_id", notificationIds).del();
   await knex("notifications").whereIn("dedup_key", dedupKeys).del();
