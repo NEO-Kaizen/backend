@@ -14,16 +14,16 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 ## Estrutura
 
-| Campo               | Tipo         | Obrigatório | Restrição / Default                           | Finalidade                                                                                                            |
-| ------------------- | ------------ | ----------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `notification_id`   | UUID         | Sim         | Primary Key, `gen_random_uuid()`              | Identificador exposto na API e no SSE                                                                                 |
-| `recipient_user_id` | INTEGER      | Sim         | FK `users.user_id`, `ON DELETE CASCADE`       | Destinatário da Notificação                                                                                           |
-| `event_type`        | VARCHAR(50)  | Sim         | NOT NULL                                      | Tipo do Evento (`status_changed`, `mapping_scheduled`, `pending_item_responded`, `pending_item_responded_unassigned`) |
-| `request_id`        | BIGINT       | Sim         | FK `requests.request_id`, `ON DELETE CASCADE` | Solicitação associada                                                                                                 |
-| `payload`           | JSONB        | Sim         | NOT NULL                                      | Allowlist do Evento                                                                                                   |
-| `dedup_key`         | VARCHAR(255) | Sim         | UNIQUE (`uk_notifications_dedup_key`)         | Idempotência por evento + destinatário                                                                                |
-| `read_at`           | TIMESTAMPTZ  | Não         | NULL até a leitura                            | Registro da leitura                                                                                                   |
-| `created_at`        | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                   | Data e hora da emissão                                                                                                |
+| Campo               | Tipo         | Obrigatório | Restrição / Default                           | Finalidade                                                                                                                                    |
+| ------------------- | ------------ | ----------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `notification_id`   | UUID         | Sim         | Primary Key, `gen_random_uuid()`              | Identificador exposto na API e no SSE                                                                                                         |
+| `recipient_user_id` | INTEGER      | Sim         | FK `users.user_id`, `ON DELETE CASCADE`       | Destinatário da Notificação                                                                                                                   |
+| `event_type`        | VARCHAR(50)  | Sim         | NOT NULL                                      | Tipo do Evento (`status_changed`, `mapping_scheduled`, `pending_item_responded`, `pending_item_responded_unassigned`, `responsible_assigned`) |
+| `request_id`        | BIGINT       | Sim         | FK `requests.request_id`, `ON DELETE CASCADE` | Solicitação associada                                                                                                                         |
+| `payload`           | JSONB        | Sim         | NOT NULL                                      | Allowlist do Evento                                                                                                                           |
+| `dedup_key`         | VARCHAR(255) | Sim         | UNIQUE (`uk_notifications_dedup_key`)         | Idempotência por evento + destinatário                                                                                                        |
+| `read_at`           | TIMESTAMPTZ  | Não         | NULL até a leitura                            | Registro da leitura                                                                                                                           |
+| `created_at`        | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                   | Data e hora da emissão                                                                                                                        |
 
 ## Índices
 
@@ -38,8 +38,8 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 
 - `dedup_key` = `<eventKey>:<recipient_user_id>`. O formato de `eventKey` por
   Evento está em `docs/notifications-contract.md`: por exemplo,
-  `request.status_change:<audit_id>`, `mapping.complete:<audit_id>` e
-  `request.pending_responded:<audit_id>`. A chave de negócio preserva eventos
+  `request.status_change:<audit_id>`, `mapping.complete:<audit_id>`,
+  `request.pending_responded:<audit_id>` e `request.assigned:<audit_id>`. A chave de negócio preserva eventos
   distintos ao longo do ciclo de vida (agendamento e reagendamento, por exemplo).
 - O emissor valida o Evento com Zod antes do INSERT. Payload fora da Allowlist
   é erro de programação e aborta a transação.

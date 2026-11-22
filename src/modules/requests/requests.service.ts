@@ -897,8 +897,6 @@ export async function assignResponsible(
           ipAddress,
           changeOrigin: "admin",
         });
-      } else {
-        await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
       }
     }
 
@@ -1038,8 +1036,6 @@ export async function assignAnalyst(
             ipAddress,
             changeOrigin: "admin",
           });
-        } else {
-          await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
         }
         if (shouldAdvance) {
           await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
@@ -1134,8 +1130,6 @@ export async function assignAnalyst(
             ipAddress,
             changeOrigin: "admin",
           });
-        } else {
-          await repository.updateAssignee(trx, request.request_id, null, actor.email);
         }
 
         // Designação de Responsável (issue #161): notifica o analista designado

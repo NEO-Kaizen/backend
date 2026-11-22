@@ -179,7 +179,6 @@ function buildNotifications({ requestPointers, unassignedAdminIds }) {
         createdAt: "2026-11-19 16:42:00",
       }),
     ),
-    ...(unassignedAdminIds.length ? [] : []),
     // issue #161: Designação de Responsável (request 1) — designação do Analista
     // Teste e redesignação da Roberta Analista. Idempotente por ids/chaves fixas.
     notification({
