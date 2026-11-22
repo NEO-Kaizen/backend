@@ -4,7 +4,7 @@ export default {
       tags: ["Priorização"],
       summary: "Listar critérios de Priorização",
       description:
-        "Lista os critérios de Priorização com seus pesos. Exige autenticação e perfil interno.",
+        "Lista os critérios ativos. Exige `prioritization:write` para avaliação ou `prioritization_config:read` para configuração.",
       operationId: "listPrioritizationCriteria",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -43,7 +43,7 @@ export default {
       tags: ["Priorização"],
       summary: "Avaliar pontuação de Priorização",
       description:
-        "Avalia a pontuação de Priorização de uma solicitação. Exige autenticação e perfil Analista ou Administrador.",
+        "Avalia a Priorização de uma solicitação. Exige `prioritization:write` e Custódia sobre o Responsável corrente da solicitação. A leitura dos critérios necessários ao cálculo está incluída nessa permissão.",
       operationId: "evaluatePrioritizationScore",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -107,7 +107,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Analista ou Administrador).",
+          description: "Ator sem `prioritization:write` ou sem Custódia sobre a solicitação.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

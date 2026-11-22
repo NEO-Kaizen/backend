@@ -1,6 +1,8 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
+import { custodyFor, hasCustody } from "../../shared/access/custody.ts";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import type { Classification, CriterionRow } from "../../shared/types/prioritization.ts";
 import type {
@@ -30,21 +32,39 @@ export async function listActiveCriteria(): Promise<ListCriteriaResponse> {
  * imutável (`audit_history`, evento `prioritization.evaluate`, com snapshot
  * anterior e novo).
  */
-interface Actor {
-  id: number;
-  role: string;
+export interface PrioritizationActor {
+  readonly id: number;
+  readonly email: string;
+  readonly permissions: readonly EffectivePermission[];
 }
 
-function isAdminOrAssignee(actor: Actor, assigneeUserId: number | null): boolean {
-  if (actor.role === "Administrador") return true;
-  if (assigneeUserId === null) return false;
-  return assigneeUserId === actor.id;
+/** Registra a Tentativa negada na trilha de auditoria da solicitação. */
+async function recordAccessDeniedAudit(
+  protocol: string,
+  actorId: number,
+  detail: string,
+  ipAddress: string | undefined,
+): Promise<void> {
+  await db.transaction(async (trx) => {
+    await recordAudit(trx, {
+      entityType: "request",
+      actionType: "request.access_denied",
+      entityId: protocol,
+      userId: actorId,
+      previousValue: null,
+      newValue: null,
+      note: `Priorização negada: ${detail}`,
+      ipAddress,
+      changeOrigin: "system",
+    });
+  });
 }
 
 export async function evaluateScore(
   protocol: string,
   payload: EvaluatePrioritizationRequest,
-  actor: Actor,
+  actor: PrioritizationActor,
+  ipAddress?: string,
 ): Promise<EvaluatePrioritizationResponse> {
   const exists = await repository.findRequestByProtocol(protocol);
   if (!exists) {
@@ -55,7 +75,21 @@ export async function evaluateScore(
   if (assigneeUserId === undefined) {
     throw new AppError("Solicitação não encontrada", 404);
   }
-  if (!isAdminOrAssignee(actor, assigneeUserId)) {
+
+  const custody = custodyFor(actor.permissions, "prioritization:write");
+  const canEvaluate =
+    custody !== undefined &&
+    hasCustody(
+      custody,
+      { userId: actor.id, email: actor.email },
+      {
+        responsibleIds:
+          assigneeUserId === null || !Number.isInteger(assigneeUserId) ? [] : [assigneeUserId],
+      },
+    );
+
+  if (!canEvaluate) {
+    await recordAccessDeniedAudit(protocol, actor.id, "sem custódia da solicitação", ipAddress);
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 

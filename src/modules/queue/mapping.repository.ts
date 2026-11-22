@@ -69,7 +69,9 @@ export interface MappingAssigneeCandidate {
   jobTitle: string | null;
   professional_status: "active" | "inactive";
   user_is_active: boolean;
-  profile_name: string;
+  profile_id: number;
+  profile_is_active: boolean;
+  is_assignable_mapping: boolean;
 }
 
 /**
@@ -163,7 +165,9 @@ export const findMappingAssigneeCandidate = async (
       jobTitle: "dp.job_title",
       professional_status: "dp.status",
       user_is_active: "u.is_active",
-      profile_name: "p.name",
+      profile_id: "p.profile_id",
+      profile_is_active: "p.is_active",
+      is_assignable_mapping: "p.is_assignable_mapping",
     });
 
   return row ?? null;

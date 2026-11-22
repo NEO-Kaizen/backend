@@ -1,27 +1,45 @@
 import { randomUUID } from "node:crypto";
 import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
+import { custodyFor, hasCustody } from "../../../shared/access/custody.ts";
+import type {
+  EffectivePermission,
+  PermissionKey,
+} from "../../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import * as repository from "./triage.repository.ts";
 
-interface Actor {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
+export interface TriageActor {
+  readonly id: number;
+  readonly email: string;
+  readonly name: string;
+  readonly permissions: readonly EffectivePermission[];
 }
 
-function isAdminOrAssignee(actor: Actor, assigneeUserId: number | null): boolean {
-  if (actor.role === "Administrador") return true;
-  if (assigneeUserId === null) return false;
-  return assigneeUserId === actor.id;
+/** Custódia da triagem: `requests.responsible_id` (§ 5 do contrato RBAC). */
+function hasTriageCustody(
+  actor: TriageActor,
+  key: PermissionKey,
+  assigneeUserId: number | null,
+): boolean {
+  const custody = custodyFor(actor.permissions, key);
+  if (!custody) return false;
+
+  return hasCustody(
+    custody,
+    { userId: actor.id, email: actor.email },
+    {
+      responsibleIds:
+        assigneeUserId === null || !Number.isInteger(assigneeUserId) ? [] : [assigneeUserId],
+    },
+  );
 }
 
 async function recordTriageAccessDenied(
   protocol: string,
-  actor: Actor,
+  actor: TriageActor,
   ipAddress: string | undefined,
   detail: string,
 ): Promise<void> {
@@ -40,17 +58,19 @@ async function recordTriageAccessDenied(
   });
 }
 
-export async function getTriage(protocol: string, actor: Actor): Promise<TriageAssessment | null> {
+export async function getTriage(
+  protocol: string,
+  actor: TriageActor,
+  ipAddress?: string,
+): Promise<TriageAssessment | null> {
   const request = await repository.findRequestContext(protocol);
   if (!request) {
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  // Leitura: Gestor é read-only e pode consultar qualquer triagem; escrita
-  // (createTriage) segue restrita a Admin ou assignee.
-  const canAccess =
-    actor.role === "Gestor" || isAdminOrAssignee(actor, request.assignee_user_id ?? null);
+  const canAccess = hasTriageCustody(actor, "triage:read", request.assignee_user_id ?? null);
   if (!canAccess) {
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem custódia para ler a triagem");
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
@@ -60,7 +80,7 @@ export async function getTriage(protocol: string, actor: Actor): Promise<TriageA
 export async function createTriage(
   protocol: string,
   payload: CreateTriagePayload,
-  actor: Actor,
+  actor: TriageActor,
   ipAddress?: string,
 ): Promise<TriageAssessment> {
   const request = await repository.findRequestContext(protocol);
@@ -75,7 +95,10 @@ export async function createTriage(
     throw new AppError("Solicitação encerrada.", 422);
   }
 
-  if (request.status_is_restricted && actor.role !== "Administrador") {
+  // `isRestricted` só é atravessado por quem tem `request:status_override`
+  // global (o override libera o alvo protegido; a decisão continua na etapa).
+  const hasStatusOverride = custodyFor(actor.permissions, "request:status_override") === "global";
+  if (request.status_is_restricted && !hasStatusOverride) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação priorizada");
     throw new AppError(
       "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
@@ -84,7 +107,7 @@ export async function createTriage(
     );
   }
 
-  const canAccess = isAdminOrAssignee(actor, request.assignee_user_id ?? null);
+  const canAccess = hasTriageCustody(actor, "triage:write", request.assignee_user_id ?? null);
   if (!canAccess) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "sem custódia da solicitação");
     throw new AppError(
@@ -175,7 +198,7 @@ export async function createTriage(
       nextStatus: exitStatus.name,
       justification: triage.conclusionJustification,
       ipAddress,
-      changeOrigin: actor.role === "Administrador" ? "admin" : "internal",
+      changeOrigin: "internal",
     },
   );
 

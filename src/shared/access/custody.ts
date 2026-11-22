@@ -1,4 +1,4 @@
-import type { Custody } from "../catalog/permissionCatalog.ts";
+import type { Custody, EffectivePermission, PermissionKey } from "../catalog/permissionCatalog.ts";
 
 /**
  * Resolução de Custódia — predicado puro compartilhado pelos serviços.
@@ -46,4 +46,32 @@ export function hasCustody(
         subject.requesterEmail.trim().toLowerCase() === actor.email.trim().toLowerCase()
       );
   }
+}
+
+/** Vínculo da chave na sessão do ator; `undefined` quando a chave não existe. */
+export function custodyFor(
+  permissions: readonly EffectivePermission[],
+  key: PermissionKey,
+): Custody | undefined {
+  return permissions.find((permission) => permission.key === key)?.custody;
+}
+
+/**
+ * Escopo de linha das chaves de Fila (`queue:read`, `queue:export`).
+ *
+ * `all` dispensa o filtro (`undefined`); `assigned` restringe ao Responsável
+ * da solicitação. Qualquer outro vínculo — inclusive a ausência da chave —
+ * falha fechado com `0`, que não existe em `users.user_id`.
+ */
+export function resolveResponsibleScope(
+  permissions: readonly EffectivePermission[],
+  key: PermissionKey,
+  actorId: number,
+): number | undefined {
+  const custody = custodyFor(permissions, key);
+
+  if (custody === "all") return undefined;
+  if (custody !== "assigned") return 0;
+
+  return Number.isInteger(actorId) && actorId > 0 ? actorId : 0;
 }

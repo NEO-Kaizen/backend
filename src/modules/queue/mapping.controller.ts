@@ -1,6 +1,7 @@
 // Handlers HTTP do subfluxo de Mapeamento (`/queue/requests/:protocol/mapping`).
 // Enxutos: validam a forma do request e delegam as regras ao service.
 import type { Request, Response } from "express";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { buildZodFieldErrors } from "../../shared/validation/zodErrors.ts";
@@ -19,7 +20,7 @@ function assertProtocolParam(req: Request): string {
   return protocol.trim();
 }
 
-/** Ator autenticado (id numérico + e-mail + perfil) — `req.user` vem do authMiddleware. */
+/** Ator autenticado com as Permissões carregadas pelo gate da rota. */
 function actorFromRequest(req: Request): MappingActor {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
@@ -30,13 +31,18 @@ function actorFromRequest(req: Request): MappingActor {
     throw new AppError("Token inválido ou expirado", 401);
   }
 
-  return { id, email: req.user.email, role: req.user.role };
+  const permissions: EffectivePermission[] | undefined = req.permissions;
+  if (!permissions) {
+    throw new AppError("Permissões não carregadas para esta operação", 403);
+  }
+
+  return { id, email: req.user.email, permissions };
 }
 
 export const getMappingController = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocolParam(req);
 
-  return res.status(200).json(await getMappingService(protocol));
+  return res.status(200).json(await getMappingService(protocol, actorFromRequest(req), req.ip));
 };
 
 export const putMappingController = async (req: Request, res: Response): Promise<Response> => {

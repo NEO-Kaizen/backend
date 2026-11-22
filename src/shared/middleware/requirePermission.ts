@@ -2,6 +2,31 @@ import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../errors/AppError.ts";
 import { buildEffectivePermissions, type PermissionKey } from "../catalog/permissionCatalog.ts";
 import { listUserPermissions } from "../../modules/auth/auth.repository.ts";
+import db from "../../database/conection.ts";
+import { recordAudit } from "../audit/auditLogger.ts";
+
+async function recordDeniedPermissionAttempt(
+  req: Request,
+  actorId: number,
+  keys: readonly PermissionKey[],
+): Promise<void> {
+  const protocol = req.params.protocol;
+  if (typeof protocol !== "string" || protocol.trim() === "") return;
+
+  await db.transaction(async (trx) => {
+    await recordAudit(trx, {
+      entityType: "request",
+      actionType: "request.access_denied",
+      entityId: protocol.trim(),
+      userId: actorId,
+      previousValue: null,
+      newValue: null,
+      note: `Permissão ausente: ${keys.join(", ")}`,
+      ipAddress: req.ip,
+      changeOrigin: "system",
+    });
+  });
+}
 
 /**
  * Gate grosso de rota (contrato RBAC § 5): sessão válida e a chave. Não
@@ -20,7 +45,13 @@ import { listUserPermissions } from "../../modules/auth/auth.repository.ts";
  * repositório — e então reavaliar o lugar da consulta em `src/shared/access/`.
  * Remover este bloco junto com a dívida.
  */
-export function requirePermission(key: PermissionKey) {
+export function requireAnyPermission(keys: readonly PermissionKey[]) {
+  const requiredKeys = [...new Set(keys)];
+
+  if (requiredKeys.length === 0) {
+    throw new Error("requireAnyPermission exige ao menos uma chave");
+  }
+
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     if (req.authScope !== "session") {
       next(new AppError("Troca de senha obrigatória antes de continuar", 403));
@@ -35,8 +66,13 @@ export function requirePermission(key: PermissionKey) {
     const grants = await listUserPermissions(Number(req.user.id));
     const permissions = buildEffectivePermissions(grants);
 
-    if (!permissions.some((permission) => permission.key === key)) {
-      next(new AppError(`Acesso restrito à permissão ${key}`, 403));
+    if (!permissions.some((permission) => requiredKeys.includes(permission.key))) {
+      await recordDeniedPermissionAttempt(req, Number(req.user.id), requiredKeys);
+      const message =
+        requiredKeys.length === 1
+          ? `Acesso restrito à permissão ${requiredKeys[0]}`
+          : `Acesso restrito a uma das permissões ${requiredKeys.join(", ")}`;
+      next(new AppError(message, 403));
       return;
     }
 
@@ -44,4 +80,8 @@ export function requirePermission(key: PermissionKey) {
 
     next();
   };
+}
+
+export function requirePermission(key: PermissionKey) {
+  return requireAnyPermission([key]);
 }

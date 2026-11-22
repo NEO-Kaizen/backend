@@ -1,11 +1,12 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { evaluateScoreSchema } from "./prioritization.schema.ts";
 import * as service from "./prioritization.service.ts";
 
-function actorFromRequest(req: Request): { id: number; role: string } {
+function actorFromRequest(req: Request): service.PrioritizationActor {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -13,7 +14,13 @@ function actorFromRequest(req: Request): { id: number; role: string } {
   if (!Number.isInteger(id)) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return { id, role: req.user.role };
+
+  const permissions: EffectivePermission[] | undefined = req.permissions;
+  if (!permissions) {
+    throw new AppError("Permissões não carregadas para esta operação", 403);
+  }
+
+  return { id, email: req.user.email, permissions };
 }
 
 /** Valida `:protocol` no controller (substitui o cast — S2). */
@@ -43,6 +50,7 @@ export const evaluateScore = async (req: Request, res: Response): Promise<Respon
     parsedParams.data.protocol,
     parsed.data,
     actorFromRequest(req),
+    req.ip,
   );
 
   return res.status(200).json(response);

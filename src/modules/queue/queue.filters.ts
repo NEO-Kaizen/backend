@@ -8,7 +8,7 @@ export interface QueueRepositoryFilters extends QueueFilterQuery {
 /**
  * Aplica a mesma semântica de filtros à listagem paginada e à exportação.
  * As queries consumidoras usam os aliases `requests`, `requester`, `status`,
- * `priority_tbl`, `assignee_user` e, quando há escopo, `mapping_assignee`.
+ * `priority_tbl` e `assignee_user`.
  */
 export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueRepositoryFilters): void {
   const { search, status, priority, assigneeId, unassigned, scopedUserId } = filters;
@@ -40,12 +40,8 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
     }
   }
 
-  // Analistas continuam restritos às solicitações sob responsabilidade deles.
+  // Escopo custodial: a Fila usa só o Responsável da solicitação.
   if (scopedUserId !== undefined) {
-    query.andWhere((builder) => {
-      builder
-        .where("assignee_user.user_id", scopedUserId)
-        .orWhere("mapping_assignee.user_id", scopedUserId);
-    });
+    query.andWhere("assignee_user.user_id", scopedUserId);
   }
 }

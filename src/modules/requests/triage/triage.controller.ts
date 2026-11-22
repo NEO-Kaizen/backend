@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
+import type { EffectivePermission } from "../../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import { buildZodFieldErrors, formatZodIssues } from "../../../shared/validation/zodErrors.ts";
@@ -10,7 +11,7 @@ const protocolParamsSchema = z.object({
   protocol: z.string().trim().min(1, "Protocolo é obrigatório."),
 });
 
-function actorFromRequest(req: Request): { id: number; email: string; name: string; role: string } {
+function actorFromRequest(req: Request): service.TriageActor {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -20,11 +21,16 @@ function actorFromRequest(req: Request): { id: number; email: string; name: stri
     throw new AppError("Token inválido ou expirado", 401);
   }
 
+  const permissions: EffectivePermission[] | undefined = req.permissions;
+  if (!permissions) {
+    throw new AppError("Permissões não carregadas para esta operação", 403);
+  }
+
   return {
     id,
     email: req.user.email,
     name: req.user.name,
-    role: req.user.role,
+    permissions,
   };
 }
 
@@ -41,7 +47,7 @@ export const getTriage = async (req: Request, res: Response): Promise<Response> 
   const protocol = assertProtocol(req);
   const actor = actorFromRequest(req);
 
-  const triage = await service.getTriage(protocol, actor);
+  const triage = await service.getTriage(protocol, actor, req.ip);
 
   return res.status(200).json(triage);
 };

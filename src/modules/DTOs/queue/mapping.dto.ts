@@ -5,7 +5,7 @@
 // participante é externo (nome/e-mail enviados no payload). O `id` do
 // mapeamento (`MappingResponse.id`) é o `mapping_id` (uuid).
 
-import type { Role } from "../../../shared/types/role.ts";
+import type { EffectivePermission } from "../../../shared/catalog/permissionCatalog.ts";
 
 export type MappingModality = "REMOTE" | "IN_PERSON";
 
@@ -113,9 +113,9 @@ export interface MappingPayloadDTO {
   lastTechnicalMessage?: string | null;
 }
 
-/** Ator autenticado com o perfil resolvido (do `authMiddleware`). */
+/** Ator autenticado com as Permissões carregadas pelo gate da rota. */
 export interface MappingActor {
   id: number;
   email: string;
-  role: Role;
+  permissions: readonly EffectivePermission[];
 }
