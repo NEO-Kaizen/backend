@@ -5242,55 +5242,55 @@ interface GroupedIssues {
 - L873 â€” parÃ¢metro: `trx`
 - L873 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L876 â€” variÃ¡vel: `auditId`
-- L954 â€” variÃ¡vel: `request`
-- L969 â€” variÃ¡vel: `hasAssignee`
-- L970 â€” variÃ¡vel: `hasMapping`
-- L975 â€” variÃ¡vel: `raw`
-- L977 â€” variÃ¡vel: `previous`
-- L978 â€” variÃ¡vel: `auditPrev`
-- L981 â€” parÃ¢metro: `trx`
-- L981 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L998 â€” variÃ¡vel: `resolved`
-- L999 â€” variÃ¡vel: `previous`
-- L1000 â€” variÃ¡vel: `auditPrev`
-- L1003 â€” variÃ¡vel: `previousMapping`
-- L1004 â€” variÃ¡vel: `auditPrevMapping`
-- L1007 â€” variÃ¡vel: `action`
-- L1008 â€” variÃ¡vel: `shouldAdvance`
-- L1011 â€” parÃ¢metro: `trx`
-- L1011 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1018 â€” variÃ¡vel: `auditId`
-- L1071 â€” variÃ¡vel: `raw`
-- L1073 â€” variÃ¡vel: `previous`
-- L1074 â€” variÃ¡vel: `auditPrev`
-- L1077 â€” parÃ¢metro: `trx`
-- L1077 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1094 â€” variÃ¡vel: `resolved`
-- L1095 â€” variÃ¡vel: `previous`
-- L1096 â€” variÃ¡vel: `auditPrev`
-- L1099 â€” variÃ¡vel: `previousAssignee`
-- L1100 â€” variÃ¡vel: `auditPrevAssignee`
-- L1103 â€” variÃ¡vel: `action`
-- L1104 â€” parÃ¢metro: `trx`
-- L1104 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1111 â€” variÃ¡vel: `auditId`
-- L1204 â€” variÃ¡vel: `isTriageAssignee`
-- L1206 â€” variÃ¡vel: `isMappingAssignee`
-- L1231 â€” parÃ¢metro: `trx`
-- L1231 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1252 â€” variÃ¡vel: `request`
-- L1257 â€” variÃ¡vel: `target`
-- L1262 â€” variÃ¡vel: `isAdmin`
-- L1276 â€” variÃ¡vel: `isAssignee`
-- L1278 â€” variÃ¡vel: `isMappingAssignee`
-- L1281 â€” variÃ¡vel: `isAnalystAssignee`
-- L1347 â€” variÃ¡vel: `changeOrigin`
-- L1349 â€” parÃ¢metro: `trx`
-- L1349 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1349 â€” variÃ¡vel: `{ lastUpdate, committed }`
-- L1350 â€” variÃ¡vel: `persistedAt`
-- L1362 â€” variÃ¡vel: `auditId`
-- L1387 â€” variÃ¡vel: `committedNotifications`
+- L955 â€” variÃ¡vel: `request`
+- L970 â€” variÃ¡vel: `hasAssignee`
+- L971 â€” variÃ¡vel: `hasMapping`
+- L976 â€” variÃ¡vel: `raw`
+- L978 â€” variÃ¡vel: `previous`
+- L979 â€” variÃ¡vel: `auditPrev`
+- L982 â€” parÃ¢metro: `trx`
+- L982 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L999 â€” variÃ¡vel: `resolved`
+- L1000 â€” variÃ¡vel: `previous`
+- L1001 â€” variÃ¡vel: `auditPrev`
+- L1004 â€” variÃ¡vel: `previousMapping`
+- L1005 â€” variÃ¡vel: `auditPrevMapping`
+- L1008 â€” variÃ¡vel: `action`
+- L1009 â€” variÃ¡vel: `shouldAdvance`
+- L1012 â€” parÃ¢metro: `trx`
+- L1012 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1019 â€” variÃ¡vel: `auditId`
+- L1073 â€” variÃ¡vel: `raw`
+- L1075 â€” variÃ¡vel: `previous`
+- L1076 â€” variÃ¡vel: `auditPrev`
+- L1079 â€” parÃ¢metro: `trx`
+- L1079 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1096 â€” variÃ¡vel: `resolved`
+- L1097 â€” variÃ¡vel: `previous`
+- L1098 â€” variÃ¡vel: `auditPrev`
+- L1101 â€” variÃ¡vel: `previousAssignee`
+- L1102 â€” variÃ¡vel: `auditPrevAssignee`
+- L1105 â€” variÃ¡vel: `action`
+- L1106 â€” parÃ¢metro: `trx`
+- L1106 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1113 â€” variÃ¡vel: `auditId`
+- L1219 â€” variÃ¡vel: `isTriageAssignee`
+- L1221 â€” variÃ¡vel: `isMappingAssignee`
+- L1246 â€” parÃ¢metro: `trx`
+- L1246 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1267 â€” variÃ¡vel: `request`
+- L1272 â€” variÃ¡vel: `target`
+- L1277 â€” variÃ¡vel: `isAdmin`
+- L1291 â€” variÃ¡vel: `isAssignee`
+- L1293 â€” variÃ¡vel: `isMappingAssignee`
+- L1296 â€” variÃ¡vel: `isAnalystAssignee`
+- L1362 â€” variÃ¡vel: `changeOrigin`
+- L1364 â€” parÃ¢metro: `trx`
+- L1364 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1364 â€” variÃ¡vel: `{ lastUpdate, committed }`
+- L1365 â€” variÃ¡vel: `persistedAt`
+- L1377 â€” variÃ¡vel: `auditId`
+- L1402 â€” variÃ¡vel: `committedNotifications`
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 

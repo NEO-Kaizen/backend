@@ -926,6 +926,7 @@ export async function assignResponsible(
         actorUserId: actor.id,
         recipientUserId: Number(assignee.id),
         previousUserId: auditPrev,
+        otherRoleUserId: auditPrevMapping,
         protocol: request.protocol,
         title: request.title,
         category: request.category,
@@ -1060,6 +1061,7 @@ export async function assignAnalyst(
           actorUserId: actor.id,
           recipientUserId: Number(resolved.id),
           previousUserId: auditPrev,
+          otherRoleUserId: auditPrevMapping,
           protocol: request.protocol,
           title: request.title,
           category: request.category,
@@ -1141,6 +1143,7 @@ export async function assignAnalyst(
           actorUserId: actor.id,
           recipientUserId: Number(resolved.id),
           previousUserId: auditPrev,
+          otherRoleUserId: auditPrevAssignee,
           protocol: request.protocol,
           title: request.title,
           category: request.category,
@@ -1167,13 +1170,15 @@ async function notifyResponsibleAssignedIfNeeded(
     actorUserId: number;
     recipientUserId: number;
     previousUserId: number | null;
+    /** Usuário do papel oposto (triagem ↔ mapeamento) antes da exclusividade. */
+    otherRoleUserId: number | null;
     protocol: string;
     title: string;
     category: string;
     status: string;
   },
 ): Promise<CommittedNotification[]> {
-  if (!hasDesignationChanged(input.previousUserId, input.recipientUserId)) {
+  if (!hasDesignationChanged(input.previousUserId, input.recipientUserId, input.otherRoleUserId)) {
     return [];
   }
   return emitResponsibleAssignedNotification(trx, {
@@ -1188,7 +1193,17 @@ async function notifyResponsibleAssignedIfNeeded(
   });
 }
 
-function hasDesignationChanged(previousUserId: number | null, nextUserId: number): boolean {
+/**
+ * Designação real: primeira atribuição ou troca de analista. Na troca de papel
+ * (triagem ↔ mapeamento) o mesmo analista já era o designado do outro lado —
+ * a exclusividade apenas move o vínculo, sem gerar nova Notificação (#161).
+ */
+function hasDesignationChanged(
+  previousUserId: number | null,
+  nextUserId: number,
+  otherRoleUserId: number | null,
+): boolean {
+  if (otherRoleUserId === nextUserId) return false;
   return previousUserId === null || previousUserId !== nextUserId;
 }
 
