@@ -1,7 +1,8 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { recordAccessDeniedAttempt } from "../../shared/audit/accessDenied.ts";
 import db from "../../database/conection.ts";
-import { custodyFor, hasCustody } from "../../shared/access/custody.ts";
+import { hasPermissionCustody } from "../../shared/access/custody.ts";
 import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import type { Classification, CriterionRow } from "../../shared/types/prioritization.ts";
@@ -32,28 +33,6 @@ export async function listActiveCriteria(): Promise<ListCriteriaResponse> {
  * imutável (`audit_history`, evento `prioritization.evaluate`, com snapshot
  * anterior e novo).
  */
-/** Registra a Tentativa negada na trilha de auditoria da solicitação. */
-async function recordAccessDeniedAudit(
-  protocol: string,
-  actorId: number,
-  detail: string,
-  ipAddress: string | undefined,
-): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.access_denied",
-      entityId: protocol,
-      userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: `Priorização negada: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
-  });
-}
-
 export async function evaluateScore(
   protocol: string,
   payload: EvaluatePrioritizationRequest,
@@ -70,20 +49,21 @@ export async function evaluateScore(
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  const custody = custodyFor(actor.permissions, "prioritization:write");
-  const canEvaluate =
-    custody !== undefined &&
-    hasCustody(
-      custody,
-      { userId: actor.id, email: actor.email },
-      {
-        responsibleIds:
-          assigneeUserId === null || !Number.isInteger(assigneeUserId) ? [] : [assigneeUserId],
-      },
-    );
+  const canEvaluate = hasPermissionCustody(
+    actor.permissions,
+    "prioritization:write",
+    { userId: actor.id, email: actor.email },
+    [assigneeUserId],
+  );
 
   if (!canEvaluate) {
-    await recordAccessDeniedAudit(protocol, actor.id, "sem custódia da solicitação", ipAddress);
+    await recordAccessDeniedAttempt({
+      entityType: "request",
+      entityId: protocol,
+      userId: actor.id,
+      note: "Priorização negada: sem Custódia da solicitação.",
+      ipAddress,
+    });
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 

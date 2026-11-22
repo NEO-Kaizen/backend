@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
-import db from "../../../database/conection.ts";
-import { recordAudit } from "../../../shared/audit/auditLogger.ts";
+import { recordAccessDeniedAttempt } from "../../../shared/audit/accessDenied.ts";
 import {
-  custodyFor,
   hasAdministrativeAuditOrigin,
-  hasCustody,
+  hasPermissionCustody,
 } from "../../../shared/access/custody.ts";
 import type { PermissionKey } from "../../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
@@ -19,37 +17,23 @@ function hasTriageCustody(
   key: PermissionKey,
   assigneeUserId: number | null,
 ): boolean {
-  const custody = custodyFor(actor.permissions, key);
-  if (!custody) return false;
-
-  return hasCustody(
-    custody,
-    { userId: actor.id, email: actor.email },
-    {
-      responsibleIds:
-        assigneeUserId === null || !Number.isInteger(assigneeUserId) ? [] : [assigneeUserId],
-    },
-  );
+  return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
+    assigneeUserId,
+  ]);
 }
 
-async function recordTriageAccessDenied(
+function recordTriageAccessDenied(
   protocol: string,
   actor: NamedPermissionActor,
   ipAddress: string | undefined,
   detail: string,
 ): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.access_denied",
-      entityId: protocol,
-      userId: actor.id,
-      previousValue: null,
-      newValue: null,
-      note: `Triagem negada: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
+  return recordAccessDeniedAttempt({
+    entityType: "request",
+    entityId: protocol,
+    userId: actor.id,
+    note: `Triagem negada: ${detail}`,
+    ipAddress,
   });
 }
 
@@ -65,7 +49,7 @@ export async function getTriage(
 
   const canAccess = hasTriageCustody(actor, "triage:read", request.assignee_user_id ?? null);
   if (!canAccess) {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem custódia para ler a triagem");
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia para ler a Triagem");
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
@@ -83,9 +67,7 @@ export async function createTriage(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  // Priorizado (isRestricted) bloqueia triagem de não-Admin — inclusive
-  // assignee → movimentação de/r para Priorizado só via `PATCH /status` com
-  // bypass Admin (delta §3.1). Fluxo encerrado (isTerminal) não reabre.
+  // Status restrito bloqueia a Triagem; Status terminal não reabre o fluxo.
   if (request.status_is_terminal) {
     throw new AppError("Solicitação encerrada.", 422);
   }
@@ -93,7 +75,7 @@ export async function createTriage(
   // `request:status_override` libera alvos de transição; não libera a Triagem
   // de uma solicitação que já está em Status restrito.
   if (request.status_is_restricted) {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação priorizada");
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação em Status restrito");
     throw new AppError(
       "A Triagem não pode ser registrada enquanto a solicitação estiver em status restrito.",
       403,
@@ -103,7 +85,7 @@ export async function createTriage(
 
   const canAccess = hasTriageCustody(actor, "triage:write", request.assignee_user_id ?? null);
   if (!canAccess) {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem custódia da solicitação");
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia da solicitação");
     throw new AppError(
       "Você não tem permissão ou Custódia para registrar a Triagem.",
       403,

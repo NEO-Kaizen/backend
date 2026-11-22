@@ -51,6 +51,23 @@ export function hasCustody(
   }
 }
 
+export function hasPermissionCustody(
+  permissions: readonly EffectivePermission[],
+  key: PermissionKey,
+  actor: CustodyActor,
+  responsibleIds: readonly (number | null | undefined)[],
+): boolean {
+  const custody = custodyFor(permissions, key);
+  if (!custody) return false;
+
+  const validResponsibleIds = responsibleIds.filter(
+    (userId): userId is number =>
+      userId !== null && userId !== undefined && Number.isInteger(userId) && userId > 0,
+  );
+
+  return hasCustody(custody, actor, { responsibleIds: validResponsibleIds });
+}
+
 /** Vínculo da chave na sessão do ator; `undefined` quando a chave não existe. */
 export function custodyFor(
   permissions: readonly EffectivePermission[],

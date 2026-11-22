@@ -17,12 +17,9 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { recordAccessDeniedAttempt } from "../../shared/audit/accessDenied.ts";
 import { profileHasAssignablePermissions } from "../../shared/access/assignability.ts";
-import {
-  custodyFor,
-  hasAdministrativeAuditOrigin,
-  hasCustody,
-} from "../../shared/access/custody.ts";
+import { hasAdministrativeAuditOrigin, hasPermissionCustody } from "../../shared/access/custody.ts";
 import { applyStatusTransition } from "../requests/statusTransition.ts";
 import type {
   MappingActor,
@@ -44,18 +41,12 @@ async function recordMappingAccessDenied(
   detail: string,
   ipAddress?: string,
 ): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.access_denied",
-      entityId: protocol,
-      userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: `Mapeamento negado: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
+  await recordAccessDeniedAttempt({
+    entityType: "request",
+    entityId: protocol,
+    userId: actorId,
+    note: `Mapeamento negado: ${detail}`,
+    ipAddress,
   });
 }
 
@@ -65,14 +56,10 @@ function hasMappingCustody(
   requestAssigneeUserId: number | null,
   mappingAssigneeUserId: number | null,
 ): boolean {
-  const custody = custodyFor(actor.permissions, key);
-  if (!custody) return false;
-
-  const responsibleIds = [requestAssigneeUserId, mappingAssigneeUserId].filter(
-    (userId): userId is number => userId !== null && Number.isInteger(userId) && userId > 0,
-  );
-
-  return hasCustody(custody, { userId: actor.id, email: actor.email }, { responsibleIds });
+  return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
+    requestAssigneeUserId,
+    mappingAssigneeUserId,
+  ]);
 }
 
 /** Serializa instante para ISO-8601 UTC com sufixo `Z` e precisão de segundos. */
