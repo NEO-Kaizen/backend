@@ -8,6 +8,7 @@ import reportsPaths from "./reports.ts";
 import auditHistoryPaths from "./auditHistory.ts";
 import internalNotesPaths from "./internalNotes.ts";
 import pendingItemsPaths from "./pendingItems.ts";
+import profilesPaths from "./profiles.ts";
 
 export const paths = {
   ...authPaths,
@@ -20,4 +21,5 @@ export const paths = {
   ...auditHistoryPaths,
   ...internalNotesPaths,
   ...pendingItemsPaths,
+  ...profilesPaths,
 } as const;

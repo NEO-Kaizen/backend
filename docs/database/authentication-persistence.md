@@ -93,22 +93,22 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 
 ### Estrutura
 
-| Campo                   | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                     |
-| ----------------------- | ------------ | ----------- | --------------------------- | ---------------------------------------------- |
-| `profile_id`            | INTEGER      | Sim         | Primary Key, auto increment | Identificador único do perfil                  |
-| `name`                  | VARCHAR(60)  | Sim         | UNIQUE, NOT NULL            | Nome do perfil                                 |
-| `description`           | VARCHAR(255) | Não         | NULL permitido              | Descrição opcional do perfil                   |
-| `is_active`             | BOOLEAN      | Sim         | DEFAULT TRUE                | Indica se o perfil está ativo                  |
-| `is_root`               | BOOLEAN      | Sim         | DEFAULT FALSE               | Marca o Perfil Admin Root (escrita só do seed) |
-| `is_assignable_triage`  | BOOLEAN      | Sim         | DEFAULT FALSE               | Flag de Atribuibilidade na triagem             |
-| `is_assignable_mapping` | BOOLEAN      | Sim         | DEFAULT FALSE               | Flag de Atribuibilidade no mapeamento          |
-| `created_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro             |
-| `updated_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada   |
+| Campo                   | Tipo         | Obrigatório | Restrição / Default                                    | Finalidade                                     |
+| ----------------------- | ------------ | ----------- | ------------------------------------------------------ | ---------------------------------------------- |
+| `profile_id`            | INTEGER      | Sim         | Primary Key, auto increment                            | Identificador único do perfil                  |
+| `name`                  | VARCHAR(60)  | Sim         | UNIQUE parcial (case-insensitive, só ativos), NOT NULL | Nome do perfil                                 |
+| `description`           | VARCHAR(255) | Não         | NULL permitido                                         | Descrição opcional do perfil                   |
+| `is_active`             | BOOLEAN      | Sim         | DEFAULT TRUE                                           | Indica se o perfil está ativo                  |
+| `is_root`               | BOOLEAN      | Sim         | DEFAULT FALSE                                          | Marca o Perfil Admin Root (escrita só do seed) |
+| `is_assignable_triage`  | BOOLEAN      | Sim         | DEFAULT FALSE                                          | Flag de Atribuibilidade na triagem             |
+| `is_assignable_mapping` | BOOLEAN      | Sim         | DEFAULT FALSE                                          | Flag de Atribuibilidade no mapeamento          |
+| `created_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                              | Data e hora de criação do registro             |
+| `updated_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                              | Data e hora da última atualização registrada   |
 
 ### Restrições
 
 - `profile_id` é a chave primária da tabela;
-- `name` deve possuir valor único;
+- `name` é único sem considerar caixa entre Perfis **ativos**: o índice parcial `uk_profiles_active_name_lower` (`UNIQUE (lower(name)) WHERE is_active`) espelha a regra de negócio, e Perfis inativos preservam o nome que tinham;
 - `name` não pode ser nulo;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
 - `is_root`, `is_assignable_triage` e `is_assignable_mapping` não podem ser nulos e possuem valor padrão `FALSE`;
@@ -279,7 +279,7 @@ A atualização posterior de `updated_at` será responsabilidade da aplicação.
 
 Os perfis `solicitante`, `analista`, `gestor`, `administrador` e `admin_root` fazem parte do domínio inicial da aplicação e são necessários para o relacionamento com os usuários.
 
-As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed não reativa nem altera `is_active` de perfil existente e não remove concessões fora da matriz.
+As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura cada perfil base por `lower(name)` e nunca cria uma segunda linha: não reativa nem altera `is_active` de perfil existente e não remove concessões fora da matriz.
 
 A conta Admin Root é única e nasce apenas da seed `014_admin_root_account.js`, a partir das variáveis de ambiente `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME`; nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta.
 
@@ -318,6 +318,8 @@ As migrations devem ser executadas na seguinte ordem:
 4. `20261119120000_add_rbac_flags_to_profiles.js`
 5. `20261119120100_create_profile_permissions.js`
 6. `20261119120200_drop_internal_notes_author_role_check.js`
+7. `20261122120000_add_profile_audit_entity_type.js`
+8. `20261122120100_profiles_active_name_unique_ci.js`
 
 Essa ordem garante que a tabela `profiles` exista antes da inserção dos perfis iniciais e que os perfis estejam disponíveis antes da criação e utilização da relação com `users`.
 
@@ -356,6 +358,14 @@ Responsável pela criação da tabela `users`, incluindo:
 - chave estrangeira `profile_id`;
 - relacionamento com `profiles`;
 - restrição `ON DELETE RESTRICT`.
+
+### Migration `add_profile_audit_entity_type`
+
+Amplia o `CHECK chk_audit_history_entity_type` para aceitar a entidade `profile` (eventos de criação, edição, ativação, desativação e duplicação de Perfil). A lista do banco acompanha `src/shared/audit/auditCatalog.ts` no mesmo PR.
+
+### Migration `profiles_active_name_unique_ci`
+
+Substitui o `UNIQUE` global de `profiles.name` pelo índice parcial `uk_profiles_active_name_lower` (`UNIQUE (lower(name)) WHERE is_active`). A unicidade passa a ser case-insensitive e restrita aos Perfis ativos, exatamente como o contrato de edição de Perfil exige; o `down` restaura o `UNIQUE` global.
 
 ### Configuração do banco
 
