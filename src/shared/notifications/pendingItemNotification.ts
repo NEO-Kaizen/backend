@@ -1,19 +1,13 @@
 import type { Knex } from "knex";
 import { emitNotification, type CommittedNotification } from "./emitNotification.ts";
-import type { NotificationEvent, RequestPointer } from "./notificationEvents.ts";
+import type {
+  NotificationEventBase,
+  PendingItemNotificationEvent,
+  RequestPointer,
+} from "./notificationEvents.ts";
 
 /** Ação do ciclo de Pendência: mesma nomenclatura da auditoria e da revisão. */
 export type PendingItemNotificationAction = "create" | "reopen" | "validate";
-
-type PendingItemEventType = Extract<NotificationEvent["type"], `pending_item_${string}`>;
-
-/** Campos comuns dos Eventos emitidos nesta transação. */
-interface NotificationEventBase {
-  readonly eventKey: string;
-  readonly requestId: string;
-  readonly actorUserId: number;
-  readonly recipientUserIds: number[];
-}
 
 /** Contexto da Solicitação relido dentro da transação. */
 export interface PendingItemNotificationRequest {
@@ -34,53 +28,60 @@ export interface PendingItemNotificationsInput {
   readonly events: readonly PendingItemNotificationEventInput[];
 }
 
-/**
- * Mapa `ação → Evento`: uma única fonte para o prefixo da `eventKey` e para a
- * variante do Payload. O tipo do Evento fica restrito aos Eventos de Pendência.
- */
-const PENDING_ITEM_EVENT_BY_ACTION = {
-  create: { eventKeyPrefix: "pending_item.create", type: "pending_item_created" },
-  reopen: { eventKeyPrefix: "pending_item.reopen", type: "pending_item_reopened" },
-  validate: { eventKeyPrefix: "pending_item.validate", type: "pending_item_validated" },
-} as const satisfies Record<
-  PendingItemNotificationAction,
-  { eventKeyPrefix: string; type: PendingItemEventType }
->;
+interface PendingItemEventBuilder {
+  readonly eventKeyPrefix: string;
+  readonly build: (
+    eventBase: NotificationEventBase,
+    requestPointer: RequestPointer,
+  ) => PendingItemNotificationEvent;
+}
 
 /**
- * Constrói o Evento a partir do mapa. A asserção é segura porque `type` e
- * `payload.type` vêm da mesma entrada; o emissor ainda valida com Zod antes
- * do INSERT.
+ * Mapa `ação → Evento`: uma única fonte para o prefixo da `eventKey` e para a
+ * variante do Payload. O `build` fixa `type` e `payload.type` na mesma variante,
+ * sem asserção de tipo.
  */
-function buildPendingItemEvent(
-  action: PendingItemNotificationAction,
-  base: NotificationEventBase,
-  pointer: RequestPointer,
-): NotificationEvent {
-  const event = PENDING_ITEM_EVENT_BY_ACTION[action];
-  return {
-    ...base,
-    type: event.type,
-    payload: { type: event.type, ...pointer },
-  } as NotificationEvent;
-}
+const PENDING_ITEM_EVENT_BY_ACTION = {
+  create: {
+    eventKeyPrefix: "pending_item.create",
+    build: (eventBase, requestPointer) => ({
+      ...eventBase,
+      type: "pending_item_created",
+      payload: { type: "pending_item_created", ...requestPointer },
+    }),
+  },
+  reopen: {
+    eventKeyPrefix: "pending_item.reopen",
+    build: (eventBase, requestPointer) => ({
+      ...eventBase,
+      type: "pending_item_reopened",
+      payload: { type: "pending_item_reopened", ...requestPointer },
+    }),
+  },
+  validate: {
+    eventKeyPrefix: "pending_item.validate",
+    build: (eventBase, requestPointer) => ({
+      ...eventBase,
+      type: "pending_item_validated",
+      payload: { type: "pending_item_validated", ...requestPointer },
+    }),
+  },
+} as const satisfies Record<PendingItemNotificationAction, PendingItemEventBuilder>;
 
 async function emitPendingItemNotification(
   trx: Knex.Transaction,
-  action: PendingItemNotificationAction,
-  auditId: string,
-  request: PendingItemNotificationRequest,
-  actorUserId: number,
+  input: PendingItemNotificationsInput,
+  eventInput: PendingItemNotificationEventInput,
 ): Promise<CommittedNotification[]> {
+  const { request, actorUserId } = input;
   if (request.requesterUserId === null) return [];
 
-  const event = PENDING_ITEM_EVENT_BY_ACTION[action];
+  const eventBuilder = PENDING_ITEM_EVENT_BY_ACTION[eventInput.action];
   return emitNotification(
     trx,
-    buildPendingItemEvent(
-      action,
+    eventBuilder.build(
       {
-        eventKey: `${event.eventKeyPrefix}:${auditId}`,
+        eventKey: `${eventBuilder.eventKeyPrefix}:${eventInput.auditId}`,
         requestId: request.requestId,
         actorUserId,
         recipientUserIds: [request.requesterUserId],
@@ -103,16 +104,8 @@ export async function emitPendingItemNotifications(
   input: PendingItemNotificationsInput,
 ): Promise<CommittedNotification[]> {
   const committed: CommittedNotification[] = [];
-  for (const event of input.events) {
-    committed.push(
-      ...(await emitPendingItemNotification(
-        trx,
-        event.action,
-        event.auditId,
-        input.request,
-        input.actorUserId,
-      )),
-    );
+  for (const eventInput of input.events) {
+    committed.push(...(await emitPendingItemNotification(trx, input, eventInput)));
   }
   return committed;
 }

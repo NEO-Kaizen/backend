@@ -17,6 +17,7 @@ import type { RequestStatus } from "../../shared/types/requests.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
 import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts";
 import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
+import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
 import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 import {
   emitPendingItemNotifications,
@@ -45,6 +46,21 @@ async function readPendingItemNotificationRequest(
     requesterUserId: request.requester_user_id,
     pointer: { protocol: request.protocol, title: request.title },
   };
+}
+
+/**
+ * Executa o evento de negócio e publica as Notificações somente após o commit
+ * (ADR-0001); se a transação falhar, nada é publicado.
+ */
+async function commitPendingItemAction<TResult>(
+  action: (trx: Knex.Transaction) => Promise<{
+    result: TResult;
+    notifications: readonly CommittedNotification[];
+  }>,
+): Promise<TResult> {
+  const { result, notifications } = await db.transaction(action);
+  publishCommittedNotifications(notifications);
+  return result;
 }
 
 function normalizeSummaryFieldKey(fieldKey: string): string {
@@ -195,7 +211,7 @@ export async function createPendingItems(
     });
   }
 
-  const { rows: createdRows, committedNotifications } = await db.transaction(async (trx) => {
+  const { rows: createdRows } = await commitPendingItemAction(async (trx) => {
     const { rows: insertedRows, auditId } = await repo.createPendingItemsBatchInTransaction(trx, {
       requestId: request.request_id,
       protocol,
@@ -211,10 +227,8 @@ export async function createPendingItems(
       events: [{ action: "create", auditId }],
     });
 
-    return { rows: insertedRows, committedNotifications: notifications };
+    return { result: { rows: insertedRows }, notifications };
   });
-
-  publishCommittedNotifications(committedNotifications);
 
   const mapped = await buildPendingItems(protocol, createdRows);
   return { batchId, requestAttachment, items: mapped };
@@ -541,7 +555,7 @@ export async function reviewPendingItems(
     return { id: decision.id, decision: "validate", note: decision.note ?? null, fieldKey, value };
   });
 
-  const { rows: decidedRows, committedNotifications } = await db.transaction(async (trx) => {
+  const { rows: decidedRows } = await commitPendingItemAction(async (trx) => {
     const { rows: reviewedRows, actionAuditIds } = await repo.applyReviewDecisionsInTransaction(
       trx,
       {
@@ -563,10 +577,8 @@ export async function reviewPendingItems(
       events: [...actionAuditIds].map(([action, auditId]) => ({ action, auditId })),
     });
 
-    return { rows: reviewedRows, committedNotifications: notifications };
+    return { result: { rows: reviewedRows }, notifications };
   });
-
-  publishCommittedNotifications(committedNotifications);
 
   const mapped = await buildPendingItems(protocol, decidedRows);
   return { batchId, items: mapped };

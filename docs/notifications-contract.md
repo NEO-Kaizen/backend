@@ -70,8 +70,8 @@ entram nas demais issues filhas do RF20 e reutilizam a mesma seam de emissão.
   ou `pending_item.validate:<audit_id>`, usando o `audit_id` da primeira
   transição daquele tipo na chamada. Reenvio idempotente não gera nova
   Notificação.
-- Os dominós de Status disparados pela criação e pela reabertura **não** geram
-  Evento `status_changed`; o Evento dominante é o da Pendência.
+- A mudança de Status disparada pela criação ou pela reabertura **não** gera
+  Evento `status_changed`; o Evento emitido é o da Pendência.
 - Se a transação falhar, nem a alteração de negócio nem a Notificação são
   gravadas.
 

@@ -62,6 +62,9 @@ const notificationEventBaseSchema = z
   })
   .strict();
 
+/** Campos comuns dos Eventos de Notificação, inferidos do schema de validação. */
+export type NotificationEventBase = z.infer<typeof notificationEventBaseSchema>;
+
 /** Fábrica dos Eventos: mantém `type` e `payload` correlacionados e `.strict()`. */
 function notificationEventSchemaFor<T extends string, P extends z.ZodType>(type: T, payload: P) {
   return notificationEventBaseSchema
@@ -103,10 +106,21 @@ export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSc
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationEventType = NotificationEvent["type"];
 
-/** Fonte única dos tipos para o OpenAPI; `satisfies` mantém a união em sincronia. */
-export const NOTIFICATION_EVENT_TYPES = [
-  "status_changed",
+/** Fonte única dos Eventos do ciclo de Pendência, usada por OpenAPI e scripts. */
+export const PENDING_ITEM_EVENT_TYPES = [
   "pending_item_created",
   "pending_item_reopened",
   "pending_item_validated",
+] as const satisfies readonly NotificationEventType[];
+
+export type PendingItemEventType = (typeof PENDING_ITEM_EVENT_TYPES)[number];
+export type PendingItemNotificationEvent = Extract<
+  NotificationEvent,
+  { type: PendingItemEventType }
+>;
+
+/** Fonte única dos tipos para o OpenAPI; `satisfies` mantém a união em sincronia. */
+export const NOTIFICATION_EVENT_TYPES = [
+  "status_changed",
+  ...PENDING_ITEM_EVENT_TYPES,
 ] as const satisfies readonly NotificationEventType[];

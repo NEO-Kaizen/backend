@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { PENDING_ITEM_EVENT_TYPES } from "../src/shared/notifications/notificationEvents.ts";
 
 /**
  * Verificação por API do ciclo de Pendência (RF20 — issue #158).
@@ -23,11 +24,6 @@ const REQUESTER_IDENTITY_HEADERS = {
   "x-requester-identity": JSON.stringify(REQUESTER_IDENTITY),
 };
 
-const PENDING_EVENT_TYPES = [
-  "pending_item_created",
-  "pending_item_reopened",
-  "pending_item_validated",
-];
 const ALLOWLIST_KEYS = ["protocol", "title", "type"];
 
 async function request(path, { method = "GET", cookie, body, headers = {} } = {}) {
@@ -96,7 +92,7 @@ async function listNotifications(cookie) {
 
 function notificationCounts(items) {
   const counts = { status_changed: 0 };
-  for (const type of PENDING_EVENT_TYPES) counts[type] = 0;
+  for (const type of PENDING_ITEM_EVENT_TYPES) counts[type] = 0;
 
   for (const item of items) {
     if (item.payload?.protocol !== PROTOCOL) continue;
@@ -112,7 +108,7 @@ function newNotifications(before, after) {
 }
 
 function assertCountsDelta(before, after, expected, label) {
-  for (const type of ["status_changed", ...PENDING_EVENT_TYPES]) {
+  for (const type of ["status_changed", ...PENDING_ITEM_EVENT_TYPES]) {
     const delta = after[type] - before[type];
     assert.equal(delta, expected[type] ?? 0, `${label}: ${type} variou ${delta}`);
   }
@@ -348,10 +344,10 @@ async function main() {
 
   const adminAfter = await listNotifications(admin.cookie);
   assertCountsDelta(adminCountsBefore, notificationCounts(adminAfter), {}, "ator da ação");
-  console.log("actor received nothing and no status_changed domino OK");
+  console.log("actor received nothing and no status_changed event OK");
 
   const allPendingNotifications = afterRepeat.filter(
-    (item) => PENDING_EVENT_TYPES.includes(item.type) && item.payload?.protocol === PROTOCOL,
+    (item) => PENDING_ITEM_EVENT_TYPES.includes(item.type) && item.payload?.protocol === PROTOCOL,
   );
   assertAllowlist(allPendingNotifications);
   console.log("payload allowlist OK");

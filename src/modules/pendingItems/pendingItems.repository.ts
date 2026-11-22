@@ -304,10 +304,11 @@ async function updateRequestStatusId(
 }
 
 /**
- * Dominó de Status da Pendência: o Evento dominante é a Notificação da
- * pendência, nunca um `status_changed`.
+ * A criação/reabertura da Pendência também muda o Status da solicitação. Essa
+ * mudança é auditada aqui, mas não gera Evento `status_changed`: o Evento
+ * emitido é o da Pendência.
  */
-async function recordPendingItemStatusDomino(
+async function recordPendingItemStatusChangeAudit(
   trx: Knex.Transaction,
   input: {
     protocol: string;
@@ -396,7 +397,7 @@ export async function createPendingItemsBatchInTransaction(
       ipAddress: input.ip ?? null,
       changeOrigin: "admin",
     });
-    await recordPendingItemStatusDomino(trx, {
+    await recordPendingItemStatusChangeAudit(trx, {
       protocol: input.protocol,
       actorUserId: input.actor.id,
       previousStatusName: current.statusName,
@@ -623,7 +624,7 @@ export async function applyReviewDecisionsInTransaction(
   if (nextStatusName) {
     const statusId = await findStatusIdByName(nextStatusName, trx);
     await updateRequestStatusId(trx, input.requestId, statusId, input.actor.email);
-    await recordPendingItemStatusDomino(trx, {
+    await recordPendingItemStatusChangeAudit(trx, {
       protocol: input.protocol,
       actorUserId: input.actor.id,
       previousStatusName: input.currentStatusName,

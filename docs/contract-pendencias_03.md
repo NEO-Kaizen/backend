@@ -249,7 +249,7 @@ export interface PendingSummary {
   resposta; o frontend o observa via `GET /requests/:protocol/internal` (interno)
   ou `GET /requests/:protocol/tracking` (solicitante).
 - **Notificação:** na mesma transação, grava uma `pending_item_created` para o
-  solicitante autenticado (`requests.requester_user_id`), uma por lote. O dominó
+  solicitante autenticado (`requests.requester_user_id`), uma por lote. A mudança
   de Status **não** gera `status_changed`. Regras em
   [`notifications-contract.md`](notifications-contract.md).
 - **Response `201`:** `CreatePendingItemsResponse`:
@@ -382,7 +382,7 @@ chamada posterior. O lote só fecha quando não restar nenhum `responded`.
 - **Notificação:** na mesma transação, grava uma `pending_item_reopened` por
   chamada com ≥1 `reopen` e uma `pending_item_validated` por chamada com ≥1
   `validate`, para o solicitante autenticado. Reenvio idempotente não notifica
-  e o dominó de Status **não** gera `status_changed`. Regras em
+  e a mudança de Status **não** gera `status_changed`. Regras em
   [`notifications-contract.md`](notifications-contract.md).
 - **Response `200`:**
   ```ts
