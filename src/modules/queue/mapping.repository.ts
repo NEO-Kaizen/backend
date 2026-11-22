@@ -88,10 +88,31 @@ export const findMappingRequestContext = async (
   const row = await queryable("requests")
     .join("statuses as s", "s.status_id", "requests.status_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id")
+    .joinRaw(
+      `
+      LEFT JOIN LATERAL (
+        SELECT CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM mappings AS any_mapping
+            WHERE any_mapping.request_id = requests.request_id
+          ) THEN (
+            SELECT active_mapping.professional_id
+            FROM mappings AS active_mapping
+            WHERE active_mapping.request_id = requests.request_id
+              AND active_mapping.is_concluded = FALSE
+            ORDER BY active_mapping.created_at DESC, active_mapping.updated_at DESC
+            LIMIT 1
+          )
+          ELSE requests.mapping_professional_id
+        END AS professional_id
+      ) AS current_mapping ON TRUE
+    `,
+    )
     .leftJoin(
       "details_professional as mapping_dp",
       "mapping_dp.professional_id",
-      "requests.mapping_professional_id",
+      "current_mapping.professional_id",
     )
     .leftJoin("users as mapping_user", "mapping_user.user_id", "mapping_dp.user_id")
     .where("requests.protocol", protocol)
