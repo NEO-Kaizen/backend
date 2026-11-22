@@ -63,15 +63,18 @@ emissão.
   atual da conta: a designação é a fonte de verdade; desativação e
   remanejamento pertencem ao fluxo de atribuição.
 - Sem Responsável designado, os destinatários são os usuários ativos com perfil
-  `administrador` (conta e perfil ativos), com o aviso explícito no payload. Se
-  não houver Administrador ativo, a audiência fica vazia e nenhuma Notificação é
-  criada; a resposta continua válida.
+  `administrador` (conta e perfil ativos), com o aviso explícito no payload. A
+  lista é deduplicada e o ator é removido antes da montagem do Evento; se não
+  restar destinatário (nenhum Administrador ativo ou somente o ator), a
+  audiência fica vazia e nenhuma Notificação é criada; a resposta continua
+  válida.
 - O ator nunca recebe. A autoexclusão tem precedência sobre o critério de
   contagem: a resposta do solicitante gera exatamente uma Notificação ao
   Responsável quando ele não é o ator; quando o próprio Responsável responde,
   nenhuma Notificação é emitida. Sem sessão, a identidade pública é associada
   ao `requests.requester_user_id` (quando houver) ou, sem vínculo, à conta cujo
-  e-mail coincide com a identidade verificada, para a exclusão.
+  e-mail coincide com a identidade verificada, para a exclusão. O emissor
+  reaplica a exclusão do ator como defesa em profundidade.
 - Se a transação falhar, nem a resposta, nem o Status, nem a Notificação são
   gravados.
 - Após o commit, a publicação ocorre no mesmo `EventEmitter` do Evento de

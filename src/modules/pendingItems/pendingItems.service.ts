@@ -33,6 +33,7 @@ import {
   type PendingItemRespondedAudience,
 } from "../../shared/notifications/pendingItemRespondedNotification.ts";
 import { findActiveAdminUserIds, findUserIdByEmail } from "../users/users.repository.ts";
+import type { PendingItemResponseBody } from "./pendingItems.schema.ts";
 
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
@@ -291,15 +292,24 @@ async function resolveResponseActorUserId(
   return findUserIdByEmail(trx, request.requester_email);
 }
 
+/** Remove o ator e duplicatas antes de montar o Evento. */
+function uniqueOtherRecipients(userIds: readonly number[], actorUserId: number | null): number[] {
+  return [...new Set(userIds)].filter((userId) => userId !== actorUserId);
+}
+
 async function resolvePendingItemRespondedAudience(
   trx: Knex.Transaction,
   requestId: string,
+  actorUserId: number | null,
 ): Promise<PendingItemRespondedAudience> {
   const assigneeUserId = await repo.findAssigneeUserIdByRequestId(trx, requestId);
   if (assigneeUserId !== null) {
     return { kind: "assignee", userId: assigneeUserId };
   }
-  return { kind: "active_admins", userIds: await findActiveAdminUserIds(trx) };
+  return {
+    kind: "active_admins",
+    userIds: uniqueOtherRecipients(await findActiveAdminUserIds(trx), actorUserId),
+  };
 }
 
 interface PendingItemResponseCommitInput {
@@ -342,7 +352,11 @@ async function commitPendingItemResponse(
     });
 
     const actorUserId = await resolveResponseActorUserId(trx, input.actor, input.request);
-    const audience = await resolvePendingItemRespondedAudience(trx, input.request.request_id);
+    const audience = await resolvePendingItemRespondedAudience(
+      trx,
+      input.request.request_id,
+      actorUserId,
+    );
 
     const committedNotifications = await emitPendingItemRespondedNotification(trx, {
       auditId: result.auditId,
@@ -362,7 +376,7 @@ async function commitPendingItemResponse(
 export async function respondPendingItem(
   protocol: string,
   pendingItemId: string,
-  body: Record<string, unknown>,
+  body: PendingItemResponseBody,
   actor: PendingResponseActor,
   ip: string | undefined,
   caller: PendingCaller,
@@ -382,32 +396,29 @@ export async function respondPendingItem(
 
   let patch: PendingItemResponsePatch;
   if (type === "field_edit") {
-    if (!Object.prototype.hasOwnProperty.call(body, "correctedValue")) {
+    if (!("correctedValue" in body) || body.correctedValue === undefined) {
       throw new AppError("Campos obrigatórios ausentes: correctedValue", 400);
     }
-    if (body["correctedValue"] === undefined) {
-      throw new AppError("Campos obrigatórios ausentes: correctedValue", 400);
-    }
-    if (Object.prototype.hasOwnProperty.call(body, "response")) {
+    if ("response" in body) {
       throw new AppError("Campos inválidos: response — não permitido para field_edit", 400);
     }
-    const serialized = JSON.stringify(body["correctedValue"]);
+    const serialized = JSON.stringify(body.correctedValue);
     if (serialized === undefined) {
       throw new AppError("Campos inválidos: correctedValue", 400);
     }
     patch = { corrected_value: serialized };
   } else {
-    if (!Object.prototype.hasOwnProperty.call(body, "response")) {
+    if (!("response" in body)) {
       throw new AppError("Campos obrigatórios ausentes: response", 400);
     }
-    const response = body["response"];
+    const response = body.response;
     if (typeof response !== "string" || response.trim().length === 0) {
       throw new AppError("Campos inválidos: response — Campo obrigatório.", 400);
     }
     if (response.trim().length > 2000) {
       throw new AppError("Campos inválidos: response — Máximo de 2.000 caracteres.", 400);
     }
-    if (Object.prototype.hasOwnProperty.call(body, "correctedValue")) {
+    if ("correctedValue" in body) {
       throw new AppError("Campos inválidos: correctedValue — não permitido para observation", 400);
     }
     patch = { response_text: response.trim() };
@@ -549,8 +560,9 @@ function validateCorrectedValueForField(fieldKey: string, value: unknown): void 
   }
 }
 
-function parseCorrectedValue(raw: string | null): unknown {
-  if (raw === null) return null;
+function parseCorrectedValue(raw: unknown): unknown {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "string") return raw;
   try {
     return JSON.parse(raw);
   } catch {

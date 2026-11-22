@@ -1,14 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
+import { z } from "zod";
 import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
-import type {
-  PendencyStatus,
-  PendingFieldValue,
-  PendingItemType,
-} from "../../shared/types/pendingItems.ts";
+import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
 export interface RequestRef {
   request_id: string;
@@ -21,55 +18,61 @@ export interface RequestRef {
   requester_email: string;
 }
 
-/** Projeção de `pending_items` normalizada na fronteira do repository. */
-export interface PendingItemRow {
-  pending_item_id: string;
-  request_id: string;
-  batch_id: string;
-  type: PendingItemType;
-  field_key: string | null;
-  field_label: string | null;
-  current_value: string | null;
-  comment: string | null;
-  description: string | null;
-  status: PendencyStatus;
-  corrected_value: string | null;
-  response_text: string | null;
-  request_attachment: boolean;
-  deadline: Date | string | null;
-  created_at: Date | string;
-  responded_at: Date | string | null;
-  validated_at: Date | string | null;
-}
+/** Escalar JSON aceito em `pending_items.current_value/corrected_value`. */
+const pendingFieldValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+
+/** BIGINT do Postgres chega como string; aceita número para drivers/test doubles. */
+const dbBigIntStringSchema = z
+  .union([z.string().min(1), z.number().int()])
+  .transform((value) => String(value));
+
+const dbTimestampSchema = z.union([z.date(), z.string().min(1)]);
+
+/** Projeção de `pending_items` validada na fronteira do repository. */
+const pendingItemRowSchema = z.object({
+  pending_item_id: z.string().uuid(),
+  request_id: dbBigIntStringSchema,
+  batch_id: z.string().uuid(),
+  type: z.enum(["field_edit", "observation"]),
+  field_key: z.string().nullable(),
+  field_label: z.string().nullable(),
+  current_value: pendingFieldValueSchema,
+  comment: z.string().nullable(),
+  description: z.string().nullable(),
+  status: z.enum(["requested", "responded", "validated"]),
+  corrected_value: pendingFieldValueSchema,
+  response_text: z.string().nullable(),
+  request_attachment: z.boolean(),
+  deadline: z.union([z.date(), z.string().min(1)]).nullable(),
+  created_at: dbTimestampSchema,
+  responded_at: dbTimestampSchema.nullable(),
+  validated_at: dbTimestampSchema.nullable(),
+});
+
+export type PendingItemRow = z.infer<typeof pendingItemRowSchema>;
 
 /** Anexo de Pendência usado pelo `buildPendingItems` (evita N+1). */
-export interface PendingAttachmentRow {
-  pending_item_id: string;
-  file_name: string;
-  content_type: string;
-  size_bytes: number | string;
+const pendingAttachmentRowSchema = z.object({
+  pending_item_id: z.string().uuid(),
+  file_name: z.string().min(1),
+  content_type: z.string().min(1),
+  size_bytes: z
+    .union([z.number().int().nonnegative(), z.string().regex(/^\d+$/)])
+    .transform((value) => Number(value)),
+});
+
+export type PendingAttachmentRow = z.infer<typeof pendingAttachmentRowSchema>;
+
+function parseDbRow<Row>(schema: z.ZodType<Row>, row: Record<string, unknown>): Row {
+  const parsed = schema.safeParse(row);
+  if (!parsed.success) {
+    throw new AppError("Dados de pendência inválidos.", 500);
+  }
+  return parsed.data;
 }
 
 function mapPendingItemRow(row: Record<string, unknown>): PendingItemRow {
-  return {
-    pending_item_id: row["pending_item_id"] as string,
-    request_id: row["request_id"] as string,
-    batch_id: row["batch_id"] as string,
-    type: row["type"] as PendingItemType,
-    field_key: (row["field_key"] as string | null) ?? null,
-    field_label: (row["field_label"] as string | null) ?? null,
-    current_value: (row["current_value"] as string | null) ?? null,
-    comment: (row["comment"] as string | null) ?? null,
-    description: (row["description"] as string | null) ?? null,
-    status: row["status"] as PendencyStatus,
-    corrected_value: (row["corrected_value"] as string | null) ?? null,
-    response_text: (row["response_text"] as string | null) ?? null,
-    request_attachment: Boolean(row["request_attachment"]),
-    deadline: (row["deadline"] as Date | string | null) ?? null,
-    created_at: row["created_at"] as Date | string,
-    responded_at: (row["responded_at"] as Date | string | null) ?? null,
-    validated_at: (row["validated_at"] as Date | string | null) ?? null,
-  };
+  return parseDbRow(pendingItemRowSchema, row);
 }
 
 function mapPendingItemRows(rows: Record<string, unknown>[]): PendingItemRow[] {
@@ -77,12 +80,7 @@ function mapPendingItemRows(rows: Record<string, unknown>[]): PendingItemRow[] {
 }
 
 function mapPendingAttachmentRow(row: Record<string, unknown>): PendingAttachmentRow {
-  return {
-    pending_item_id: row["pending_item_id"] as string,
-    file_name: row["file_name"] as string,
-    content_type: row["content_type"] as string,
-    size_bytes: row["size_bytes"] as number | string,
-  };
+  return parseDbRow(pendingAttachmentRowSchema, row);
 }
 
 export async function findRequestByProtocol(
@@ -865,7 +863,7 @@ async function applyFieldToRequest(
 export function mapRowToPendingItemBase(
   row: PendingItemRow,
 ): Omit<PendingItem, "responseAttachments"> {
-  const currentValue = (row.current_value as PendingFieldValue | null) ?? null;
+  const currentValue: PendingFieldValue = row.current_value;
   return {
     id: row.pending_item_id,
     protocol: "", // preenchido pelo service com request.protocol
@@ -880,7 +878,7 @@ export function mapRowToPendingItemBase(
       : null,
     comment: row.comment ?? row.description ?? "",
     status: row.status,
-    correctedValue: (row.corrected_value as PendingFieldValue | null) ?? null,
+    correctedValue: row.corrected_value,
     responseText: row.response_text,
     deadline: row.deadline ? new Date(row.deadline).toISOString().slice(0, 10) : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),

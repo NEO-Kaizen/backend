@@ -34,15 +34,22 @@ export const createPendingItemsSchema = z
 export const verifySchema = z.object({
   name: z.string().trim().min(3).max(150),
   email: z.string().trim().toLowerCase().email("Informe um e-mail válido.").max(254),
-  protocol: z.string().trim().min(1).nullable().optional(),
+  protocol: z.string().trim().min(1),
 });
 
 /**
- * Corpo cru do PATCH de resposta. O tipo do item (`field_edit` ×
- * `observation`) só é conhecido no service, então a borda valida apenas que o
- * corpo é um objeto com chaves string; os campos são estreitados depois.
+ * Corpo do PATCH de resposta. O tipo do item (`field_edit` × `observation`)
+ * só é conhecido no service; a borda valida o envelope tipado, rejeita chaves
+ * fora do contrato e deixa a exigência do campo para a discriminação do item.
  */
-export const pendingItemResponseBodySchema = z.record(z.string(), z.unknown());
+export const pendingItemResponseBodySchema = z
+  .object({
+    correctedValue: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
+    response: z.string().trim().min(1).max(2000).optional(),
+  })
+  .strict();
+
+export type PendingItemResponseBody = z.infer<typeof pendingItemResponseBodySchema>;
 
 export const reviewSchema = z.object({
   batchId: z.string().trim().min(1),

@@ -3,6 +3,8 @@ import { emitNotification, type CommittedNotification } from "./emitNotification
 import {
   PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
   type NotificationEvent,
+  type PendingItemRespondedNotificationEvent,
+  type PendingItemRespondedUnassignedNotificationEvent,
   type RequestPointer,
 } from "./notificationEvents.ts";
 
@@ -20,8 +22,56 @@ export interface PendingItemRespondedNotificationInput {
   requestPointer: RequestPointer;
   /** Ator da resposta; `null` em solicitação anônima sem usuário vinculado. */
   actorUserId: number | null;
-  /** Resolvida pelo chamador antes da emissão. */
+  /** Resolvida pelo chamador antes da emissão, já sem o ator. */
   audience: PendingItemRespondedAudience;
+}
+
+type PendingItemRespondedEvent =
+  PendingItemRespondedNotificationEvent | PendingItemRespondedUnassignedNotificationEvent;
+
+interface NotificationEventBase {
+  eventKey: string;
+  requestId: string;
+  actorUserId: number | null;
+}
+
+function buildAssigneeEvent(
+  audience: Extract<PendingItemRespondedAudience, { kind: "assignee" }>,
+  eventBase: NotificationEventBase,
+  requestPointer: RequestPointer,
+): PendingItemRespondedEvent | null {
+  // Autoexclusão tem precedência sobre o critério de contagem.
+  if (audience.userId === eventBase.actorUserId) return null;
+
+  return {
+    type: "pending_item_responded",
+    ...eventBase,
+    recipientUserIds: [audience.userId],
+    payload: {
+      type: "pending_item_responded",
+      ...requestPointer,
+    },
+  };
+}
+
+function buildUnassignedEvent(
+  audience: Extract<PendingItemRespondedAudience, { kind: "active_admins" }>,
+  eventBase: NotificationEventBase,
+  requestPointer: RequestPointer,
+): PendingItemRespondedEvent | null {
+  const recipientUserIds = [...new Set(audience.userIds)];
+  if (recipientUserIds.length === 0) return null;
+
+  return {
+    type: "pending_item_responded_unassigned",
+    ...eventBase,
+    recipientUserIds,
+    payload: {
+      type: "pending_item_responded_unassigned",
+      ...requestPointer,
+      notice: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
+    },
+  };
 }
 
 /**
@@ -32,8 +82,9 @@ export interface PendingItemRespondedNotificationInput {
  *   explícito de que a solicitação está sem responsável.
  *
  * A autoexclusão do ator tem precedência: quando o Responsável é quem
- * responde, o Evento não é emitido. O payload é um ponteiro com os campos da
- * Allowlist.
+ * responde, o Evento não é emitido. A audiência de Administradores chega sem
+ * o ator; uma lista vazia também não gera Evento. O payload é um ponteiro com
+ * os campos da Allowlist.
  */
 export async function emitPendingItemRespondedNotification(
   trx: Knex.Transaction,
@@ -47,40 +98,16 @@ export async function emitPendingItemRespondedNotification(
 function buildPendingItemRespondedEvent(
   input: PendingItemRespondedNotificationInput,
 ): NotificationEvent | null {
-  const eventBase = {
+  const eventBase: NotificationEventBase = {
     eventKey: `${EVENT_KEY_PREFIX}:${input.auditId}`,
     requestId: input.requestId,
     actorUserId: input.actorUserId,
   };
-  const payloadBase = {
-    protocol: input.requestPointer.protocol,
-    title: input.requestPointer.title,
-  };
 
-  if (input.audience.kind === "assignee") {
-    if (input.audience.userId === input.actorUserId) return null;
-
-    return {
-      type: "pending_item_responded",
-      ...eventBase,
-      recipientUserIds: [input.audience.userId],
-      payload: {
-        type: "pending_item_responded",
-        ...payloadBase,
-      },
-    };
+  switch (input.audience.kind) {
+    case "assignee":
+      return buildAssigneeEvent(input.audience, eventBase, input.requestPointer);
+    case "active_admins":
+      return buildUnassignedEvent(input.audience, eventBase, input.requestPointer);
   }
-
-  if (input.audience.userIds.length === 0) return null;
-
-  return {
-    type: "pending_item_responded_unassigned",
-    ...eventBase,
-    recipientUserIds: [...input.audience.userIds],
-    payload: {
-      type: "pending_item_responded_unassigned",
-      ...payloadBase,
-      notice: PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE,
-    },
-  };
 }

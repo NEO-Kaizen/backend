@@ -405,14 +405,32 @@ export default {
         content: {
           "application/json": {
             schema: {
-              type: "object",
-              properties: {
-                correctedValue: {
-                  type: ["string", "number", "boolean", "null"],
-                  example: "2026-11-20",
+              oneOf: [
+                {
+                  type: "object",
+                  required: ["correctedValue"],
+                  additionalProperties: false,
+                  properties: {
+                    correctedValue: {
+                      type: ["string", "number", "boolean", "null"],
+                      example: "2026-11-20",
+                    },
+                  },
                 },
-                response: { type: "string", maxLength: 2000, example: "Resposta do solicitante." },
-              },
+                {
+                  type: "object",
+                  required: ["response"],
+                  additionalProperties: false,
+                  properties: {
+                    response: {
+                      type: "string",
+                      minLength: 1,
+                      maxLength: 2000,
+                      example: "Resposta do solicitante.",
+                    },
+                  },
+                },
+              ],
             },
           },
         },
@@ -633,7 +651,7 @@ export default {
           "application/json": {
             schema: {
               type: "object",
-              required: ["name", "email"],
+              required: ["name", "email", "protocol"],
               properties: {
                 name: { type: "string", minLength: 3, maxLength: 150, example: "Maria Oliveira" },
                 email: {
@@ -641,7 +659,7 @@ export default {
                   format: "email",
                   example: "maria.oliveira@instituicao.gov.br",
                 },
-                protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+                protocol: { type: "string", minLength: 1, example: "MAAT-8K3P-9X2M" },
               },
             },
           },

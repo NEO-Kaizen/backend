@@ -4,6 +4,7 @@ import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
+import { normalizeEmail } from "../../shared/utils/normalizeIdentity.ts";
 import type {
   CreateProfessionalInput,
   CreateUserRequest,
@@ -78,8 +79,12 @@ export async function findUserIdByEmail(
   trx: Knex.Transaction,
   email: string,
 ): Promise<number | null> {
-  const row = (await trx("users").where({ email: email.trim().toLowerCase() }).first("user_id")) as
-    { user_id: number } | undefined;
+  // `users.email` é normalizado na aplicação, mas dados legados podem ter
+  // caixa mista; a comparação case-insensitive garante a autoexclusão do ator
+  // em respostas públicas sem `requester_user_id`.
+  const row = (await trx("users")
+    .whereRaw("lower(email) = ?", [normalizeEmail(email)])
+    .first("user_id")) as { user_id: number } | undefined;
 
   return row ? Number(row.user_id) : null;
 }
