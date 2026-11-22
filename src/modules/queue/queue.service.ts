@@ -5,6 +5,7 @@ import type {
   QueueMetricsResponse,
 } from "../../shared/types/queue.types.ts";
 import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 import { resolveResponsibleScope } from "../../shared/access/custody.ts";
 
 export interface QueueActor {
@@ -17,8 +18,14 @@ export interface QueueActor {
  * `assigned` vê só as solicitações em que é Responsável. O responsável do
  * mapeamento não amplia o escopo (§ 5 do contrato RBAC).
  */
-const resolveQueueScope = (actor: QueueActor): number | undefined =>
-  resolveResponsibleScope(actor.permissions, "queue:read", actor.id);
+const resolveQueueScope = (actor: QueueActor): number | undefined => {
+  const scope = resolveResponsibleScope(actor.permissions, "queue:read", actor.id);
+  if (!scope) {
+    throw new AppError("Custódia inválida para queue:read.", 403);
+  }
+
+  return scope.kind === "assigned" ? scope.userId : undefined;
+};
 
 export const getQueueMetricsService = async (actor: QueueActor): Promise<QueueMetricsResponse> => {
   return await fetchQueueMetrics(resolveQueueScope(actor));

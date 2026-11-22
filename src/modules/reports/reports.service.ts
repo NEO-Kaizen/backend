@@ -8,6 +8,7 @@ import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { RequestPriority } from "../../shared/types/requests.ts";
 import type { StatusTone } from "../../shared/types/systemTheme.ts";
 import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 import { resolveResponsibleScope } from "../../shared/access/custody.ts";
 import * as repository from "./reports.repository.ts";
 
@@ -172,7 +173,11 @@ export async function exportQueueCsv(
 ): Promise<QueueCsvExport> {
   // A exportação usa a mesma Custódia da Fila: `all` exporta tudo; `assigned`
   // exporta só as solicitações em que o ator é Responsável.
-  const scopedUserId = resolveResponsibleScope(actor.permissions, "queue:export", actor.id);
+  const scope = resolveResponsibleScope(actor.permissions, "queue:export", actor.id);
+  if (!scope) {
+    throw new AppError("Custódia inválida para queue:export.", 403);
+  }
+  const scopedUserId = scope.kind === "assigned" ? scope.userId : undefined;
   const rows = await repository.fetchQueueExportRows(filters, scopedUserId);
   const lines = [CSV_HEADERS.map(csvField).join(";"), ...rows.map(rowToCsv)];
 

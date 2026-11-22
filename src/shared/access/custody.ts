@@ -24,6 +24,9 @@ export interface CustodySubject {
   readonly requesterEmail?: string | null;
 }
 
+export type ResponsibleScope =
+  { readonly kind: "all" } | { readonly kind: "assigned"; readonly userId: number };
+
 /**
  * O vínculo concede acesso à linha? `all` dispensa filtro; `assigned` compara
  * o Responsável; `own` compara o e-mail do Solicitante com o da conta. Chave
@@ -67,19 +70,21 @@ export function hasAdministrativeAuditOrigin(permissions: readonly EffectivePerm
 /**
  * Escopo de linha das chaves de Fila (`queue:read`, `queue:export`).
  *
- * `all` dispensa o filtro (`undefined`); `assigned` restringe ao Responsável
- * da solicitação. Qualquer outro vínculo — inclusive a ausência da chave —
- * falha fechado com `0`, que não existe em `users.user_id`.
+ * Devolve um escopo explícito: `all` ou `assigned` com o user id. Ausência de
+ * chave, vínculo inválido ou id inválido retorna `undefined` para o service
+ * negar o acesso, em vez de mascarar a inconsistência como uma lista vazia.
  */
 export function resolveResponsibleScope(
   permissions: readonly EffectivePermission[],
   key: PermissionKey,
   actorId: number,
-): number | undefined {
+): ResponsibleScope | undefined {
   const custody = custodyFor(permissions, key);
 
-  if (custody === "all") return undefined;
-  if (custody !== "assigned") return 0;
+  if (custody === "all") return { kind: "all" };
+  if (custody !== "assigned") return undefined;
 
-  return Number.isInteger(actorId) && actorId > 0 ? actorId : 0;
+  return Number.isInteger(actorId) && actorId > 0
+    ? { kind: "assigned", userId: actorId }
+    : undefined;
 }
