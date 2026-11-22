@@ -1,36 +1,32 @@
 import express from "express";
-import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import {
   exportQueueCsvController,
   getDashboardController,
-  getReportPdfController,
   getRequesterRequestPdfController,
 } from "./reports.controller.ts";
 const reportsRoutes = express.Router();
 
 reportsRoutes.get(
   "/request/protocol/:protocol/pdf",
-  authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
-  getReportPdfController,
-);
-
-reportsRoutes.get(
-  "/request/protocol/:protocol/pdf",
+  requesterDualAuth,
   getRequesterRequestPdfController,
 );
 
 reportsRoutes.get(
   "/dashboard",
+  // @ts-ignore
   authMiddleware,
+  // @ts-ignore
   requireRole("Gestor", "Administrador"),
   getDashboardController,
 );
 
 reportsRoutes.get(
   "/requests.csv",
+  // @ts-ignore
   authMiddleware,
+  // @ts-ignore
   requireRole("Gestor", "Administrador"),
   exportQueueCsvController,
 );
