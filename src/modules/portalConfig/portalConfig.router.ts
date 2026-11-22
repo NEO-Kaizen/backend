@@ -7,7 +7,7 @@ import {
 } from "../../shared/middleware/requirePermission.ts";
 import { uploadAssetFields, validateAssetSizes } from "../../shared/middleware/uploadAssets.ts";
 import {
-  getAdminConfig,
+  getSections,
   getConfig,
   updateAccess,
   updateAssets,
@@ -20,7 +20,7 @@ import {
 
 /**
  * Chaves de leitura das seções da visão administrativa (contrato RBAC § 3.7).
- * Quem tem ao menos uma delas acessa `GET /portal-config/admin`; a resposta
+ * Quem tem ao menos uma delas acessa `GET /portal-config/sections`; a resposta
  * devolve apenas as seções legíveis.
  */
 const PORTAL_SECTION_READ_KEYS = [
@@ -41,7 +41,7 @@ portalConfigRoutes.get("/", getConfig);
 portalConfigRoutes.use(authMiddleware);
 
 // R0 — devolve apenas as seções que o ator pode ler.
-portalConfigRoutes.get("/admin", requireAnyPermission(PORTAL_SECTION_READ_KEYS), getAdminConfig);
+portalConfigRoutes.get("/sections", requireAnyPermission(PORTAL_SECTION_READ_KEYS), getSections);
 
 portalConfigRoutes.patch("/access", requirePermission("portal_setting:manage"), updateAccess);
 portalConfigRoutes.patch("/identity", requirePermission("portal_setting:manage"), updateIdentity);

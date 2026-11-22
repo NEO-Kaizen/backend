@@ -4,19 +4,19 @@ Contrato completo: `portal-config-api-0_4.md` (issue #90).
 
 ## Resumo dos endpoints
 
-| Método | Rota                                    | Auth                           | Descrição                                 |
-| ------ | --------------------------------------- | ------------------------------ | ----------------------------------------- |
-| GET    | `/portal-config`                        | Público                        | Config consolidada do portal              |
-| GET    | `/portal-config/admin`                  | Chave por seção                | Visão administrativa (só seções legíveis) |
-| PATCH  | `/portal-config/access`                 | `portal_setting:manage`        | Modo de acesso (PUBLIC/AUTHENTICATED)     |
-| PATCH  | `/portal-config/identity`               | `portal_setting:manage`        | Nome da plataforma + máscara protocolo    |
-| PATCH  | `/portal-config/theme`                  | `theme:manage`                 | Tema visual (light + dark completos)      |
-| PATCH  | `/portal-config/assets`                 | `theme:manage`                 | Assets (multipart/form-data)              |
-| PATCH  | `/portal-config/categories`             | `category:manage`              | Categorias da demanda                     |
-| PATCH  | `/portal-config/statuses`               | `status:manage`                | Ciclo de vida (status)                    |
-| PATCH  | `/portal-config/prioritization-weights` | `prioritization_config:manage` | Pesos dos critérios de priorização        |
+| Método | Rota                                    | Auth                           | Descrição                              |
+| ------ | --------------------------------------- | ------------------------------ | -------------------------------------- |
+| GET    | `/portal-config`                        | Público                        | Config consolidada do portal           |
+| GET    | `/portal-config/sections`               | Chave por seção                | Seções legíveis ao ator                |
+| PATCH  | `/portal-config/access`                 | `portal_setting:manage`        | Modo de acesso (PUBLIC/AUTHENTICATED)  |
+| PATCH  | `/portal-config/identity`               | `portal_setting:manage`        | Nome da plataforma + máscara protocolo |
+| PATCH  | `/portal-config/theme`                  | `theme:manage`                 | Tema visual (light + dark completos)   |
+| PATCH  | `/portal-config/assets`                 | `theme:manage`                 | Assets (multipart/form-data)           |
+| PATCH  | `/portal-config/categories`             | `category:manage`              | Categorias da demanda                  |
+| PATCH  | `/portal-config/statuses`               | `status:manage`                | Ciclo de vida (status)                 |
+| PATCH  | `/portal-config/prioritization-weights` | `prioritization_config:manage` | Pesos dos critérios de priorização     |
 
-A leitura administrativa (`GET /portal-config/admin`) exige ao menos uma chave de
+A leitura por seção (`GET /portal-config/sections`) exige ao menos uma chave de
 leitura de seção — `theme:read`, `category:read`, `status:read`,
 `portal_setting:read` ou `prioritization_config:read` — e devolve apenas as
 seções que o ator pode ler (contrato RBAC § 7). A projeção pública de

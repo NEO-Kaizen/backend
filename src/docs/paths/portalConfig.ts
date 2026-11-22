@@ -27,24 +27,24 @@ export default {
       },
     },
   },
-  "/portal-config/admin": {
+  "/portal-config/sections": {
     get: {
       tags: ["Configuração do portal"],
-      summary: "Consultar configuração do portal (visão administrativa)",
+      summary: "Consultar seções legíveis da configuração do portal",
       description:
-        "Visão administrativa da configuração. Exige ao menos uma chave de leitura de seção — `theme:read`, `category:read`, `status:read`, " +
+        "Configuração do portal recortada pelas seções legíveis ao ator. Exige ao menos uma chave de leitura de seção — `theme:read`, `category:read`, `status:read`, " +
         "`portal_setting:read` ou `prioritization_config:read` — e devolve apenas as seções que o ator pode ler: " +
         "`portal_setting:read` → platformName, solicitationMode, protocolMask; `theme:read` → theme, assets; " +
         "`category:read` → categories; `status:read` → statuses; `prioritization_config:read` → prioritizationWeights. " +
         "A projeção pública de `GET /portal-config` permanece sem chave.",
-      operationId: "getAdminPortalConfig",
+      operationId: "getReadableSections",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Configuração administrativa recortada pelas seções legíveis.",
+          description: "Configuração recortada pelas seções legíveis ao ator.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/PortalAdminConfig" },
+              schema: { $ref: "#/components/schemas/PortalSections" },
             },
           },
         },

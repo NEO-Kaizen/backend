@@ -32,15 +32,15 @@ function actorUserId(req: Request): number {
 }
 
 // ---------------------------------------------------------------------------
-// R0 — GET /portal-config/admin (visão administrativa, por seção)
+// R0 — GET /portal-config/sections (seções legíveis, por chave)
 // ---------------------------------------------------------------------------
 
-export const getAdminConfig = async (req: Request, res: Response): Promise<Response> => {
+export const getSections = async (req: Request, res: Response): Promise<Response> => {
   if (!req.permissions) {
     throw new AppError("Permissões não carregadas para esta operação", 403);
   }
 
-  const response = await service.getAdminPortalConfig(req.permissions);
+  const response = await service.getReadableSections(req.permissions);
 
   return res.status(200).json(response);
 };

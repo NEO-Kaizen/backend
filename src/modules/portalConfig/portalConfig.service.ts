@@ -8,7 +8,7 @@ import type {
   AssetsSection,
   CategoriesSection,
   IdentitySection,
-  PortalAdminConfig,
+  PortalSections,
   PortalAssetsPatch,
   PortalCategory,
   PortalStatus,
@@ -61,7 +61,7 @@ function statusToPortal(st: StatusRow): PortalStatus {
 }
 
 // ---------------------------------------------------------------------------
-// R0 — GET /portal-config/admin (visão administrativa, por seção)
+// R0 — GET /portal-config/sections (seções legíveis, por chave)
 // ---------------------------------------------------------------------------
 
 /**
@@ -69,12 +69,12 @@ function statusToPortal(st: StatusRow): PortalStatus {
  * exige a própria chave de leitura (RBAC § 3.7); a projeção pública de
  * `GET /portal-config` permanece sem chave.
  */
-export async function getAdminPortalConfig(
+export async function getReadableSections(
   permissions: readonly EffectivePermission[],
-): Promise<PortalAdminConfig> {
+): Promise<PortalSections> {
   const readableKeys = new Set(permissions.map((permission) => permission.key));
   const config = await getPortalConfig();
-  const response: PortalAdminConfig = {};
+  const response: PortalSections = {};
 
   if (readableKeys.has("portal_setting:read")) {
     response.platformName = config.platformName;

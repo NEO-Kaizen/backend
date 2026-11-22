@@ -250,10 +250,10 @@ export const PortalConfig = {
 };
 
 // ---------------------------------------------------------------------------
-// Portal config — GET /portal-config/admin (visão administrativa, por seção)
+// Portal config — GET /portal-config/sections (seções legíveis ao ator)
 // ---------------------------------------------------------------------------
 
-export const PortalAdminConfig = {
+export const PortalSections = {
   type: "object",
   description:
     "Visão administrativa da configuração. Cada membro está presente apenas quando o ator tem a chave de leitura da seção: " +
