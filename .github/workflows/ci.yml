@@ -126,7 +126,7 @@ jobs:
             fi
             sleep 1
           done
-          echo "::error::API did not answer GET /portal-config after 30 attempts"
+          echo "::error::API did not answer GET /portal-config after $attempt attempts"
           cat /tmp/api.log
           exit 1
       - name: Stop API

@@ -338,8 +338,10 @@ jobs:
           artifact="/tmp/neo-deploy/release-${SHA}.tgz"
           ssh deploy-target 'umask 077 && mkdir -p /tmp/neo-deploy && chmod 700 /tmp/neo-deploy'
           scp -q release.tgz "deploy-target:$artifact"
+          # shellcheck disable=SC2029 # artifact path is built from the validated SHA
           ssh deploy-target chmod 600 "$artifact"
           remote_env="DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") APP_PORT=$(printf '%q' "$APP_PORT") PUBLIC_PATH=$(printf '%q' "$PUBLIC_PATH") MIGRATION_DB_PORT=$(printf '%q' "${MIGRATION_DB_PORT:-}") DEPLOY_ARTIFACT=$(printf '%q' "$artifact")"
+          # shellcheck disable=SC2029 # remote_env and args are quoted with printf %q on purpose
           ssh deploy-target "export $remote_env; bash -s -- $(printf '%q ' "${args[@]}")" \
             < deploy/deploy.sh
 
@@ -350,6 +352,7 @@ jobs:
           : "${DEPLOY_PATH:?DEPLOY_PATH variable is required}"
           : "${APP_PORT:?APP_PORT variable is required}"
           remote_env="DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") APP_PORT=$(printf '%q' "$APP_PORT") PUBLIC_PATH=$(printf '%q' "$PUBLIC_PATH")"
+          # shellcheck disable=SC2029 # remote_env is quoted with printf %q on purpose
           ssh deploy-target "export $remote_env; bash -s -- --rollback" \
             < deploy/deploy.sh
 
