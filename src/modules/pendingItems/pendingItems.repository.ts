@@ -4,6 +4,7 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
+import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
 export interface RequestRef {
   request_id: string;
@@ -265,7 +266,7 @@ export type PendingItemInsert = {
   type: "field_edit" | "observation";
   field_key: string | null;
   field_label: string | null;
-  current_value: string | null;
+  current_value: PendingFieldValue;
   comment: string;
   description: string;
   request_attachment: boolean;
@@ -767,12 +768,12 @@ export function mapRowToPendingItemBase(
       ? {
           fieldKey: row["field_key"] as string,
           fieldLabel: (row["field_label"] as string) ?? (row["field_key"] as string),
-          currentValue: (row["current_value"] as string | number | boolean | null) ?? null,
+          currentValue: (row["current_value"] as PendingFieldValue | null) ?? null,
         }
       : null,
     comment: (row["comment"] as string) ?? (row["description"] as string) ?? "",
     status: row["status"] as "requested" | "responded" | "validated",
-    correctedValue: (row["corrected_value"] as string | number | boolean | null) ?? null,
+    correctedValue: (row["corrected_value"] as PendingFieldValue | null) ?? null,
     responseText: (row["response_text"] as string | null) ?? null,
     deadline: row["deadline"]
       ? new Date(row["deadline"] as string).toISOString().slice(0, 10)

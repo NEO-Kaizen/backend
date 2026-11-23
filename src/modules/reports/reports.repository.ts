@@ -248,7 +248,7 @@ export async function fetchQueueExportRows(filters: QueueFilterQuery): Promise<Q
         WHERE status.is_terminal = TRUE
           AND ah.entity_type = 'request'
           AND ah.entity_id = requests.protocol
-          AND ah.action_type = 'request.status_change'
+          AND ah.action_type IN ('request.status_change', 'request.override_status_admin')
           AND ah.new_value = status.name
         ORDER BY ah.occurred_at DESC
         LIMIT 1

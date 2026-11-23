@@ -8,7 +8,7 @@ Este documento define **como escrever código** neste repositório. Ele não red
 
 | Vou…                                               | Leia                                  |
 | -------------------------------------------------- | ------------------------------------- |
-| escrever ou alterar rota, controller ou middleware | §5 e §7; contrato em OpenAPI          |
+| escrever ou alterar rota, controller ou middleware | §5 e §7; contrato em `src/docs/` (§9) |
 | escrever service ou regra de domínio               | §4 e §5                               |
 | escrever repository, query ou migration            | §6; persistência em `docs/database/`  |
 | escrever teste                                     | §10; decisão pendente na issue #135   |
@@ -138,7 +138,7 @@ Este documento define **como escrever código** neste repositório. Ele não red
 - `req.query` é read-only no Express 5; valide os valores como `string | string[] | ParsedQs`.
 - Use `res.status(...).json(...)` e responda uma vez.
 - Autenticação: `authMiddleware` (`src/shared/middleware/auth.ts`) valida o cookie JWT e resolve o perfil no banco.
-- Autorização: rotas migradas a RBAC usam `requirePermission(key)`; a custódia da linha é resolvida no service do domínio. `requireRole(...)` permanece apenas em módulos ainda não migrados. Use `requireAccessMode()` para o modo de acesso do portal. O papel vem do banco, nunca do JWT.
+- Autorização: `requireRole(...)` para perfis e `requireAccessMode()` para o modo de acesso do portal. O papel vem do banco, nunca do JWT.
 - Rotas de solicitante usam `requesterDualAuth` quando aceitam sessão ou identidade pública.
 - Não confie em role/ID enviado pelo cliente; autorize no servidor em toda operação sobre recurso.
 - CORS não é controle de acesso.
@@ -158,10 +158,11 @@ Este documento define **como escrever código** neste repositório. Ele não red
 
 ## 9. Contratos e documentação
 
-- O contrato HTTP vive na especificação OpenAPI em `src/docs/`; Swagger UI e `/api-docs/swagger.json` a expõem. Ela é a fonte da verdade de rotas, payloads, respostas e status codes.
-- Os documentos em `docs/*.md` podem descrever regras de negócio, decisões e exemplos comportamentais, mas não são fonte da verdade de rotas. Atualize OpenAPI e a documentação comportamental afetada no mesmo PR.
-- Exemplos de contrato não contêm PII.
+- A especificação OpenAPI em `src/docs/` é a fonte única do contrato HTTP; o código consome o contrato, não o redefine no handler.
+- Alteração de rota, payload, resposta ou status code atualiza `src/docs/` e `docs/openapi.json` (`npm run docs:openapi`) no mesmo PR; `npm run check` falha se as rotas reais e a spec divergirem.
+- Regras de negócio — o que o domínio decide, não o formato do fio — vivem em `docs/rules/`.
 - Decisões de arquitetura que sejam difíceis de reverter viram ADR em `docs/adr/`.
+- Exemplos de contrato não contêm PII.
 - Use o vocabulário do `GLOSSARY.md` em títulos, mensagens e documentos.
 
 ## 10. Testes

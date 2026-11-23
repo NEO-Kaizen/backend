@@ -25,7 +25,7 @@ function callerFromRequest(req: Request): {
 }
 
 function assertProtocol(req: Request): string {
-  const p = req.params.protocol as string;
+  const p = req.params.protocol;
   if (!p || typeof p !== "string" || p.trim() === "")
     throw new AppError("Protocolo é obrigatório", 400);
   return p.trim();
@@ -52,8 +52,8 @@ export async function listPendingItems(req: Request, res: Response): Promise<Res
 
 export async function respondPendingItem(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  const pendingItemId = req.params.pendingItemId as string;
-  if (!pendingItemId || pendingItemId.trim() === "")
+  const pendingItemId = req.params.pendingItemId;
+  if (!pendingItemId || typeof pendingItemId !== "string" || pendingItemId.trim() === "")
     throw new AppError("pendingItemId é obrigatório", 400);
   const item = await service.respondPendingItem(
     protocol,
@@ -67,10 +67,10 @@ export async function respondPendingItem(req: Request, res: Response): Promise<R
 
 export async function attachPendingItem(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  const pendingItemId = req.params.pendingItemId as string;
-  if (!pendingItemId || pendingItemId.trim() === "")
+  const pendingItemId = req.params.pendingItemId;
+  if (!pendingItemId || typeof pendingItemId !== "string" || pendingItemId.trim() === "")
     throw new AppError("pendingItemId é obrigatório", 400);
-  const file = (req as unknown as { file?: Express.Multer.File }).file;
+  const file = req.file;
   if (!file) throw new AppError("Campos obrigatórios ausentes: file", 400);
   const result = await service.addAttachment(
     protocol,
@@ -101,7 +101,7 @@ export async function publicVerify(req: Request, res: Response): Promise<Respons
     ...(req.body as object),
     protocol: (req.body as Record<string, unknown>)?.["protocol"] ?? protocol,
   };
-  // ordem contrato 03 §7: rate-limit → formato → modo → identidade (todas as tentativas contam)
+  // ordem: rate-limit → formato → modo → identidade (todas as tentativas contam)
   const key = rateLimitKey(req.ip, protocol);
   if (!checkRateLimit(key))
     throw new AppError("Muitas tentativas. Tente novamente em alguns minutos.", 429);

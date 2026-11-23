@@ -1,4 +1,5 @@
 import type { Role } from "./role.ts";
+import type { ChangeOrigin } from "../audit/auditCatalog.ts";
 
 export interface InternalNoteRow {
   internal_note_id: string;
@@ -35,7 +36,11 @@ export type TimelineEventAction =
 export type AuditTimelineAction =
   TimelineEventAction | "request.override_status_admin" | "request.status_override";
 
-export type TimelineChangeOrigin = "admin" | "system" | "internal" | null;
+/**
+ * Subconjunto de `audit_history.change_origin` usado na timeline.
+ * O vínculo deixa explícito que a timeline deriva do catálogo de auditoria.
+ */
+export type TimelineChangeOrigin = Extract<ChangeOrigin, "admin" | "system" | "internal"> | null;
 
 export interface TimelineCursor {
   t: Date;

@@ -380,9 +380,10 @@ export async function updateMyProfile(
 
     // ----- bloco requester -----
     if (payload.requester) {
-      const rawRequester = payload.requester as unknown as Record<string, unknown>;
       const changesAdministrativeFields =
-        "area" in rawRequester || "department" in rawRequester || "manager" in rawRequester;
+        "area" in payload.requester ||
+        "department" in payload.requester ||
+        "manager" in payload.requester;
 
       // A autorização usa o perfil persistido no banco, não apenas o JWT.
       if (changesAdministrativeFields && resolveRole(user.profile_name) !== "Administrador") {
