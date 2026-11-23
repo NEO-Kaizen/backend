@@ -37,7 +37,7 @@ export async function createPendingItems(req: Request, res: Response): Promise<R
   if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
   const result = await service.createPendingItems(
     protocol,
-    parsed.data as never,
+    parsed.data,
     permissionActorFromRequest(req),
     req.ip,
   );
@@ -88,7 +88,7 @@ export async function reviewPendingItems(req: Request, res: Response): Promise<R
   if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
   const result = await service.reviewPendingItems(
     protocol,
-    parsed.data as never,
+    parsed.data,
     permissionActorFromRequest(req),
     req.ip,
   );

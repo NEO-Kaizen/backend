@@ -60,3 +60,12 @@ export interface UpdateStatusResponse {
   next: string;
   lastUpdate: string;
 }
+
+/**
+ * Acknowledgement devolvido quando a mutação é permitida mas o ator não tem
+ * Custódia de leitura sobre a linha; não revela conteúdo interno.
+ */
+export interface RequestMutationAcknowledgement {
+  readonly protocol: string;
+  readonly updated: true;
+}

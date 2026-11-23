@@ -60,13 +60,16 @@ import type {
 } from "./requests.schema.ts";
 import {
   custodyFor,
-  denyRequestAccess,
   hasResponsibleCustody,
   isRequesterOwner,
   recordAccessDeniedAttempt,
+  requireResponsibleCustody,
   type PermissionActor,
 } from "../../shared/access/requestAccess.ts";
-import type { UpdateStatusResponse } from "../DTOs/requests/RequestRequests.dto.ts";
+import type {
+  RequestMutationAcknowledgement,
+  UpdateStatusResponse,
+} from "../DTOs/requests/RequestRequests.dto.ts";
 
 interface AuthenticatedIdentity {
   fullName: string;
@@ -74,26 +77,6 @@ interface AuthenticatedIdentity {
 }
 
 type RequestActor = PermissionActor;
-
-interface RequestMutationAcknowledgement {
-  readonly protocol: string;
-  readonly updated: true;
-}
-
-async function requireRequestCustody<T>(
-  request: T | null | undefined,
-  actor: RequestActor,
-  protocol: string,
-  ipAddress: string | undefined,
-  detail: string,
-  canAccess: (request: T) => boolean,
-): Promise<T> {
-  if (request === null || request === undefined || !canAccess(request)) {
-    return denyRequestAccess(protocol, actor.id, ipAddress, detail);
-  }
-
-  return request;
-}
 
 /**
  * Resolve a identidade do usuÃ¡rio autenticado direto do banco (fonte fresca):
@@ -237,13 +220,14 @@ export async function findInternalByProtocol(
   actor: RequestActor,
   ipAddress?: string,
 ): Promise<RequestInternalDetailDTO> {
-  const request = await requireRequestCustody(
+  const request = await requireResponsibleCustody(
     await repository.findInternalRequestByProtocol(protocol),
     actor,
+    "request:read",
     protocol,
     ipAddress,
     "request:read sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:read", row.assignee_user_id),
+    (row) => row.assignee_user_id,
   );
 
   const requestId = request.request_id;
@@ -593,8 +577,8 @@ function isTrackingOwner(row: InternalRequestRow, user: AuthenticatedUser): bool
   return isRequesterOwner(
     { id: Number(user.id), email: user.email },
     {
-      requesterUserId: row["requester_user_id"] as number | null | undefined,
-      requesterEmail: row["requester_email"] as string | null | undefined,
+      requesterUserId: row.requester_user_id,
+      requesterEmail: row.requester_email,
     },
   );
 }
@@ -740,13 +724,14 @@ export async function updateInternalRequest(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
-  const request = await requireRequestCustody(
+  const request = await requireResponsibleCustody(
     await repository.findInternalRequestByProtocol(protocol.trim()),
     actor,
+    "request:write",
     protocol.trim(),
     ipAddress,
     "request:write sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:write", row.assignee_user_id),
+    (row) => row.assignee_user_id,
   );
 
   await db.transaction(async (trx) => {
@@ -867,13 +852,14 @@ export async function assignResponsible(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<AssignRequestResponse> {
-  const request = await requireRequestCustody(
+  const request = await requireResponsibleCustody(
     await repository.findAssignmentContextByProtocol(protocol.trim()),
     actor,
+    "request:assign",
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
+    (row) => row.assignee_user_id,
   );
 
   // A atribuição é autorizada por request:assign e Custódia, sem decisão por
@@ -942,13 +928,14 @@ export async function assignAnalyst(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
-  const request = await requireRequestCustody(
+  const request = await requireResponsibleCustody(
     await repository.findAssignmentContextByProtocol(protocol.trim()),
     actor,
+    "request:assign",
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
+    (row) => row.assignee_user_id,
   );
 
   // A atribuição é autorizada por request:assign e Custódia, sem decisão por
@@ -1138,13 +1125,14 @@ export async function updateRequestStatus(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<UpdateStatusResponse> {
-  const request = await requireRequestCustody(
+  const request = await requireResponsibleCustody(
     await repository.findRequestStatusContext(protocol.trim()),
     actor,
+    "request:status_change",
     protocol.trim(),
     ipAddress,
     "request:status_change sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:status_change", row.assignee_user_id),
+    (row) => row.assignee_user_id,
   );
 
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
