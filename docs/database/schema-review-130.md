@@ -72,7 +72,8 @@ os campos do contrato 03) permanecem.
 
 Observações:
 
-- `requests.screening_result` **não** é legado: continua sendo lido/escrito.
+- `requests.screening_result` **não** é legado: o fluxo atual lê a coluna em
+  `requests.service.ts` (RN010); não há caminho de escrita na aplicação.
 - `pending_items.description` **não** é legado: é fallback de `comment`.
 - `attachments.is_restricted` era populado nos seeds e em dois repositórios
   (`requests.repository.ts` e `pendingItems.repository.ts`), mas nunca era lido
@@ -103,7 +104,9 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
   nenhum dos dois.
 - **Domínio de `audit_history.change_origin`**: os valores gravados pela
   aplicação são `user`, `admin`, `system`, `requester`, `manual`, `internal` e
-  `self` (`src/shared/audit/auditCatalog.ts`), sem CHECK no banco.
+  `self` (`src/shared/audit/auditCatalog.ts`), sem CHECK no banco. `self` vem do
+  self-service `PUT /users/me` (`users.service.ts`); `internal` entra pelo
+  parâmetro tipado em `triage.repository.ts`.
 - **Domínio de `requests.screening_result`**: `elegivel` e `nao_elegivel` (ou
   `NULL`), sem CHECK no banco. Um typo virava "não elegível" silenciosamente. O
   CHECK criado é defensivo: o fluxo atual apenas lê a coluna.
@@ -126,6 +129,12 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
   `uk_users_email_ci` e `uk_requesters_email_ci` (`lower(...)`). A aplicação já
   normalizava para lowercase; agora o banco também garante a regra.
 - `mapping_participants` já tem `UK (mapping_id, lower(email))`.
+
+As UKs case-sensitive antigas (`users_email_unique` e `uk_requesters_email`)
+foram mantidas de propósito: `UNIQUE (lower(email))` implica a unicidade
+simples, mas **não** atende consultas `WHERE email = $1` (nem
+`WHERE corporate_email = $1`), que é como login e buscas internas consultam o
+banco. Mantê-las evita regressão de performance nessas consultas.
 
 ### 6. Índices ociosos e redundantes — resolvido
 
@@ -223,8 +232,10 @@ Migration `20260929000000_database_review_integrity_tuning.js`:
    (`user`, `admin`, `system`, `requester`, `manual`, `internal`, `self`) e
    `ck_requests_screening_result`, ambos com `NOT VALID` + `VALIDATE`. Uma
    consulta de preflight aborta a migration com mensagem acionável se houver
-   valor histórico fora do domínio. `screening_result` é constraint defensiva:
-   o aplicativo apenas lê a coluna.
+   valor histórico fora do domínio. Como `change_origin` não é indexado, o
+   preflight faz um seq scan em `audit_history` (ACCESS SHARE, sem bloquear
+   escrita); em base grande, aplicar em janela de manutenção.
+   `screening_result` é constraint defensiva: o aplicativo apenas lê a coluna.
 5. Recria a FK `mapping_participants_user_id_foreign` com `ON DELETE RESTRICT`.
 
 O `down` restaura defaults, larguras, índices, CHECKs e a FK originais. Se um

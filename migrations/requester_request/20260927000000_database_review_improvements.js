@@ -25,7 +25,7 @@ const FK_INDEXES = [
   {
     table: "request_internal_note_read_states",
     column: "user_id",
-    index: "idx_internal_note_read_states_user",
+    index: "idx_request_internal_note_read_states_user",
   },
   { table: "requests", column: "last_public_status_id", index: "idx_requests_last_public_status" },
   { table: "mappings", column: "professional_id", index: "idx_mappings_professional" },

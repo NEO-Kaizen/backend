@@ -95,7 +95,8 @@ Opcionalmente estende uma conta de `users` (1:1).
   payload.
 - `corporate_email` tem unicidade case-insensitive (`uk_requesters_email_ci`,
   sobre `lower(corporate_email)`); a aplicação normaliza para lowercase antes
-  de gravar/consultar.
+  de gravar/consultar. `uk_requesters_email` foi mantido para as buscas exatas
+  pela coluna, que não usam o índice de expressão.
 
 ## Tabela `categories`
 

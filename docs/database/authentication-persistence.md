@@ -129,6 +129,9 @@ Cada usuário possui um identificador único, um e-mail utilizado para identific
 - `email` não pode ser nulo;
 - `email` deve possuir valor único, inclusive ignorando caixa
   (`uk_users_email_ci`, sobre `lower(email)`);
+- `users_email_unique` foi mantido de propósito: a unicidade simples já é
+  implicada pelo índice `lower(email)`, mas é ele que atende `WHERE email = $1`
+  no login (o índice de expressão não serve para busca exata pela coluna);
 - `password_hash` não pode ser nulo;
 - `profile_id` não pode ser nulo;
 - `profile_id` referencia `profiles.profile_id`;

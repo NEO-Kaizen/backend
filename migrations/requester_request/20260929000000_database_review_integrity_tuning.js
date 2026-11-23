@@ -78,7 +78,10 @@ export async function up(knex) {
   `);
 
   // Preflight: `VALIDATE` abortaria a migration se uma base já contiver valor
-  // fora do domínio; falhar aqui dá uma mensagem acionável.
+  // fora do domínio; falhar aqui dá uma mensagem acionável. `change_origin` não
+  // tem índice, então a consulta faz um seq scan em `audit_history`: é uma
+  // leitura com ACCESS SHARE (não bloqueia escrita), mas pode ser lenta em
+  // tabelas grandes. Aplicar em janela de manutenção.
   await assertDomain(
     knex,
     "audit_history",
