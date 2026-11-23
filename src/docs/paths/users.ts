@@ -355,7 +355,7 @@ export default {
         },
         "400": {
           description:
-            "Perfil inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível.",
+            "Perfil inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível (`professional_profile_not_assignable`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -521,10 +521,11 @@ export default {
           },
         },
         "400": {
-          description: "Payload inválido.",
+          description:
+            "Payload inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível (`professional_profile_not_assignable`).",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
             },
           },
         },
