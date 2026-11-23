@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
-import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
-import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
+import { buildZodFieldErrors } from "../../shared/validation/zodErrors.ts";
+import { permissionActorFromRequest } from "../../shared/access/requestAccess.ts";
 import {
   changeProfileStatusSchema,
   createProfileSchema,
@@ -23,22 +23,15 @@ function idParam(req: Request): string {
   return parsed.data.id;
 }
 
-/** Ator da sessão — id do token e conjunto efetivo resolvido pelo gate de chave. */
+/**
+ * Ator da sessão — id do token e conjunto efetivo resolvido pelo gate de chave.
+ * Reutiliza o helper compartilhado: sem a lista de Permissões carregada, a
+ * operação é recusada (403) em vez de seguir com um conjunto vazio.
+ */
 function actorOf(req: Request): service.ProfileActor {
-  if (!req.user) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
+  const actor = permissionActorFromRequest(req);
 
-  const userId = Number(req.user.id);
-
-  if (!Number.isInteger(userId)) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
-
-  // Fail-closed: sem a lista do gate, nenhuma concessão passaria na escalação.
-  const permissions: readonly EffectivePermission[] = req.permissions ?? [];
-
-  return { userId, permissions };
+  return { userId: actor.id, permissions: actor.permissions };
 }
 
 export const listProfiles = async (_req: Request, res: Response): Promise<Response> => {
@@ -83,7 +76,8 @@ export const changeProfileStatus = async (req: Request, res: Response): Promise<
   const parsed = changeProfileStatusSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    throw new AppError(formatZodIssues(parsed.error), 400);
+    const { message, fields } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
   }
 
   const updated = await service.changeProfileStatus(
