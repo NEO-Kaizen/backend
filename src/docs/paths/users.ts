@@ -283,7 +283,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Dados profissionais opcionais. Só podem ser enviados para Perfil com flag de Atribuibilidade; a extensão é criada automaticamente para Perfis atribuíveis.",
+                    "Conteúdo opcional da Extensão de profissional. Só pode ser enviado para Perfil com flag de Atribuibilidade; a extensão é criada automaticamente para Perfis atribuíveis.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {
@@ -351,7 +351,7 @@ export default {
         },
         "400": {
           description:
-            "Perfil inválido ou dados profissionais enviados para Perfil não atribuível.",
+            "Perfil inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -488,7 +488,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Dados profissionais — permitidos apenas para Perfil com flag de Atribuibilidade.",
+                    "Conteúdo da Extensão de profissional — permitido apenas para Perfil com flag de Atribuibilidade.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {

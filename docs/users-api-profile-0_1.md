@@ -42,7 +42,7 @@ export interface RequesterProfileBlock {
   additionalContact: string | null; // máx. 100 caracteres (telefone, ramal ou e-mail secundário)
 }
 
-// Bloco de dados profissionais somente leitura no "Meus dados" (apenas analista).
+// Bloco da Extensão de profissional, somente leitura no "Meus dados".
 export interface ProfessionalProfileBlock {
   jobTitle: string | null; // máx. 100 caracteres
   specialties: string[]; // array de especialidades (máx. 100 caracteres cada)
@@ -63,7 +63,7 @@ export interface UpdateProfilePayload {
   removeAvatar?: boolean; // true → remove foto atual
 }
 
-// Campos não declarados são recusados. E-mail, perfil e dados profissionais
+// Campos não declarados são recusados. E-mail, Perfil e Extensão de profissional
 // são administrados fora do self-service. Área, departamento e gestor só são
 // aceitos quando o próprio usuário autenticado tem a permissão `user:manage`.
 
@@ -178,7 +178,7 @@ HTTP/1.1 200 OK
 }
 ```
 
-**Exemplo real** — usuário de Perfil atribuível sem dados profissionais (legado, sem linha em `details_professional`):
+**Exemplo real** — usuário de Perfil atribuível sem conteúdo na Extensão de profissional (legado, sem linha em `details_professional`):
 
 ```json
 HTTP/1.1 200 OK

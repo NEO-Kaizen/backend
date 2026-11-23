@@ -8,7 +8,7 @@ import {
 } from "../../shared/validation/fieldSchemas.ts";
 
 /**
- * Dados opcionais da extensão profissional. A presença da extensão é definida
+ * Conteúdo opcional da Extensão de profissional. Sua presença é definida
  * pelo Perfil e pelas flags de Atribuibilidade, não pelo nome do Perfil.
  */
 export const professionalSchema = z.object({

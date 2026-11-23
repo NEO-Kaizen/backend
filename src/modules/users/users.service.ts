@@ -20,6 +20,7 @@ import type { Knex } from "knex";
 import type {
   ChangeUserStatusRequest,
   CreateUserRequest,
+  CreateProfessionalInput,
   ListUsersQuery,
   UpdateUserRequest,
 } from "../DTOs/users/UserRequests.dto.ts";
@@ -48,6 +49,30 @@ const CODE_ROOT_ACCOUNT_PROTECTED = "root_account_protected";
 const CODE_SELF_MANAGEMENT_FORBIDDEN = "self_management_forbidden";
 const CODE_PROFILE_INACTIVE = "profile_inactive";
 const CODE_USER_MANAGE_REQUIRED = "user_manage_required";
+
+function shouldCreateProfessionalExtension(
+  profile: Pick<repository.ProfileLookupRow, "is_assignable_triage" | "is_assignable_mapping">,
+): boolean {
+  return profile.is_assignable_triage || profile.is_assignable_mapping;
+}
+
+/** Verifica o conteúdo opcional e informa se a conta precisa da extensão. */
+function resolveProfessionalExtensionRequirement(
+  profile: Pick<repository.ProfileLookupRow, "is_assignable_triage" | "is_assignable_mapping">,
+  professional?: CreateProfessionalInput,
+): boolean {
+  const shouldCreateExtension = shouldCreateProfessionalExtension(profile);
+
+  if (professional !== undefined && !shouldCreateExtension) {
+    throw new AppError(
+      "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
+      400,
+      "professional_profile_not_assignable",
+    );
+  }
+
+  return shouldCreateExtension;
+}
 
 /**
  * Ator da matriz de contas — as Permissões vêm do gate (`req.permissions`).
@@ -249,15 +274,10 @@ export async function createUser(
         throwRootAccountProtected();
       }
 
-      const shouldHaveProfessionalExtension =
-        currentProfile.is_assignable_triage || currentProfile.is_assignable_mapping;
-      if (payload.professional !== undefined && !shouldHaveProfessionalExtension) {
-        throw new AppError(
-          "Dados profissionais só podem ser informados para Perfis atribuíveis.",
-          400,
-          "professional_profile_not_assignable",
-        );
-      }
+      const shouldHaveProfessionalExtension = resolveProfessionalExtensionRequirement(
+        currentProfile,
+        payload.professional,
+      );
 
       const created = await repository.createUser(
         trx,
@@ -267,7 +287,7 @@ export async function createUser(
       );
 
       // A extensão é definida pelas flags do Perfil, nunca pelo nome. A linha
-      // nasce na mesma transação da conta, mesmo sem dados profissionais opcionais.
+      // nasce na mesma transação da conta, mesmo sem conteúdo adicional opcional.
       if (shouldHaveProfessionalExtension) {
         await repository.createProfessionalData(trx, created.user_id, payload.professional);
       }
@@ -461,7 +481,7 @@ export async function getUser(rawId: string): Promise<UserProfileResponseDTO> {
 /**
  * `PUT /users/me` — `fullName`, `additionalContact` e avatar são
  * autoeditáveis. Quem tem `user:manage` também pode editar os próprios dados
- * administrativos de requester. Dados profissionais continuam pertencendo ao
+ * administrativos de requester. A Extensão de profissional continua pertencendo ao
  * fluxo administrativo em `PUT /users/:id`.
  */
 export async function updateMyProfile(
@@ -650,15 +670,10 @@ export async function updateUser(
           CODE_PROFILE_INACTIVE,
         );
       }
-      const shouldHaveProfessionalExtension =
-        destinationProfile.is_assignable_triage || destinationProfile.is_assignable_mapping;
-      if (payload.professional !== undefined && !shouldHaveProfessionalExtension) {
-        throw new AppError(
-          "Dados profissionais só podem ser informados para Perfis atribuíveis.",
-          400,
-          "professional_profile_not_assignable",
-        );
-      }
+      const shouldHaveProfessionalExtension = resolveProfessionalExtensionRequirement(
+        destinationProfile,
+        payload.professional,
+      );
 
       // 1. Campos básicos users (merge)
       await repository.updateUserFields(trx, id, {

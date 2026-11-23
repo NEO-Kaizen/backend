@@ -19,7 +19,7 @@ export interface RequesterProfileBlock {
   additionalContact: string | null;
 }
 
-/** Bloco de dados profissionais administrado pelo Admin (apenas analista). */
+/** Dados da Extensão de profissional, administrados em `PUT /users/:id`. */
 export interface ProfessionalProfileBlock {
   jobTitle: string | null;
   specialties: string[];

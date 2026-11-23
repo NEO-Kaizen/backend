@@ -3,6 +3,6 @@ export const ROLES = ["Solicitante", "Analista", "Gestor", "Administrador", "Adm
 /** Perfis customizados também chegam às respostas e ao token como nome legível. */
 export type Role = (typeof ROLES)[number] | (string & {});
 
-export function isRole(value: string): value is Role {
+export function isNonBlankRoleName(value: string): boolean {
   return value.trim().length > 0;
 }

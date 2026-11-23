@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 import { AppError } from "../errors/AppError.ts";
-import { isRole, type Role } from "../types/role.ts";
+import { isNonBlankRoleName, type Role } from "../types/role.ts";
 import Config from "../../configs.ts";
 
 const { sign, verify } = jwt;
@@ -46,7 +46,7 @@ export function verifyToken(token: string): TokenPayload {
     typeof decoded.role !== "string" ||
     typeof decoded.password_changed_at !== "number" ||
     Number.isNaN(decoded.password_changed_at) ||
-    !isRole(decoded.role)
+    !isNonBlankRoleName(decoded.role)
   ) {
     throw new AppError("Token inválido", 401);
   }

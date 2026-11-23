@@ -122,7 +122,7 @@ export async function createProfessionalData(
   });
 }
 
-/** Cria a extensão se ausente, sem sobrescrever dados profissionais existentes. */
+/** Cria a extensão se ausente, sem sobrescrever seu conteúdo existente. */
 export async function ensureProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
   await trx("details_professional").insert({ user_id: userId }).onConflict("user_id").ignore();
 }

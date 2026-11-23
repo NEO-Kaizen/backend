@@ -1,5 +1,5 @@
 export interface CreateProfessionalInput {
-  /** Cargo profissional (`job_title` → `specialty` no diretório). */
+  /** Cargo da Extensão de profissional (`job_title` → `specialty` no diretório). */
   jobTitle: string;
   /** Especialidades (vira `specialties`, texto separado por vírgula). */
   specialties: string[];
