@@ -87,7 +87,12 @@ async function requireRequestCustody<T>(
   canAccess: (request: T) => boolean,
   deniedPermissionKeys: readonly PermissionKey[],
 ): Promise<T> {
-  if (request === null || request === undefined || !canAccess(request)) {
+  if (request === null || request === undefined) {
+    // Recurso inexistente não é recusa de Permissão: nenhuma chave vai para a trilha.
+    return denyRequestAccess(protocol, actor.id, ipAddress, detail);
+  }
+
+  if (!canAccess(request)) {
     return denyRequestAccess(protocol, actor.id, ipAddress, detail, deniedPermissionKeys);
   }
 

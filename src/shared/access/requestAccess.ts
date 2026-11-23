@@ -151,11 +151,12 @@ export async function requireResponsibleCustody<T>(
   detail: string,
   responsibleId: (request: T) => number | null | undefined,
 ): Promise<T> {
-  if (
-    request === null ||
-    request === undefined ||
-    !hasResponsibleCustody(actor, key, responsibleId(request))
-  ) {
+  if (request === null || request === undefined) {
+    // Recurso inexistente não é recusa de Permissão: nenhuma chave vai para a trilha.
+    return denyRequestAccess(protocol, actor.id, ipAddress, detail);
+  }
+
+  if (!hasResponsibleCustody(actor, key, responsibleId(request))) {
     return denyRequestAccess(protocol, actor.id, ipAddress, detail, [key]);
   }
 

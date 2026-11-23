@@ -63,7 +63,12 @@ async function requireRequestAccess(
 ): Promise<string> {
   const request = await repository.findRequestIdByProtocol(protocol);
 
-  if (!request || !hasResponsibleCustody(actor, key, request.responsible_user_id)) {
+  if (!request) {
+    // Recurso inexistente não é recusa de Permissão: nenhuma chave vai para a trilha.
+    return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`);
+  }
+
+  if (!hasResponsibleCustody(actor, key, request.responsible_user_id)) {
     return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`, [key]);
   }
 

@@ -64,7 +64,7 @@ export const AuditHistoryDetail = {
       items: { type: "string" },
       example: ["request:read"],
       description:
-        "Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no gate ou presentes sem Custódia suficiente na linha. Vazio nas demais ações — a chave que autorizou não é registrada.",
+        "Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha. Vazio nas demais ações — a chave que autorizou não é registrada.",
     },
     occurred_at: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
   },

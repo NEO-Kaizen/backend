@@ -12,7 +12,7 @@ export interface AccessDeniedAttempt {
   readonly ipAddress?: string;
   /**
    * Chaves de Permissão avaliadas na recusa: ausentes no gate ou presentes sem
-   * Custódia suficiente na linha. Vazio quando a recusa não é de Permissão.
+   * o vínculo suficiente (Custódia ou Posse) na linha. Vazio quando a recusa não é de Permissão.
    */
   readonly deniedPermissionKeys?: readonly PermissionKey[];
 }

@@ -79,8 +79,8 @@ export interface AuditHistoryDetail {
   ip_address: string | null; // IP do ator no momento do evento
   change_origin: string | null;
   // Chaves de Permissão avaliadas na recusa (*.access_denied): ausentes no
-  // gate ou presentes sem Custódia suficiente na linha. Vazio nas demais
-  // ações; a chave que autorizou não é registrada.
+  // gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha.
+  // Vazio nas demais ações; a chave que autorizou não é registrada.
   denied_permission_keys: string[];
   occurred_at: string; // ISO datetime
 }

@@ -25,8 +25,8 @@ export interface AuditEntryBase {
   changeOrigin?: string | null;
   /**
    * Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no
-   * gate ou presentes sem Custódia suficiente na linha. Vazio nas demais
-   * ações: a chave que **autorizou** não é registrada.
+   * gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha.
+   * Vazio nas demais ações: a chave que **autorizou** não é registrada.
    */
   deniedPermissionKeys?: readonly PermissionKey[];
 }

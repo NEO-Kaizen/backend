@@ -94,9 +94,7 @@ export async function createPendingItems(
 ): Promise<{ batchId: string; requestAttachment: boolean; items: PendingItem[] }> {
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) {
-    return denyRequestAccess(protocol, actor.id, ip, "pending_item:write sem solicitação", [
-      "pending_item:write",
-    ]);
+    return denyRequestAccess(protocol, actor.id, ip, "pending_item:write sem solicitação");
   }
   if (!hasResponsibleCustody(actor, "pending_item:write", request.responsible_user_id)) {
     return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:write sem custódia", [
@@ -248,9 +246,7 @@ async function requireReadableRequest(
   if (caller.user) {
     const actor = permissionActorFromRequest(caller);
     if (!request) {
-      return denyRequestAccess(protocol, actor.id, ip, "pending_item:read sem solicitação", [
-        "pending_item:read",
-      ]);
+      return denyRequestAccess(protocol, actor.id, ip, "pending_item:read sem solicitação");
     }
 
     const canReadAssigned = hasResponsibleCustody(
@@ -292,9 +288,7 @@ async function requireOwnedRequest(
   if (caller.user) {
     const actor = permissionActorFromRequest(caller);
     if (!request) {
-      return denyRequestAccess(protocol, actor.id, ip, `${detail} sem solicitação`, [
-        "pending_item:respond",
-      ]);
+      return denyRequestAccess(protocol, actor.id, ip, `${detail} sem solicitação`);
     }
     if (!isRequesterOf(request, actor)) {
       return denyRequestAccess(request.protocol, actor.id, ip, detail, ["pending_item:respond"]);
@@ -549,9 +543,7 @@ export async function reviewPendingItems(
 ): Promise<{ batchId: string; items: PendingItem[] }> {
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) {
-    return denyRequestAccess(protocol, actor.id, ip, "pending_item:review sem solicitação", [
-      "pending_item:review",
-    ]);
+    return denyRequestAccess(protocol, actor.id, ip, "pending_item:review sem solicitação");
   }
   if (!hasResponsibleCustody(actor, "pending_item:review", request.responsible_user_id)) {
     return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:review sem custódia", [
