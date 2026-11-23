@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { FIELD_KEY_SET, getFieldSnapshot } from "../../shared/catalog/fieldCatalog.ts";
+import { getFieldSnapshot, isFieldKey, type FieldKey } from "../../shared/catalog/fieldCatalog.ts";
 import * as repo from "./pendingItems.repository.ts";
 import type { PendingItemInsert, ReviewDecisionInput } from "./pendingItems.repository.ts";
 import type {
@@ -8,8 +8,8 @@ import type {
   CreatePendingItemsBody,
   ListPendingItemsResponse,
   ReviewPendingItemsBody,
-  InternalRequestRow,
 } from "../DTOs/pendingItems/PendingItems.dto.ts";
+import type { InternalRequestRow } from "../../shared/types/requests.ts";
 import { findInternalRequestByProtocol } from "../requests/requests.repository.ts";
 import type { RequestStatus } from "../../shared/types/requests.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
@@ -17,6 +17,7 @@ import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts"
 import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
+import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
@@ -24,6 +25,23 @@ const PENDING_INFO_STATUS: RequestStatus = "Pendente de informações";
 
 function normalizeSummaryFieldKey(fieldKey: string): string {
   return fieldKey.trim();
+}
+
+function parsePendingFieldValue(value: unknown): PendingFieldValue {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (typeof parsed !== "object" || parsed === null) {
+        return parsed as PendingFieldValue;
+      }
+    } catch {
+      // mantém string
+    }
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  return null;
 }
 
 async function buildPendingItems(
@@ -48,29 +66,10 @@ async function buildPendingItems(
       canDownload: false,
     }));
 
-    let currentValue = base.field?.currentValue ?? null;
-    if (currentValue !== null && typeof currentValue === "string") {
-      try {
-        const parsed = JSON.parse(currentValue as unknown as string);
-        if (typeof parsed !== "object" || parsed === null)
-          currentValue = parsed as string | number | boolean | null;
-      } catch {
-        // mantém string
-      }
-    }
+    const currentValue = parsePendingFieldValue(base.field?.currentValue ?? null);
     if (base.field) base.field.currentValue = currentValue;
 
-    let corrected = base.correctedValue;
-    if (corrected !== null && typeof corrected === "string") {
-      try {
-        const parsed = JSON.parse(corrected as unknown as string);
-        if (typeof parsed !== "object" || parsed === null)
-          corrected = parsed as string | number | boolean | null;
-      } catch {
-        // mantém string
-      }
-    }
-    base.correctedValue = corrected;
+    base.correctedValue = parsePendingFieldValue(base.correctedValue);
 
     result.push({ ...base, responseAttachments: attachments });
   }
@@ -103,17 +102,16 @@ export async function createPendingItems(
     throw new AppError("Campos inválidos: observation — Máximo de 2.000 caracteres.", 400);
   }
 
+  const validatedItems: Array<{ item: (typeof items)[number]; fieldKey: FieldKey }> = [];
   let internalRow: InternalRequestRow | null = null;
   if (hasItems) {
-    const raw = (await findInternalRequestByProtocol(
-      protocol,
-    )) as unknown as InternalRequestRow | null;
+    const raw = await findInternalRequestByProtocol(protocol);
     if (!raw) throw new AppError("Solicitação não encontrada", 404);
     internalRow = raw;
 
     for (const item of items) {
       const fieldKey = normalizeSummaryFieldKey(item.fieldKey);
-      if (!FIELD_KEY_SET.has(fieldKey)) {
+      if (!isFieldKey(fieldKey)) {
         throw new AppError(`Campos inválidos: fieldKey — ${fieldKey} não está no catálogo`, 400);
       }
       if (!item.comment || item.comment.trim().length === 0) {
@@ -131,6 +129,7 @@ export async function createPendingItems(
           400,
         );
       }
+      validatedItems.push({ item, fieldKey });
     }
   }
 
@@ -154,8 +153,7 @@ export async function createPendingItems(
       created_by: actor.email,
     });
   }
-  for (const item of items) {
-    const fieldKey = normalizeSummaryFieldKey(item.fieldKey);
+  for (const { item, fieldKey } of validatedItems) {
     const snapshot = internalRow
       ? getFieldSnapshot(fieldKey, internalRow)
       : { label: fieldKey, value: null };
@@ -192,8 +190,9 @@ export type PendingCaller = {
 };
 
 /**
- * Criar/revisar exige Administrador ou o assignee atual (contrato 03 §3,
- * mesma regra do botão "Editar" / `canTriage`). Gestor é read-only.
+ * Criar/revisar exige Administrador ou o assignee atual (regras em
+ * `docs/rules/pending-items.md`, mesma regra do botão "Editar" / `canTriage`).
+ * Gestor é read-only.
  */
 async function assertCanCreateOrReview(
   requestId: string,

@@ -13,9 +13,11 @@ solicitante, tabelas de referência, solicitação, pendências, anexos,
 preferências de horário, mapeamentos, triagens e observações internas, com seus
 relacionamentos, restrições, índices e decisões de modelagem.
 
-O inventário completo e os achados da revisão estão em
-[`schema-review-130.md`](schema-review-130.md). A fonte de verdade do schema é o
-diretório `migrations/`.
+As regras de negócio que orientam esta modelagem estão em
+[`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md); o contrato HTTP está em
+[`src/docs/`](../../src/docs/). O inventário completo e os achados da revisão
+estão em [`schema-review-130.md`](schema-review-130.md). A fonte de verdade do
+schema é o diretório `migrations/`.
 
 ## Visão geral do modelo
 
@@ -113,10 +115,13 @@ Tabela de referência administrável pelo módulo de configurações.
 
 ## Tabela `statuses`
 
-Matriz de status do fluxo, evoluída para o motor v4
-(`20260924000000_add_status_engine_v4_columns.js` +
-`20260926000000_complete_status_transition_v4.js`). O conjunto canônico final é
-o dos 17 status de referência (IDs 1–17).
+Armazena o catálogo de Status do Motor v4. Apenas parte dos Status é pública
+(`is_public = true`); os 17 valores semeados são a referência base, não uma
+lista fechada. A semântica das flags e modos (`is_core`, `is_public`,
+`is_terminal`, `is_restricted`, `triage_mode`, `mapping_mode`) está em
+[`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md); esta
+seção descreve apenas o schema. O default de `is_active` passou a `true` na
+revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
 
 | Campo           | Tipo         | Obrigatório | Restrição / Default                   | Finalidade                           |
 | --------------- | ------------ | ----------- | ------------------------------------- | ------------------------------------ |
@@ -133,13 +138,59 @@ o dos 17 status de referência (IDs 1–17).
 | `mapping_mode`  | ENUM         | Sim         | `status_mapping_mode`; DEFAULT `none` | Como se relaciona ao mapeamento      |
 | `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                         | Visível ao solicitante               |
 
-- `order_number` é único e `DEFERRABLE INITIALLY DEFERRED` para permitir a
-  renumeração atômica do `PATCH /portal-config/statuses`.
+| Campo           | Tipo         | Obrigatório | Restrição / Default                          | Finalidade                    |
+| --------------- | ------------ | ----------- | -------------------------------------------- | ----------------------------- |
+| `status_id`     | INTEGER      | Sim         | Primary Key, auto increment                  | Identificador estável (1..50) |
+| `order_number`  | INTEGER      | Sim         | UNIQUE (`uk_statuses_order`)                 | Ordem de exibição             |
+| `name`          | VARCHAR(100) | Sim         | UNIQUE (`uk_statuses_name`)                  | Nome do Status                |
+| `description`   | TEXT         | Não         | NULL permitido                               | Descrição do Status           |
+| `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                                | Núcleo imutável               |
+| `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                                | Nome visível ao solicitante   |
+| `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                                | Encerra a solicitação         |
+| `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                                | Só Administrador define       |
+| `triage_mode`   | ENUM         | Sim         | `none`/`free`/`conclusion_only`              | Alvo da fase de triagem       |
+| `mapping_mode`  | ENUM         | Sim         | `none`/`free`/`conclusion_only`              | Alvo da fase de mapeamento    |
+| `tone`          | ENUM         | Sim         | `error`/`success`/`info`/`warning`/`neutral` | Tom visual                    |
+| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE                                 | Participa de novos fluxos     |
+
+### Restrições
+
+- `order_number` e `name` são únicos e obrigatórios; `order_number` é
+  `DEFERRABLE INITIALLY DEFERRED` para permitir a renumeração atômica do
+  `PATCH /portal-config/statuses`.
+- Status core (`1, 3, 4, 6, 7, 16, 17`) não podem ser removidos, renomeados,
+  desativados nem ter flags/modos alterados;
+- o `CHECK` de `entity_type` da auditoria é independente deste catálogo.
 - O enum `status_tone` usa `error | success | info | warning | neutral`;
   `status_triage_mode`/`status_mapping_mode` usam
   `none | free | conclusion_only`.
 - As colunas legadas `is_final`, `is_triage_exit`, `closes_request` e
   `visibility` foram removidas pelo motor v4.
+
+Valores semeados (referência, não invariante):
+
+| id  | Nome                        | Core | Público | Terminal | triageMode      | mappingMode     | Restrito |
+| --- | --------------------------- | ---- | ------- | -------- | --------------- | --------------- | -------- |
+| 1   | Solicitação enviada         | sim  | sim     | não      | none            | none            | não      |
+| 2   | Aguardando triagem          | não  | sim     | não      | none            | none            | não      |
+| 3   | Em triagem                  | sim  | sim     | não      | free            | none            | não      |
+| 4   | Pendente de informações     | sim  | sim     | não      | free            | free            | não      |
+| 5   | Aguardando mapeamento       | não  | sim     | não      | conclusion_only | none            | não      |
+| 6   | Mapeamento agendado         | sim  | não     | não      | none            | conclusion_only | não      |
+| 7   | Em mapeamento               | sim  | sim     | não      | none            | free            | não      |
+| 8   | Em análise de viabilidade   | não  | não     | não      | free            | free            | não      |
+| 9   | Elegível                    | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 10  | Não elegível                | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 11  | Priorizado                  | não  | não     | não      | none            | none            | sim      |
+| 12  | Backlog                     | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 13  | Direcionado para outra área | não  | não     | não      | conclusion_only | conclusion_only | não      |
+| 14  | Em desenvolvimento          | não  | não     | não      | free            | none            | não      |
+| 15  | Em homologação              | não  | não     | não      | free            | none            | não      |
+| 16  | Concluído                   | sim  | sim     | sim      | conclusion_only | conclusion_only | não      |
+| 17  | Cancelado                   | sim  | sim     | sim      | conclusion_only | conclusion_only | não      |
+
+As regras de transição estão em
+[`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
 
 ## Tabela `priorities`
 
@@ -174,9 +225,28 @@ vêm de `users`, nunca desta tabela.
 | `capacity`              | INTEGER      | Sim         | DEFAULT 5                                   | Capacidade de atendimento     |
 | `notes`                 | TEXT         | Não         | NULL permitido                              | Observações internas          |
 
-Elegibilidade para atribuição: `status = 'active'` **e** `users.is_active`
-**e** perfil `analista`/`gestor` (ver
-`docs/requests-assignment-contract.md`).
+| Campo                   | Tipo         | Obrigatório | Restrição / Default                     | Finalidade                        |
+| ----------------------- | ------------ | ----------- | --------------------------------------- | --------------------------------- |
+| `professional_id`       | UUID         | Sim         | Primary Key, `gen_random_uuid()`        | Identificador do responsável      |
+| `user_id`               | INTEGER      | Sim         | NOT NULL; UNIQUE; FK `users.user_id`    | Usuário do sistema correspondente |
+| `job_title`             | VARCHAR(100) | Não         | NULL permitido                          | Cargo/função (não é o perfil)     |
+| `specialties`           | TEXT         | Não         | NULL permitido                          | Especialidades                    |
+| `attended_category_ids` | TEXT         | Não         | NULL permitido                          | Categorias atendidas              |
+| `status`                | ENUM         | Sim         | `active` / `inactive`; DEFAULT `active` | Está na rotação de atribuição     |
+| `capacity`              | INTEGER      | Sim         | DEFAULT 5                               | Capacidade de atendimento         |
+| `notes`                 | TEXT         | Não         | NULL permitido                          | Observações internas              |
+
+### Restrições
+
+- `user_id` referencia `users.user_id` com `ON DELETE RESTRICT` e é `UNIQUE`
+  (`uk_details_professional_user`) — garante o 1:1;
+- `status` usa o tipo nativo `professional_status` com valor padrão `active`.
+  É independente de `users.is_active`: um analista em licença fica `inactive`
+  aqui e continua logando;
+- índice em `status` (`idx_details_professional_status`).
+
+Atribuibilidade (ver `docs/rules/assignment.md`):
+`status = 'active'` **e** `users.is_active` **e** perfil `analista`.
 
 ## Tabela `requests`
 
@@ -263,8 +333,8 @@ responsabilidade da aplicação.
 
 ## Tabela `pending_items`
 
-Pendências por campo abertas por analistas durante a triagem, no contrato
-`requested → responded → validated` (ver `docs/contract-pendencias_03.md`).
+Armazena pendências por campo/observação. As regras de ciclo de vida estão em
+[`docs/rules/pending-items.md`](../rules/pending-items.md).
 
 | Campo                | Tipo         | Obrigatório | Restrição / Default                                      | Finalidade                        |
 | -------------------- | ------------ | ----------- | -------------------------------------------------------- | --------------------------------- |
@@ -287,6 +357,11 @@ Pendências por campo abertas por analistas durante a triagem, no contrato
 | `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                              | Criação                           |
 | `description`        | TEXT         | Sim         | NOT NULL                                                 | **Legado** — espelho de `comment` |
 
+- `request_id` referencia `requests.request_id` com `ON DELETE CASCADE`;
+- `type` usa o tipo nativo `pending_item_type`;
+- `status` usa o tipo nativo `pending_item_status` com valor padrão
+  `requested`;
+- `batch_id` + `request_attachment` são uniformes no lote;
 - Índices: `idx_pending_items_status`, `_request_status`, `_batch`. O índice
   simples `idx_pending_items_request` foi removido na revisão #130 (prefixo já
   coberto por `_request_status`).
@@ -459,10 +534,10 @@ Checkpoint de leitura por usuário (uma linha por solicitação/usuário).
 
 ## Protocolo
 
-O identificador público de rastreio é o **protocolo** (`protocol VARCHAR(25)`,
-`UNIQUE`, `NOT NULL`). Ele é **não enumerável** e derivado do `request_id`
-interno por FPE/Feistel (ex.: `MAAT-8K3P-9X2M`), conforme o contrato
-(`docs/solicitations-api-requests-0_4.md`).
+O identificador público de rastreio é o **protocolo**, uma coluna de texto
+(`protocol VARCHAR(25)`, `UNIQUE`, `NOT NULL`). Ele é **não enumerável** e
+derivado do `request_id` interno por FPE/Feistel (ex.: `MAAT-8K3P-9X2M`),
+conforme as regras em [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
 
 - `request_id` é gerado pela sequence `requests_request_seq`;
 - a aplicação pré-aloca o `request_id` com `nextval`, calcula o código FPE e o
@@ -481,36 +556,75 @@ interno por FPE/Feistel (ex.: `MAAT-8K3P-9X2M`), conforme o contrato
   `requesters`. A coincidência de e-mail entre conta e snapshot é invariante da
   aplicação, não do banco.
 - **`created_by` com o e-mail do solicitante:** no `POST /requests` público não
-  há usuário autenticado; a coluna guarda o e-mail normalizado (por isso 254).
-- **Categorias, status e prioridades como referência:** normalizam os domínios e
-  viabilizam o CRUD de configurações.
-- **`request_id` sequencial + protocolo FPE:** proteção contra varredura
-  sequencial (IDOR).
-- **Obrigatoriedade e limites espelhados no banco:** campos obrigatórios são
-  `NOT NULL` e limites viram `VARCHAR`.
-- **`YesNoDetail` como flag + detalhe:** uma flag booleana e uma coluna de
-  detalhe.
-- **Preferências de horário em tabela filha:** cada horário é uma linha, com
-  `ON DELETE CASCADE`.
-- **Prioridade nula até a triagem:** `priority_id` é nullable.
+  há usuário autenticado; a coluna guarda o e-mail normalizado do solicitante
+  (por isso foi alargada para `VARCHAR(254)`).
+- **Vínculo com a conta autenticada (`requester_user_id`):** a solicitação criada
+  por usuário autenticado referencia `users.user_id` (coluna anulável, issue #53).
+  O snapshot público dos dados continua em `requesters`; a conta é a propriedade
+  verificável. Qualquer perfil pode solicitar (`solicitante`, `analista`,
+  `gestor`, `administrador`) — não há restrição de perfil no banco. A
+  coincidência de e-mail entre conta e snapshot é invariante da aplicação, não do
+  banco. Não há `UNIQUE`: um usuário pode possuir múltiplas solicitações.
+- **Exclusão de usuário:** `requester_user_id` usa `ON DELETE SET NULL` — apagar
+  a conta preserva a solicitação e a rastreabilidade (`requesters` + `created_by`
+  continuam), mesmo padrão de `professional_id` e `system_settings.updated_by`.
+- **Categorias, status e prioridades como referência:** normalizam os domínios
+  `category`, `status` e `priority` e viabilizam o CRUD de configurações.
+- **`request_id` sequencial + protocolo FPE:** o identificador interno é
+  sequencial e o protocolo público é não enumerável, atendendo à proteção
+  contra varredura sequencial (IDOR).
+- **Obrigatoriedade e limites espelhados no banco:** os campos obrigatórios do
+  contrato são `NOT NULL` e os limites de caracteres são refletidos em
+  `VARCHAR`, conforme os blocos descritos em [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
+- **`YesNoDetail` como flag + detalhe:** a resposta "Sim/Não (+ detalhamento)"
+  vira duas colunas; o detalhe é a própria resposta positiva.
+- **Preferências de horário em tabela filha:** `schedulePreferences` é uma lista;
+  cada horário vira uma linha, com `ON DELETE CASCADE`.
+- **Prioridade nula até a triagem:** `priority_id` é nullable até o processo de
+  priorização preencher o nível.
 - **Triagem versionada:** `triages` guarda o snapshot imutável; o estado atual
   não é sobrescrito.
 - **Mapeamento com histórico:** `mappings` é 1:N por solicitação, com no máximo
   um aberto (índice único parcial).
 - **Participantes internos/externos:** `mapping_participants.user_id` é
-  opcional; externos exigem nome e e-mail (CHECK).
+  opcional; externos exigem nome e e-mail (CHECK). Desde a revisão #130 a FK
+  interna usa `ON DELETE RESTRICT` para não perder a proveniência do participante.
 - **Observações internas imutáveis:** `request_internal_notes` não é editada;
   correções viram novas notas. O checkpoint de leitura é por usuário.
 - **Auditoria append-only:** `audit_history` tem trigger que impede UPDATE/DELETE
   (`20260923000001_add_audit_history_append_only_guard.js`).
-- **Ambiente:** PostgreSQL 18 em Docker (`postgres:18-alpine`).
+- **Exclusão de anexos:** `attachments.request_id` usa `ON DELETE CASCADE`
+  (anexo não existe sem o pedido), enquanto a referência a `pending_items` usa
+  `ON DELETE SET NULL`.
+- **Ambiente:** o banco de desenvolvimento usa PostgreSQL 18 em Docker
+  (`postgres:18-alpine`, conforme o `README.md`). O schema utiliza `gen_random_uuid()`
+  e enums nativos, disponíveis na versão.
+
+## Fora do escopo
+
+Não fazem parte desta Issue:
+
+- geração do protocolo FPE/Feistel (issue própria);
+- validação de payload, limites e partes `multipart/form-data`;
+- endpoints de cadastro, listagem, consulta e edição de solicitações;
+- tabelas e regras de triagem, priorização, fila, auditoria e a modelagem
+  completa do mapeamento (duração, modalidade, local, participantes,
+  confirmação); a migration `202609100014` adiciona apenas os campos mínimos
+  de reunião (`meeting_scheduled_for`, `meeting_link`) exigidos pelo painel
+  público de acompanhamento;
+- implementação automática de `updated_at`;
+- normalização de `attended_category_ids`;
+- padronização do vocabulário de `TriageResult` nos campos de triagem.
 
 ## Migrations
 
 A estrutura é controlada por migrations do Knex, em três diretórios:
 `migrations/` (autenticação, configuração e auditoria),
 `migrations/requester_request/` (domínio de solicitações) e
-`migrations/users/`. O `knexfile.js` carrega os três e ordena por timestamp.
+`migrations/users/`. O `knexfile.js` carrega os três e ordena por timestamp. A
+lista abaixo é o núcleo inicial; migrations posteriores de status, pendências,
+anexos e auditoria vivem em `migrations/requester_request/` e prevalecem sobre
+esta fotografia. Ordem do núcleo:
 
 Marcos relevantes do domínio:
 

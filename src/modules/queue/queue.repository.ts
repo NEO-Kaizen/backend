@@ -1,8 +1,25 @@
 import db from "../../database/conection.ts";
-import { IN_PROGRESS_STATUSES, TERMINAL_STATUSES } from "../../shared/types/requests.ts";
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
 import { applyQueueFilters } from "./queue.filters.ts";
+
+/**
+ * Status que contam como "em andamento" nas métricas da fila (Home/Fila).
+ *
+ * TODO: esta lista inclui status não-core — 8 (`Em análise de viabilidade`),
+ * 14 (`Em desenvolvimento`) e 15 (`Em homologação`) — e compara por nome, então
+ * renomear/desativar/repurposar um deles altera a métrica silenciosamente.
+ * Substituir por uma flag `is_in_progress` na tabela `statuses` (decisão de
+ * produto) e remover esta constante. Até lá, a lista fica local à consulta para
+ * não virar contrato compartilhado.
+ */
+const IN_PROGRESS_STATUS_NAMES = [
+  "Em triagem",
+  "Em mapeamento",
+  "Em análise de viabilidade",
+  "Em desenvolvimento",
+  "Em homologação",
+] as const;
 
 export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMetricsResponse> => {
   const query = db("requests").leftJoin("statuses as s", "s.status_id", "requests.status_id");
@@ -37,14 +54,13 @@ export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMet
         'COUNT(CASE WHEN requests.professional_id IS NULL THEN 1 END)::int as "unassignedRequests"',
       ),
       db.raw(
-        `COUNT(CASE WHEN s.name IN (${IN_PROGRESS_STATUSES.map(() => "?").join(",")}) THEN 1 END)::int as "inProgressRequests"`,
-        [...IN_PROGRESS_STATUSES],
+        `COUNT(CASE WHEN s.name IN (${IN_PROGRESS_STATUS_NAMES.map(() => "?").join(",")}) THEN 1 END)::int as "inProgressRequests"`,
+        [...IN_PROGRESS_STATUS_NAMES],
       ),
       // Atrasadas: prazo (`date`) já vencido — vence hoje ainda não é atraso —
-      // e status não terminal (sem entrega concluída/cancelada).
+      // e status não terminal (flag do catálogo v4).
       db.raw(
-        `COUNT(CASE WHEN requests.desired_deadline < CURRENT_DATE AND s.name NOT IN (${TERMINAL_STATUSES.map(() => "?").join(",")}) THEN 1 END)::int as "overdueRequests"`,
-        [...TERMINAL_STATUSES],
+        'COUNT(CASE WHEN requests.desired_deadline < CURRENT_DATE AND s.is_terminal = FALSE THEN 1 END)::int as "overdueRequests"',
       ),
     )
     .first();
@@ -90,7 +106,7 @@ export const findQueueRequests = async (
       "requests.process_name as processName",
       "priority_tbl.level as priority",
       "status.name as status",
-      // Expor user_id como assigneeId para contract-assign-action.md (frontend usa user_id)
+      // Expor user_id como assigneeId conforme `docs/rules/assignment.md` (frontend usa user_id)
       db.raw('assignee_user.user_id::text as "assigneeId"'),
       "assignee_user.full_name as assignee",
       "requester.full_name as requesterName",

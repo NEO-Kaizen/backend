@@ -19,6 +19,7 @@ import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { ASSIGNABLE_PROFILES } from "../requests/requests.repository.ts";
 import { applyStatusTransition } from "../requests/statusTransition.ts";
+import { STATUS_IDS } from "../../shared/types/status.ts";
 import type {
   MappingActor,
   MappingAssignee,
@@ -89,7 +90,7 @@ function participantId(userId: number | null): string | null {
   return userId !== null ? String(userId) : null;
 }
 
-/** Designado serializado para a resposta (`userId` para a comparação do contrato §9). */
+/** Designado serializado para a resposta (`userId` para a comparação de `docs/rules/assignment.md`). */
 function toMappingAssignee(
   candidate: repository.MappingAssigneeCandidate | null,
 ): MappingAssignee | null {
@@ -342,7 +343,8 @@ export const upsertMappingService = async (
 
     // Priorizado (isRestricted) bloqueia o PUT de qualquer perfil — inclusive
     // Admin/designado → movimentação de/r para Priorizado só via `PATCH /status`
-    // (delta v4 §3.2: "Priorizado só via override").
+    // (ver `docs/rules/requests-lifecycle.md`, seção Restrição e status
+    // terminal: "Priorizado só via override").
     if (context.is_restricted) {
       await recordMappingAccessDenied(context.protocol, actor.id, "demanda priorizada", ipAddress);
       throw new AppError(
@@ -372,9 +374,10 @@ export const upsertMappingService = async (
 
     const previousProfessionalId = mapping ? mapping.professional_id : null;
 
-    // Autorização — dois vínculos distintos (contrato §9):
-    // - Designação (`mappingAssigneeId` presente): responsável da solicitação
-    //   (dono pode delegar) ou Admin; o designado atual também pode (re)designar.
+    // Autorização — dois vínculos distintos (ver `docs/rules/assignment.md`):
+    // - Designação (`mappingAssigneeId` presente): o Responsável pela
+    //   solicitação (Custódia) delega a outro profissional, o designado atual
+    //   também pode (re)designar e o Admin sempre pode.
     // - Campos do mapeamento (com ou sem designação): o designado ATUAL ou Admin.
     //   Criação sem designação herda o responsável — o próprio responsável pode
     //   criar (ele será o designado efetivo).
@@ -497,7 +500,7 @@ export const upsertMappingService = async (
           "Validação falhou",
         );
       }
-      if (target.status_id !== 6) {
+      if (target.status_id !== STATUS_IDS.mappingScheduled) {
         if (payload.justification === undefined) {
           throw new ValidationError(
             {
@@ -530,7 +533,7 @@ export const upsertMappingService = async (
     }
 
     const resolvedParticipants =
-      concluding && concludeTarget?.status_id !== 6
+      concluding && concludeTarget?.status_id !== STATUS_IDS.mappingScheduled
         ? []
         : payload.participants !== undefined
           ? await resolveParticipants(trx, payload.participants)
@@ -549,7 +552,9 @@ export const upsertMappingService = async (
         values,
         targetStatus: concludeTarget?.status_id ?? null,
         justification:
-          concludeTarget && concludeTarget.status_id !== 6 ? payload.justification : null,
+          concludeTarget && concludeTarget.status_id !== STATUS_IDS.mappingScheduled
+            ? payload.justification
+            : null,
         lastTechnicalMessage: concludeTarget?.isPublic ? payload.lastTechnicalMessage : null,
         createdBy: actor.email,
       });
@@ -563,7 +568,9 @@ export const upsertMappingService = async (
       concluding,
       designationAction ? effectiveProfessionalId : undefined,
       concludeTarget?.status_id ?? null,
-      concludeTarget && concludeTarget.status_id !== 6 ? payload.justification : null,
+      concludeTarget && concludeTarget.status_id !== STATUS_IDS.mappingScheduled
+        ? payload.justification
+        : null,
       concludeTarget?.isPublic ? payload.lastTechnicalMessage : null,
     );
 
@@ -586,7 +593,10 @@ export const upsertMappingService = async (
       ...values,
       mappingAssigneeId: effectiveProfessionalId,
       targetStatus: concludeTarget?.status_id ?? mapping?.target_status_id ?? null,
-      justification: concludeTarget?.status_id === 6 ? null : (payload.justification ?? null),
+      justification:
+        concludeTarget?.status_id === STATUS_IDS.mappingScheduled
+          ? null
+          : (payload.justification ?? null),
       lastTechnicalMessage: concludeTarget?.isPublic
         ? (payload.lastTechnicalMessage ?? null)
         : null,
@@ -632,8 +642,10 @@ export const upsertMappingService = async (
       await trx("requests")
         .where({ request_id: context.request_id })
         .update({
-          meeting_scheduled_for: concludeTarget.status_id === 6 ? values.scheduledFor : null,
-          meeting_link: concludeTarget.status_id === 6 ? values.meetingLink : null,
+          meeting_scheduled_for:
+            concludeTarget.status_id === STATUS_IDS.mappingScheduled ? values.scheduledFor : null,
+          meeting_link:
+            concludeTarget.status_id === STATUS_IDS.mappingScheduled ? values.meetingLink : null,
           last_external_update_at: trx.fn.now(),
         });
 
@@ -646,7 +658,10 @@ export const upsertMappingService = async (
         newValue: concludeTarget.name,
         // `note` = justificativa interna (id 6 não exige); o retorno público
         // vira snapshot dedicado apenas quando o destino é público.
-        note: concludeTarget.status_id === 6 ? null : (payload.justification ?? null),
+        note:
+          concludeTarget.status_id === STATUS_IDS.mappingScheduled
+            ? null
+            : (payload.justification ?? null),
         lastTechnicalMessage: concludeTarget.isPublic
           ? (payload.lastTechnicalMessage ?? null)
           : null,
@@ -657,7 +672,10 @@ export const upsertMappingService = async (
       // Liberação automática do designado quando o mapeamento é concluído de
       // fato (`targetStatus !== 6`) — agendar (6) mantém o designado. Evento só
       // quando havia vínculo: `mapping.assign` com `newValue: null` = remoção.
-      if (concludeTarget.status_id !== 6 && context.mapping_professional_id !== null) {
+      if (
+        concludeTarget.status_id !== STATUS_IDS.mappingScheduled &&
+        context.mapping_professional_id !== null
+      ) {
         await repository.clearRequestMappingAssignee(trx, context.request_id, actor.email);
         await recordAudit(trx, {
           entityType: "mapping",

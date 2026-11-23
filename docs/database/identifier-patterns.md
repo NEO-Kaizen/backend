@@ -81,6 +81,7 @@ auditoria "coringa".
 | `triages`                           | `triage_id`                  | `uuid`               | aplicação              | 1                      |
 | `request_internal_notes`            | `internal_note_id`           | `bigserial` (bigint) | `bigIncrements()`      | 2                      |
 | `request_internal_note_read_states` | (`request_id`, `user_id`)    | `bigint` + `int`     | chave composta         | 2 (agregado interno)   |
+| `notifications`                     | `notification_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
 
 ## Decisão aplicada: `mappings`
 

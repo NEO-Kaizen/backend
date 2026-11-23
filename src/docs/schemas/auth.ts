@@ -1,15 +1,15 @@
 export const AuthenticatedUser = {
   type: "object",
-  required: ["id", "email", "name", "role", "mustChangePassword"],
+  required: ["id", "name", "email", "avatarUrl", "role", "mustChangePassword"],
   properties: {
     id: { type: "string", example: "101" },
-    email: { type: "string", example: "administrador_teste@email.com" },
-    name: { type: "string", example: "administrador" },
+    name: { type: "string", example: "Administrador Teste" },
+    email: { type: "string", format: "email", example: "administrador_teste@email.com" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
     role: {
       type: "string",
-      enum: ["solicitante", "analista", "gestor", "administrador"],
-      example: "administrador",
+      enum: ["Solicitante", "Analista", "Gestor", "Administrador"],
+      example: "Administrador",
     },
     mustChangePassword: { type: "boolean", example: false },
   },
@@ -18,6 +18,7 @@ export const AuthenticatedUser = {
 export const LoginRequest = {
   type: "object",
   required: ["email", "password"],
+  additionalProperties: false,
   properties: {
     email: { type: "string", format: "email", example: "administrador_teste@email.com" },
     password: { type: "string", format: "password", example: "steste123" },
@@ -25,16 +26,7 @@ export const LoginRequest = {
 };
 
 export const LoginResponse = {
-  type: "object",
-  allOf: [
-    { $ref: "#/components/schemas/AuthenticatedUser" },
-    {
-      type: "object",
-      properties: {
-        // cookie definido automaticamente pelo servidor (HttpOnly)
-      },
-    },
-  ],
+  $ref: "#/components/schemas/AuthenticatedUser",
 };
 
 export const LogoutResponse = {
@@ -48,6 +40,7 @@ export const LogoutResponse = {
 export const ChangePasswordRequest = {
   type: "object",
   required: ["currentPassword", "newPassword", "confirmNewPassword"],
+  additionalProperties: false,
   properties: {
     currentPassword: { type: "string", format: "password" },
     newPassword: { type: "string", format: "password" },
@@ -56,6 +49,5 @@ export const ChangePasswordRequest = {
 };
 
 export const ChangePasswordResponse = {
-  type: "object",
-  allOf: [{ $ref: "#/components/schemas/AuthenticatedUser" }],
+  $ref: "#/components/schemas/AuthenticatedUser",
 };
