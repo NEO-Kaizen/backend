@@ -1795,7 +1795,7 @@ interface RequestInsertReturning {
 }
 ```
 
-#### L345 â€” interface RequestSummaryRow
+#### L344 â€” interface RequestSummaryRow
 
 ```ts
 interface RequestSummaryRow {
@@ -1809,7 +1809,7 @@ interface RequestSummaryRow {
 }
 ```
 
-#### L425 â€” interface RequestWithOwner
+#### L424 â€” interface RequestWithOwner
 
 ```ts
 export interface RequestWithOwner {
@@ -1818,7 +1818,7 @@ export interface RequestWithOwner {
 }
 ```
 
-#### L497 â€” interface RequestAttachmentRow
+#### L496 â€” interface RequestAttachmentRow
 
 ```ts
 export interface RequestAttachmentRow {
@@ -1829,7 +1829,7 @@ export interface RequestAttachmentRow {
 }
 ```
 
-#### L505 â€” interface SchedulePreferenceRow
+#### L504 â€” interface SchedulePreferenceRow
 
 ```ts
 export interface SchedulePreferenceRow {
@@ -1837,7 +1837,7 @@ export interface SchedulePreferenceRow {
 }
 ```
 
-#### L817 â€” interface RequestStatusContext
+#### L816 â€” interface RequestStatusContext
 
 ```ts
 export interface RequestStatusContext {
@@ -1856,7 +1856,7 @@ export interface RequestStatusContext {
 }
 ```
 
-#### L833 â€” interface RequestStatusTarget
+#### L832 â€” interface RequestStatusTarget
 
 ```ts
 export interface RequestStatusTarget {
@@ -4108,23 +4108,23 @@ interface GroupedIssues {
 - L455 â€” variÃ¡vel: `statusId`
 - L481 â€” parÃ¢metro: `trx`
 - L481 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L518 â€” parÃ¢metro: `trx`
-- L518 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L525 â€” variÃ¡vel: `hasReopen`
-- L527 â€” variÃ¡vel: `dec`
-- L528 â€” variÃ¡vel: `row`
-- L532 â€” variÃ¡vel: `currentStatus`
-- L578 â€” variÃ¡vel: `nextStatusName`
-- L580 â€” variÃ¡vel: `statusId`
-- L597 â€” parÃ¢metro: `d`
-- L597 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L619 â€” variÃ¡vel: `col`
-- L621 â€” variÃ¡vel: `v`
-- L625 â€” variÃ¡vel: `requesterRow`
-- L647 â€” variÃ¡vel: `col`
-- L650 â€” variÃ¡vel: `category`
-- L693 â€” variÃ¡vel: `col`
-- L720 â€” variÃ¡vel: `entry`
+- L517 â€” parÃ¢metro: `trx`
+- L517 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L524 â€” variÃ¡vel: `hasReopen`
+- L526 â€” variÃ¡vel: `dec`
+- L527 â€” variÃ¡vel: `row`
+- L531 â€” variÃ¡vel: `currentStatus`
+- L577 â€” variÃ¡vel: `nextStatusName`
+- L579 â€” variÃ¡vel: `statusId`
+- L596 â€” parÃ¢metro: `d`
+- L596 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L618 â€” variÃ¡vel: `col`
+- L620 â€” variÃ¡vel: `v`
+- L624 â€” variÃ¡vel: `requesterRow`
+- L646 â€” variÃ¡vel: `col`
+- L649 â€” variÃ¡vel: `category`
+- L692 â€” variÃ¡vel: `col`
+- L719 â€” variÃ¡vel: `entry`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
@@ -4837,47 +4837,47 @@ interface GroupedIssues {
 - L270 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L289 â€” parÃ¢metro: `attachment`
 - L289 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L307 â€” parÃ¢metro: `trx`
-- L307 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L308 â€” variÃ¡vel: `categoryId`
-- L314 â€” variÃ¡vel: `statusId`
-- L315 â€” variÃ¡vel: `requesterId`
-- L316 â€” variÃ¡vel: `saved`
-- L325 â€” variÃ¡vel: `email`
-- L340 â€” variÃ¡vel: `row`
-- L355 â€” variÃ¡vel: `PUBLIC_STATUS_SUMMARY_SQL`
-- L358 â€” retorno da funÃ§Ã£o: `baseSummaryQuery()`
-- L375 â€” parÃ¢metro: `builder`
-- L375 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L385 â€” variÃ¡vel: `countRows`
-- L391 â€” variÃ¡vel: `total`
-- L393 â€” variÃ¡vel: `rows`
-- L408 â€” parÃ¢metro: `row`
-- L408 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L433 â€” variÃ¡vel: `response`
-- L465 â€” variÃ¡vel: `meetingScheduledFor`
-- L467 â€” variÃ¡vel: `meeting`
-- L471 â€” variÃ¡vel: `openedAt`
-- L512 â€” variÃ¡vel: `hasMapping`
-- L514 â€” variÃ¡vel: `query`
-- L542 â€” variÃ¡vel: `baseSelect`
-- L609 â€” variÃ¡vel: `mappingSelect`
-- L653 â€” variÃ¡vel: `row`
-- L666 â€” variÃ¡vel: `ASSIGNABLE_PROFILES`
-- L689 â€” variÃ¡vel: `numericId`
-- L734 â€” variÃ¡vel: `hasMapping`
-- L750 â€” variÃ¡vel: `query`
-- L761 â€” variÃ¡vel: `row`
-- L805 â€” variÃ¡vel: `statusId`
-- L847 â€” variÃ¡vel: `hasMappingColumn`
-- L864 â€” variÃ¡vel: `query`
-- L875 â€” variÃ¡vel: `row`
-- L900 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L959 â€” variÃ¡vel: `manualControls`
-- L960 â€” variÃ¡vel: `processDocumentation`
-- L961 â€” variÃ¡vel: `similarSolution`
-- L962 â€” variÃ¡vel: `otherAreas`
-- L963 â€” variÃ¡vel: `restrictedInfo`
+- L306 â€” parÃ¢metro: `trx`
+- L306 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L307 â€” variÃ¡vel: `categoryId`
+- L313 â€” variÃ¡vel: `statusId`
+- L314 â€” variÃ¡vel: `requesterId`
+- L315 â€” variÃ¡vel: `saved`
+- L324 â€” variÃ¡vel: `email`
+- L339 â€” variÃ¡vel: `row`
+- L354 â€” variÃ¡vel: `PUBLIC_STATUS_SUMMARY_SQL`
+- L357 â€” retorno da funÃ§Ã£o: `baseSummaryQuery()`
+- L374 â€” parÃ¢metro: `builder`
+- L374 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L384 â€” variÃ¡vel: `countRows`
+- L390 â€” variÃ¡vel: `total`
+- L392 â€” variÃ¡vel: `rows`
+- L407 â€” parÃ¢metro: `row`
+- L407 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L432 â€” variÃ¡vel: `response`
+- L464 â€” variÃ¡vel: `meetingScheduledFor`
+- L466 â€” variÃ¡vel: `meeting`
+- L470 â€” variÃ¡vel: `openedAt`
+- L511 â€” variÃ¡vel: `hasMapping`
+- L513 â€” variÃ¡vel: `query`
+- L541 â€” variÃ¡vel: `baseSelect`
+- L608 â€” variÃ¡vel: `mappingSelect`
+- L652 â€” variÃ¡vel: `row`
+- L665 â€” variÃ¡vel: `ASSIGNABLE_PROFILES`
+- L688 â€” variÃ¡vel: `numericId`
+- L733 â€” variÃ¡vel: `hasMapping`
+- L749 â€” variÃ¡vel: `query`
+- L760 â€” variÃ¡vel: `row`
+- L804 â€” variÃ¡vel: `statusId`
+- L846 â€” variÃ¡vel: `hasMappingColumn`
+- L863 â€” variÃ¡vel: `query`
+- L874 â€” variÃ¡vel: `row`
+- L899 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L958 â€” variÃ¡vel: `manualControls`
+- L959 â€” variÃ¡vel: `processDocumentation`
+- L960 â€” variÃ¡vel: `similarSolution`
+- L961 â€” variÃ¡vel: `otherAreas`
+- L962 â€” variÃ¡vel: `restrictedInfo`
 
 ### [src/modules/requests/requests.router.ts](../src/modules/requests/requests.router.ts)
 
@@ -5650,8 +5650,8 @@ interface GroupedIssues {
 - L304 â€” variÃ¡vel: `row`
 - L309 â€” variÃ¡vel: `row`
 - L440 â€” variÃ¡vel: `requiresAttachment`
-- L625 â€” variÃ¡vel: `requesterRow`
-- L650 â€” variÃ¡vel: `category`
+- L624 â€” variÃ¡vel: `requesterRow`
+- L649 â€” variÃ¡vel: `category`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
@@ -5690,11 +5690,11 @@ interface GroupedIssues {
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
 - L125 â€” variÃ¡vel: `row`
-- L340 â€” variÃ¡vel: `row`
-- L433 â€” variÃ¡vel: `response`
-- L653 â€” variÃ¡vel: `row`
-- L761 â€” variÃ¡vel: `row`
-- L875 â€” variÃ¡vel: `row`
+- L339 â€” variÃ¡vel: `row`
+- L432 â€” variÃ¡vel: `response`
+- L652 â€” variÃ¡vel: `row`
+- L760 â€” variÃ¡vel: `row`
+- L874 â€” variÃ¡vel: `row`
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
