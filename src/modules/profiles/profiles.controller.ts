@@ -28,7 +28,7 @@ function idParam(req: Request): string {
  * Reutiliza o helper compartilhado: sem a lista de Permissões carregada, a
  * operação é recusada (403) em vez de seguir com um conjunto vazio.
  */
-function actorOf(req: Request): service.ProfileActor {
+function requireProfileActor(req: Request): service.ProfileActor {
   const actor = permissionActorFromRequest(req);
 
   return { userId: actor.id, permissions: actor.permissions };
@@ -54,7 +54,7 @@ export const createProfile = async (req: Request, res: Response): Promise<Respon
     throw new ValidationError(fields, message);
   }
 
-  const created = await service.createProfile(parsed.data, actorOf(req), req.ip);
+  const created = await service.createProfile(parsed.data, requireProfileActor(req), req.ip);
 
   return res.status(201).json(created);
 };
@@ -67,7 +67,12 @@ export const updateProfile = async (req: Request, res: Response): Promise<Respon
     throw new ValidationError(fields, message);
   }
 
-  const updated = await service.updateProfile(idParam(req), parsed.data, actorOf(req), req.ip);
+  const updated = await service.updateProfile(
+    idParam(req),
+    parsed.data,
+    requireProfileActor(req),
+    req.ip,
+  );
 
   return res.status(200).json(updated);
 };
@@ -83,7 +88,7 @@ export const changeProfileStatus = async (req: Request, res: Response): Promise<
   const updated = await service.changeProfileStatus(
     idParam(req),
     parsed.data,
-    actorOf(req),
+    requireProfileActor(req),
     req.ip,
   );
 
@@ -98,7 +103,12 @@ export const duplicateProfile = async (req: Request, res: Response): Promise<Res
     throw new ValidationError(fields, message);
   }
 
-  const created = await service.duplicateProfile(idParam(req), parsed.data, actorOf(req), req.ip);
+  const created = await service.duplicateProfile(
+    idParam(req),
+    parsed.data,
+    requireProfileActor(req),
+    req.ip,
+  );
 
   return res.status(201).json(created);
 };

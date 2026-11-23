@@ -1,7 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import {
   isUniqueViolation,
-  uniqueViolationConstraint,
+  getUniqueViolationConstraint,
 } from "../../shared/errors/databaseErrors.ts";
 import db from "../../database/conection.ts";
 import {
@@ -67,11 +67,11 @@ async function runProfileWrite<T>(
   try {
     return await operation();
   } catch (error) {
-    const nameConflict =
+    const hasNameConflict =
       isUniqueViolation(error) &&
-      PROFILE_NAME_CONSTRAINTS.has(uniqueViolationConstraint(error) ?? "");
+      PROFILE_NAME_CONSTRAINTS.has(getUniqueViolationConstraint(error) ?? "");
 
-    if (nameConflict) {
+    if (hasNameConflict) {
       throw new AppError(conflictMessage, 400, "profile_name_taken");
     }
 

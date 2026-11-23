@@ -17,7 +17,8 @@ const validationErrorResponse = (description: string) => ({
 });
 
 /** Códigos estáveis lançados nas recusas, no formato do envelope `ErrorResponse`. */
-const errorCodes = (...codes: readonly string[]) => codes.map((code) => `\`${code}\``).join(", ");
+const formatErrorCodes = (...codes: readonly string[]) =>
+  codes.map((code) => `\`${code}\``).join(", ");
 
 /** Recusas de composição comuns à criação e à duplicação. */
 const COMPOSITION_ERROR_CODES = [
@@ -93,7 +94,7 @@ export default {
         },
         "400": errorResponse(
           "Composição inválida (chave, vínculo, dependência ou escalação) ou nome já usado por " +
-            `perfil ativo. Códigos: ${errorCodes(...CREATE_ERROR_CODES)}.`,
+            `perfil ativo. Códigos: ${formatErrorCodes(...CREATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),
@@ -182,7 +183,7 @@ export default {
           "Composição inválida, nome já usado por perfil ativo, remoção de chave de trabalho com " +
             "a flag de Atribuibilidade ligada, solicitações abertas atribuídas a usuários do " +
             "perfil, retirada de `profile:manage` do Perfil Admin Root ou flag no Perfil Admin " +
-            `Root. Códigos: ${errorCodes(...UPDATE_ERROR_CODES)}.`,
+            `Root. Códigos: ${formatErrorCodes(...UPDATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse(
@@ -229,7 +230,7 @@ export default {
         },
         "400": errorResponse(
           "Perfil com contas vinculadas, Perfil Admin Root ou nome em uso por outro perfil ativo. " +
-            `Códigos: ${errorCodes(...STATUS_ERROR_CODES)}.`,
+            `Códigos: ${formatErrorCodes(...STATUS_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),
@@ -271,7 +272,7 @@ export default {
         },
         "400": errorResponse(
           "Escalação de chave/vínculo, dependência, predicado de flag ou nome já usado por " +
-            `perfil ativo. Códigos: ${errorCodes(...CREATE_ERROR_CODES)}.`,
+            `perfil ativo. Códigos: ${formatErrorCodes(...CREATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),

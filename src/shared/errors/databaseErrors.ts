@@ -13,7 +13,7 @@ export function isUniqueViolation(error: unknown): boolean {
 }
 
 /** Nome da constraint/índice que a `unique_violation` violou, quando informado. */
-export function uniqueViolationConstraint(error: unknown): string | undefined {
+export function getUniqueViolationConstraint(error: unknown): string | undefined {
   return typeof error === "object" && error !== null
     ? (error as { constraint?: string }).constraint
     : undefined;

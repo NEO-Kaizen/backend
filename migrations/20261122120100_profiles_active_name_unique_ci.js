@@ -26,16 +26,16 @@ export async function down(knex) {
   // compartilham o nome: o `up` permite homônimos entre inativos, o `down` não.
   // Falhar antes de mexer no schema evita perder nome de Perfil e deixa claro
   // o que resolver; renomear as linhas aqui seria perda silenciosa de dado.
-  const homonym = await knex("profiles")
+  const firstDuplicateName = await knex("profiles")
     .select("name")
     .count("* as total")
     .groupBy("name")
     .havingRaw("count(*) > 1")
     .first();
 
-  if (homonym) {
+  if (firstDuplicateName) {
     throw new Error(
-      `Rollback bloqueado: o nome de Perfil "${homonym.name}" pertence a ${homonym.total} linhas. ` +
+      `Rollback bloqueado: o nome de Perfil "${firstDuplicateName.name}" pertence a ${firstDuplicateName.total} linhas. ` +
         "Renomeie os homônimos (inativos inclusive) antes de restaurar a unicidade global.",
     );
   }
