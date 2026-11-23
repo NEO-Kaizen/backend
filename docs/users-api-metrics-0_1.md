@@ -25,8 +25,8 @@ export interface UserMetricsResponse {
   active: number; // usuários com conta ativa (`is_active = true`)
   pending: number; // usuários com troca de senha pendente
   // (`must_change_password = true` — senha temporária / primeiro acesso)
-  admins: number; // usuários vinculados ao perfil `administrador`
-  // (`profiles.name = 'administrador'`)
+  admins: number; // usuários vinculados ao perfil `Administrador`
+  // (`lower(profiles.name) = 'administrador'`)
 }
 ```
 
@@ -128,7 +128,7 @@ HTTP/1.1 403 Forbidden
 
 - Valores de `total`/`active`/`pending`/`admins` são
   inteiros positivos; chaves em inglês/camelCase e dados de domínio em
-  português (`administrador` como nome do perfil), conforme convenção do
+  português (`Administrador` como nome do perfil), conforme convenção do
   projeto.
 - `pending` conta `must_change_password = true` **independentemente de
   `is_active`** — um usuário inativo com senha temporária continua pendente.
@@ -138,10 +138,9 @@ HTTP/1.1 403 Forbidden
   online em tempo real: o projeto não rastreia sessões abertas no banco. Se o
   produto exigir "online neste momento", é necessária uma modelagem própria
   (ex.: tabela de sessões/tokens) — fora deste contrato.
-- O filtro de `admins` usa o nome de perfil em minúsculas
-  (`profiles.name = 'administrador'`), consistente com o seed de perfis
-  (`solicitante`, `analista`, `administrador`, `gestor`). Perfis futuros com
-  outra caixa exigiriam normalização `LOWER()` — fora do escopo atual.
+- O filtro de `admins` normaliza `profiles.name` com `LOWER()`, para funcionar
+  com o rótulo de exibição `Administrador` e variações de caixa. A seed usa os
+  rótulos `Solicitante`, `Analista`, `Administrador` e `Gestor`.
 - O exemplo dos critérios de aceite da Issue #77 indica `admins: 1`
   (ilustrativo); o valor real pós-seed é **3** (users 102, 109 e 115). O
   contrato e as evidências usam os valores reais de banco como fonte da verdade.

@@ -1,11 +1,9 @@
-import type { Role } from "../../../shared/types/role.ts";
-
 /** Resposta de `GET /users/me` e `GET /users/:id` — perfil completo. */
 export interface UserProfileResponseDTO {
   id: string;
   fullName: string;
   email: string;
-  role: Role;
+  role: string;
   avatarUrl: string | null;
   requester: RequesterProfileBlock | null;
   professional: ProfessionalProfileBlock | null;

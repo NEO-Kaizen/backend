@@ -8,8 +8,8 @@ import {
 } from "../../shared/validation/fieldSchemas.ts";
 
 /**
- * Conteúdo opcional da Extensão de profissional. Sua presença é definida
- * pelo Perfil e pelas flags de Atribuibilidade, não pelo nome do Perfil.
+ * Conteúdo da Extensão de profissional de um usuário atribuível.
+ * `capacity` e `status` nascem dos defaults do schema (5 / "active").
  */
 export const professionalSchema = z.object({
   jobTitle: requiredString(100),
@@ -55,6 +55,10 @@ export const listUsersQuerySchema = z.object({
     .positive("Deve ser maior que zero.")
     .max(50, "Máximo de 50 itens por página.")
     .default(10),
+});
+
+export const listAssignableProfessionalsQuerySchema = z.object({
+  stage: z.enum(["triage", "mapping"]).default("triage"),
 });
 
 export const requesterPatchSchema = z.object({

@@ -118,38 +118,35 @@ export default {
       tags: ["Usuários"],
       summary: "Listar Responsáveis atribuíveis",
       description:
-        "Exige `assignee_directory:read`. Lista contas ativas com extensão profissional ativa cujo Perfil tem flag de Atribuibilidade e todas as chaves de trabalho de triagem ou mapeamento. Não depende do nome do Perfil.",
-      operationId: "listAnalysts",
+        "Exige `assignee_directory:read`. Lista contas ativas com extensão profissional ativa cujo Perfil tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. Não depende do nome do Perfil. Use `stage=triage` (padrão) ou `stage=mapping`.",
+      operationId: "listAssignableProfessionals",
       security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          in: "query",
+          name: "stage",
+          required: false,
+          schema: { type: "string", enum: ["triage", "mapping"], default: "triage" },
+          description: "Etapa da Atribuibilidade usada para filtrar os profissionais.",
+        },
+      ],
       responses: {
         "200": {
-          description: "Lista direta de Responsáveis atribuíveis, sem paginação.",
+          description: "Lista de profissionais atribuíveis.",
           content: {
             "application/json": {
               schema: {
                 type: "array",
-                items: {
-                  type: "object",
-                  required: [
-                    "id",
-                    "fullName",
-                    "email",
-                    "specialty",
-                    "categories",
-                    "notes",
-                    "requestLoad",
-                  ],
-                  properties: {
-                    id: { type: "string", example: "101" },
-                    fullName: { type: "string", example: "Maria Silva" },
-                    email: { type: "string", format: "email" },
-                    specialty: { type: "string", example: "Analista de Sistemas" },
-                    categories: { type: "array", items: { type: "string" } },
-                    notes: { type: "string", nullable: true },
-                    requestLoad: { type: "integer", nullable: true },
-                  },
-                },
+                items: { $ref: "#/components/schemas/AssignableProfessional" },
               },
+            },
+          },
+        },
+        "400": {
+          description: "Etapa inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
             },
           },
         },
@@ -162,7 +159,7 @@ export default {
           },
         },
         "403": {
-          description: "Ator sem `assignee_directory:read`.",
+          description: "Sem `assignee_directory:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -220,8 +217,18 @@ export default {
           content: {
             "application/json": {
               schema: {
-                type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                type: "object",
+                required: ["data", "page", "pageSize", "total", "totalPages"],
+                properties: {
+                  data: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/UserSummary" },
+                  },
+                  page: { type: "integer", example: 1 },
+                  pageSize: { type: "integer", example: 10 },
+                  total: { type: "integer", example: 25 },
+                  totalPages: { type: "integer", example: 3 },
+                },
               },
             },
           },
@@ -261,10 +268,7 @@ export default {
               properties: {
                 fullName: { type: "string", example: "Maria Silva" },
                 email: { type: "string", format: "email", example: "novo@email.com" },
-                role: {
-                  type: "string",
-                  example: "analista",
-                },
+                role: { type: "string", example: "Coordenador" },
                 requester: {
                   type: "object",
                   description: "Dados do solicitante — obrigatórios para todos os perfis.",
@@ -283,7 +287,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Conteúdo opcional da Extensão de profissional. Só pode ser enviado para Perfil com flag de Atribuibilidade; a extensão é criada automaticamente para Perfis atribuíveis.",
+                    "Conteúdo opcional da Extensão de profissional. Só pode ser enviado para Perfil atribuível; a extensão é criada automaticamente quando a conta recebe a flag.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {
@@ -308,7 +312,7 @@ export default {
                 value: {
                   fullName: "Maria Silva",
                   email: "maria.silva@empresa.com",
-                  role: "analista",
+                  role: "Analista",
                   requester: {
                     area: "TI",
                     department: "Desenvolvimento",
@@ -328,7 +332,7 @@ export default {
                 value: {
                   fullName: "Carlos Souza",
                   email: "carlos.souza@empresa.com",
-                  role: "solicitante",
+                  role: "Solicitante",
                   requester: {
                     area: "Administrativo",
                     manager: "Ana Paula",
@@ -345,7 +349,7 @@ export default {
           description: "Usuário criado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/CreateUserResponse" },
             },
           },
         },
@@ -414,7 +418,7 @@ export default {
           description: "Dados do usuário.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserProfileResponse" },
             },
           },
         },
@@ -468,9 +472,7 @@ export default {
               properties: {
                 email: { type: "string", format: "email" },
                 fullName: { type: "string" },
-                role: {
-                  type: "string",
-                },
+                role: { type: "string", example: "Coordenador" },
                 requester: {
                   type: "object",
                   description: "Dados do solicitante (área, departamento e gestor).",
@@ -488,7 +490,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Conteúdo da Extensão de profissional — permitido apenas para Perfil com flag de Atribuibilidade.",
+                    "Conteúdo da Extensão de profissional — permitido apenas para Perfis atribuíveis.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {
@@ -514,7 +516,7 @@ export default {
           description: "Usuário atualizado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserProfileResponse" },
             },
           },
         },
@@ -597,7 +599,7 @@ export default {
           description: "Status do usuário alterado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/ChangeUserStatusResponse" },
             },
           },
         },

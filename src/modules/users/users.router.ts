@@ -17,7 +17,7 @@ import {
 
 const usersRoutes = express.Router();
 
-// Diretório de Responsáveis: Perfil com flag + predicado, conta ativa e extensão.
+// Diretório de Responsáveis por etapa: flag + predicado, conta ativa e extensão.
 usersRoutes.get(
   "/analysts",
   authMiddleware,

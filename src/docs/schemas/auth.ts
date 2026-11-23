@@ -6,7 +6,7 @@ export const AuthenticatedUser = {
     email: { type: "string", example: "administrador_teste@email.com" },
     name: { type: "string", example: "administrador" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
-    role: { type: "string", example: "Coordenador" },
+    role: { type: "string", example: "Administrador" },
     mustChangePassword: { type: "boolean", example: false },
   },
 };

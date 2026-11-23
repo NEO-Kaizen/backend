@@ -10,21 +10,24 @@ Frontend `feat/82-2-assign-analyst` (QuickActions → Atribuir analista). O que 
 
 ### GET /users/analysts (rota legada)
 
-Lista Responsáveis para o modal. **Sem query e sem paginação** — retorna todos os profissionais atribuíveis, com filtros de busca apenas no front.
+Lista Responsáveis atribuíveis para o modal. Sem paginação; filtra pela etapa informada.
 
 ```http
-GET /users/analysts -> 200 AssignableProfessional[]
+GET /users/analysts?stage=triage -> 200 AssignableProfessional[]
+GET /users/analysts?stage=mapping -> 200 AssignableProfessional[]
 ```
 
-**Query:** nenhuma — backend retorna `AssignableProfessional[]` completo: conta e Perfil ativos, extensão ativa, e Perfil com flag de Atribuibilidade e predicado de chaves de trabalho para triagem ou mapeamento. O filtro não depende do nome do Perfil. A rota exige `assignee_directory:read`. `search` (nome/especialidade) e `category` são filtrados 100% no frontend (`AssignAction.svelte` com `normalize`).
+Exige sessão e `assignee_directory:read`. Retorna apenas contas ativas, com extensão profissional ativa, cujo Perfil ativo tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. A regra não depende do nome do Perfil.
+
+**Query:** `stage` aceita `triage` ou `mapping`; ausente equivale a `triage` para compatibilidade. O backend filtra pelos perfis ativos cuja flag e chaves de Atribuibilidade atendem à etapa solicitada. `search` (nome/especialidade) e `category` continuam filtrados 100% no frontend (`AssignAction.svelte` com `normalize`).
 
 **Resposta 200:**
 
 ```ts
-AssignableProfessional[] // lista direta, sem envelope paginado e sem query string
+AssignableProfessional[] // lista direta de profissionais atribuíveis à etapa, sem envelope paginado
 ```
 
-> `listUsers` (admin) continua `GET /users?profile=&search=&page=&pageSize=` paginado `PaginatedResponse<UserSummary>`; o serviço do diretório usa `GET /users/analysts` sem parâmetros.
+> `listUsers` (admin) continua `GET /users?profile=&search=&category=&page=&pageSize=` paginado `PaginatedResponse<UserSummary>`; `listAssignableProfessionals` (assignment.service) usa `GET /users/analysts?stage=...` (ou omite a etapa para Triagem).
 
 ```ts
 interface AssignableProfessional {
@@ -34,7 +37,7 @@ interface AssignableProfessional {
   specialty: string; // "" permitido → frontend oculta linha
   categories: RequestCategory[]; // [] permitido → sem chips
   notes: string | null; // null/vazio → sem bloco NOTAS
-  requestLoad: number | null; // null → sem coluna demandas
+  requestLoad: number; // zero quando não há solicitações atribuídas
 }
 type RequestCategory =
   | "Automação"
@@ -49,7 +52,7 @@ type RequestCategory =
   | "Outros";
 ```
 
-**Erros:** `401/403/500` → `{status:'error', statusCode, message}`.
+**Erros:** `400` para `stage` inválido, `401` sem sessão, `403` sem `assignee_directory:read`, `500` → `{status:'error', statusCode, message}`.
 
 **Exemplo (assignment — lista direta):**
 
@@ -61,7 +64,7 @@ type RequestCategory =
     "email": "rafael.alves@maat.com.br",
     "specialty": "Eletricista residencial",
     "categories": ["Apoio técnico", "Automação"],
-    "notes": "Disponível à tarde; já atuou nesta região.",
+    "notes": "Atende à tarde; já atuou nesta região.",
     "requestLoad": 6
   }
 ]
@@ -165,8 +168,8 @@ Cookie obrigatório. `GET /users/analysts` exige `assignee_directory:read`; `PAT
 
 ## Mocks (DEV)
 
-- `src/lib/mocks/users.mock.ts` — os mocks ainda simulam apenas o Perfil base Analista; o backend retorna qualquer Perfil que satisfaça Atribuibilidade. Filtros `search`/`category` são 100% no front (`AssignAction`)
-- `src/lib/api/user.api.ts` — `listUsers` (`GET /users?...` paginado) e `listAnalysts` (`GET /users/analysts` sem query) — `assignment.service` usa `listAnalysts()` sem argumentos
+- `src/lib/mocks/users.mock.ts` — `mockUsers` com 6 ativos + `listUsersMock` paginado (admin) e lista de profissionais atribuíveis por etapa (`AssignableProfessional[]` direto); filtros `search`/`category` são 100% no front (`AssignAction`)
+- `src/lib/api/user.api.ts` — `listUsers` (`GET /users?...` paginado) e `listAnalysts` (`GET /users/analysts?stage=...`; Triagem é o padrão compatível)
 - `src/lib/mocks/requests.mock.ts` — `mockInternalRequestDetails` com `assignee` e `mappingAssignee: null`, `assignAnalystMock(protocol, analystId, responsibility)` atualiza campo correto e `mockRequests` para `triagem`
 - `MOCK_DOMAINS.users` / `MOCK_DOMAINS.request` controlam mocks; em prod `dev===false` elimina branches (DCE)
 

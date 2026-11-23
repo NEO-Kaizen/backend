@@ -1,4 +1,3 @@
-import type { Role } from "../../../shared/types/role.ts";
 import type { RequestCategory } from "../../../shared/types/requests.ts";
 
 export interface UserSummary {
@@ -6,7 +5,7 @@ export interface UserSummary {
   fullName: string;
   email: string;
   avatarUrl: string | null;
-  profile: Role;
+  profile: string;
   isActive: boolean;
   mustChangePassword: boolean;
   createdAt: string;
@@ -19,16 +18,12 @@ export interface AssignableProfessional {
   specialty: string;
   categories: RequestCategory[];
   notes: string | null;
-  requestLoad: number | null;
+  requestLoad: number;
 }
 
-/** Aliases de compatibilidade para o endpoint legado `/users/analysts`. */
-export type AssignAnalyst = AssignableProfessional;
-export type Analyst = AssignableProfessional;
-
 export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {
-  /** Vocabulário de exibição — capitalizado (ex.: "Analista"). */
-  role: Role;
+  /** Nome de exibição do Perfil vigente. */
+  role: string;
   /** Exibida uma única vez — não recuperável depois. */
   temporaryPassword: string;
 }

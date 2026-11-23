@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { isProfileAssignable, type AssignabilityStage } from "../../shared/access/assignability.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
@@ -14,7 +15,6 @@ import Config from "../../configs.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { Knex } from "knex";
 import type {
@@ -226,8 +226,10 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   return repository.listUsers(query);
 }
 
-export async function listAssignableProfessionals(): Promise<AssignableProfessional[]> {
-  return repository.listAssignableProfessionals();
+export async function listAssignableProfessionals(
+  stage: AssignabilityStage,
+): Promise<AssignableProfessional[]> {
+  return repository.listAssignableProfessionals(stage);
 }
 
 export const getUserMetrics = async (): Promise<UserMetricsResponse> => {
@@ -253,6 +255,15 @@ export async function createUser(
   await assertProfileIsManageable(profile, actorAuthority);
 
   const profileId = profile.profile_id;
+  const isAssignable = await isProfileAssignable(profileId);
+  const professional = payload.professional;
+  if (!isAssignable && professional) {
+    throw new AppError(
+      "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
+      400,
+      "professional_profile_not_assignable",
+    );
+  }
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -287,7 +298,7 @@ export async function createUser(
       );
 
       // A extensão é definida pelas flags do Perfil, nunca pelo nome. A linha
-      // nasce na mesma transação da conta, mesmo sem conteúdo adicional opcional.
+      // nasce na mesma transação da conta.
       if (shouldHaveProfessionalExtension) {
         await repository.createProfessionalData(trx, created.user_id, payload.professional);
       }
@@ -323,7 +334,7 @@ export async function createUser(
     id: String(user.user_id),
     fullName: user.full_name,
     email: user.email,
-    role: resolveRole(payload.role),
+    role: profile.name,
     isActive: user.is_active,
     mustChangePassword: user.must_change_password,
     createdAt: user.created_at.toISOString(),
@@ -435,26 +446,9 @@ function toProfessionalBlock(
   };
 }
 
-function toAssignableProfessionalBlock(
-  row: repository.UserProfileRow,
-): ProfessionalProfileBlock | null {
-  if (!row.is_assignable_triage && !row.is_assignable_mapping) {
-    return null;
-  }
-
-  return (
-    toProfessionalBlock(row.professional) ?? {
-      jobTitle: null,
-      specialties: [],
-      attendedCategoryIds: [],
-      notes: null,
-    }
-  );
-}
-
 /**
  * `GET /users/me` — perfil completo do próprio usuário
- * (dados básicos + bloco requester + bloco professional atribuível + avatar).
+ * (dados básicos + bloco requester + Extensão de profissional atribuível + avatar).
  */
 export async function getMyProfile(userId: number): Promise<UserProfileResponseDTO> {
   const row = await repository.findUserProfile(userId);
@@ -462,14 +456,22 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     throw new AppError("Usuário não encontrado", 404);
   }
 
+  const isAssignable = await isProfileAssignable(row.profile_id);
+  // Usuário atribuível legado sem extensão recebe o bloco com
+  // defaults em vez de null, sem exigir migração de dados.
+  const professional: ProfessionalProfileBlock | null =
+    isAssignable && !row.professional
+      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
+      : toProfessionalBlock(row.professional);
+
   return {
     id: String(row.user_id),
     fullName: row.full_name,
     email: row.email,
-    role: resolveRole(row.profile_name),
+    role: row.profile_name,
     avatarUrl: row.avatar_url,
     requester: toRequesterBlock(row.requester),
-    professional: toAssignableProfessionalBlock(row),
+    professional,
   } satisfies UserProfileResponseDTO;
 }
 
@@ -650,6 +652,17 @@ export async function updateUser(
     }
   }
 
+  const wasAssignable = await isProfileAssignable(target.profile_id);
+  const isFinalAssignable =
+    newProfileId === undefined ? wasAssignable : await isProfileAssignable(newProfileId);
+
+  if (payload.professional !== undefined && !isFinalAssignable) {
+    throw new AppError(
+      "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
+      400,
+      "professional_profile_not_assignable",
+    );
+  }
   // Snapshot para auditoria
   const before = await repository.findUserProfile(id);
 
@@ -688,6 +701,8 @@ export async function updateUser(
       // 3. A extensão acompanha as flags do Perfil; dados enviados são merge.
       if (payload.professional !== undefined) {
         await repository.upsertProfessionalData(trx, id, payload.professional);
+      } else if (wasAssignable && !isFinalAssignable) {
+        await repository.deleteProfessionalData(trx, id);
       } else if (shouldHaveProfessionalExtension) {
         await repository.ensureProfessionalData(trx, id);
       }
@@ -726,13 +741,19 @@ export async function updateUser(
   if (!updated) {
     throw new AppError("Usuário não encontrado", 404);
   }
+  const isUpdatedProfileAssignable = await isProfileAssignable(updated.profile_id);
+  const professional =
+    isUpdatedProfileAssignable && !updated.professional
+      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
+      : toProfessionalBlock(updated.professional);
+
   return {
     id: String(updated.user_id),
     fullName: updated.full_name,
     email: updated.email,
-    role: resolveRole(updated.profile_name),
+    role: updated.profile_name,
     avatarUrl: updated.avatar_url,
     requester: toRequesterBlock(updated.requester),
-    professional: toAssignableProfessionalBlock(updated),
+    professional,
   } satisfies UserProfileResponseDTO;
 }

@@ -2,10 +2,12 @@ import { hashPassword } from "../../src/shared/utils/passwordHandler.ts";
 
 export async function seed(knex) {
   const profiles = await knex("profiles").select("profile_id", "name");
-  const profileIdByName = new Map(profiles.map((p) => [p.name, p.profile_id]));
+  const profileIdByName = new Map(
+    profiles.map((profile) => [profile.name.toLowerCase(), profile.profile_id]),
+  );
 
   const requireProfile = (name) => {
-    const id = profileIdByName.get(name);
+    const id = profileIdByName.get(name.toLowerCase());
     if (!id) throw new Error(`Perfil '${name}' não encontrado. Rode as migrations primeiro.`);
     return id;
   };

@@ -123,7 +123,7 @@ chaves/estruturas em inglês `camelCase`, valores de domínio (labels, statuses,
 | `TimelineItemType`                     | `note` \| `event`                                                                                           | este contrato §7 (D-N1)                                      | Backend |
 | `TimelineEventAction`                  | `request.assign` \| `request.reassign` \| `request.unassign` \| `request.status_change` \| `mapping.assign` | subconjunto de `auditCatalog.ts`, fixado em D-N4/D-N12/D-N15 | Backend |
 | `TimelineChangeOrigin`                 | `admin` \| `system` \| `internal`                                                                           | `audit_history.change_origin`                                | Backend |
-| `Role` (autor/ator)                    | `Solicitante` \| `Analista` \| `Gestor` \| `Administrador` \| `Admin Root`                                  | snapshot do Perfil (`shared/types/role.ts`)                  | Produto |
+| Nome do Perfil (autor/ator)            | qualquer nome presente em `profiles.name`                                                                   | snapshot do Perfil                                           | Produto |
 | `RequestStatus` (composição de `text`) | os status vigentes do portal                                                                                | mesmos nomes compostos em `text` de `request.status_change`  | Produto |
 
 > `TimelineEventAction` é **lista fechada**: ações fora dela são ignoradas na
@@ -175,7 +175,7 @@ interface TimelineNote {
   id: string; // internal_note_id (numérico) — usado no PUT /read
   content: string; // 1..4000 (trim), imutável
   createdAt: string; // ISO-8601 UTC
-  author: { id: string; name: string; role: Role };
+  author: { id: string; name: string; role: string };
 }
 
 interface TimelineEvent {
@@ -185,7 +185,7 @@ interface TimelineEvent {
   text: string; // frase completa já renderizada no BE, pt-BR (§8)
   // ex.: "Status alterado: Em triagem" · "Responsável removido"
   occurredAt: string; // ISO-8601 UTC (audit_history.occurred_at)
-  actor: { id: string; name: string; role: Role } | null; // null = usuário removido/inexistente
+  actor: { id: string; name: string; role: string } | null; // null = usuário removido/inexistente
   changeOrigin: TimelineChangeOrigin;
   // Opcionais e restritos a `request.status_change` (issue #124):
   justification?: string | null; // justificativa INTERNA (audit_history.note); nunca o retorno público

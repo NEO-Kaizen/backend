@@ -100,8 +100,9 @@ qualquer processamento. A chave é `custodial`:
 | Sessão sem `audit:read`            | `403` `"Acesso restrito à permissão audit:read"` |
 | Evento fora da Custódia `assigned` | `404` `"Log não encontrado"`                     |
 
-- O papel é resolvido do banco a cada request (`profiles.name` → `Role`);
-  troca de perfil passa a valer imediatamente, mesmo com cookie antigo.
+- O nome do Perfil vem do banco a cada request (`profiles.name`); a troca
+  passa a valer imediatamente, mesmo com cookie antigo. A autorização usa
+  Permissões e Custódia, não o nome.
 - Usuário com `must_change_password` pendente só acessa `PUT
 /auth/change-password` e `GET /auth/me` — qualquer outra rota responde `403`.
 - As respostas trafegam com `Cache-Control: private, no-store` — dados

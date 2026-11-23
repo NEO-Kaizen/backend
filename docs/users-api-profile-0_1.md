@@ -17,16 +17,12 @@ matriz de contas (RBAC § 4.2).
 ## Tipos compartilhados
 
 ```ts
-// O valor retornado em `role` é o nome legível do Perfil vigente,
-// incluindo Perfis customizados.
-export type Role = string;
-
 // Resposta de GET /users/me — perfil completo do próprio usuário.
 export interface UserProfileResponseDTO {
   id: string; // user_id como string
   fullName: string; // nome completo do usuário (autoeditável)
   email: string; // e-mail corporativo (imutável)
-  role: Role; // perfil resolvido (nome legível)
+  role: string; // nome real do Perfil em `profiles.name`
   avatarUrl: string | null; // URL da foto em /uploads/avatars/<arquivo> ou null
   requester: RequesterProfileBlock | null; // bloco de solicitante (nullable)
   professional: ProfessionalProfileBlock | null; // presente para Perfil com flag de Atribuibilidade
@@ -98,8 +94,8 @@ Os dois endpoints deste contrato respeitam `system_settings.solicitation_mode`
 
 ## 1. GET /users/me — Consultar perfil do próprio usuário
 
-Autenticado (qualquer perfil interno: Solicitante, Gestor, Administrador ou Analista).
-Retorna os dados básicos do usuário + bloco de solicitante (se existir) + bloco profissional (se existir e for analista) + URL do avatar (se houver).
+Autenticado (qualquer Perfil interno).
+Retorna os dados básicos do usuário + bloco de solicitante (se existir) + bloco profissional (se existir e o Perfil for atribuível) + URL do avatar (se houver).
 
 Sem query params. Endpoint sem paginação.
 
@@ -110,7 +106,7 @@ export interface UserProfileResponseDTO {
   id: string;
   fullName: string;
   email: string;
-  role: Role;
+  role: string;
   avatarUrl: string | null;
   requester: RequesterProfileBlock | null;
   professional: ProfessionalProfileBlock | null;
@@ -486,7 +482,7 @@ interface UpdateUserRequest {
     specialties: string[];
     attendedCategoryIds: number[];
     notes?: string;
-  }; // permitido para Perfil com flag de Atribuibilidade
+  }; // opcional; permitido para Perfis atribuíveis
 }
 ```
 
@@ -508,14 +504,14 @@ Admin Root (`root_account_protected`) ou própria conta
 ## Observações do contrato
 
 - `fullName`, `requester.additionalContact` e avatar são autoeditáveis por qualquer perfil. Quem tem `user:manage` também pode editar `requester.area`, `requester.department` e `requester.manager`; para os demais perfis, esses campos continuam exclusivos do fluxo administrativo em `PUT /users/:id`.
-- O campo `role` na resposta é o **nome legível** do perfil (ex.: "Analista"), resolvido a partir do `profiles.name` do banco — não é o slug interno.
+- O campo `role` na resposta é o nome real do Perfil em `profiles.name`; Perfis customizados aparecem pelo nome configurado.
 - `avatarUrl` é `null` quando o usuário não tem foto. A URL é relativa ao host: `/uploads/avatars/<storageKey>`. O servidor serve `/uploads/*` via `express.static` (conforme `app.ts`).
-- A extensão `details_professional` nasce com contas de Perfis que têm flag de Atribuibilidade, recebe backfill transacional ao ligar a flag ou mover a conta para um Perfil atribuível, e não depende do nome do Perfil. O bloco `professional` só é exposto para Perfis com ao menos uma flag ligada; extensões ausentes em Perfis atribuíveis recebem defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`).
-- A atualização do bloco `requester` faz UPSERT na extensão por `user_id` (1:1): se o usuário não tem linha, uma é criada; se tem, é atualizada. Isto garante que analistas legados sem extensão de requester recebem a linha ao primeiro `PUT`.
+- A Extensão de profissional (`details_professional`) nasce com contas de Perfis atribuíveis, recebe backfill transacional ao ligar uma flag em Perfil com usuários ativos ou ao mover conta para Perfil atribuível, e não depende do nome do Perfil. Seu conteúdo é opcional; em Perfis atribuíveis sem linha, a extensão é criada com os valores padrão e o bloco `professional` recebe defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`).
+- A atualização do bloco `requester` faz UPSERT na extensão por `user_id` (1:1): se o usuário não tem linha, uma é criada; se tem, é atualizada. Isto garante que usuários legados sem extensão de requester recebem a linha ao primeiro `PUT`.
 - `removeAvatar: true` no JSON remove a foto do disco (`fs.unlink`) e define `users.avatar_url = null` na mesma transação da auditoria. Se o arquivo já não existe, a operação não falha (best-effort de remoção).
 - Atualização de nome, dados permitidos de requester, referência do avatar e auditoria ocorre na **mesma transação** de banco.
 - Auditoria: toda atualização gera evento `user.update_profile` no catálogo de auditoria (`src/shared/audit/auditCatalog.ts`), com `previousValue` (snapshot anterior em JSON) e `newValue` (JSON resumido dos campos alterados + `avatarChanged`).
-- Valores de `role` são strings PT-BR (nomes legíveis dos perfis). Limites de caracteres (Especificação 3.0 §4 / validação Zod) são espelhados entre UI e backend.
+- Valores de `role` são nomes de Perfil retornados diretamente do banco. Limites de caracteres (Especificação 3.0 §4 / validação Zod) são espelhados entre UI e backend.
 - A rota `PUT /users/me` está posicionada **antes** dos gates de chave no router — é acessível a qualquer perfil interno autenticado (self-service); a exceção de área/departamento/gestor é decidida pela chave `user:manage`.
 - `POST /requests` e `GET /requests` continuam inalterados por esta issue; o `corporate_email` do bloco requester de `PUT /users/me` não afeta a lógica de criação de solicitações (que usa `resolveRequesterId` por e-mail independentemente).
 - Foto de perfil é pública via `GET /uploads/*` (decisão MVP). Restrição de visibilidade pode ser adicionada em issue futura.
