@@ -563,6 +563,14 @@ export default {
             },
           },
         },
+        "422": {
+          description: "Erros de validação do corpo com detalhes por campo.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
