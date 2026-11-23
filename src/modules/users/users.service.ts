@@ -147,7 +147,7 @@ function throwRootAccountProtected(): never {
 
 function throwProfileInactive(): never {
   throw new AppError(
-    "Perfil inativo não recebe conta nova nem designação.",
+    "Não é possível criar ou atualizar contas para um Perfil inativo.",
     409,
     CODE_PROFILE_INACTIVE,
   );
@@ -685,9 +685,6 @@ export async function updateUser(
       if (!sourceProfile) {
         throw new AppError("Perfil inválido.", 400);
       }
-      if (!sourceProfile.is_active) {
-        throwProfileInactive();
-      }
       const destinationProfileId = newProfileId ?? target.profile_id;
       const destinationProfile =
         destinationProfileId === sourceProfile.profile_id
@@ -699,11 +696,9 @@ export async function updateUser(
       if (!destinationProfile) {
         throw new AppError("Perfil inválido.", 400);
       }
-      if (newProfileId !== undefined && !destinationProfile.is_active) {
+      if (!destinationProfile.is_active) {
         throwProfileInactive();
       }
-      const wasAssignable = shouldHaveProfessionalExtension(sourceProfile);
-      const isFinalAssignable = shouldHaveProfessionalExtension(destinationProfile);
       const needsProfessionalExtension = resolveProfessionalExtensionRequirement(
         destinationProfile,
         payload.professional,
@@ -726,7 +721,7 @@ export async function updateUser(
       // 3. A extensão acompanha as flags do Perfil; dados enviados são merge.
       if (payload.professional !== undefined) {
         await repository.upsertProfessionalData(trx, id, payload.professional);
-      } else if (wasAssignable && !isFinalAssignable) {
+      } else if (newProfileId !== undefined && !needsProfessionalExtension) {
         await assertUserHasNoOpenAssignments(trx, id);
         await repository.deleteProfessionalData(trx, id);
       } else if (needsProfessionalExtension) {
