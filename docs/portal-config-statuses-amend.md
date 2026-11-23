@@ -123,9 +123,14 @@ export interface UpdateStatusesRequest {
 
 ## 3. Endpoints de ciclo — amend/create (impacto de `PortalStatus`)
 
-> Erros no envelope `{ "status": "error", "statusCode": number, "message": string }` e `422` com `fields`. **Toda** mudança de status exige `justification` (`1..4000`); **toda transição para status público exige também `lastTechnicalMessage`** (`1..4000`, texto exibido ao solicitante em `GET /requests/:protocol`). `PATCH /status` é único: `ADMIN` faz bypass apenas dos modos para qualquer status ativo; `ANALYST_ASSIGNEE` fica restrito a `free`, ativo e não restrito; `Gestor` não pode PATCH. Guards `isAdminOrAssignee` (`triage.service.ts:46`, `mapping.service.ts:300-364`, `requests.service.ts:206`) inline — sem novo middleware.
+> Erros no envelope `{ "status": "error", "statusCode": number, "message": string }` e `422` com `fields`. **Toda** mudança de status exige `justification` (`1..4000`); **toda transição para status público exige também `lastTechnicalMessage`** (`1..4000`, texto exibido ao solicitante em `GET /requests/:protocol`). `PATCH /status` é único: `ADMIN` faz bypass apenas dos modos para qualquer status ativo; `ANALYST_ASSIGNEE` fica restrito a `free`, ativo e não restrito; `Gestor` não pode PATCH. As rotas atualmente usam chaves RBAC e Custódia; não há guard `isAdminOrAssignee`.
 
 ### 3.1 POST /requests/:protocol/triage — amend (`contract-triage.md` §1)
+
+> **Autorização RBAC vigente:** as referências a perfis no resumo histórico
+> acima estão substituídas
+> por `triage:write` + Custódia; Status atual restrito também requer
+> `request:status_override` global.
 
 Não idempotente — cada chamada gera `id` uuid novo; última triagem é vigente (`contract-triage.md §1`). A validação de `exitStatus` usa o Status v4 e `triageMode`.
 

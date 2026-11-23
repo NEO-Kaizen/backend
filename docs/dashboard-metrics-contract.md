@@ -1,11 +1,12 @@
 # Contrato de API — Dashboard Gerencial
 
-Endpoint somente de leitura para orientar Gestores e Administradores com dados
-agregados das solicitações cadastradas no MAAT.
+Endpoint somente de leitura para apresentar dados agregados das solicitações
+cadastradas no MAAT.
 
 ## GET /reports/dashboard
 
-Exige sessão válida e perfil `Gestor` ou `Administrador`.
+Exige sessão válida e `reports:read` global (Visualizador, Administrador e
+Admin Root nos perfis base).
 
 ### Filtros opcionais
 

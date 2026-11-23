@@ -442,7 +442,7 @@ export default {
       tags: ["Triagem"],
       summary: "Criar triagem da solicitação",
       description:
-        "Cria uma triagem (cada chamada gera uma nova avaliação). Exige `triage:write` e Custódia sobre o Responsável corrente da solicitação; snapshots não concedem acesso.",
+        "Cria uma triagem (cada chamada gera uma nova avaliação). Exige `triage:write` e Custódia sobre o Responsável corrente da solicitação; Status atual restrito também exige `request:status_override` global. Snapshots não concedem acesso.",
       operationId: "saveTriage",
       security: [{ cookieAuth: [] }],
       parameters: [
