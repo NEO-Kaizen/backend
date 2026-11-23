@@ -22,7 +22,7 @@ listagem paginada de eventos de auditoria e detalhe de um evento
 // (src/shared/audit/auditCatalog.ts). Novos valores chegam como string
 // validada contra o catálogo; o backend rejeita fora dele com 400.
 export type AuditEntityType =
-  "user" | "prioritization" | "request" | "mapping" | "settings" | "pending_item";
+  "user" | "prioritization" | "request" | "mapping" | "settings" | "pending_item" | "profile";
 
 // Rótulo PT-BR de exibição derivado no servidor a partir do auditCatalog
 // (ex.: "user" → "Usuários", "settings" → "Configuração do portal").
@@ -251,7 +251,7 @@ HTTP/1.1 400 Bad Request
 {
   "status": "error",
   "statusCode": 400,
-  "message": "Campos inválidos: entityType — Invalid option: expected one of \"user\"|\"prioritization\"|\"request\"|\"mapping\"|\"settings\"|\"pending_item\""
+  "message": "Campos inválidos: entityType — Invalid option: expected one of \"user\"|\"prioritization\"|\"request\"|\"mapping\"|\"settings\"|\"pending_item\"|\"profile\""
 }
 ```
 

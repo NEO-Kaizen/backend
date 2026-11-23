@@ -18,6 +18,7 @@ Documentação interna do serviço de registro de eventos (issue #52).
 | `prioritization` | `evaluate` (avaliação e reavaliação)                                                                                     | `PUT /prioritization/:protocol/score`                                                                                               |
 | `request`        | `assign`, `reassign`, `unassign`, `status_change`, `status_override`, `triage`, `override_status_admin`, `access_denied` | `PATCH /requests/:protocol/assignee` + RN-010; `POST triage`; `PATCH /requests/:protocol/status` (override por permissão / negação) |
 | `settings`       | `update`                                                                                                                 | portal-config                                                                                                                       |
+| `profile`        | `create`, `update`, `activate`, `deactivate`, `duplicate`                                                                | gestão de perfis e perfis customizados (issue #168)                                                                                 |
 
 ## Padrão obrigatório
 

@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
@@ -59,12 +60,6 @@ export type AccountActor = Pick<PermissionActor, "id" | "permissions">;
 interface ActorAuthority {
   readonly isRoot: boolean;
   readonly grants: readonly EffectivePermission[];
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && (error as { code?: string }).code === "23505"
-  );
 }
 
 function parseUserId(rawId: string): number {

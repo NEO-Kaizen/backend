@@ -55,6 +55,18 @@ import { PrioritizationCriteria } from "./prioritization.ts";
 
 import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
 
+import {
+  Profile,
+  ProfilePermission,
+  ProfileKeyCatalog,
+  ProfilePermissionCatalogEntry,
+  ProfileCreateRequest,
+  ProfileUpdateRequest,
+  ProfileStatusRequest,
+  ProfileStatusResponse,
+  ProfileDuplicateRequest,
+} from "./profile.ts";
+
 export {
   ErrorResponse,
   ValidationErrorResponse,
@@ -101,6 +113,15 @@ export {
   PrioritizationCriteria,
   ReviewDecisionValidate,
   ReviewDecisionReopen,
+  Profile,
+  ProfilePermission,
+  ProfileKeyCatalog,
+  ProfilePermissionCatalogEntry,
+  ProfileCreateRequest,
+  ProfileUpdateRequest,
+  ProfileStatusRequest,
+  ProfileStatusResponse,
+  ProfileDuplicateRequest,
 };
 
 export const schemas = {
@@ -149,4 +170,13 @@ export const schemas = {
   PrioritizationCriteria,
   ReviewDecisionValidate,
   ReviewDecisionReopen,
+  Profile,
+  ProfilePermission,
+  ProfileKeyCatalog,
+  ProfilePermissionCatalogEntry,
+  ProfileCreateRequest,
+  ProfileUpdateRequest,
+  ProfileStatusRequest,
+  ProfileStatusResponse,
+  ProfileDuplicateRequest,
 } as const;

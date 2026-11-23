@@ -23,6 +23,10 @@ export const openapiBase = {
     { name: "Solicitações", description: "Cadastro, consulta e atualização de solicitações" },
     { name: "Triagem", description: "Avaliação de triagem de solicitações" },
     { name: "Usuários", description: "Cadastro, listagem e métricas de usuários" },
+    {
+      name: "Perfis",
+      description: "Perfis base e customizados: catálogo de chaves, composição e ciclo de vida",
+    },
     { name: "Fila de atendimento", description: "Métricas, listagem e mapeamento da fila" },
     {
       name: "Configuração do portal",
