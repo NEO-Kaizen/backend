@@ -138,6 +138,10 @@ _Evitar_: papel, cargo, função, role.
 Perfil raiz do sistema, identificado por `is_root` e único: existe no máximo uma conta com ele, criada apenas pelo seed, sem auto-registro nem promoção pela API e fora das rotas administrativas. Tem todas as permissões, gerencia qualquer conta — inclusive de autoridade igual — e é o único que edita o perfil Admin Root.
 _Evitar_: super-admin, root, administrador mestre.
 
+**Autoridade de conta**:
+Conjunto de pares chave+vínculo de um Perfil, base da matriz de contas. Um Perfil é estritamente abaixo de outro quando todo par do alvo está contido no conjunto do ator e os conjuntos diferem; a contenção respeita a _Custódia_ (`all` contém `assigned`; `assigned` não contém `all`; `own` só igual a `own`) e as flags `is_assignable_*` ficam fora da comparação. O _Admin Root_ é a exceção: gerencia qualquer conta, exceto as do próprio Perfil.
+_Evitar_: hierarquia de perfis, nível, ranking, poder.
+
 **Responsável**:
 Pessoa designada para conduzir a triagem ou o mapeamento de uma solicitação. O vínculo com a solicitação é a _Custódia_; a propriedade do perfil de poder receber essa designação é a _Atribuibilidade_.
 _Evitar_: analista (é o perfil, não o vínculo), dono, responsável técnico.

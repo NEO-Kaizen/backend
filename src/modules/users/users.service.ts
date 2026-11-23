@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
+import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
   buildEffectivePermissions,
   type EffectivePermission,
@@ -48,11 +49,12 @@ const CODE_SELF_MANAGEMENT_FORBIDDEN = "self_management_forbidden";
 const CODE_PROFILE_INACTIVE = "profile_inactive";
 const CODE_USER_MANAGE_REQUIRED = "user_manage_required";
 
-/** Ator autenticado da matriz — as Permissões vêm do gate (`req.permissions`). */
-export interface AccountActor {
-  readonly id: number;
-  readonly permissions: readonly EffectivePermission[];
-}
+/**
+ * Ator da matriz de contas — as Permissões vêm do gate (`req.permissions`).
+ * É o recorte de `PermissionActor` que a matriz precisa: o e-mail só importa à
+ * Custódia de solicitações.
+ */
+export type AccountActor = Pick<PermissionActor, "id" | "permissions">;
 
 interface ActorAuthority {
   readonly isRoot: boolean;
@@ -618,13 +620,6 @@ export async function updateUser(
   if (isFinalAnalyst && !wasAnalyst && payload.professional === undefined) {
     // Promoção para analista sem dados profissionais — exigir bloco.
     throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
-  }
-  if (
-    payload.professional !== undefined &&
-    !repository.isProfessionalProfile(payload.role ?? target.profile_name)
-  ) {
-    // Role não-analista com professional já tratado acima; guarda extra para caso role ausente.
-    throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
   }
 
   // Snapshot para auditoria

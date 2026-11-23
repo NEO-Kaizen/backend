@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
+import { permissionActorFromRequest } from "../../shared/access/requestAccess.ts";
 import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   changeUserStatusSchema,
@@ -26,10 +27,7 @@ function actorIdFromRequest(req: Request): number {
 
 /** Ator da matriz de contas — `req.permissions` é populado pelo gate de chave. */
 function actorFromRequest(req: Request): AccountActor {
-  if (!req.permissions) {
-    throw new AppError("Permissões não carregadas para esta operação", 403);
-  }
-  return { id: actorIdFromRequest(req), permissions: req.permissions };
+  return permissionActorFromRequest(req);
 }
 
 /** Ator do autoatendimento — as Permissões vêm do próprio módulo, sem gate. */

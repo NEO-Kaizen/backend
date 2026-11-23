@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { PORTAL_SECTION_READ_KEY } from "../../shared/access/portalSections.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import db from "../../database/conection.ts";
 import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
@@ -76,27 +77,27 @@ export async function getReadableSections(
   const config = await getPortalConfig();
   const response: PortalSections = {};
 
-  if (readableKeys.has("portal_setting:read")) {
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.portalSetting)) {
     response.platformName = config.platformName;
     response.solicitationMode = config.solicitationMode;
     response.protocolMask = config.protocolMask;
   }
 
-  // A chave `theme:read` cobre tema e assets (RBAC § 3.7).
-  if (readableKeys.has("theme:read")) {
+  // A chave de tema cobre tema e assets (RBAC § 3.7).
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.theme)) {
     response.theme = config.theme;
     response.assets = config.assets;
   }
 
-  if (readableKeys.has("category:read")) {
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.category)) {
     response.categories = config.categories;
   }
 
-  if (readableKeys.has("status:read")) {
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.status)) {
     response.statuses = config.statuses;
   }
 
-  if (readableKeys.has("prioritization_config:read")) {
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.prioritizationConfig)) {
     response.prioritizationWeights = config.prioritizationWeights;
   }
 

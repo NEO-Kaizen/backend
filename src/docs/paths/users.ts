@@ -332,7 +332,7 @@ export default {
           },
         },
         "409": {
-          description: "E-mail já cadastrado.",
+          description: "E-mail já cadastrado ou Perfil de destino inativo (`profile_inactive`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -356,7 +356,8 @@ export default {
           },
         },
         "403": {
-          description: "Sem a permissão exigida para a operação.",
+          description:
+            "Sem `user:manage`, Perfil de destino de autoridade igual ou maior (`account_out_of_authority`) ou Perfil Admin Root (`root_account_protected`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -507,7 +508,8 @@ export default {
           },
         },
         "403": {
-          description: "Sem a permissão exigida para a operação.",
+          description:
+            "Sem `user:manage`, autoedição (`self_management_forbidden`), conta Admin Root (`root_account_protected`) ou conta de autoridade igual ou maior (`account_out_of_authority`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -516,6 +518,14 @@ export default {
         },
         "404": {
           description: "Usuário não encontrado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "E-mail já cadastrado ou Perfil de destino inativo (`profile_inactive`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -573,7 +583,8 @@ export default {
           },
         },
         "403": {
-          description: "Sem a permissão exigida para a operação.",
+          description:
+            "Sem `user:manage`, autoedição (`self_management_forbidden`), conta Admin Root (`root_account_protected`) ou conta de autoridade igual ou maior (`account_out_of_authority`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -631,7 +642,8 @@ export default {
           },
         },
         "403": {
-          description: "Sem a permissão exigida para a operação.",
+          description:
+            "Sem `user:manage`, autoedição (`self_management_forbidden`), conta Admin Root (`root_account_protected`) ou conta de autoridade igual ou maior (`account_out_of_authority`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
