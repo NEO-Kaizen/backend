@@ -276,7 +276,10 @@ export async function createUser(
         queryable: trx,
         shouldLockForShare: true,
       });
-      if (!currentProfile || !currentProfile.is_active) {
+      if (!currentProfile) {
+        throw new AppError("Perfil inválido.", 400);
+      }
+      if (!currentProfile.is_active) {
         throwProfileInactive();
       }
       if (currentProfile.is_root) {
