@@ -217,8 +217,18 @@ export default {
           content: {
             "application/json": {
               schema: {
-                type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                type: "object",
+                required: ["data", "page", "pageSize", "total", "totalPages"],
+                properties: {
+                  data: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/UserListItem" },
+                  },
+                  page: { type: "integer", example: 1 },
+                  pageSize: { type: "integer", example: 10 },
+                  total: { type: "integer", example: 25 },
+                  totalPages: { type: "integer", example: 3 },
+                },
               },
             },
           },

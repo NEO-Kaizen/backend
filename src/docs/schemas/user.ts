@@ -11,14 +11,25 @@ export const UserMetrics = {
 
 export const UserListItem = {
   type: "object",
-  required: ["id", "email", "name", "role", "isActive"],
+  required: [
+    "id",
+    "fullName",
+    "email",
+    "avatarUrl",
+    "profile",
+    "isActive",
+    "mustChangePassword",
+    "createdAt",
+  ],
   properties: {
     id: { type: "string", example: "101" },
+    fullName: { type: "string", example: "Analista Teste" },
     email: { type: "string", example: "analista_teste@email.com" },
-    name: { type: "string", example: "Analista Teste" },
-    role: { type: "string", example: "Analista" },
+    avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
+    profile: { type: "string", example: "Analista" },
     isActive: { type: "boolean", example: true },
-    avatarUrl: { type: "string", nullable: true },
+    mustChangePassword: { type: "boolean", example: false },
+    createdAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
   },
 };
 
