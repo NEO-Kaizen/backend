@@ -318,6 +318,7 @@ As migrations devem ser executadas na seguinte ordem:
 4. `20261119120000_add_rbac_flags_to_profiles.js`
 5. `20261119120100_create_profile_permissions.js`
 6. `20261119120200_drop_internal_notes_author_role_check.js`
+7. `20261120120000_enforce_single_root_account_trigger.js`
 
 Essa ordem garante que a tabela `profiles` exista antes da inserção dos perfis iniciais e que os perfis estejam disponíveis antes da criação e utilização da relação com `users`.
 

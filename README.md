@@ -125,11 +125,13 @@ A documentação da persistência (autenticação, pedidos e configuração glob
 - [Persistência para autenticação](docs/database/authentication-persistence.md)
 - [Persistência dos pedidos (solicitações)](docs/database/requests-persistence.md)
 - [Persistência da configuração global](docs/database/system-settings-persistence.md)
+- [Persistência das notificações](docs/database/notifications-persistence.md)
 
-As regras de negócio ficam em [`docs/rules/`](docs/rules/README.md), as decisões
-difíceis de reverter em [`docs/adr/`](docs/adr/), e o contrato HTTP na
-especificação OpenAPI em [`src/docs/`](src/docs/) — não há contrato duplicado em
-Markdown. O mapa dos documentos antigos está em
+As regras de negócio ficam em [`docs/rules/`](docs/rules/README.md), a semântica
+de acesso em [`docs/rbac.md`](docs/rbac.md) e
+[`docs/custom-roles.md`](docs/custom-roles.md), as decisões difíceis de reverter
+em [`docs/adr/`](docs/adr/), e o contrato HTTP na especificação OpenAPI em
+[`src/docs/`](src/docs/) — não há contrato duplicado em Markdown. O mapa dos documentos antigos está em
 [`docs/superseded.md`](docs/superseded.md).
 
 As migrations e os seeds podem ser executados após a configuração das credenciais do banco:

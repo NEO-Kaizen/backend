@@ -28,11 +28,11 @@ Toda chave é `global` ou `custodial`.
 
 A custódia não vai no token e não envelhece com ele. As fontes do vínculo com a linha são:
 
-| Fonte                                            | Vale para                                                                                |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `requests.responsible_id`                        | solicitação, fila, triagem, priorização, pendências internas, notas internas e auditoria |
-| `mappings.responsible_id` do mapeamento corrente | `mapping:read` e `mapping:write`, além do responsável da solicitação                     |
-| `requests.requester_email`                       | posse: `request:track` e `pending_item:respond`, comparando com o e-mail da conta        |
+| Fonte                                                                                  | Vale para                                                                                |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `requests.professional_id` (via `details_professional.user_id`)                        | solicitação, fila, triagem, priorização, pendências internas, notas internas e auditoria |
+| `requests.mapping_professional_id` / `mappings.professional_id` do mapeamento corrente | `mapping:read` e `mapping:write`, além do responsável da solicitação                     |
+| `requests.requester_email`                                                             | posse: `request:track` e `pending_item:respond`, comparando com o e-mail da conta        |
 
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
@@ -73,7 +73,7 @@ Atribuibilidade não é `request:assign`: atribuir é escolher o Responsável; s
 | -------------------- | --------------------------------------- | -------------------------------------------------------- |
 | **`request:assign`** | quem pode escolher o Responsável        | o Analista redistribui a solicitação que custodía        |
 | **Atribuibilidade**  | quem pode ser escolhido                 | perfil com `is_assignable_triage` e as chaves de triagem |
-| **Custódia**         | sobre qual linha a chave custodial vale | `requests.responsible_id = analista.id`                  |
+| **Custódia**         | sobre qual linha a chave custodial vale | `details_professional.user_id = analista.user_id`        |
 | **Posse**            | quem abriu a solicitação                | o autor acompanha a própria solicitação em `own`         |
 
 ### 1.6 Solicitante público × Solicitante autenticado
@@ -322,18 +322,18 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 
 ## 5. Como a custódia é resolvida
 
-| Chave                                                                      | Fonte do vínculo                                                                          |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                                 |
-| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                                 |
-| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.responsible_id` do mapeamento corrente         |
-| `prioritization:write`                                                     | `requests.responsible_id`                                                                 |
-| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                                 |
-| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                                 |
-| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                      |
-| `queue:read`, `queue:export`                                               | Fila do ator: `requests.responsible_id = ator.id`; o responsável do mapeamento não amplia |
-| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)      |
-| chaves `global`                                                            | nenhuma verificação de linha                                                              |
+| Chave                                                                      | Fonte do vínculo                                                                               |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.professional_id`                                                                     |
+| `triage:read`, `triage:write`                                              | `requests.professional_id`                                                                     |
+| `mapping:read`, `mapping:write`                                            | `requests.professional_id` **ou** `mappings.professional_id` do mapeamento corrente            |
+| `prioritization:write`                                                     | `requests.professional_id`                                                                     |
+| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.professional_id`                                                                     |
+| `internal_note:read`, `internal_note:write`                                | `requests.professional_id`                                                                     |
+| `audit:read`                                                               | `requests.professional_id`, com uma porta por domínio                                          |
+| `queue:read`, `queue:export`                                               | Fila do ator: `details_professional.user_id = ator.id`; o responsável do mapeamento não amplia |
+| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)           |
+| chaves `global`                                                            | nenhuma verificação de linha                                                                   |
 
 Regras de aplicação:
 
