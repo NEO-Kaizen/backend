@@ -52,10 +52,7 @@ function buildAssignableProfilePredicate(
 ): PermissionKeysPredicate {
   const predicates = stages.map((stage) => ({
     stage,
-    predicate: hasAllPermissionKeysPredicate(
-      "p.profile_id",
-      ASSIGNABILITY_PREDICATES[stage],
-    ),
+    predicate: hasAllPermissionKeysPredicate("p.profile_id", ASSIGNABILITY_PREDICATES[stage]),
   }));
 
   return {

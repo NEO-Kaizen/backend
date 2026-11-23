@@ -1,4 +1,3 @@
-
 export interface InternalNoteRow {
   internal_note_id: string;
   request_id: string;
