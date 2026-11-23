@@ -14,7 +14,10 @@ const API_URL = (process.env.API_URL ?? "http://127.0.0.1:3000").replace(/\/$/, 
 const PROTOCOL = process.env.VERIFY_PROTOCOL ?? "MAAT-2R7Q-4M1C";
 const ADMIN_EMAIL = process.env.VERIFY_ADMIN_EMAIL ?? "administrador_teste@email.com";
 const REQUESTER_EMAIL = process.env.VERIFY_REQUESTER_EMAIL ?? "solicitante_teste@email.com";
-const PASSWORD = process.env.VERIFY_PASSWORD ?? "steste123";
+const PASSWORD = process.env.VERIFY_PASSWORD;
+if (!PASSWORD) {
+  throw new Error("VERIFY_PASSWORD é obrigatório para a verificação por API.");
+}
 const REQUESTER_IDENTITY = {
   name: process.env.VERIFY_REQUESTER_NAME ?? "Ana Paula Santos",
   email: process.env.VERIFY_REQUESTER_IDENTITY_EMAIL ?? "ana.santos@empresa.com",

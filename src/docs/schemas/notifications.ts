@@ -1,3 +1,5 @@
+import { NOTIFICATION_EVENT_TYPES } from "../../shared/notifications/notificationEvents.ts";
+
 export const NotificationStatusChangedPayload = {
   type: "object",
   additionalProperties: false,
@@ -84,10 +86,27 @@ export const NotificationMappingScheduledPayload = {
   },
 };
 
+export const NotificationPendingItemLifecyclePayload = {
+  type: "object",
+  description:
+    "Payload dos Eventos de criação, reabertura e validação de Pendência: tipo, protocolo e título.",
+  required: ["type", "protocol", "title"],
+  properties: {
+    type: {
+      type: "string",
+      enum: ["pending_item_created", "pending_item_reopened", "pending_item_validated"],
+      example: "pending_item_created",
+    },
+    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    title: { type: "string", example: "Automatizar conciliação bancária" },
+  },
+};
+
 export const NotificationPayload = {
   oneOf: [
     { $ref: "#/components/schemas/NotificationStatusChangedPayload" },
     { $ref: "#/components/schemas/NotificationMappingScheduledPayload" },
+    { $ref: "#/components/schemas/NotificationPendingItemLifecyclePayload" },
     { $ref: "#/components/schemas/NotificationPendingItemRespondedPayload" },
     { $ref: "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },
     { $ref: "#/components/schemas/NotificationResponsibleAssignedPayload" },
@@ -104,12 +123,7 @@ export const NotificationItem = {
     id: { type: "string", example: "f0000000-0000-4000-8000-000000000001" },
     type: {
       type: "string",
-      enum: [
-        "status_changed",
-        "pending_item_responded",
-        "pending_item_responded_unassigned",
-        "responsible_assigned",
-      ],
+      enum: [...NOTIFICATION_EVENT_TYPES],
       example: "status_changed",
     },
     payload: { $ref: "#/components/schemas/NotificationPayload" },

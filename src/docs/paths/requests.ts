@@ -150,7 +150,7 @@ export default {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                items: { $ref: "#/components/schemas/UserSummary" },
               },
             },
           },
@@ -195,7 +195,7 @@ export default {
           description: "Detalhes da solicitação.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/PublicRequestDetail" },
             },
           },
         },
@@ -232,7 +232,7 @@ export default {
           description: "Detalhes internos da solicitação.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/PublicRequestDetail" },
             },
           },
         },
@@ -300,7 +300,7 @@ export default {
           description: "Solicitação atualizada.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/PublicRequestDetail" },
             },
           },
         },
@@ -509,7 +509,7 @@ export default {
           description: "Dados de acompanhamento da solicitação.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/PublicRequestDetail" },
             },
           },
         },
@@ -561,7 +561,7 @@ export default {
           description: "Status alterado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/PublicRequestDetail" },
             },
           },
         },
@@ -684,7 +684,7 @@ export default {
           description: "Responsável atribuído com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
+              schema: { $ref: "#/components/schemas/PublicRequestDetail" },
             },
           },
         },

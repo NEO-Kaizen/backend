@@ -14,7 +14,7 @@ export default {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/PrioritizationCriteria" },
+                items: { $ref: "#/components/schemas/PrioritizationCriteriaList" },
               },
             },
           },

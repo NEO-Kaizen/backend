@@ -1,30 +1,3 @@
-export const RequestDetail = {
-  type: "object",
-  required: ["protocol", "demandTitle", "processName", "status", "openedAt"],
-  properties: {
-    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-    demandTitle: { type: "string", example: "Automatizar conciliação bancária" },
-    processName: { type: "string", example: "Conciliação bancária mensal" },
-    status: { type: "string", example: "Em triagem" },
-    assigneeName: { type: "string", nullable: true, example: "Analista Teste" },
-    openedAt: { type: "string", format: "date-time" },
-    estimatedCompletion: { type: "string", nullable: true },
-    mappingDate: { type: "string", nullable: true },
-    meeting: {
-      type: "object",
-      properties: {
-        scheduledFor: { type: "string", format: "date-time", nullable: true },
-        link: { type: "string", nullable: true },
-      },
-    },
-    pendingIssues: { type: "array", items: { type: "string" } },
-    nextStep: { type: "string", nullable: true },
-    lastTechnicalMessage: { type: "string", nullable: true },
-    lastUpdate: { type: "string", format: "date-time", nullable: true },
-    conclusion: { type: "string", nullable: true },
-  },
-};
-
 const dateTime = { type: "string", format: "date-time" } as const;
 const nullableDateTime = { type: "string", format: "date-time", nullable: true } as const;
 const nullableString = { type: "string", nullable: true } as const;

@@ -175,18 +175,6 @@
           }
         }
       },
-      "UserListItem": {
-        "type": "object",
-        "required": ["id", "email", "name", "role", "isActive"],
-        "properties": {
-          "id": { "type": "string", "example": "101" },
-          "email": { "type": "string", "example": "analista_teste@email.com" },
-          "name": { "type": "string", "example": "Analista Teste" },
-          "role": { "type": "string", "example": "analista" },
-          "isActive": { "type": "boolean", "example": true },
-          "avatarUrl": { "type": "string", "nullable": true }
-        }
-      },
       "UserSummary": {
         "type": "object",
         "required": [
@@ -629,32 +617,6 @@
           "status": { "$ref": "#/components/schemas/RequestStatus" },
           "assignee": { "type": "string", "nullable": true, "example": "Analista Teste" },
           "requesterName": { "type": "string", "example": "Maria Silva" }
-        }
-      },
-      "RequestDetail": {
-        "type": "object",
-        "required": ["protocol", "demandTitle", "processName", "status", "openedAt"],
-        "properties": {
-          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
-          "demandTitle": { "type": "string", "example": "Automatizar conciliação bancária" },
-          "processName": { "type": "string", "example": "Conciliação bancária mensal" },
-          "status": { "type": "string", "example": "Em triagem" },
-          "assigneeName": { "type": "string", "nullable": true, "example": "Analista Teste" },
-          "openedAt": { "type": "string", "format": "date-time" },
-          "estimatedCompletion": { "type": "string", "nullable": true },
-          "mappingDate": { "type": "string", "nullable": true },
-          "meeting": {
-            "type": "object",
-            "properties": {
-              "scheduledFor": { "type": "string", "format": "date-time", "nullable": true },
-              "link": { "type": "string", "nullable": true }
-            }
-          },
-          "pendingIssues": { "type": "array", "items": { "type": "string" } },
-          "nextStep": { "type": "string", "nullable": true },
-          "lastTechnicalMessage": { "type": "string", "nullable": true },
-          "lastUpdate": { "type": "string", "format": "date-time", "nullable": true },
-          "conclusion": { "type": "string", "nullable": true }
         }
       },
       "PaginatedRequestSummary": {
@@ -2511,14 +2473,6 @@
           "prioritizationWeights": { "$ref": "#/components/schemas/PrioritizationWeights" }
         }
       },
-      "PrioritizationCriteria": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "weight": { "type": "number", "minimum": 0, "maximum": 10 }
-        }
-      },
       "PrioritizationCriterion": {
         "type": "object",
         "required": ["id", "name", "weight"],
@@ -2604,6 +2558,20 @@
           }
         }
       },
+      "NotificationPendingItemLifecyclePayload": {
+        "type": "object",
+        "description": "Payload dos Eventos de criação, reabertura e validação de Pendência: tipo, protocolo e título.",
+        "required": ["type", "protocol", "title"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["pending_item_created", "pending_item_reopened", "pending_item_validated"],
+            "example": "pending_item_created"
+          },
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "title": { "type": "string", "example": "Automatizar conciliação bancária" }
+        }
+      },
       "NotificationPendingItemRespondedPayload": {
         "type": "object",
         "description": "Payload do Evento de Pendência respondida com Responsável designado. Aponta para a solicitação sem expor dados internos.",
@@ -2657,6 +2625,7 @@
         "oneOf": [
           { "$ref": "#/components/schemas/NotificationStatusChangedPayload" },
           { "$ref": "#/components/schemas/NotificationMappingScheduledPayload" },
+          { "$ref": "#/components/schemas/NotificationPendingItemLifecyclePayload" },
           { "$ref": "#/components/schemas/NotificationPendingItemRespondedPayload" },
           { "$ref": "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },
           { "$ref": "#/components/schemas/NotificationResponsibleAssignedPayload" }
@@ -2673,9 +2642,13 @@
             "type": "string",
             "enum": [
               "status_changed",
+              "mapping_scheduled",
               "pending_item_responded",
               "pending_item_responded_unassigned",
-              "responsible_assigned"
+              "responsible_assigned",
+              "pending_item_created",
+              "pending_item_reopened",
+              "pending_item_validated"
             ],
             "example": "status_changed"
           },
@@ -2972,7 +2945,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/UserListItem" }
+                  "items": { "$ref": "#/components/schemas/UserSummary" }
                 }
               }
             }
@@ -3011,7 +2984,9 @@
           "200": {
             "description": "Detalhes da solicitação.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/RequestDetail" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PublicRequestDetail" }
+              }
             }
           },
           "404": {
@@ -3042,7 +3017,9 @@
           "200": {
             "description": "Detalhes internos da solicitação.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/RequestDetail" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PublicRequestDetail" }
+              }
             }
           },
           "401": {
@@ -3099,7 +3076,9 @@
           "200": {
             "description": "Solicitação atualizada.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/RequestDetail" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PublicRequestDetail" }
+              }
             }
           },
           "401": {
@@ -3278,7 +3257,9 @@
           "200": {
             "description": "Dados de acompanhamento da solicitação.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/RequestDetail" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PublicRequestDetail" }
+              }
             }
           },
           "404": {
@@ -3328,7 +3309,9 @@
           "200": {
             "description": "Status alterado com sucesso.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/RequestDetail" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PublicRequestDetail" }
+              }
             }
           },
           "400": {
@@ -3436,7 +3419,9 @@
           "200": {
             "description": "Responsável atribuído com sucesso.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/RequestDetail" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PublicRequestDetail" }
+              }
             }
           },
           "400": {
@@ -3569,7 +3554,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/UserListItem" }
+                  "items": { "$ref": "#/components/schemas/UserSummary" }
                 }
               }
             }
@@ -3626,7 +3611,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/UserListItem" }
+                  "items": { "$ref": "#/components/schemas/UserSummary" }
                 }
               }
             }
@@ -3740,7 +3725,7 @@
           "201": {
             "description": "Usuário criado com sucesso.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/UserListItem" } }
+              "application/json": { "schema": { "$ref": "#/components/schemas/UserSummary" } }
             }
           },
           "400": {
@@ -3797,7 +3782,7 @@
           "200": {
             "description": "Dados do usuário.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/UserListItem" } }
+              "application/json": { "schema": { "$ref": "#/components/schemas/UserSummary" } }
             }
           },
           "401": {
@@ -3884,7 +3869,7 @@
           "200": {
             "description": "Usuário atualizado com sucesso.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/UserListItem" } }
+              "application/json": { "schema": { "$ref": "#/components/schemas/UserSummary" } }
             }
           },
           "400": {
@@ -3947,7 +3932,7 @@
           "200": {
             "description": "Status do usuário alterado com sucesso.",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/UserListItem" } }
+              "application/json": { "schema": { "$ref": "#/components/schemas/UserSummary" } }
             }
           },
           "401": {
@@ -4788,7 +4773,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/PrioritizationCriteria" }
+                  "items": { "$ref": "#/components/schemas/PrioritizationCriteriaList" }
                 }
               }
             }

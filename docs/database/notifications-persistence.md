@@ -1,6 +1,6 @@
 # Persistência de Notificações (RF20)
 
-Issues: #157, #159, #160 e #161. Contrato HTTP: [`docs/notifications-contract.md`](../notifications-contract.md).
+Issues: #157, #159, #160 e #161. Contrato HTTP: especificação OpenAPI em `src/docs/` (veja `GET /api-docs`).
 
 ## Objetivo
 
@@ -37,7 +37,7 @@ e o detalhe da solicitação é carregado sob RBAC pelo endpoint próprio.
 ## Regras
 
 - `dedup_key` = `<eventKey>:<recipient_user_id>`. O formato de `eventKey` por
-  Evento está em `docs/notifications-contract.md`: por exemplo,
+  Evento está na especificação OpenAPI em `src/docs/`: por exemplo,
   `request.status_change:<audit_id>`, `mapping.complete:<audit_id>`,
   `request.pending_responded:<audit_id>` e `request.assigned:<audit_id>`. A chave de negócio preserva eventos
   distintos ao longo do ciclo de vida (agendamento e reagendamento, por exemplo).

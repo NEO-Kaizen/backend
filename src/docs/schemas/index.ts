@@ -13,7 +13,6 @@ import {
   Role,
   ProfileName,
   UserMetrics,
-  UserListItem,
   UserSummary,
   UserListResponse,
   RequesterProfileBlock,
@@ -43,7 +42,6 @@ import {
   CreateRequestPayload,
   CreateRequestResponse,
   RequestSummary,
-  RequestDetail,
   PaginatedRequestSummary,
   PublicMeeting,
   PublicRequestDetail,
@@ -152,7 +150,6 @@ import {
 } from "./portal.ts";
 
 import {
-  PrioritizationCriteria,
   PrioritizationCriterion,
   PrioritizationCriteriaList,
   EvaluatePrioritizationRequest,
@@ -162,6 +159,7 @@ import {
 import {
   NotificationStatusChangedPayload,
   NotificationMappingScheduledPayload,
+  NotificationPendingItemLifecyclePayload,
   NotificationPendingItemRespondedPayload,
   NotificationPendingItemRespondedUnassignedPayload,
   NotificationResponsibleAssignedPayload,
@@ -189,7 +187,6 @@ export const schemas = {
   Role,
   ProfileName,
   UserMetrics,
-  UserListItem,
   UserSummary,
   UserListResponse,
   RequesterProfileBlock,
@@ -218,7 +215,6 @@ export const schemas = {
   CreateRequestPayload,
   CreateRequestResponse,
   RequestSummary,
-  RequestDetail,
   PaginatedRequestSummary,
   PublicMeeting,
   PublicRequestDetail,
@@ -323,7 +319,6 @@ export const schemas = {
   PortalPrioritizationWeightsPatchBody,
 
   // Prioritization
-  PrioritizationCriteria,
   PrioritizationCriterion,
   PrioritizationCriteriaList,
   EvaluatePrioritizationRequest,
@@ -332,6 +327,7 @@ export const schemas = {
   // Notifications
   NotificationStatusChangedPayload,
   NotificationMappingScheduledPayload,
+  NotificationPendingItemLifecyclePayload,
   NotificationPendingItemRespondedPayload,
   NotificationPendingItemRespondedUnassignedPayload,
   NotificationResponsibleAssignedPayload,

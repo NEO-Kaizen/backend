@@ -128,7 +128,7 @@ export default {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                items: { $ref: "#/components/schemas/UserSummary" },
               },
             },
           },
@@ -194,7 +194,7 @@ export default {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                items: { $ref: "#/components/schemas/UserSummary" },
               },
             },
           },
@@ -318,7 +318,7 @@ export default {
           description: "Usuário criado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserSummary" },
             },
           },
         },
@@ -386,7 +386,7 @@ export default {
           description: "Dados do usuário.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserSummary" },
             },
           },
         },
@@ -485,7 +485,7 @@ export default {
           description: "Usuário atualizado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserSummary" },
             },
           },
         },
@@ -558,7 +558,7 @@ export default {
           description: "Status do usuário alterado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserSummary" },
             },
           },
         },

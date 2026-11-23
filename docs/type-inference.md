@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **177**.
 - Tipos nomeados: **329** â€” 219 interfaces, 108 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1921** â€” 1442 variÃ¡veis, 243 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1919** â€” 1440 variÃ¡veis, 243 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **130**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -3851,7 +3851,7 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/index.ts](../src/docs/schemas/index.ts)
 
-- L176 â€” variÃ¡vel: `schemas`
+- L174 â€” variÃ¡vel: `schemas`
 
 ### [src/docs/schemas/internalNotes.ts](../src/docs/schemas/internalNotes.ts)
 
@@ -3867,17 +3867,18 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/notifications.ts](../src/docs/schemas/notifications.ts)
 
-- L1 â€” variÃ¡vel: `NotificationStatusChangedPayload`
-- L15 â€” variÃ¡vel: `NotificationPendingItemRespondedPayload`
-- L31 â€” variÃ¡vel: `NotificationPendingItemRespondedUnassignedPayload`
-- L52 â€” variÃ¡vel: `NotificationResponsibleAssignedPayload`
-- L70 â€” variÃ¡vel: `NotificationMappingScheduledPayload`
-- L87 â€” variÃ¡vel: `NotificationPayload`
-- L100 â€” variÃ¡vel: `NotificationItem`
-- L130 â€” variÃ¡vel: `NotificationListResponse`
-- L147 â€” variÃ¡vel: `NotificationUnreadCountResponse`
-- L155 â€” variÃ¡vel: `NotificationMarkReadResponse`
-- L168 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
+- L3 â€” variÃ¡vel: `NotificationStatusChangedPayload`
+- L17 â€” variÃ¡vel: `NotificationPendingItemRespondedPayload`
+- L33 â€” variÃ¡vel: `NotificationPendingItemRespondedUnassignedPayload`
+- L54 â€” variÃ¡vel: `NotificationResponsibleAssignedPayload`
+- L72 â€” variÃ¡vel: `NotificationMappingScheduledPayload`
+- L89 â€” variÃ¡vel: `NotificationPendingItemLifecyclePayload`
+- L105 â€” variÃ¡vel: `NotificationPayload`
+- L119 â€” variÃ¡vel: `NotificationItem`
+- L144 â€” variÃ¡vel: `NotificationListResponse`
+- L161 â€” variÃ¡vel: `NotificationUnreadCountResponse`
+- L169 â€” variÃ¡vel: `NotificationMarkReadResponse`
+- L182 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
 
 ### [src/docs/schemas/pendingItems.ts](../src/docs/schemas/pendingItems.ts)
 
@@ -3916,11 +3917,10 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/prioritization.ts](../src/docs/schemas/prioritization.ts)
 
-- L1 â€” variÃ¡vel: `PrioritizationCriteria`
-- L10 â€” variÃ¡vel: `PrioritizationCriterion`
-- L20 â€” variÃ¡vel: `PrioritizationCriteriaList`
-- L31 â€” variÃ¡vel: `EvaluatePrioritizationRequest`
-- L48 â€” variÃ¡vel: `EvaluatePrioritizationResponse`
+- L1 â€” variÃ¡vel: `PrioritizationCriterion`
+- L11 â€” variÃ¡vel: `PrioritizationCriteriaList`
+- L22 â€” variÃ¡vel: `EvaluatePrioritizationRequest`
+- L39 â€” variÃ¡vel: `EvaluatePrioritizationResponse`
 
 ### [src/docs/schemas/queue.ts](../src/docs/schemas/queue.ts)
 
@@ -3947,47 +3947,46 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/request.ts](../src/docs/schemas/request.ts)
 
-- L1 â€” variÃ¡vel: `RequestDetail`
-- L28 â€” variÃ¡vel: `dateTime`
-- L29 â€” variÃ¡vel: `nullableDateTime`
-- L30 â€” variÃ¡vel: `nullableString`
-- L33 â€” variÃ¡vel: `RequestStatus`
-- L40 â€” variÃ¡vel: `RequestPriority`
-- L46 â€” variÃ¡vel: `RequestCategory`
-- L58 â€” variÃ¡vel: `YesNoDetail`
-- L64 â€” variÃ¡vel: `RequesterBlock`
-- L87 â€” variÃ¡vel: `DemandBlock`
-- L111 â€” variÃ¡vel: `OperationalBlock`
-- L151 â€” variÃ¡vel: `ComplementaryBlock`
-- L162 â€” variÃ¡vel: `CreateRequestPayload`
-- L179 â€” variÃ¡vel: `CreateRequestResponse`
-- L189 â€” variÃ¡vel: `RequestSummary`
-- L216 â€” variÃ¡vel: `PaginatedRequestSummary`
-- L228 â€” variÃ¡vel: `PublicMeeting`
-- L237 â€” variÃ¡vel: `PublicRequestDetail`
-- L288 â€” variÃ¡vel: `Assignee`
-- L302 â€” variÃ¡vel: `PrioritizationBlock`
-- L320 â€” variÃ¡vel: `PendingSummary`
-- L331 â€” variÃ¡vel: `UnreadState`
-- L341 â€” variÃ¡vel: `CorrectionAlert`
-- L350 â€” variÃ¡vel: `InternalAttachment`
-- L362 â€” variÃ¡vel: `InternalRequestDetail`
-- L435 â€” variÃ¡vel: `UpdateRequesterBlock`
-- L446 â€” variÃ¡vel: `UpdateInternalRequestPayload`
-- L459 â€” variÃ¡vel: `PublicOperationalImpacts`
-- L480 â€” variÃ¡vel: `RequesterOperational`
-- L513 â€” variÃ¡vel: `RequesterAttachment`
-- L526 â€” variÃ¡vel: `PublicRequestDetails`
-- L556 â€” variÃ¡vel: `RequesterRequestDetails`
-- L600 â€” variÃ¡vel: `PublicTrackingResponse`
-- L609 â€” variÃ¡vel: `AuthenticatedTrackingResponse`
-- L618 â€” variÃ¡vel: `TrackingResponse`
-- L626 â€” variÃ¡vel: `AssigneeSummary`
-- L638 â€” variÃ¡vel: `AssignRequestPayload`
-- L652 â€” variÃ¡vel: `AssignRequestResponse`
-- L671 â€” variÃ¡vel: `AssignAnalystPayload`
-- L694 â€” variÃ¡vel: `UpdateStatusPayload`
-- L722 â€” variÃ¡vel: `UpdateStatusResponse`
+- L1 â€” variÃ¡vel: `dateTime`
+- L2 â€” variÃ¡vel: `nullableDateTime`
+- L3 â€” variÃ¡vel: `nullableString`
+- L6 â€” variÃ¡vel: `RequestStatus`
+- L13 â€” variÃ¡vel: `RequestPriority`
+- L19 â€” variÃ¡vel: `RequestCategory`
+- L31 â€” variÃ¡vel: `YesNoDetail`
+- L37 â€” variÃ¡vel: `RequesterBlock`
+- L60 â€” variÃ¡vel: `DemandBlock`
+- L84 â€” variÃ¡vel: `OperationalBlock`
+- L124 â€” variÃ¡vel: `ComplementaryBlock`
+- L135 â€” variÃ¡vel: `CreateRequestPayload`
+- L152 â€” variÃ¡vel: `CreateRequestResponse`
+- L162 â€” variÃ¡vel: `RequestSummary`
+- L189 â€” variÃ¡vel: `PaginatedRequestSummary`
+- L201 â€” variÃ¡vel: `PublicMeeting`
+- L210 â€” variÃ¡vel: `PublicRequestDetail`
+- L261 â€” variÃ¡vel: `Assignee`
+- L275 â€” variÃ¡vel: `PrioritizationBlock`
+- L293 â€” variÃ¡vel: `PendingSummary`
+- L304 â€” variÃ¡vel: `UnreadState`
+- L314 â€” variÃ¡vel: `CorrectionAlert`
+- L323 â€” variÃ¡vel: `InternalAttachment`
+- L335 â€” variÃ¡vel: `InternalRequestDetail`
+- L408 â€” variÃ¡vel: `UpdateRequesterBlock`
+- L419 â€” variÃ¡vel: `UpdateInternalRequestPayload`
+- L432 â€” variÃ¡vel: `PublicOperationalImpacts`
+- L453 â€” variÃ¡vel: `RequesterOperational`
+- L486 â€” variÃ¡vel: `RequesterAttachment`
+- L499 â€” variÃ¡vel: `PublicRequestDetails`
+- L529 â€” variÃ¡vel: `RequesterRequestDetails`
+- L573 â€” variÃ¡vel: `PublicTrackingResponse`
+- L582 â€” variÃ¡vel: `AuthenticatedTrackingResponse`
+- L591 â€” variÃ¡vel: `TrackingResponse`
+- L599 â€” variÃ¡vel: `AssigneeSummary`
+- L611 â€” variÃ¡vel: `AssignRequestPayload`
+- L625 â€” variÃ¡vel: `AssignRequestResponse`
+- L644 â€” variÃ¡vel: `AssignAnalystPayload`
+- L667 â€” variÃ¡vel: `UpdateStatusPayload`
+- L695 â€” variÃ¡vel: `UpdateStatusResponse`
 
 ### [src/docs/schemas/triage.ts](../src/docs/schemas/triage.ts)
 
@@ -3997,25 +3996,24 @@ interface GroupedIssues {
 
 ### [src/docs/schemas/user.ts](../src/docs/schemas/user.ts)
 
-- L1 â€” variÃ¡vel: `UserListItem`
-- L15 â€” variÃ¡vel: `Role`
-- L22 â€” variÃ¡vel: `ProfileName`
-- L30 â€” variÃ¡vel: `UserMetrics`
-- L57 â€” variÃ¡vel: `UserSummary`
-- L81 â€” variÃ¡vel: `UserListResponse`
-- L93 â€” variÃ¡vel: `RequesterProfileBlock`
-- L104 â€” variÃ¡vel: `ProfessionalProfileBlock`
-- L115 â€” variÃ¡vel: `UserProfileResponse`
-- L137 â€” variÃ¡vel: `AssignAnalyst`
-- L162 â€” variÃ¡vel: `RequesterInput`
-- L173 â€” variÃ¡vel: `ProfessionalInput`
-- L192 â€” variÃ¡vel: `CreateUserRequest`
-- L207 â€” variÃ¡vel: `CreateUserResponse`
-- L234 â€” variÃ¡vel: `UpdateUserRequest`
-- L256 â€” variÃ¡vel: `UpdateProfilePayload`
-- L277 â€” variÃ¡vel: `ChangeUserStatusRequest`
-- L285 â€” variÃ¡vel: `ChangeUserStatusResponse`
-- L294 â€” variÃ¡vel: `ResetPasswordResponse`
+- L2 â€” variÃ¡vel: `Role`
+- L9 â€” variÃ¡vel: `ProfileName`
+- L17 â€” variÃ¡vel: `UserMetrics`
+- L44 â€” variÃ¡vel: `UserSummary`
+- L68 â€” variÃ¡vel: `UserListResponse`
+- L80 â€” variÃ¡vel: `RequesterProfileBlock`
+- L91 â€” variÃ¡vel: `ProfessionalProfileBlock`
+- L102 â€” variÃ¡vel: `UserProfileResponse`
+- L124 â€” variÃ¡vel: `AssignAnalyst`
+- L149 â€” variÃ¡vel: `RequesterInput`
+- L160 â€” variÃ¡vel: `ProfessionalInput`
+- L179 â€” variÃ¡vel: `CreateUserRequest`
+- L194 â€” variÃ¡vel: `CreateUserResponse`
+- L221 â€” variÃ¡vel: `UpdateUserRequest`
+- L243 â€” variÃ¡vel: `UpdateProfilePayload`
+- L264 â€” variÃ¡vel: `ChangeUserStatusRequest`
+- L272 â€” variÃ¡vel: `ChangeUserStatusResponse`
+- L281 â€” variÃ¡vel: `ResetPasswordResponse`
 
 ### [src/docs/swagger.ts](../src/docs/swagger.ts)
 
@@ -4367,28 +4365,28 @@ interface GroupedIssues {
 ### [src/modules/pendingItems/pendingItems.controller.ts](../src/modules/pendingItems/pendingItems.controller.ts)
 
 - L13 â€” variÃ¡vel: `{ checkRateLimit }`
-- L20 â€” variÃ¡vel: `p`
-- L28 â€” variÃ¡vel: `id`
-- L34 â€” variÃ¡vel: `protocol`
-- L35 â€” variÃ¡vel: `parsed`
-- L37 â€” variÃ¡vel: `result`
-- L47 â€” variÃ¡vel: `protocol`
-- L48 â€” variÃ¡vel: `result`
-- L53 â€” variÃ¡vel: `protocol`
-- L54 â€” variÃ¡vel: `pendingItemId`
-- L57 â€” variÃ¡vel: `actor`
-- L58 â€” variÃ¡vel: `parsed`
-- L60 â€” variÃ¡vel: `item`
-- L72 â€” variÃ¡vel: `protocol`
-- L73 â€” variÃ¡vel: `pendingItemId`
-- L76 â€” variÃ¡vel: `file`
-- L78 â€” variÃ¡vel: `result`
-- L83 â€” variÃ¡vel: `protocol`
-- L84 â€” variÃ¡vel: `parsed`
-- L86 â€” variÃ¡vel: `result`
+- L27 â€” variÃ¡vel: `p`
+- L35 â€” variÃ¡vel: `id`
+- L41 â€” variÃ¡vel: `protocol`
+- L42 â€” variÃ¡vel: `parsed`
+- L44 â€” variÃ¡vel: `result`
+- L54 â€” variÃ¡vel: `protocol`
+- L55 â€” variÃ¡vel: `result`
+- L60 â€” variÃ¡vel: `protocol`
+- L61 â€” variÃ¡vel: `pendingItemId`
+- L64 â€” variÃ¡vel: `actor`
+- L65 â€” variÃ¡vel: `parsed`
+- L67 â€” variÃ¡vel: `item`
+- L79 â€” variÃ¡vel: `protocol`
+- L80 â€” variÃ¡vel: `pendingItemId`
+- L83 â€” variÃ¡vel: `file`
+- L85 â€” variÃ¡vel: `result`
 - L96 â€” variÃ¡vel: `protocol`
-- L98 â€” variÃ¡vel: `key`
-- L102 â€” variÃ¡vel: `parsed`
+- L97 â€” variÃ¡vel: `parsed`
+- L99 â€” variÃ¡vel: `result`
+- L109 â€” variÃ¡vel: `protocol`
+- L111 â€” variÃ¡vel: `key`
+- L115 â€” variÃ¡vel: `parsed`
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 

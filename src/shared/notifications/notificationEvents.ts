@@ -233,6 +233,8 @@ export type PendingItemNotificationEvent = Extract<
 export const NOTIFICATION_EVENT_TYPES = [
   "status_changed",
   "mapping_scheduled",
+  "pending_item_responded",
+  "pending_item_responded_unassigned",
   "responsible_assigned",
   ...PENDING_ITEM_EVENT_TYPES,
 ] as const satisfies readonly NotificationEventType[];

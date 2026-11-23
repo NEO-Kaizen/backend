@@ -249,6 +249,31 @@ function buildNotifications({
       dedupKey: "seed:request.assigned:1:107",
       createdAt: "2026-11-19 17:05:00",
     }),
+    // issue #158: ciclo de Pendência — criação, reabertura e validação.
+    notification({
+      id: notificationId(8),
+      recipientUserId: 104, // Solicitante Teste
+      requestId: 3,
+      payload: { type: "pending_item_created", ...pointer(3) },
+      dedupKey: "seed:pending_item.create:3:104",
+      createdAt: "2026-11-19 10:05:00",
+    }),
+    notification({
+      id: notificationId(9),
+      recipientUserId: 104, // Solicitante Teste
+      requestId: 3,
+      payload: { type: "pending_item_reopened", ...pointer(3) },
+      dedupKey: "seed:pending_item.reopen:3:104",
+      createdAt: "2026-11-19 11:20:00",
+    }),
+    notification({
+      id: notificationId(10),
+      recipientUserId: 104, // Solicitante Teste
+      requestId: 3,
+      payload: { type: "pending_item_validated", ...pointer(3) },
+      dedupKey: "seed:pending_item.validate:3:104",
+      createdAt: "2026-11-20 09:40:00",
+    }),
     ...mappingScheduledNotifications,
   ];
 }

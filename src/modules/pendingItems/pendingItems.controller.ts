@@ -16,6 +16,13 @@ function rateLimitKey(ip: string | undefined, protocol: string): string {
   return `${ip ?? "unknown"}:${protocol.trim().toLowerCase()}`;
 }
 
+function callerFromRequest(req: Request): {
+  user?: typeof req.user;
+  requesterIdentity?: { name: string; email: string } | null;
+} {
+  return { user: req.user, requesterIdentity: req.requesterIdentity ?? null };
+}
+
 function assertProtocol(req: Request): string {
   const p = req.params.protocol;
   if (!p || typeof p !== "string" || p.trim() === "")
@@ -45,7 +52,7 @@ export async function createPendingItems(req: Request, res: Response): Promise<R
 
 export async function listPendingItems(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  const result = await service.listPendingItems(protocol, req);
+  const result = await service.listPendingItems(protocol, callerFromRequest(req));
   return res.status(200).json(result);
 }
 
@@ -63,7 +70,7 @@ export async function respondPendingItem(req: Request, res: Response): Promise<R
     parsed.data,
     actor,
     req.ip,
-    req,
+    callerFromRequest(req),
   );
   return res.status(200).json(item);
 }
@@ -75,7 +82,13 @@ export async function attachPendingItem(req: Request, res: Response): Promise<Re
     throw new AppError("pendingItemId é obrigatório", 400);
   const file = req.file;
   if (!file) throw new AppError("Campos obrigatórios ausentes: file", 400);
-  const result = await service.addAttachment(protocol, pendingItemId.trim(), file, req.ip, req);
+  const result = await service.addAttachment(
+    protocol,
+    pendingItemId.trim(),
+    file,
+    req.ip,
+    callerFromRequest(req),
+  );
   return res.status(201).json(result);
 }
 
