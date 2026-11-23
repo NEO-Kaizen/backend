@@ -4,7 +4,7 @@ export default {
       tags: ["Relatórios"],
       summary: "Relatório do dashboard",
       description:
-        "Retorna dados consolidados para o dashboard. Exige autenticação e perfil Gestor ou Administrador.",
+        "Retorna dados consolidados para o dashboard. Exige a permissão global `reports:read`.",
       operationId: "getDashboard",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -25,7 +25,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Gestor ou Administrador).",
+          description: "Ator sem `reports:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -40,7 +40,7 @@ export default {
       tags: ["Relatórios"],
       summary: "Exportar solicitações em CSV",
       description:
-        "Exporta as solicitações da fila em formato CSV. Exige autenticação e perfil Gestor ou Administrador.",
+        "Exporta a Fila em CSV. Exige `queue:export`; a Custódia `assigned` limita a exportação às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente. O Analista do perfil base não recebe essa permissão.",
       operationId: "exportRequestsCsv",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -61,7 +61,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Gestor ou Administrador).",
+          description: "Ator sem `queue:export`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

@@ -8,8 +8,8 @@
 // 1. re-lê contexto da solicitação (status + responsável);
 // 2. localiza o alvo (`id` explícito ou mapeamento aberto mais recente);
 // 3. aplica a designação (`mappingAssigneeId`) se fornecida;
-// 4. autoriza: edição de campos = designado do mapeamento ou Admin;
-//    designação = responsável da solicitação ou Admin;
+// 4. autoriza leitura e escrita pela chave e pela Custódia da solicitação ou
+//    do mapeamento corrente;
 // 5. mescla os campos (ausente mantém / `null` limpa);
 // 6. resolve participantes, persiste, audita e (se concluir) avança o status
 //    para `Mapeamento agendado`.
@@ -17,6 +17,8 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { recordAccessDeniedAttempt } from "../../shared/audit/accessDenied.ts";
+import { hasAdministrativeAuditOrigin, hasPermissionCustody } from "../../shared/access/custody.ts";
 import { applyStatusTransition } from "../requests/statusTransition.ts";
 import type {
   MappingActor,
@@ -31,13 +33,6 @@ import * as repository from "./mapping.repository.ts";
 import type { MappingRow } from "./mapping.repository.ts";
 import type { Knex } from "knex";
 
-// TODO(#167): Remover LEGACY_ASSIGNABLE_PROFILES e a comparação por nome de perfil.
-// A validação de alvo de mapeamento deve usar flag is_assignable_mapping + predicado
-// de chaves (mapping:read, mapping:write, request:read), conforme docs/rbac.md § 1.4.
-// A issue #167 (Contração: fim do guard por nome) é responsável por eliminar
-// essa referência viva a nome de Perfil.
-const LEGACY_ASSIGNABLE_PROFILES = ["analista"] as const;
-
 /** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
 async function recordMappingAccessDenied(
   protocol: string,
@@ -45,19 +40,25 @@ async function recordMappingAccessDenied(
   detail: string,
   ipAddress?: string,
 ): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.access_denied",
-      entityId: protocol,
-      userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: `Mapping negado: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
+  await recordAccessDeniedAttempt({
+    entityType: "request",
+    entityId: protocol,
+    userId: actorId,
+    note: `Mapeamento negado: ${detail}`,
+    ipAddress,
   });
+}
+
+function hasMappingCustody(
+  actor: MappingActor,
+  key: "mapping:read" | "mapping:write",
+  requestAssigneeUserId: number | null,
+  mappingAssigneeUserId: number | null,
+): boolean {
+  return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
+    requestAssigneeUserId,
+    mappingAssigneeUserId,
+  ]);
 }
 
 /** Serializa instante para ISO-8601 UTC com sufixo `Z` e precisão de segundos. */
@@ -277,20 +278,48 @@ async function resolveParticipants(
   return resolved;
 }
 
-/** Valida elegibilidade do candidato a designado (mesmo critério do módulo `requests`). */
-function assertCandidateEligible(candidate: repository.MappingAssigneeCandidate): void {
-  if (candidate.professional_status !== "active" || !candidate.user_is_active) {
+/** Valida Atribuibilidade do candidato conforme flag e predicado RBAC. */
+async function assertCandidateEligible(
+  queryable: Knex,
+  candidate: repository.MappingAssigneeCandidate,
+): Promise<void> {
+  if (
+    candidate.professional_status !== "active" ||
+    !candidate.user_is_active ||
+    !candidate.profile_is_active
+  ) {
     throw new AppError("Designado inativo.", 422);
   }
-  if (!(LEGACY_ASSIGNABLE_PROFILES as readonly string[]).includes(candidate.profile_name)) {
-    throw new AppError("Perfil do designado não permite executar o mapeamento.", 422);
+  if (!(await repository.isMappingAssigneeProfileAssignable(queryable, candidate.profile_id))) {
+    throw new AppError("O perfil do designado não permite executar o mapeamento.", 422);
   }
 }
 
-export const getMappingService = async (protocol: string): Promise<MappingResponseDTO> => {
+export const getMappingService = async (
+  protocol: string,
+  actor: MappingActor,
+  ipAddress?: string,
+): Promise<MappingResponseDTO> => {
   const context = await repository.findMappingRequestContext(db, protocol.trim());
   if (!context) {
     throw new AppError("Solicitação não encontrada", 404);
+  }
+
+  if (
+    !hasMappingCustody(
+      actor,
+      "mapping:read",
+      context.assignee_user_id,
+      context.mapping_assignee_user_id,
+    )
+  ) {
+    await recordMappingAccessDenied(
+      context.protocol,
+      actor.id,
+      "sem custódia para ler o mapeamento",
+      ipAddress,
+    );
+    throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
   const mapping = await repository.findCurrentMapping(db, context.request_id);
@@ -325,15 +354,22 @@ export const upsertMappingService = async (
       throw new AppError("Solicitação não encontrada", 404);
     }
 
-    if (actor.role === "Gestor") {
+    if (
+      !hasMappingCustody(
+        actor,
+        "mapping:write",
+        context.assignee_user_id,
+        context.mapping_assignee_user_id,
+      )
+    ) {
       await recordMappingAccessDenied(
         context.protocol,
         actor.id,
-        "perfil Gestor é somente leitura",
+        "sem custódia para escrever no mapeamento",
         ipAddress,
       );
       throw new AppError(
-        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+        "Você não tem permissão ou Custódia para alterar este Mapeamento.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
       );
@@ -346,24 +382,17 @@ export const upsertMappingService = async (
       throw new AppError("Solicitação encerrada.", 422);
     }
 
-    // Priorizado (isRestricted) bloqueia o PUT de qualquer perfil — inclusive
-    // Admin/designado → movimentação de/r para Priorizado só via `PATCH /status`
+    // Status restrito bloqueia o PUT; mudanças de status ocorrem via
+    // `PATCH /status`
     // (delta v4 §3.2: "Priorizado só via override").
     if (context.is_restricted) {
       await recordMappingAccessDenied(context.protocol, actor.id, "demanda priorizada", ipAddress);
       throw new AppError(
-        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+        "Esta solicitação está em status restrito e não pode receber alterações de mapeamento.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
       );
     }
-
-    const isAdmin = actor.role === "Administrador";
-    const isRequestAssignee =
-      context.assignee_user_id !== null && Number(context.assignee_user_id) === actor.id;
-    const isRequestMappingAssignee =
-      context.mapping_assignee_user_id !== null &&
-      Number(context.mapping_assignee_user_id) === actor.id;
 
     const mapping = payload.id
       ? await repository.findMappingById(trx, context.request_id, payload.id)
@@ -378,41 +407,16 @@ export const upsertMappingService = async (
 
     const previousProfessionalId = mapping ? mapping.professional_id : null;
 
-    // Autorização — dois vínculos distintos (contrato §9):
-    // - Designação (`mappingAssigneeId` presente): responsável da solicitação
-    //   (dono pode delegar) ou Admin; o designado atual também pode (re)designar.
-    // - Campos do mapeamento (com ou sem designação): o designado ATUAL ou Admin.
-    //   Criação sem designação herda o responsável — o próprio responsável pode
-    //   criar (ele será o designado efetivo).
+    // Uma alteração de designação e os campos do mapeamento são ações
+    // independentes; ambas exigem `mapping:write` e Custódia corrente.
     // - `mappingAssigneeId: null` em CRIAÇÃO não tem o que remover: equivale a
     //   herdar o responsável (evita mapeamento órfão que ninguém edita).
     const explicitDesignation = payload.mappingAssigneeId !== undefined;
     const isNullOnCreate = !mapping && explicitDesignation && payload.mappingAssigneeId === null;
     const designationAction = explicitDesignation && !isNullOnCreate;
 
-    const priorDesigneeUserId =
-      mapping?.professional_id === null
-        ? null
-        : ((await repository.findMappingAssigneeCandidate(trx, mapping?.professional_id ?? null))
-            ?.userId ?? null);
-    const isPriorMappingAssignee =
-      priorDesigneeUserId !== null && Number(priorDesigneeUserId) === actor.id;
-    // Decisão: o designado ATUAL edita mesmo com `details_professional.status`
-    // inativo — o ator está logado e ativo (authMiddleware revalida por request).
-    const canCreateByInheritance =
-      !mapping &&
-      (isRequestAssignee || isRequestMappingAssignee) &&
-      (payload.mappingAssigneeId === undefined || isNullOnCreate);
-    const isCurrentMappingAssignee =
-      isPriorMappingAssignee ||
-      (!mapping && isRequestMappingAssignee) ||
-      (mapping?.professional_id === null && isRequestMappingAssignee);
-    const canDesignate = isAdmin || isRequestAssignee || isCurrentMappingAssignee;
-    const canEditContent = isAdmin || isCurrentMappingAssignee || canCreateByInheritance;
-
-    // Autorização em DOIS eixos INDEPENDENTES: a presença de `mappingAssigneeId`
-    // não isenta a checagem de edição. `contentAction` = tentativa de alterar
-    // campos ou concluir o mapeamento (designado atual e Admin passam em ambos).
+    // A chave custodial `mapping:write` autoriza alterações de conteúdo e de
+    // designação quando o ator é Responsável da solicitação ou do mapeamento.
     const contentAction =
       payload.scheduledFor !== undefined ||
       payload.durationMinutes !== undefined ||
@@ -430,33 +434,6 @@ export const upsertMappingService = async (
       throw new AppError("Informe ao menos um campo para atualizar o mapeamento.", 400);
     }
 
-    if (designationAction && !canDesignate) {
-      await recordMappingAccessDenied(
-        context.protocol,
-        actor.id,
-        "sem permissão para designar o mapeamento",
-        ipAddress,
-      );
-      throw new AppError(
-        "Você não tem permissão para designar o mapeamento: apenas o responsável pela solicitação ou Administrador.",
-        403,
-        "INSUFFICIENT_ROLE_PERMISSIONS",
-      );
-    }
-    if (contentAction && !canEditContent) {
-      await recordMappingAccessDenied(
-        context.protocol,
-        actor.id,
-        "sem custódia para editar o mapeamento",
-        ipAddress,
-      );
-      throw new AppError(
-        "Você não tem permissão para editar este mapeamento.",
-        403,
-        "INSUFFICIENT_ROLE_PERMISSIONS",
-      );
-    }
-
     // Designação efetiva: `mappingAssigneeId` (uuid de details_professional).
     // Ausente (ou `null` em criação) = mantém o atual / herda o responsável.
     let effectiveProfessionalId: string | null;
@@ -469,7 +446,7 @@ export const upsertMappingService = async (
         throw new AppError("Designado não encontrado.", 422);
       }
       if (candidate) {
-        assertCandidateEligible(candidate);
+        await assertCandidateEligible(trx, candidate);
       }
 
       effectiveProfessionalId = payload.mappingAssigneeId;
@@ -577,7 +554,7 @@ export const upsertMappingService = async (
       await repository.replaceMappingParticipants(trx, mappingId, resolvedParticipants);
     }
 
-    const changeOrigin = actor.role === "Administrador" ? "admin" : "internal";
+    const changeOrigin = hasAdministrativeAuditOrigin(actor.permissions) ? "admin" : "internal";
 
     // Diff completo inclui o designado vigente: cada save registra quem executa,
     // além da mudança pontual de designação (`mapping.assign`).

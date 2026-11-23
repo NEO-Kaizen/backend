@@ -1,4 +1,4 @@
-import type { Custody } from "../catalog/permissionCatalog.ts";
+import type { Custody, EffectivePermission, PermissionKey } from "../catalog/permissionCatalog.ts";
 
 /**
  * Resolução de Custódia — predicado puro compartilhado pelos serviços.
@@ -24,6 +24,9 @@ export interface CustodySubject {
   readonly requesterEmail?: string | null;
 }
 
+export type ResponsibleScope =
+  { readonly kind: "all" } | { readonly kind: "assigned"; readonly userId: number };
+
 /**
  * O vínculo concede acesso à linha? `all` dispensa filtro; `assigned` compara
  * o Responsável; `own` compara o e-mail do Solicitante com o da conta. Chave
@@ -46,4 +49,59 @@ export function hasCustody(
         subject.requesterEmail.trim().toLowerCase() === actor.email.trim().toLowerCase()
       );
   }
+}
+
+export function hasPermissionCustody(
+  permissions: readonly EffectivePermission[],
+  key: PermissionKey,
+  actor: CustodyActor,
+  responsibleIds: readonly (number | null | undefined)[],
+): boolean {
+  const custody = custodyFor(permissions, key);
+  if (!custody) return false;
+
+  const validResponsibleIds = responsibleIds.filter(
+    (userId): userId is number =>
+      userId !== null && userId !== undefined && Number.isInteger(userId) && userId > 0,
+  );
+
+  return hasCustody(custody, actor, { responsibleIds: validResponsibleIds });
+}
+
+/** Vínculo da chave na sessão do ator; `undefined` quando a chave não existe. */
+export function custodyFor(
+  permissions: readonly EffectivePermission[],
+  key: PermissionKey,
+): Custody | undefined {
+  return permissions.find((permission) => permission.key === key)?.custody;
+}
+
+/**
+ * Mantém a origem de auditoria administrativa sem comparar nomes de Perfil.
+ * Os perfis base Administrador e Admin Root têm `request:status_override` global.
+ */
+export function hasAdministrativeAuditOrigin(permissions: readonly EffectivePermission[]): boolean {
+  return custodyFor(permissions, "request:status_override") === "global";
+}
+
+/**
+ * Escopo de linha das chaves de Fila (`queue:read`, `queue:export`).
+ *
+ * Devolve um escopo explícito: `all` ou `assigned` com o user id. Ausência de
+ * chave, vínculo inválido ou id inválido retorna `undefined` para o service
+ * negar o acesso, em vez de mascarar a inconsistência como uma lista vazia.
+ */
+export function resolveResponsibleScope(
+  permissions: readonly EffectivePermission[],
+  key: PermissionKey,
+  actorId: number,
+): ResponsibleScope | undefined {
+  const custody = custodyFor(permissions, key);
+
+  if (custody === "all") return { kind: "all" };
+  if (custody !== "assigned") return undefined;
+
+  return Number.isInteger(actorId) && actorId > 0
+    ? { kind: "assigned", userId: actorId }
+    : undefined;
 }

@@ -9,6 +9,7 @@
 // cadastro e persiste os valores canônicos (divergência do payload ignorada).
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import { profileHasAssignablePermissions } from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { RequestStatus } from "../../shared/types/requests.ts";
 import type { MappingValues, ResolvedParticipant } from "../DTOs/queue/mapping.dto.ts";
@@ -69,7 +70,8 @@ export interface MappingAssigneeCandidate {
   jobTitle: string | null;
   professional_status: "active" | "inactive";
   user_is_active: boolean;
-  profile_name: string;
+  profile_id: number;
+  profile_is_active: boolean;
 }
 
 /**
@@ -86,10 +88,34 @@ export const findMappingRequestContext = async (
   const row = await queryable("requests")
     .join("statuses as s", "s.status_id", "requests.status_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id")
+    // A atribuição do Mapeamento vigente vem da linha aberta mais recente.
+    // Antes de existir qualquer linha de Mapeamento, vale a designação inicial
+    // de requests.mapping_professional_id; depois de concluído, o snapshot não autoriza.
+    .joinRaw(
+      `
+      LEFT JOIN LATERAL (
+        SELECT CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM mappings AS any_mapping
+            WHERE any_mapping.request_id = requests.request_id
+          ) THEN (
+            SELECT active_mapping.professional_id
+            FROM mappings AS active_mapping
+            WHERE active_mapping.request_id = requests.request_id
+              AND active_mapping.is_concluded = FALSE
+            ORDER BY active_mapping.created_at DESC, active_mapping.updated_at DESC
+            LIMIT 1
+          )
+          ELSE requests.mapping_professional_id
+        END AS professional_id
+      ) AS current_mapping ON TRUE
+    `,
+    )
     .leftJoin(
       "details_professional as mapping_dp",
       "mapping_dp.professional_id",
-      "requests.mapping_professional_id",
+      "current_mapping.professional_id",
     )
     .leftJoin("users as mapping_user", "mapping_user.user_id", "mapping_dp.user_id")
     .where("requests.protocol", protocol)
@@ -163,11 +189,23 @@ export const findMappingAssigneeCandidate = async (
       jobTitle: "dp.job_title",
       professional_status: "dp.status",
       user_is_active: "u.is_active",
-      profile_name: "p.name",
+      profile_id: "p.profile_id",
+      profile_is_active: "p.is_active",
     });
 
   return row ?? null;
 };
+
+export async function isMappingAssigneeProfileAssignable(
+  queryable: Knex,
+  profileId: number,
+): Promise<boolean> {
+  return profileHasAssignablePermissions(profileId, "mapping", {
+    queryable,
+    requireFlag: true,
+    requireActive: true,
+  });
+}
 
 /** Mapeamento mais recente da solicitação (inclusive concluído) — resposta do GET. */
 export const findCurrentMapping = async (

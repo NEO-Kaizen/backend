@@ -123,15 +123,15 @@ Os dois endpoints de triagem respeitam `PUBLIC_API_URL` + `credentials: include`
 (cookie `session_id`), igual a `solicitations-api-requests-0_5.md §0`. Em `dev`
 o frontend usa `MOCK_DOMAINS.triage` (`src/lib/mocks/index.ts`).
 
-| Endpoint                           | Autenticação                | Permissão                                                                                                                 |
-| ---------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `POST /requests/:protocol/triage`  | exige sessão                | só `Administrador` ou Analista assignee (`assignee` = responsável de triagem) → `403` caso contrário (`Gestor` read-only) |
-| `GET /requests/:protocol/triage`   | exige sessão                | `Administrador` ou `Gestor` (leitura) ou Analista assignee → `403` caso contrário                                         |
-| `GET /requests/:protocol/internal` | exige sessão (fila interna) | `Administrador`/`Gestor` (leitura) ou Analista assignee (triagem ou mapeamento — #102) → `403` caso contrário             |
+| Endpoint                           | Autenticação                | Permissão                                                                                      |
+| ---------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------- |
+| `POST /requests/:protocol/triage`  | exige sessão                | `triage:write` + Custódia; Status atual restrito exige também `request:status_override` global |
+| `GET /requests/:protocol/triage`   | exige sessão                | `triage:read` + Custódia sobre o Responsável corrente da solicitação                           |
+| `GET /requests/:protocol/internal` | exige sessão (fila interna) | `request:read` + Custódia sobre o Responsável da solicitação                                   |
 
 - Sem sessão válida: `401` no envelope padrão.
-- Implementado pelo guard `canEditSolicitation(assigneeId, user)` (`src/lib/services/access.service`)
-  espelhando RN-004.
+- A rota faz o gate da chave; o service resolve a Custódia corrente e registra
+  Tentativa em recusas auditáveis.
 
 ---
 
@@ -289,13 +289,13 @@ HTTP/1.1 422 Unprocessable Entity
 
 **Erros:**
 
-| Status | Quando                                                                                                                                                                                                                                                                                                      |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 401    | Sem sessão / cookie inválido                                                                                                                                                                                                                                                                                |
-| 403    | Usuário não é `Administrador` nem `ANALYST_ASSIGNEE` atual da solicitação (mensagem `Ação restrita ao Administrador ou ao Analista responsável pela demanda.` + `code: INSUFFICIENT_ROLE_PERMISSIONS`); rejeita também solicitação com status `isRestricted` (Priorizado — só via `PATCH /status` override) |
-| 404    | Protocolo inexistente                                                                                                                                                                                                                                                                                       |
-| 422    | Validação — body fora dos limites abaixo (envelope `fields` por campo)                                                                                                                                                                                                                                      |
-| 500    | Erro genérico                                                                                                                                                                                                                                                                                               |
+| Status | Quando                                                                                                                                                             |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 401    | Sem sessão / cookie inválido                                                                                                                                       |
+| 403    | Sem `triage:write` ou Custódia sobre o Responsável corrente, ou Status `isRestricted` sem `request:status_override` global (`code: INSUFFICIENT_ROLE_PERMISSIONS`) |
+| 404    | Protocolo inexistente                                                                                                                                              |
+| 422    | Validação — body fora dos limites abaixo (envelope `fields` por campo)                                                                                             |
+| 500    | Erro genérico                                                                                                                                                      |
 
 **Validações `422` (espelham `src/routes/(admin)/fila/[protocolo]/components/triagem/triage-validation.ts:49`):**
 
@@ -362,12 +362,12 @@ null
 
 **Erros:**
 
-| Status | Quando                                          |
-| ------ | ----------------------------------------------- |
-| 401    | Sem sessão                                      |
-| 403    | Sem permissão (mesma regra `Admin`\|`assignee`) |
-| 404    | Protocolo inexistente                           |
-| 500    | Erro genérico                                   |
+| Status | Quando                                                     |
+| ------ | ---------------------------------------------------------- |
+| 401    | Sem sessão                                                 |
+| 403    | Sem `triage:read` ou Custódia sobre o Responsável corrente |
+| 404    | Protocolo inexistente                                      |
+| 500    | Erro genérico                                              |
 
 ---
 
@@ -449,7 +449,7 @@ export interface PortalStatus {
 
 - `isTerminal` = encerra a solicitação (defaults: `Concluído` `id 16`, `Cancelado` `id 17`).
 - `triageMode: "conclusion_only"` = elegível como `exitStatus` do `POST triage` (inclui `Pendente de informações`, `Fora do escopo`, `Direcionada para outra área`, `Duplicada`, `Backlog`, saídas elegíveis mesmo com `isTerminal === false`); `"free"` = também alcançável via `PATCH /status` por analista.
-- `isRestricted` bloqueia triagem/mapeamento de qualquer perfil — `Priorizado` (`11`) só via `PATCH /status` com bypass Admin. `isCore` = ids `1,3,4,7,16,17` (imutáveis na API de portal-config).
+- `isRestricted` bloqueia o Mapeamento para qualquer perfil. Na Triagem, uma solicitação com Status atual restrito exige `request:status_override` global além de `triage:write` + Custódia; o Status de saída continua limitado a `isRestricted === false`. `isCore` = ids `1,3,4,7,16,17` (imutáveis na API de portal-config).
 
 Backend valida `exitStatus` contra `statuses` com `isActive && isRestricted=false && triageMode IN ('conclusion_only','free')` (`triage.repository.resolveExitStatus`). Frontend filtra `portalConfig.statuses` para `FilterSelect`:
 

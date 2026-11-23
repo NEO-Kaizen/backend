@@ -1,6 +1,9 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { recordAccessDeniedAttempt } from "../../shared/audit/accessDenied.ts";
 import db from "../../database/conection.ts";
+import { hasPermissionCustody } from "../../shared/access/custody.ts";
+import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import type { Classification, CriterionRow } from "../../shared/types/prioritization.ts";
 import type {
@@ -30,21 +33,11 @@ export async function listActiveCriteria(): Promise<ListCriteriaResponse> {
  * imutável (`audit_history`, evento `prioritization.evaluate`, com snapshot
  * anterior e novo).
  */
-interface Actor {
-  id: number;
-  role: string;
-}
-
-function isAdminOrAssignee(actor: Actor, assigneeUserId: number | null): boolean {
-  if (actor.role === "Administrador") return true;
-  if (assigneeUserId === null) return false;
-  return assigneeUserId === actor.id;
-}
-
 export async function evaluateScore(
   protocol: string,
   payload: EvaluatePrioritizationRequest,
-  actor: Actor,
+  actor: PermissionActor,
+  ipAddress?: string,
 ): Promise<EvaluatePrioritizationResponse> {
   const exists = await repository.findRequestByProtocol(protocol);
   if (!exists) {
@@ -55,7 +48,22 @@ export async function evaluateScore(
   if (assigneeUserId === undefined) {
     throw new AppError("Solicitação não encontrada", 404);
   }
-  if (!isAdminOrAssignee(actor, assigneeUserId)) {
+
+  const canEvaluate = hasPermissionCustody(
+    actor.permissions,
+    "prioritization:write",
+    { userId: actor.id, email: actor.email },
+    [assigneeUserId],
+  );
+
+  if (!canEvaluate) {
+    await recordAccessDeniedAttempt({
+      entityType: "request",
+      entityId: protocol,
+      userId: actor.id,
+      note: "Priorização negada: sem Custódia da solicitação.",
+      ipAddress,
+    });
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 

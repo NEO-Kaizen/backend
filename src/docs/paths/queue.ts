@@ -4,7 +4,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Métricas da fila",
       description:
-        "Retorna Métricas consolidadas da fila de atendimento. Exige autenticação e perfil interno (Analista, Gestor ou Administrador).",
+        "Retorna métricas da fila. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente, e `all` não aplica filtro.",
       operationId: "getQueueMetrics",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -25,7 +25,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Analista, Gestor, Administrador).",
+          description: "Ator sem `queue:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -40,7 +40,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Listar fila de atendimento",
       description:
-        "Centraliza a listagem da fila com Páginação, busca e filtros. Exige autenticação e perfil interno.",
+        "Centraliza a listagem da fila com paginação, busca e filtros. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente, e `all` não aplica filtro.",
       operationId: "getQueue",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -83,7 +83,8 @@ export default {
           name: "assigneeId",
           in: "query",
           required: false,
-          description: "UUID do profissional ou `unassigned`.",
+          description:
+            "ID do Responsável da triagem ou do Mapeamento corrente (UUID ou user_id), ou `unassigned`.",
           schema: { type: "string", example: "unassigned" },
         },
         {
@@ -120,7 +121,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfil sem acesso (apenas Analista, Gestor, Administrador).",
+          description: "Ator sem `queue:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -135,8 +136,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Consultar mapeamento da solicitação",
       description:
-        "Consulta o mapeamento mais recente de uma solicitação (agendamento). " +
-        "Exige autenticação e perfil interno (Analista, Gestor ou Administrador).",
+        "Consulta o mapeamento mais recente. Exige `mapping:read` e Custódia sobre o Responsável da solicitação ou do mapeamento corrente; snapshots não concedem acesso.",
       operationId: "getMapping",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -186,7 +186,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Criar ou atualizar mapeamento",
       description:
-        "Cria ou atualiza o mapeamento da solicitação. Campos ausentes mantêm o valor atual; `null` limpa; `participants` substitui a lista.",
+        "Cria ou atualiza o mapeamento. Exige `mapping:write` e Custódia sobre o Responsável da solicitação ou do mapeamento corrente; snapshots não concedem acesso. Campos ausentes mantêm o valor atual; `null` limpa; `participants` substitui a lista.",
       operationId: "putMapping",
       security: [{ cookieAuth: [] }],
       parameters: [

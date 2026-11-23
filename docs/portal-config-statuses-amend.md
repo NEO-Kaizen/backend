@@ -9,7 +9,7 @@
 
 - Fonte: `product-response v4 §1.2` (17-row truth), `contract-triage.md` §4, `solicitations-api-requests-0_4.md`.
 - Referências: `shared/types/portalConfig.ts`, `portalConfig.schema.ts:140-186`, `portalConfig.service.ts:261-270`, `triage.service.ts:46`, `mapping.service.ts:300-364`, `requests.service.ts:206`.
-- Autenticação: `GET /portal-config` é **público**; `PATCH /portal-config/statuses` exige `session_id` de `Administrador`; os 3 endpoints de ciclo exigem `session_id` de `Administrador` ou `ANALYST_ASSIGNEE`. `Gestor` é read-only no ciclo e não pode executar nenhum desses writes.
+- Autorização RBAC: `GET /portal-config` é **público**; `PATCH /portal-config/statuses` exige `status:manage`; `POST /triage` exige `triage:write` + Custódia e `request:status_override` global para Status atual restrito; `PUT /mapping` exige `mapping:write` + Custódia e continua bloqueado em Status restrito; `PATCH /status` exige `request:status_change` + Custódia e `request:status_override` global para alvos protegidos.
 
 ---
 
@@ -123,15 +123,20 @@ export interface UpdateStatusesRequest {
 
 ## 3. Endpoints de ciclo — amend/create (impacto de `PortalStatus`)
 
-> Erros no envelope `{ "status": "error", "statusCode": number, "message": string }` e `422` com `fields`. **Toda** mudança de status exige `justification` (`1..4000`); **toda transição para status público exige também `lastTechnicalMessage`** (`1..4000`, texto exibido ao solicitante em `GET /requests/:protocol`). `PATCH /status` é único: `ADMIN` faz bypass apenas dos modos para qualquer status ativo; `ANALYST_ASSIGNEE` fica restrito a `free`, ativo e não restrito; `Gestor` não pode PATCH. Guards `isAdminOrAssignee` (`triage.service.ts:46`, `mapping.service.ts:300-364`, `requests.service.ts:206`) inline — sem novo middleware.
+> Erros no envelope `{ "status": "error", "statusCode": number, "message": string }` e `422` com `fields`. **Toda** mudança de status exige `justification` (`1..4000`); **toda transição para status público exige também `lastTechnicalMessage`** (`1..4000`, texto exibido ao solicitante em `GET /requests/:protocol`). `PATCH /status` é único: `ADMIN` faz bypass apenas dos modos para qualquer status ativo; `ANALYST_ASSIGNEE` fica restrito a `free`, ativo e não restrito; `Gestor` não pode PATCH. As rotas atualmente usam chaves RBAC e Custódia; não há guard `isAdminOrAssignee`.
 
 ### 3.1 POST /requests/:protocol/triage — amend (`contract-triage.md` §1)
 
+> **Autorização RBAC vigente:** as referências a perfis no resumo histórico
+> acima estão substituídas
+> por `triage:write` + Custódia; Status atual restrito também requer
+> `request:status_override` global.
+
 Não idempotente — cada chamada gera `id` uuid novo; última triagem é vigente (`contract-triage.md §1`). A validação de `exitStatus` usa o Status v4 e `triageMode`.
 
-| Endpoint                          | Autenticação            | Permissão                                                                                                                                                                                                 |
-| --------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /requests/:protocol/triage` | `session_id` (HttpOnly) | `Administrador` ou `ANALYST_ASSIGNEE` (`user.id == assigneeId`) → `403` caso contrário (`Gestor` read-only). `isRestricted==true` (Priorizado) bloqueia mesmo assignee → via `PATCH /status` ADMIN bypass |
+| Endpoint                          | Autenticação            | Permissão                                                                                      |
+| --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `POST /requests/:protocol/triage` | `session_id` (HttpOnly) | `triage:write` + Custódia; Status `isRestricted` exige também `request:status_override` global |
 
 **Request:**
 
@@ -289,20 +294,20 @@ HTTP/1.1 403 Forbidden
 {
   "status": "error",
   "statusCode": 403,
-  "message": "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+   "message": "Você não tem permissão ou Custódia para registrar a Triagem.",
   "code": "INSUFFICIENT_ROLE_PERMISSIONS"
 }
 ```
 
 **Erros:**
 
-| Status | Quando                                                                              |
-| ------ | ----------------------------------------------------------------------------------- |
-| 401    | Sem `session_id` / sessão inválida/expirada                                         |
-| 403    | Não é `Administrador` nem `ANALYST_ASSIGNEE`; ou `isRestricted===true` (Priorizado) |
-| 404    | Protocolo inexistente                                                               |
-| 422    | Body fora das validações acima (`fields` por campo)                                 |
-| 500    | Erro genérico                                                                       |
+| Status | Quando                                                                                        |
+| ------ | --------------------------------------------------------------------------------------------- |
+| 401    | Sem `session_id` / sessão inválida/expirada                                                   |
+| 403    | Sem `triage:write` ou Custódia; ou Status `isRestricted` sem `request:status_override` global |
+| 404    | Protocolo inexistente                                                                         |
+| 422    | Body fora das validações acima (`fields` por campo)                                           |
+| 500    | Erro genérico                                                                                 |
 
 **curl:**
 
@@ -329,9 +334,9 @@ curl -s -X POST http://localhost:3000/requests/MAAT-8K3P-9X2M/triage \
 
 Lista de espera interna — reutiliza duplo guard `canDesignate/canEditContent` existente.
 
-| Endpoint                                | Autenticação | Permissão                                                                                                                                        |
-| --------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PUT /queue/requests/:protocol/mapping` | `session_id` | `Administrador` ou `ANALYST_ASSIGNEE` responsável pela triagem/mapeamento, para alvo ativo com `isRestricted===false` (Priorizado só via bypass) |
+| Endpoint                                | Autenticação | Permissão                                                                                                              |
+| --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `PUT /queue/requests/:protocol/mapping` | `session_id` | `mapping:write` + Custódia sobre o Responsável da solicitação ou do Mapeamento corrente; snapshots não concedem acesso |
 
 **Request — agendamento (`targetStatus: 6`, exige reunião):**
 
@@ -438,7 +443,7 @@ HTTP/1.1 422 Unprocessable Entity
 | Status | Quando                                                                                                                                                                                                            |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 401    | Sem sessão                                                                                                                                                                                                        |
-| 403    | `403 {code:INSUFFICIENT_ROLE_PERMISSIONS}` — não é assignee/designado ou `isRestricted===true`                                                                                                                    |
+| 403    | `403 {code:INSUFFICIENT_ROLE_PERMISSIONS}` — sem `mapping:write` ou Custódia, ou solicitação com Status restrito                                                                                                  |
 | 404    | Protocolo inexistente                                                                                                                                                                                             |
 | 422    | Solicitação já terminal, `targetStatus` inválido, reunião ausente quando `targetStatus === 6`, `justification` ausente quando `targetStatus !== 6`, `lastTechnicalMessage` ausente quando `targetStatus.isPublic` |
 
@@ -597,15 +602,15 @@ HTTP/1.1 409 Conflict
 
 **Erros:**
 
-| Status | Quando                                                                                                                                                                                            |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 401    | Sem sessão                                                                                                                                                                                        |
-| 403    | `Gestor`, usuário sem custódia, ou `ANALYST_ASSIGNEE` tentando alvo `isRestricted===true` ou sem `triageMode`/`mappingMode` `free` → `code:INSUFFICIENT_ROLE_PERMISSIONS` + audit `ACCESS_DENIED` |
-| 400    | `justification` ausente/vazia ou fora de 1..4000 após trim; ou `lastTechnicalMessage` ausente/vazia ou fora de 1..4000 quando `targetStatus.isPublic`                                             |
-| 404    | Protocolo ou `targetStatus` inexistente                                                                                                                                                           |
-| 422    | `targetStatus` já é o atual                                                                                                                                                                       |
-| 409    | `targetStatus` inativo (`isActive===false`)                                                                                                                                                       |
-| 500    | Erro genérico                                                                                                                                                                                     |
+| Status | Quando                                                                                                                                                                                     |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 401    | Sem sessão                                                                                                                                                                                 |
+| 403    | Ator sem `request:status_change`; ou alvo restrito/fora do modo permitido sem `request:status_override` global (`request_status_override_required`); a recusa auditável registra Tentativa |
+| 400    | `justification` ausente/vazia ou fora de 1..4000 após trim; ou `lastTechnicalMessage` ausente/vazia ou fora de 1..4000 quando `targetStatus.isPublic`                                      |
+| 404    | Protocolo ou `targetStatus` inexistente                                                                                                                                                    |
+| 422    | `targetStatus` já é o atual                                                                                                                                                                |
+| 409    | `targetStatus` inativo (`isActive===false`)                                                                                                                                                |
+| 500    | Erro genérico                                                                                                                                                                              |
 
 **Audit:** `ADMIN` bypass → `OVERRIDE_STATUS_ADMIN`; normal → `request.status_change`.
 

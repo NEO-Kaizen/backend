@@ -1,11 +1,12 @@
 import type { Request, Response } from "express";
+import { permissionActorFromRequest } from "../../shared/access/permissionActor.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { getQueueMetricsService, listQueueService } from "./queue.service.ts";
 import { queueQuerySchema } from "./queue.schemas.ts";
 
 export const getMetricsController = async (req: Request, res: Response): Promise<Response> => {
-  const metrics = await getQueueMetricsService(req.user);
+  const metrics = await getQueueMetricsService(permissionActorFromRequest(req));
 
   return res.status(200).json(metrics);
 };
@@ -17,7 +18,7 @@ export const centralizedQueue = async (req: Request, res: Response): Promise<Res
     throw new AppError(formatZodIssues(parsed.error, "query"), 400);
   }
 
-  const result = await listQueueService(parsed.data, req.user);
+  const result = await listQueueService(parsed.data, permissionActorFromRequest(req));
 
   return res.status(200).json(result);
 };

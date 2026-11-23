@@ -392,7 +392,7 @@ export default {
       tags: ["Triagem"],
       summary: "Consultar triagem da solicitação",
       description:
-        "Consulta a avaliação de triagem persistida para uma solicitação. Requer autenticação e acesso interno.",
+        "Consulta a triagem persistida. Exige `triage:read` e Custódia sobre o Responsável corrente da solicitação; snapshots não concedem acesso.",
       operationId: "getTriage",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -442,8 +442,7 @@ export default {
       tags: ["Triagem"],
       summary: "Criar triagem da solicitação",
       description:
-        "Cria a triagem da solicitação (append — cada chamada gera uma nova row). " +
-        "Perfil permitido: Administrador e Analista. `Gestor` é read-only.",
+        "Cria uma triagem (cada chamada gera uma nova avaliação). Exige `triage:write` e Custódia sobre o Responsável corrente da solicitação; Status atual restrito também exige `request:status_override` global. Snapshots não concedem acesso.",
       operationId: "saveTriage",
       security: [{ cookieAuth: [] }],
       parameters: [

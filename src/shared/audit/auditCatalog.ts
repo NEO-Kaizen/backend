@@ -25,7 +25,7 @@ export const auditCatalog = {
   },
   prioritization: {
     label: "Priorização",
-    actions: ["evaluate"],
+    actions: ["evaluate", "access_denied"],
   },
   request: {
     label: "Solicitações",
@@ -42,6 +42,14 @@ export const auditCatalog = {
       "status_override",
       "access_denied",
     ],
+  },
+  queue: {
+    label: "Fila",
+    actions: ["access_denied"],
+  },
+  reports: {
+    label: "Relatórios",
+    actions: ["access_denied"],
   },
   mapping: {
     label: "Mapeamento",

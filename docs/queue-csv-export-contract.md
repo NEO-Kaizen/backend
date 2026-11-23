@@ -6,8 +6,11 @@ separada da paginação de `GET /queue`.
 ## GET `/reports/requests.csv`
 
 - Autenticação obrigatória por cookie de sessão.
-- Perfis autorizados: `Gestor` e `Administrador`.
-- `Analista` e `Solicitante`: `403`.
+- Exige `queue:export`; a Custódia `assigned` inclui o Responsável da solicitação
+  ou do Mapeamento corrente. Antes da primeira linha de Mapeamento, vale a
+  designação inicial em `requests.mapping_professional_id`.
+- Nos perfis base, Visualizador, Administrador e Admin Root têm `queue:export`;
+  Analista e Solicitante recebem `403`.
 - Exporta todas as solicitações correspondentes aos filtros; `page` e
   `pageSize` não fazem parte do contrato.
 
@@ -15,13 +18,13 @@ separada da paginação de `GET /queue`.
 
 Os filtros têm a mesma semântica da fila:
 
-| Campo        | Tipo                                          | Descrição                                    |
-| ------------ | --------------------------------------------- | -------------------------------------------- |
-| `search`     | string, máximo 254                            | Protocolo, nome ou e-mail do solicitante     |
-| `status`     | status válido                                 | Nome exato do status                         |
-| `priority`   | `Baixa`, `Média`, `Alta`, `Crítica`, `nenhum` | `nenhum` seleciona prioridade nula           |
-| `assigneeId` | UUID, `user_id` numérico ou `unassigned`      | Responsável exibido na fila (triagem)        |
-| `unassigned` | `true`, `false`, `1`, `0`                     | Compatibilidade com o filtro sem responsável |
+| Campo        | Tipo                                          | Descrição                                                    |
+| ------------ | --------------------------------------------- | ------------------------------------------------------------ |
+| `search`     | string, máximo 254                            | Protocolo, nome ou e-mail do solicitante                     |
+| `status`     | status válido                                 | Nome exato do status                                         |
+| `priority`   | `Baixa`, `Média`, `Alta`, `Crítica`, `nenhum` | `nenhum` seleciona prioridade nula                           |
+| `assigneeId` | UUID, `user_id` numérico ou `unassigned`      | Responsável da solicitação/triagem ou do Mapeamento corrente |
+| `unassigned` | `true`, `false`, `1`, `0`                     | Compatibilidade com o filtro sem responsável                 |
 
 `unassigned=true` não pode ser combinado com um `assigneeId` diferente de
 `unassigned`.
