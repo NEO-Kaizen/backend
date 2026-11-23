@@ -5,7 +5,6 @@ import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import {
   findAssignableProfileIds,
-  profileHasAssignablePermissions,
   type AssignabilityStage,
 } from "../../shared/access/assignability.ts";
 import type {
@@ -76,22 +75,6 @@ export async function listProfilePermissions(
   return db("profile_permissions")
     .where({ profile_id: profileId })
     .select("permission_key", "custody");
-}
-
-/** Um Perfil atribuível em qualquer etapa precisa da extensão profissional. */
-export async function isAssignableProfile(profileId: number): Promise<boolean> {
-  const [isAssignableToTriage, isAssignableToMapping] = await Promise.all([
-    profileHasAssignablePermissions(profileId, "triage", {
-      requireFlag: true,
-      requireActive: true,
-    }),
-    profileHasAssignablePermissions(profileId, "mapping", {
-      requireFlag: true,
-      requireActive: true,
-    }),
-  ]);
-
-  return isAssignableToTriage || isAssignableToMapping;
 }
 
 /**

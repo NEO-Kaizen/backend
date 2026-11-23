@@ -19,6 +19,10 @@ export interface FindAssignableProfilesOptions {
   readonly stage?: AssignabilityStage;
 }
 
+export interface IsProfileAssignableOptions {
+  readonly queryable?: Knex;
+}
+
 export interface ProfileAssignablePermissionsOptions {
   readonly queryable?: Knex;
   readonly requireFlag?: boolean;
@@ -43,32 +47,57 @@ export function hasAllPermissionKeysPredicate(
   };
 }
 
+function buildAssignableProfilePredicate(
+  stages: readonly AssignabilityStage[],
+): PermissionKeysPredicate {
+  const predicates = stages.map((stage) => ({
+    stage,
+    predicate: hasAllPermissionKeysPredicate(
+      "p.profile_id",
+      ASSIGNABILITY_PREDICATES[stage],
+    ),
+  }));
+
+  return {
+    sql: predicates
+      .map(({ stage, predicate }) => {
+        return `(p.${ASSIGNABILITY_FLAGS[stage]} = TRUE AND ${predicate.sql})`;
+      })
+      .join(" OR "),
+    bindings: predicates.flatMap(({ predicate }) => predicate.bindings),
+  };
+}
+
 /** Perfis ativos atribuíveis à etapa informada (ou a ambas) por flag + predicado. */
 export async function findAssignableProfileIds(
   options: FindAssignableProfilesOptions = {},
 ): Promise<number[]> {
   const { queryable = db, stage } = options;
   const stages: readonly AssignabilityStage[] = stage ? [stage] : ["triage", "mapping"];
-  const predicates = stages.map((assignabilityStage) => ({
-    stage: assignabilityStage,
-    predicate: hasAllPermissionKeysPredicate(
-      "p.profile_id",
-      ASSIGNABILITY_PREDICATES[assignabilityStage],
-    ),
-  }));
-  const sql = predicates
-    .map(({ stage: assignabilityStage, predicate }) => {
-      return `(p.${ASSIGNABILITY_FLAGS[assignabilityStage]} = TRUE AND ${predicate.sql})`;
-    })
-    .join(" OR ");
-  const bindings = predicates.flatMap(({ predicate }) => predicate.bindings);
+  const predicate = buildAssignableProfilePredicate(stages);
 
   const rows = (await queryable("profiles as p")
     .where("p.is_active", true)
-    .whereRaw(`(${sql})`, bindings)
+    .whereRaw(`(${predicate.sql})`, predicate.bindings)
     .select("p.profile_id")) as Array<{ profile_id: number }>;
 
   return rows.map((row) => Number(row.profile_id));
+}
+
+/** True quando o Perfil ativo atende à flag e às chaves de ao menos uma etapa. */
+export async function isProfileAssignable(
+  profileId: number,
+  options: IsProfileAssignableOptions = {},
+): Promise<boolean> {
+  const { queryable = db } = options;
+  const predicate = buildAssignableProfilePredicate(["triage", "mapping"]);
+  const row = await queryable("profiles as p")
+    .where("p.profile_id", profileId)
+    .where("p.is_active", true)
+    .whereRaw(`(${predicate.sql})`, predicate.bindings)
+    .first("p.profile_id");
+
+  return row !== undefined;
 }
 
 /**

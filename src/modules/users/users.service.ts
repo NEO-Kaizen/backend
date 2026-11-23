@@ -1,7 +1,10 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import type { AssignabilityStage } from "../../shared/access/assignability.ts";
+import {
+  isProfileAssignable,
+  type AssignabilityStage,
+} from "../../shared/access/assignability.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
@@ -226,7 +229,7 @@ export async function createUser(
   await assertProfileIsManageable(profile, actorAuthority);
 
   const profileId = profile.profile_id;
-  const isAssignable = await repository.isAssignableProfile(profileId);
+  const isAssignable = await isProfileAssignable(profileId);
   if (isAssignable && !payload.professional) {
     throw new AppError("Dados profissionais são obrigatórios para Perfis atribuíveis.", 400);
   }
@@ -414,7 +417,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  const isAssignable = await repository.isAssignableProfile(row.profile_id);
+  const isAssignable = await isProfileAssignable(row.profile_id);
   // Usuário atribuível legado sem details_professional recebe o bloco com
   // defaults em vez de null, sem exigir migração de dados.
   const professional: ProfessionalProfileBlock | null =
@@ -610,9 +613,9 @@ export async function updateUser(
     }
   }
 
-  const wasAssignable = await repository.isAssignableProfile(target.profile_id);
+  const wasAssignable = await isProfileAssignable(target.profile_id);
   const isFinalAssignable =
-    newProfileId === undefined ? wasAssignable : await repository.isAssignableProfile(newProfileId);
+    newProfileId === undefined ? wasAssignable : await isProfileAssignable(newProfileId);
 
   if (payload.professional !== undefined && !isFinalAssignable) {
     throw new AppError("Dados profissionais só podem ser informados para Perfis atribuíveis.", 400);
