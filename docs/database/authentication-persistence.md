@@ -365,7 +365,7 @@ Amplia o `CHECK chk_audit_history_entity_type` para aceitar a entidade `profile`
 
 ### Migration `profiles_active_name_unique_ci`
 
-Substitui o `UNIQUE` global de `profiles.name` pelo índice parcial `uk_profiles_active_name_lower` (`UNIQUE (lower(name)) WHERE is_active`). A unicidade passa a ser case-insensitive e restrita aos Perfis ativos, exatamente como o contrato de edição de Perfil exige; o `down` restaura o `UNIQUE` global.
+Substitui o `UNIQUE` global de `profiles.name` pelo índice parcial `uk_profiles_active_name_lower` (`UNIQUE (lower(name)) WHERE is_active`). A unicidade passa a ser case-insensitive e restrita aos Perfis ativos, exatamente como o contrato de edição de Perfil exige. O `down` restaura o `UNIQUE` global; como o `up` permite homônimos entre Perfis inativos, o rollback falha antes do DDL, com mensagem instrutiva, quando existe nome repetido — renomear linhas automaticamente seria perda silenciosa de dado. Nesse caso, resolva os homônimos antes de repetir o rollback. A mesma regra vale para o ciclo de migrations no CI, que roda com banco vazio.
 
 ### Configuração do banco
 
