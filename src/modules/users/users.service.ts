@@ -230,10 +230,11 @@ export async function createUser(
 
   const profileId = profile.profile_id;
   const isAssignable = await isProfileAssignable(profileId);
-  if (isAssignable && !payload.professional) {
+  const professional = payload.professional;
+  if (isAssignable && !professional) {
     throw new AppError("Dados profissionais são obrigatórios para Perfis atribuíveis.", 400);
   }
-  if (!isAssignable && payload.professional) {
+  if (!isAssignable && professional) {
     throw new AppError("Dados profissionais só podem ser informados para Perfis atribuíveis.", 400);
   }
 
@@ -256,11 +257,7 @@ export async function createUser(
       // Perfil atribuível nasce com a extensão details_professional (1:1 com
       // users) usando os dados profissionais enviados no payload. Atômico com a criação:
       // se a extensão falhar, o usuário não é criado (rollback junto com a auditoria).
-      if (isAssignable) {
-        const professional = payload.professional;
-        if (!professional) {
-          throw new AppError("Dados profissionais são obrigatórios para Perfis atribuíveis.", 400);
-        }
+      if (professional) {
         await repository.createProfessionalData(trx, created.user_id, professional);
       }
 
