@@ -222,7 +222,7 @@ export default {
                 properties: {
                   data: {
                     type: "array",
-                    items: { $ref: "#/components/schemas/UserListItem" },
+                    items: { $ref: "#/components/schemas/UserSummary" },
                   },
                   page: { type: "integer", example: 1 },
                   pageSize: { type: "integer", example: 10 },
@@ -349,7 +349,7 @@ export default {
           description: "Usuário criado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/CreateUserResponse" },
             },
           },
         },
@@ -418,7 +418,7 @@ export default {
           description: "Dados do usuário.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserProfileResponse" },
             },
           },
         },
@@ -515,7 +515,7 @@ export default {
           description: "Usuário atualizado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/UserProfileResponse" },
             },
           },
         },
@@ -598,7 +598,7 @@ export default {
           description: "Status do usuário alterado com sucesso.",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserListItem" },
+              schema: { $ref: "#/components/schemas/ChangeUserStatusResponse" },
             },
           },
         },

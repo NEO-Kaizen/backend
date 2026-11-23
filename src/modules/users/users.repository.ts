@@ -554,7 +554,7 @@ export async function listAssignableProfessionals(
   // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
-  // Usuário sem extensão não entra no COUNT (sem professional_id válido).
+  // O INNER JOIN garante um professional_id válido para cada resultado.
   const professionalIds = rows.map((row) => row.professional_id);
   const counts = (await db("requests")
     .whereIn("professional_id", professionalIds)

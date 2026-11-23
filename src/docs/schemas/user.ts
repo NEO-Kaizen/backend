@@ -9,7 +9,7 @@ export const UserMetrics = {
   },
 };
 
-export const UserListItem = {
+export const UserSummary = {
   type: "object",
   required: [
     "id",
@@ -33,6 +33,39 @@ export const UserListItem = {
   },
 };
 
+export const CreateUserResponse = {
+  type: "object",
+  required: [
+    "id",
+    "fullName",
+    "email",
+    "role",
+    "isActive",
+    "mustChangePassword",
+    "createdAt",
+    "temporaryPassword",
+  ],
+  properties: {
+    id: { type: "string", example: "101" },
+    fullName: { type: "string", example: "Maria Silva" },
+    email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
+    role: { type: "string", example: "Analista" },
+    isActive: { type: "boolean", example: true },
+    mustChangePassword: { type: "boolean", example: true },
+    createdAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
+    temporaryPassword: { type: "string", example: "Abc123!xyz" },
+  },
+};
+
+export const ChangeUserStatusResponse = {
+  type: "object",
+  required: ["id", "isActive"],
+  properties: {
+    id: { type: "string", example: "101" },
+    isActive: { type: "boolean", example: false },
+  },
+};
+
 export const AssignableProfessional = {
   type: "object",
   required: ["id", "fullName", "email", "specialty", "categories", "notes", "requestLoad"],
@@ -47,7 +80,7 @@ export const AssignableProfessional = {
       example: ["Sistemas", "Automação"],
     },
     notes: { type: "string", nullable: true, example: "Disponível à tarde." },
-    requestLoad: { type: "integer", nullable: true, example: 3 },
+    requestLoad: { type: "integer", example: 3 },
   },
 };
 

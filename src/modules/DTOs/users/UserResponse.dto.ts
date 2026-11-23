@@ -18,7 +18,7 @@ export interface AssignableProfessional {
   specialty: string;
   categories: RequestCategory[];
   notes: string | null;
-  requestLoad: number | null;
+  requestLoad: number;
 }
 
 export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {

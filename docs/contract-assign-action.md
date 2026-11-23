@@ -37,7 +37,7 @@ interface AssignableProfessional {
   specialty: string; // "" permitido → frontend oculta linha
   categories: RequestCategory[]; // [] permitido → sem chips
   notes: string | null; // null/vazio → sem bloco NOTAS
-  requestLoad: number | null; // null → sem coluna demandas
+  requestLoad: number; // zero quando não há solicitações atribuídas
 }
 type RequestCategory =
   | "Automação"
