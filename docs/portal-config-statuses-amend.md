@@ -9,7 +9,7 @@
 
 - Fonte: `product-response v4 §1.2` (17-row truth), `contract-triage.md` §4, `solicitations-api-requests-0_4.md`.
 - Referências: `shared/types/portalConfig.ts`, `portalConfig.schema.ts:140-186`, `portalConfig.service.ts:261-270`, `triage.service.ts:46`, `mapping.service.ts:300-364`, `requests.service.ts:206`.
-- Autenticação: `GET /portal-config` é **público**; `PATCH /portal-config/statuses` exige `session_id` de `Administrador`; os 3 endpoints de ciclo exigem `session_id` de `Administrador` ou `ANALYST_ASSIGNEE`. `Gestor` é read-only no ciclo e não pode executar nenhum desses writes.
+- Autorização RBAC: `GET /portal-config` é **público**; `PATCH /portal-config/statuses` exige `status:manage`; `POST /triage` exige `triage:write` + Custódia e `request:status_override` global para Status atual restrito; `PUT /mapping` exige `mapping:write` + Custódia e continua bloqueado em Status restrito; `PATCH /status` exige `request:status_change` + Custódia e `request:status_override` global para alvos protegidos.
 
 ---
 
@@ -602,15 +602,15 @@ HTTP/1.1 409 Conflict
 
 **Erros:**
 
-| Status | Quando                                                                                                                                                                                            |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 401    | Sem sessão                                                                                                                                                                                        |
-| 403    | `Gestor`, usuário sem custódia, ou `ANALYST_ASSIGNEE` tentando alvo `isRestricted===true` ou sem `triageMode`/`mappingMode` `free` → `code:INSUFFICIENT_ROLE_PERMISSIONS` + audit `ACCESS_DENIED` |
-| 400    | `justification` ausente/vazia ou fora de 1..4000 após trim; ou `lastTechnicalMessage` ausente/vazia ou fora de 1..4000 quando `targetStatus.isPublic`                                             |
-| 404    | Protocolo ou `targetStatus` inexistente                                                                                                                                                           |
-| 422    | `targetStatus` já é o atual                                                                                                                                                                       |
-| 409    | `targetStatus` inativo (`isActive===false`)                                                                                                                                                       |
-| 500    | Erro genérico                                                                                                                                                                                     |
+| Status | Quando                                                                                                                                                                                     |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 401    | Sem sessão                                                                                                                                                                                 |
+| 403    | Ator sem `request:status_change`; ou alvo restrito/fora do modo permitido sem `request:status_override` global (`request_status_override_required`); a recusa auditável registra Tentativa |
+| 400    | `justification` ausente/vazia ou fora de 1..4000 após trim; ou `lastTechnicalMessage` ausente/vazia ou fora de 1..4000 quando `targetStatus.isPublic`                                      |
+| 404    | Protocolo ou `targetStatus` inexistente                                                                                                                                                    |
+| 422    | `targetStatus` já é o atual                                                                                                                                                                |
+| 409    | `targetStatus` inativo (`isActive===false`)                                                                                                                                                |
+| 500    | Erro genérico                                                                                                                                                                              |
 
 **Audit:** `ADMIN` bypass → `OVERRIDE_STATUS_ADMIN`; normal → `request.status_change`.
 
