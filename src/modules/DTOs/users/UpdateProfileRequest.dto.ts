@@ -8,7 +8,7 @@ import {
 
 /**
  * Bloco requester aceito no "Meus dados". O service aplica a autorização:
- * somente o próprio Administrador pode alterar `area/department/manager`;
+ * somente quem tem `user:manage` pode alterar `area/department/manager`;
  * para os demais perfis, apenas `additionalContact` é autoeditável.
  * `additionalContact` aceita string, ""→null, null→clear, undefined/{}→no-op.
  */
@@ -38,8 +38,8 @@ export type UpdateRequesterBlock = z.infer<typeof updateRequesterSchema>;
 /**
  * Payload de `PUT /users/me` (multipart: campo `payload` = JSON).
  * - `fullName`? (atualiza o nome do próprio usuário)
- * - `requester`? (contato adicional; Administrador também pode atualizar seus
- *   próprios área, departamento e gestor)
+ * - `requester`? (contato adicional; quem tem `user:manage` também pode
+ *   atualizar seus próprios área, departamento e gestor)
  * - `removeAvatar`?: true → remove foto atual
  * - demais campos são recusados; dados administrativos pertencem a
  *   `PUT /users/:id`.

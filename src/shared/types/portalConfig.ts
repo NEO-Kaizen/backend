@@ -176,6 +176,13 @@ export interface PortalConfig {
   prioritizationWeights: PrioritizationWeights;
 }
 
+/**
+ * Resposta de `GET /portal-config/sections`: a mesma projeção da configuração,
+ * recortada pelas chaves de leitura da seção. Membro ausente = seção que o ator
+ * não pode ler (contrato RBAC § 7).
+ */
+export type PortalSections = Partial<PortalConfig>;
+
 export type AccessSection = Pick<PortalConfig, "solicitationMode">;
 export type IdentitySection = Pick<PortalConfig, "platformName" | "protocolMask">;
 export type ThemeSection = Pick<PortalConfig, "theme">;
