@@ -9,8 +9,7 @@
 // cadastro e persiste os valores canônicos (divergência do payload ignorada).
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
-import { ASSIGNABILITY_PREDICATES } from "../../shared/catalog/permissionCatalog.ts";
-import { hasAllPermissionKeysPredicate } from "../../shared/access/assignability.ts";
+import { profileHasAssignablePermissions } from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { RequestStatus } from "../../shared/types/requests.ts";
 import type { MappingValues, ResolvedParticipant } from "../DTOs/queue/mapping.dto.ts";
@@ -201,17 +200,11 @@ export async function isMappingAssigneeProfileAssignable(
   queryable: Knex,
   profileId: number,
 ): Promise<boolean> {
-  const predicate = hasAllPermissionKeysPredicate("p.profile_id", ASSIGNABILITY_PREDICATES.mapping);
-  const row = await queryable("profiles as p")
-    .where({
-      "p.profile_id": profileId,
-      "p.is_active": true,
-      "p.is_assignable_mapping": true,
-    })
-    .whereRaw(predicate.sql, predicate.bindings)
-    .first("p.profile_id");
-
-  return row !== undefined;
+  return profileHasAssignablePermissions(profileId, "mapping", {
+    queryable,
+    requireFlag: true,
+    requireActive: true,
+  });
 }
 
 /** Mapeamento mais recente da solicitação (inclusive concluído) — resposta do GET. */

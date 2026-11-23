@@ -14,6 +14,12 @@ export interface FindAssignableProfilesOptions {
   readonly stage?: AssignabilityStage;
 }
 
+export interface ProfileAssignablePermissionsOptions {
+  readonly queryable?: Knex;
+  readonly requireFlag?: boolean;
+  readonly requireActive?: boolean;
+}
+
 export interface PermissionKeysPredicate {
   readonly sql: string;
   readonly bindings: Array<string | number>;
@@ -66,16 +72,26 @@ export async function findAssignableProfileIds(
 export async function profileHasAssignablePermissions(
   profileId: number,
   stage: AssignabilityStage,
-  queryable: Knex = db,
+  options: ProfileAssignablePermissionsOptions = {},
 ): Promise<boolean> {
+  const { queryable = db, requireFlag = false, requireActive = false } = options;
   const keys =
     stage === "triage" ? ASSIGNABILITY_PREDICATES.triage : ASSIGNABILITY_PREDICATES.mapping;
   const predicate = hasAllPermissionKeysPredicate("p.profile_id", keys);
 
-  const row = await queryable("profiles as p")
+  const query = queryable("profiles as p")
     .where("p.profile_id", profileId)
-    .whereRaw(predicate.sql, predicate.bindings)
-    .first("p.profile_id");
+    .whereRaw(predicate.sql, predicate.bindings);
+
+  if (requireFlag) {
+    const flag = stage === "triage" ? "is_assignable_triage" : "is_assignable_mapping";
+    query.andWhere(`p.${flag}`, true);
+  }
+  if (requireActive) {
+    query.andWhere("p.is_active", true);
+  }
+
+  const row = await query.first("p.profile_id");
 
   return row !== undefined;
 }
