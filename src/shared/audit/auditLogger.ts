@@ -12,14 +12,14 @@ import {
 export interface AuditEntryBase {
   /** Identificador da entidade afetada. */
   entityId: string;
-  /** Ator (quem executou). Nulo para aÃ§Ãµes de sistema. */
+  /** Ator (quem executou). Nulo para ações de sistema. */
   userId: number | null;
   /** Valor anterior (texto livre), ex.: is_active antes. */
   previousValue?: string | null;
   newValue?: string | null;
-  /** Justificativa interna da transiÃ§Ã£o (nunca o retorno pÃºblico). */
+  /** Justificativa interna da transição (nunca o retorno público). */
   note?: string | null;
-  /** Snapshot do retorno pÃºblico submetido na transiÃ§Ã£o (sÃ³ status pÃºblico). */
+  /** Snapshot do retorno público submetido na transição (só status público). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
@@ -37,11 +37,11 @@ export type AuditEntry<
 
 /**
  * Registra um evento de auditoria na `audit_history`, dentro da MESMA
- * transaÃ§Ã£o da operaÃ§Ã£o de negÃ³cio (`trx`).
+ * transação da operação de negócio (`trx`).
  *
- * A gravaÃ§Ã£o Ã© atÃ´mica com a operaÃ§Ã£o: se o evento falhar, a exceÃ§Ã£o Ã©
- * propagada e o service realiza rollback â€” a alteraÃ§Ã£o nunca fica sem
- * histÃ³rico (e o contrÃ¡rio tambÃ©m nÃ£o ocorre).
+ * A gravação é atômica com a operação: se o evento falhar, a exceção é
+ * propagada e o service realiza rollback — a alteração nunca fica sem
+ * histórico (e o contrário também não ocorre).
  *
  * Tipos inválidos (fora do `auditCatalog`) são erro de programação e também
  * lançam exceção para abortar a transação.

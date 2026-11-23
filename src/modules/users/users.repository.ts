@@ -67,16 +67,16 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
  *  (regra legada do subfluxo de Mapeamento). */
 export const PROFESSIONAL_PROFILES = ["analista"] as const;
 
-/** True quando o perfil informado deve nascer com a extensÃ£o details_professional. */
+/** True quando o perfil informado deve nascer com a extensão details_professional. */
 export function isProfessionalProfile(profileName: string): boolean {
   return (PROFESSIONAL_PROFILES as readonly string[]).includes(profileName.trim().toLowerCase());
 }
 
 /**
- * Cria a extensÃ£o de profissional dentro da transaÃ§Ã£o fornecida (atÃ´mica com a
- * criaÃ§Ã£o do usuÃ¡rio). `professional_id` nasce do default da coluna
+ * Cria a extensão de profissional dentro da transação fornecida (atômica com a
+ * criação do usuário). `professional_id` nasce do default da coluna
  * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
- * `specialties` e `attended_category_ids` sÃ£o textos separados por vÃ­rgula â€”
+ * `specialties` e `attended_category_ids` são textos separados por vírgula —
  * mesmo formato lido pelo card (split em `listAnalysts`).
  */
 export async function createProfessionalData(
@@ -93,7 +93,7 @@ export async function createProfessionalData(
   });
 }
 
-/** Insere o usuÃ¡rio dentro da transaÃ§Ã£o fornecida (atÃ´mico com a auditoria). */
+/** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
 export async function createUser(
   trx: Knex.Transaction,
   payload: Pick<CreateUserRequest, "fullName" | "email">,
@@ -112,27 +112,27 @@ export async function createUser(
 
   const row = inserted[0];
   if (!row) {
-    throw new Error("Falha ao salvar o usuÃ¡rio.");
+    throw new Error("Falha ao salvar o usuário.");
   }
 
   return row;
 }
 
 /**
- * Cria a extensÃ£o de solicitante dentro da transaÃ§Ã£o fornecida (atÃ´mica com a
- * criaÃ§Ã£o do usuÃ¡rio). Todo usuÃ¡rio Ã© requester: `requesters` funciona como
- * extensÃ£o 1:1 de `users` via `user_id`.
+ * Cria a extensão de solicitante dentro da transação fornecida (atômica com a
+ * criação do usuário). Todo usuário é requester: `requesters` funciona como
+ * extensão 1:1 de `users` via `user_id`.
  *
  * `area`/`department`/`manager_name`/`additional_contact` nascem nulos (dados
- * de contato sÃ³ fazem sentido no contexto de uma solicitaÃ§Ã£o); `resolveRequesterId`
- * sincroniza esses campos antes da primeira solicitaÃ§Ã£o autenticada.
+ * de contato só fazem sentido no contexto de uma solicitação); `resolveRequesterId`
+ * sincroniza esses campos antes da primeira solicitação autenticada.
  *
- * Caso de borda tratado: um requester **anÃ´nimo** com o mesmo e-mail (solicitaÃ§Ã£o
- * criada sem conta antes do `POST /users`) Ã© **adotado** pelo usuÃ¡rio em vez de
+ * Caso de borda tratado: um requester **anônimo** com o mesmo e-mail (solicitação
+ * criada sem conta antes do `POST /users`) é **adotado** pelo usuário em vez de
  * gerar duplicata (`uk_requesters_email`). O merge liga o `user_id` e atualiza o
- * nome; `area`/`manager_name` existentes sÃ£o preservados atÃ© o `resolveRequesterId`.
- * A regra 1:1 (`uk_requesters_user`) nunca Ã© violada porque a linha anÃ´nima tem
- * `user_id = NULL` â€” e e-mails de usuÃ¡rios jÃ¡ cadastrados param no `users` (409).
+ * nome; `area`/`manager_name` existentes são preservados até o `resolveRequesterId`.
+ * A regra 1:1 (`uk_requesters_user`) nunca é violada porque a linha anônima tem
+ * `user_id = NULL` — e e-mails de usuários já cadastrados param no `users` (409).
  */
 export async function createRequesterData(
   trx: Knex.Transaction,
@@ -146,8 +146,8 @@ export async function createRequesterData(
 ): Promise<void> {
   const corporateEmail = user.email.trim().toLowerCase();
 
-  // Sem requester no payload (legado) ainda insere nulls â€” mantido para compatibilidade de testes antigos.
-  // Novo contrato: POST /users exige requester, entÃ£o area/manager virÃ£o preenchidos.
+  // Sem requester no payload (legado) ainda insere nulls — mantido para compatibilidade de testes antigos.
+  // Novo contrato: POST /users exige requester, então area/manager virão preenchidos.
   const hasRequester = requester !== undefined;
 
   await trx("requesters")
@@ -161,8 +161,8 @@ export async function createRequesterData(
       additional_contact: hasRequester ? (requester.additionalContact ?? null) : null,
     })
     .onConflict("corporate_email")
-    // SÃ³ adota linha anÃ´nima (`user_id IS NULL`): nunca reassina a extensÃ£o de
-    // outro usuÃ¡rio com o mesmo e-mail (caso raro de dados legados).
+    // Só adota linha anônima (`user_id IS NULL`): nunca reassina a extensão de
+    // outro usuário com o mesmo e-mail (caso raro de dados legados).
     .merge(
       hasRequester
         ? {
@@ -179,14 +179,14 @@ export async function createRequesterData(
 }
 
 /**
- * Carrega o perfil completo do usuÃ¡rio para `GET /users/me`:
+ * Carrega o perfil completo do usuário para `GET /users/me`:
  * - dados de `users` + `profiles` (role/name)
- * - bloco `requester` (1:1 via user_id) â€” NULL se nÃ£o existir
- * - bloco `professional` (1:1 via user_id) â€” NULL se nÃ£o existir
+ * - bloco `requester` (1:1 via user_id) — NULL se não existir
+ * - bloco `professional` (1:1 via user_id) — NULL se não existir
  *
- * `specialties`/`attended_category_ids` sÃ£o desencontradas do texto
+ * `specialties`/`attended_category_ids` são desencontradas do texto
  * separado por vÃ­rgula (formato do seed/createProfessionalData) para
- * array â€” mesmo parsing do card (`listAnalysts`).
+ * array — mesmo parsing do card (`listAnalysts`).
  */
 export interface UserProfileRow {
   user_id: number;
@@ -328,7 +328,7 @@ export async function upsertProfessionalData(
   const specialties = professional.specialties.join(", ");
   const attendedCategoryIds = professional.attendedCategoryIds.join(",");
 
-  // 1. Linha existente para este usuÃ¡rio.
+  // 1. Linha existente para este usuário.
   const updated = await trx("details_professional")
     .where({ user_id: userId })
     .update({
@@ -360,7 +360,7 @@ export async function setUserAvatar(
     .update({ avatar_url: url, updated_at: trx.fn.now() });
 }
 
-/** Remove `users.avatar_url` (deixa null; arquivo no disco removido pelo serviÃ§o). */
+/** Remove `users.avatar_url` (deixa null; arquivo no disco removido pelo serviço). */
 export async function removeUserAvatar(trx: Knex.Transaction, userId: number): Promise<void> {
   await trx("users")
     .where({ user_id: userId })
@@ -425,7 +425,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   };
 }
 
-/** Atualiza o status dentro da transaÃ§Ã£o fornecida (atÃ´mico com a auditoria). */
+/** Atualiza o status dentro da transação fornecida (atômico com a auditoria). */
 export async function updateStatus(
   trx: Knex.Transaction,
   id: number,
@@ -436,11 +436,11 @@ export async function updateStatus(
     .update({ is_active: isActive, updated_at: trx.fn.now() });
 
   if (updated === 0) {
-    throw new AppError("UsuÃ¡rio nÃ£o encontrado", 404);
+    throw new AppError("Usuário não encontrado", 404);
   }
 }
 
-/** Atualiza campos bÃ¡sicos de `users` dentro da transaÃ§Ã£o (merge â€” ausente mantÃ©m). */
+/** Atualiza campos básicos de `users` dentro da transação (merge — ausente mantém). */
 export async function updateUserFields(
   trx: Knex.Transaction,
   id: number,
@@ -454,16 +454,16 @@ export async function updateUserFields(
   patch.updated_at = trx.fn.now();
   const updated = await trx("users").where({ user_id: id }).update(patch);
   if (updated === 0) {
-    throw new AppError("UsuÃ¡rio nÃ£o encontrado", 404);
+    throw new AppError("Usuário não encontrado", 404);
   }
 }
 
-/** Remove extensÃ£o profissional (quando role deixa de ser analista). */
+/** Remove extensão profissional (quando role deixa de ser analista). */
 export async function deleteProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
   await trx("details_professional").where({ user_id: userId }).del();
 }
 
-/** Sincroniza `requesters.full_name/corporate_email` apÃ³s troca de nome/e-mail do usuÃ¡rio. */
+/** Sincroniza `requesters.full_name/corporate_email` após troca de nome/e-mail do usuário. */
 export async function syncRequesterIdentity(
   trx: Knex.Transaction,
   userId: number,
@@ -475,7 +475,7 @@ export async function syncRequesterIdentity(
   });
 }
 
-/** Define senha temporÃ¡ria dentro da transaÃ§Ã£o fornecida (atÃ´mico com a auditoria). */
+/** Define senha temporária dentro da transação fornecida (atômico com a auditoria). */
 export async function setTemporaryPassword(
   trx: Knex.Transaction,
   id: number,
@@ -489,7 +489,7 @@ export async function setTemporaryPassword(
   });
 
   if (updated === 0) {
-    throw new AppError("UsuÃ¡rio nÃ£o encontrado", 404);
+    throw new AppError("Usuário não encontrado", 404);
   }
 }
 
@@ -506,10 +506,10 @@ interface AnalystRow {
 export async function listAnalysts(): Promise<AssignAnalyst[]> {
   const rows = (await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
-    // LEFT JOIN defensivo: usuÃ¡rio sem extensÃ£o (recÃ©m-criado ou dados antigos)
-    // ainda aparece no card com campos vazios â€” formato jÃ¡ previsto no contrato.
-    // A regra de licenÃ§a (extensÃ£o com status 'inactive') permanece filtrando:
-    // o WHERE compensa o LEFT JOIN para excluir apenas extensÃµes inativas.
+    // LEFT JOIN defensivo: usuário sem extensão (recém-criado ou dados antigos)
+    // ainda aparece no card com campos vazios — formato já previsto no contrato.
+    // A regra de licença (extensão com status 'inactive') permanece filtrando:
+    // o WHERE compensa o LEFT JOIN para excluir apenas extensões inativas.
     .leftJoin("details_professional as dp", "dp.user_id", "u.user_id")
     .where("p.name", "analista")
     .andWhere("p.is_active", true)
@@ -538,10 +538,10 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
     categoryMap.set(cat.category_id, cat.name);
   }
 
-  // > pendencia: requestLoad hoje Ã© COUNT(*) ao vivo (requests.professional_id).
+  // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
-  // Analista SEM extensÃ£o nÃ£o entra no COUNT (sem professional_id vÃ¡lido).
+  // Analista SEM extensão não entra no COUNT (sem professional_id válido).
   const professionalIds = rows
     .map((r) => r.professional_id)
     .filter((id): id is string => id !== null);
@@ -574,14 +574,14 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
       specialty: row.job_title ?? "",
       categories: categoriesForAnalyst,
       notes: row.notes ?? null,
-      // Sem extensÃ£o nÃ£o hÃ¡ carga para contar; contrato permite null.
+      // Sem extensão não há carga para contar; contrato permite null.
       requestLoad:
         row.professional_id === null ? null : (countByProfessional.get(row.professional_id) ?? 0),
     } satisfies AssignAnalyst;
   });
 }
 
-/** MÃ©tricas consolidadas da base de usuÃ¡rios â€” leitura simples, sem transaÃ§Ã£o. */
+/** Métricas consolidadas da base de usuários — leitura simples, sem transação. */
 export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
   const result = await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
@@ -602,8 +602,8 @@ export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
 };
 
 /**
- * Merge helper para `PUT /users/:id` â€” atualiza `requesters` de forma parcial.
- * Ausente mantÃ©m; definido substitui. Garante presenÃ§a da linha 1:1.
+ * Merge helper para `PUT /users/:id` — atualiza `requesters` de forma parcial.
+ * Ausente mantém; definido substitui. Garante presença da linha 1:1.
  */
 export async function mergeRequesterData(
   trx: Knex.Transaction,

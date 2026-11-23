@@ -2266,14 +2266,14 @@ export type ComposedAuditAction<E extends AuditEntityType> = `${E}.${AuditAction
 export interface AuditEntryBase {
   /** Identificador da entidade afetada. */
   entityId: string;
-  /** Ator (quem executou). Nulo para aÃ§Ãµes de sistema. */
+  /** Ator (quem executou). Nulo para ações de sistema. */
   userId: number | null;
   /** Valor anterior (texto livre), ex.: is_active antes. */
   previousValue?: string | null;
   newValue?: string | null;
-  /** Justificativa interna da transiÃ§Ã£o (nunca o retorno pÃºblico). */
+  /** Justificativa interna da transição (nunca o retorno público). */
   note?: string | null;
-  /** Snapshot do retorno pÃºblico submetido na transiÃ§Ã£o (sÃ³ status pÃºblico). */
+  /** Snapshot do retorno público submetido na transição (só status público). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */

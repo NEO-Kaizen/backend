@@ -79,15 +79,15 @@ interface AuthenticatedIdentity {
 type RequestActor = PermissionActor;
 
 /**
- * Resolve a identidade do usuÃ¡rio autenticado direto do banco (fonte fresca):
- * `name`/`email` do payload do JWT podem estar obsoletos apÃ³s uma ediÃ§Ã£o de
- * perfil, entÃ£o a lista/consulta e a criaÃ§Ã£o usam o cadastro atual.
+ * Resolve a identidade do usuário autenticado direto do banco (fonte fresca):
+ * `name`/`email` do payload do JWT podem estar obsoletos após uma edição de
+ * perfil, então a lista/consulta e a criação usam o cadastro atual.
  */
 async function resolveAuthenticatedIdentity(userId: number): Promise<AuthenticatedIdentity> {
   const user = await findUserById(userId);
 
   if (!user || !user.is_active || !user.profile_is_active) {
-    throw new AppError("SessÃ£o invÃ¡lida", 401);
+    throw new AppError("Sessão inválida", 401);
   }
 
   return { fullName: user.full_name, email: user.email };
@@ -102,7 +102,7 @@ export async function findRequest(
   const found = await repository.findRequestByProtocolWithOwner(normalizedProtocol);
 
   if (!found) {
-    throw new AppError("Protocolo nÃ£o encontrado", 404);
+    throw new AppError("Protocolo não encontrado", 404);
   }
 
   // No modo AUTHENTICATED só o dono enxerga a solicitação. Retornamos 404 (e
@@ -132,7 +132,7 @@ export async function registerRequest(
   authenticatedUserId?: number,
 ) {
   try {
-    // No modo AUTHENTICATED a identidade vem do cadastro, nÃ£o do payload â€”
+    // No modo AUTHENTICATED a identidade vem do cadastro, não do payload —
     // evita que o solicitante se passe por outro e-mail/nome (spoofing).
     const payload =
       authenticatedUserId === undefined
@@ -166,20 +166,20 @@ export async function listRequestsByEmail(
   input: ListRequestsInput,
   authenticatedUserId?: number,
 ): Promise<PaginatedResponse<RequestSummary>> {
-  // No modo AUTHENTICATED o e-mail vem da sessÃ£o; em PUBLIC, da query.
+  // No modo AUTHENTICATED o e-mail vem da sessão; em PUBLIC, da query.
   const email =
     authenticatedUserId === undefined
       ? input.email
       : (await resolveAuthenticatedIdentity(authenticatedUserId)).email;
 
   if (!email) {
-    throw new AppError("ParÃ¢metro obrigatÃ³rio ausente: email", 400);
+    throw new AppError("Parâmetro obrigatório ausente: email", 400);
   }
 
   const normalizedEmail = email.trim().toLowerCase();
 
   if (input.status && !(await repository.findStatusByName(input.status))) {
-    throw new AppError("Status invÃ¡lido.", 400);
+    throw new AppError("Status inválido.", 400);
   }
 
   return repository.findRequestsByRequesterEmail({
@@ -204,8 +204,8 @@ function toYesNoDetail(hasFlag: boolean | null, detail: string | null): YesNoDet
   return detail ?? "";
 }
 
-// Variante para o Bloco 3, cujo campo Ã© obrigatÃ³rio (NOT NULL no schema):
-// a flag nunca Ã© null e o retorno nunca Ã© undefined â€” dispensa o `as`.
+// Variante para o Bloco 3, cujo campo é obrigatório (NOT NULL no schema):
+// a flag nunca é null e o retorno nunca é undefined — dispensa o `as`.
 function toRequiredYesNoDetail(flag: boolean, detail: string | null): YesNoDetail {
   if (flag === false) return false;
   return detail ?? "";
@@ -339,7 +339,7 @@ export async function findInternalByProtocol(
     demand: {
       title: request.title,
       requestType: request.request_type,
-      // O join com `categories` Ã© a fonte do nome; o contrato exige string.
+      // O join com `categories` é a fonte do nome; o contrato exige string.
       category: request.category,
       processName: request.process_name,
       description: request.need_description,
@@ -387,13 +387,13 @@ export async function findInternalByProtocol(
 }
 
 /**
- * Extrai as observaÃ§Ãµes internas puras de `requests.internal_notes`,
+ * Extrai as observações internas puras de `requests.internal_notes`,
  * descartando o wrapper legado da triagem (`__triage`) quando presente.
  *
- * A partir da v2.0 a triagem vive na tabela `triages` (nÃ£o escreve mais neste
+ * A partir da v2.0 a triagem vive na tabela `triages` (não escreve mais neste
  * campo); o strip de `__triage` permanece apenas defensivo para dados legados.
- * O texto bruto restante â€” observaÃ§Ãµes nÃ£o-JSON (guardadas sob `observations`)
- * ou qualquer outra chave customizada â€” continua sendo o `internalObservations`
+ * O texto bruto restante — observações não-JSON (guardadas sob `observations`)
+ * ou qualquer outra chave customizada — continua sendo o `internalObservations`
  * do contrato.
  */
 function extractInternalObservations(raw: string | null | undefined): string | null {
@@ -415,7 +415,7 @@ function extractInternalObservations(raw: string | null | undefined): string | n
         return JSON.stringify(rest);
       }
     } catch {
-      // NÃ£o-JSON: trata como texto comum de observaÃ§Ã£o.
+      // Não-JSON: trata como texto comum de observação.
     }
   }
 
@@ -424,10 +424,10 @@ function extractInternalObservations(raw: string | null | undefined): string | n
 
 // --- Acompanhamento do solicitante (GET /requests/:protocol/tracking) -------
 // Contrato em `../DTOs/requests/RequestTracking.dto.ts` (espelho fiel de
-// `frontend/src/lib/types/requester-tracking.ts`). O `mode` Ã© decidido pela
-// credencial resolvida no middleware dual: cookie de sessÃ£o do dono â†’
-// `authenticated`; header `X-Requester-Identity` verificado em modo PUBLIC â†’
-// `public`. Nunca devolve dados internos (triagem, priorizaÃ§Ã£o, anotaÃ§Ãµes).
+// `frontend/src/lib/types/requester-tracking.ts`). O `mode` é decidido pela
+// credencial resolvida no middleware dual: cookie de sessão do dono →
+// `authenticated`; header `X-Requester-Identity` verificado em modo PUBLIC →
+// `public`. Nunca devolve dados internos (triagem, priorização, anotações).
 
 /** Credencial resolvida por `shared/middleware/dualAuth.ts`. */
 export interface TrackingCaller {
@@ -435,7 +435,7 @@ export interface TrackingCaller {
   requesterIdentity?: { name: string; email: string } | null;
 }
 
-const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitaÃ§Ã£o.";
+const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitação.";
 
 function parseRequestPriority(value: string | null): RequestPriority | null {
   if (value == null) return null;
@@ -506,7 +506,7 @@ function buildPublicDetails(row: InternalRequestRow): PublicRequestDetails {
 
   return {
     protocol: row.protocol,
-    status: row.public_status ?? "SolicitaÃ§Ã£o enviada",
+    status: row.public_status ?? "Solicitação enviada",
     openedAt,
     lastUpdate:
       normalizeIsoDate(row.last_external_update_at) ?? normalizeIsoDate(row.updated_at) ?? openedAt,
@@ -529,7 +529,7 @@ async function buildAuthenticatedDetails(
 
   const meeting = mapTrackingMeeting(row);
   const complementary = mapTrackingComplementary(row);
-  // O modo autenticado nÃ£o tem `impacts`: os mesmos campos vivem dentro de
+  // O modo autenticado não tem `impacts`: os mesmos campos vivem dentro de
   // `operational` (`RequesterOperational extends PublicOperationalImpacts`).
   const { impacts, ...base } = buildPublicDetails(row);
 
@@ -567,9 +567,9 @@ async function buildAuthenticatedDetails(
 }
 
 /**
- * Dono da solicitaÃ§Ã£o na sessÃ£o autenticada.
+ * Dono da solicitação na sessão autenticada.
  *
- * A fonte primÃ¡ria Ã© o vÃ­nculo direto `requests.requester_user_id` (gravado no
+ * A fonte primária é o vínculo direto `requests.requester_user_id` (gravado no
  * `POST /requests` em modo AUTHENTICATED), imune a uma troca posterior de
  * e-mail/nome no cadastro.
  */
@@ -594,7 +594,7 @@ async function getAuthenticatedTracking(
   // `request:track` é o gate da rota; a linha é resolvida pela Posse — qualquer
   // Perfil que abriu a solicitação recebe a projeção do Solicitante.
   if (!row || !isTrackingOwner(row, user)) {
-    throw new AppError("Protocolo nÃ£o encontrado", 404);
+    throw new AppError("Protocolo não encontrado", 404);
   }
 
   return { mode: "authenticated", details: await buildAuthenticatedDetails(row) };
@@ -607,10 +607,10 @@ async function getPublicTracking(
   const mode = await getSolicitationMode();
 
   if (mode !== "PUBLIC") {
-    throw new AppError("VerificaÃ§Ã£o indisponÃ­vel no modo atual", 403);
+    throw new AppError("Verificação indisponível no modo atual", 403);
   }
 
-  // Sem cookie e sem header vÃ¡lido: exige validaÃ§Ã£o prÃ©via (anti-enumeraÃ§Ã£o).
+  // Sem cookie e sem header válido: exige validação prévia (anti-enumeração).
   if (!identity) {
     throw new AppError(TRACKING_INVALID_IDENTITY, 401);
   }
@@ -622,7 +622,7 @@ async function getPublicTracking(
   const emailOk =
     row !== null && normalizeEmail(row.requester_email ?? "") === normalizeEmail(identity.email);
 
-  // Inexistente ou divergente â†’ mesmo 401 genÃ©rico: nÃ£o revela qual dado
+  // Inexistente ou divergente → mesmo 401 genérico: não revela qual dado
   // divergiu nem se o protocolo existe.
   if (!row || !nameOk || !emailOk) {
     throw new AppError(TRACKING_INVALID_IDENTITY, 401);
@@ -632,9 +632,9 @@ async function getPublicTracking(
 }
 
 /**
- * `GET /requests/:protocol/tracking` â€” detalhe bimodal do acompanhamento.
- * O `mode` Ã© decidido pela credencial: sessÃ£o do dono â†’ `authenticated`;
- * identidade pÃºblica em modo PUBLIC â†’ `public`.
+ * `GET /requests/:protocol/tracking` — detalhe bimodal do acompanhamento.
+ * O `mode` é decidido pela credencial: sessão do dono → `authenticated`;
+ * identidade pública em modo PUBLIC → `public`.
  */
 export async function getTracking(
   protocol: string,
@@ -643,7 +643,7 @@ export async function getTracking(
   const normalizedProtocol = protocol.trim();
 
   if (normalizedProtocol === "") {
-    throw new AppError("Protocolo Ã© obrigatÃ³rio", 400);
+    throw new AppError("Protocolo é obrigatório", 400);
   }
 
   if (caller.user) {
@@ -653,12 +653,12 @@ export async function getTracking(
   return getPublicTracking(normalizedProtocol, caller.requesterIdentity ?? null);
 }
 
-// --- AtualizaÃ§Ã£o interna dos blocos (issue #88) -----------------------------
-// PATCH /requests/:protocol/internal. SemÃ¢ntica de SUBSTITUIÃ‡ÃƒO COMPLETA dos
-// blocos editÃ¡veis (decisÃ£o de contrato): o payload descreve o estado final;
-// chave ausente = campo limpo (NULL). `last_external_update_at` nÃ£o Ã© tocado.
+// --- Atualização interna dos blocos (issue #88) -----------------------------
+// PATCH /requests/:protocol/internal. Semântica de SUBSTITUIÇÃO COMPLETA dos
+// blocos editáveis (decisão de contrato): o payload descreve o estado final;
+// chave ausente = campo limpo (NULL). `last_external_update_at` não é tocado.
 
-/** Blocos editÃ¡veis no estado atual â€” usado como `previousValue` da auditoria. */
+/** Blocos editáveis no estado atual — usado como `previousValue` da auditoria. */
 function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalRequestPayload {
   const complementary: ComplementaryBlock = {
     hasProcessDocumentation: toYesNoDetail(
@@ -687,7 +687,7 @@ function editableBlocksFromRow(request: InternalRequestRow): UpdateInternalReque
     demand: {
       title: request.title,
       requestType: request.request_type,
-      // O join com `categories` Ã© a fonte do nome; o contrato exige string.
+      // O join com `categories` é a fonte do nome; o contrato exige string.
       category: request.category,
       processName: request.process_name,
       description: request.need_description,
@@ -768,8 +768,8 @@ export async function listAssignees(): Promise<AssigneeSummary[]> {
   return repository.findActiveAssignees();
 }
 
-// RN-010 â€” ao salvar o responsÃ¡vel de uma demanda em triagem jÃ¡ aprovada como
-// elegÃ­vel, o status avanÃ§a automaticamente para "Aguardando mapeamento".
+// RN-010 — ao salvar o responsável de uma demanda em triagem já aprovada como
+// elegível, o status avança automaticamente para "Aguardando mapeamento".
 const RN010_FROM_STATUS: RequestStatus = "Em triagem";
 const RN010_TO_STATUS: RequestStatus = "Aguardando mapeamento";
 const RN010_ELIGIBLE_SCREENING = "elegivel";
@@ -815,7 +815,7 @@ async function resolveAssigneeByUserId(
   };
 }
 
-// Legado: resolve por professionalId (mantido p/ rota antiga atÃ© remoÃ§Ã£o total)
+// Legado: resolve por professionalId (mantido p/ rota antiga até remoção total)
 async function resolveAssignee(
   professionalId: string,
   stage: "triage" | "mapping",
@@ -1137,11 +1137,11 @@ export async function updateRequestStatus(
 
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
   if (!target) {
-    throw new AppError("Status de destino nÃ£o encontrado", 404);
+    throw new AppError("Status de destino não encontrado", 404);
   }
 
   if (request.current_status_id !== null && request.current_status_id === target.status_id) {
-    throw new AppError("A solicitaÃ§Ã£o jÃ¡ estÃ¡ neste status.", 422);
+    throw new AppError("A solicitação já está neste status.", 422);
   }
 
   if (!target.is_active) {
@@ -1151,7 +1151,7 @@ export async function updateRequestStatus(
       ipAddress,
       `tentativa de definir status inativo (id ${target.status_id})`,
     );
-    throw new AppError("Status inativo nÃ£o pode ser alvo.", 409);
+    throw new AppError("Status inativo não pode ser alvo.", 409);
   }
 
   const requiresOverride =
@@ -1172,7 +1172,7 @@ export async function updateRequestStatus(
   }
 
   if (target.isPublic && payload.lastTechnicalMessage == null) {
-    throw new AppError("Retorno ao solicitante obrigatÃ³rio para status pÃºblico.", 400);
+    throw new AppError("Retorno ao solicitante obrigatório para status público.", 400);
   }
 
   const actionType: "request.status_change" | "request.status_override" = requiresOverride
@@ -1200,8 +1200,8 @@ export async function updateRequestStatus(
       userId: actor.id,
       previousValue: request.current_status_name,
       newValue: target.name,
-      // `note` = justificativa interna; o retorno pÃºblico Ã© snapshot prÃ³prio
-      // (nunca concatenado), persistido apenas quando o destino Ã© pÃºblico.
+      // `note` = justificativa interna; o retorno público é snapshot próprio
+      // (nunca concatenado), persistido apenas quando o destino é público.
       note: payload.justification ?? null,
       lastTechnicalMessage: target.isPublic ? (payload.lastTechnicalMessage ?? null) : null,
       ipAddress,
