@@ -367,12 +367,12 @@ Nos perfis base, só o Analista tem as duas flags ligadas.
 
 ### 6.1 Extensão de profissional
 
-A extensão de profissional (`details_professional`, 1:1 com a conta) habilita o usuário a ser designado _Responsável_. Ela segue a atribuibilidade, não o nome do perfil:
+A extensão de profissional (`details_professional`, 1:1 com a conta) é a âncora persistida da designação de _Responsável_. Sua provisão depende do Perfil ativo ter uma flag de Atribuibilidade, não do predicado de chaves de trabalho nem do nome:
 
-- nasce na criação de usuário cujo perfil tem `is_assignable_triage` ou `is_assignable_mapping`;
+- nasce na mesma transação da criação de usuário cujo Perfil ativo tem `is_assignable_triage` ou `is_assignable_mapping`;
 - backfill transacional ao ligar a flag num perfil que já tem usuários ativos;
-- backfill transacional ao mover uma conta, via `user:manage`, para um perfil com a flag;
-- o diretório de atribuíveis (`assignee_directory:read`) exige extensão, flag, predicado de chaves e conta ativa.
+- backfill transacional ao mover uma conta, via `user:manage`, para um Perfil ativo com a flag;
+- o diretório de atribuíveis (`assignee_directory:read`) e a designação exigem extensão ativa, conta e Perfil ativos e a Atribuibilidade completa (flag + predicado de chaves).
 
 ## 7. Mapa rota → chave
 

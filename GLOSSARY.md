@@ -127,7 +127,7 @@ Propriedade do perfil cujos usuários podem ser escolhidos como _Responsável_ e
 _Evitar_: elegível, selecionável, disponível.
 
 **Extensão de profissional**:
-Registro 1:1 com a conta que habilita o usuário a ser designado _Responsável_. Segue a _Atribuibilidade_: nasce com a conta de perfil atribuível, é reprocessada ao ligar a flag ou ao mover a conta, e o diretório de atribuíveis exige extensão, flag, predicado e conta ativa.
+Registro 1:1 com a conta que serve de âncora persistida da designação de _Responsável_. Sua provisão depende de o Perfil estar ativo e ter uma flag `is_assignable_*`; não depende do predicado de chaves de trabalho. Nasce com a conta e recebe backfill ao ligar a flag ou ao mover a conta. O diretório e a designação exigem, além da extensão, conta e Perfil ativos e a _Atribuibilidade_ completa (flag + predicado).
 _Evitar_: cadastro de analista, dados profissionais.
 
 **Perfil**:
