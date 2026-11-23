@@ -2,7 +2,7 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import {
   assertAssigneeTargetEligible,
-  assigneeNotAssignable,
+  assigneeNotAssignableError,
   CODE_ASSIGNEE_NOT_ASSIGNABLE,
 } from "../../shared/access/assignability.ts";
 import db from "../../database/conection.ts";
@@ -867,7 +867,7 @@ async function validateAssigneeCandidate(
       requireActive: true,
     }))
   ) {
-    throw assigneeNotAssignable();
+    throw assigneeNotAssignableError();
   }
 
   return candidate;

@@ -16,7 +16,7 @@
 import db from "../../database/conection.ts";
 import {
   assertAssigneeTargetEligible,
-  assigneeNotAssignable,
+  assigneeNotAssignableError,
 } from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
@@ -289,7 +289,7 @@ async function assertCandidateEligible(
 ): Promise<void> {
   assertAssigneeTargetEligible(candidate);
   if (!(await repository.isMappingAssigneeProfileAssignable(queryable, candidate.profile_id))) {
-    throw assigneeNotAssignable();
+    throw assigneeNotAssignableError();
   }
 }
 

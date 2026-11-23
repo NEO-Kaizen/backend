@@ -26,11 +26,11 @@ export function assertAssigneeTargetEligible<T extends AssigneeEligibilityRow>(
     !candidate.user_is_active ||
     !candidate.profile_is_active
   ) {
-    throw assigneeNotAssignable();
+    throw assigneeNotAssignableError();
   }
 }
 
-export function assigneeNotAssignable(): AppError {
+export function assigneeNotAssignableError(): AppError {
   return new AppError(
     "O alvo não pode ser escolhido como Responsável.",
     400,
