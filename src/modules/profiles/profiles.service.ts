@@ -339,6 +339,13 @@ export async function updateProfile(
         await repository.replacePermissions(trx, id, nextPermissions);
       }
 
+      if (
+        (!current.is_assignable_triage && nextFlags.isAssignableTriage) ||
+        (!current.is_assignable_mapping && nextFlags.isAssignableMapping)
+      ) {
+        await repository.ensureProfessionalExtensionsForActiveUsers(trx, id);
+      }
+
       await recordProfileAudit(trx, {
         actorUserId: actor.userId,
         profileId: id,

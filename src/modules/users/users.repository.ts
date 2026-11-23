@@ -9,8 +9,9 @@ import type {
   CreateUserRequest,
   ListUsersQuery,
 } from "../DTOs/users/UserRequests.dto.ts";
-import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
+import type { AssignableProfessional, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequestCategory } from "../../shared/types/requests.ts";
+import { findAssignableProfileIds } from "../../shared/access/assignability.ts";
 
 interface UserSummaryRow {
   user_id: number;
@@ -27,11 +28,30 @@ export interface ProfileLookupRow {
   profile_id: number;
   is_root: boolean;
   is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
 }
 
 /** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
 export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
-  return db("profiles").where({ name }).first("profile_id", "is_root", "is_active");
+  return db("profiles")
+    .where({ name })
+    .first("profile_id", "is_root", "is_active", "is_assignable_triage", "is_assignable_mapping");
+}
+
+/** Perfil atual por ID; `forShare` impede mudança concorrente das flags na transação. */
+export async function findProfileById(
+  id: number,
+  queryable: Knex = db,
+  forShare = false,
+): Promise<ProfileLookupRow | undefined> {
+  const query = queryable("profiles")
+    .where({ profile_id: id })
+    .select("profile_id", "is_root", "is_active", "is_assignable_triage", "is_assignable_mapping");
+
+  if (forShare) query.forShare();
+
+  return query.first();
 }
 
 export async function findProfileIdByName(name: string): Promise<number | null> {
@@ -71,29 +91,23 @@ export async function listProfilePermissions(
     .select("permission_key", "custody");
 }
 
-/** Perfis que ganham a extensão de profissional (1:1 user → details_professional)
- *  na criação de conta. Apenas `analista`: a extensão é o card do analista e a
- *  elegibilidade de atribuição também é restrita a `analista`
- *  (regra legada do subfluxo de Mapeamento). */
-export const PROFESSIONAL_PROFILES = ["analista"] as const;
-
-/** True quando o perfil informado deve nascer com a extensão details_professional. */
-export function isProfessionalProfile(profileName: string): boolean {
-  return (PROFESSIONAL_PROFILES as readonly string[]).includes(profileName.trim().toLowerCase());
-}
-
 /**
  * Cria a extensão de profissional dentro da transação fornecida (atômica com a
  * criação do usuário). `professional_id` nasce do default da coluna
  * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
  * `specialties` e `attended_category_ids` são textos separados por vírgula —
- * mesmo formato lido pelo card (split em `listAnalysts`).
+ * mesmo formato usado pelo diretório de Responsáveis.
  */
 export async function createProfessionalData(
   trx: Knex.Transaction,
   userId: number,
-  professional: CreateProfessionalInput,
+  professional?: CreateProfessionalInput,
 ): Promise<void> {
+  if (!professional) {
+    await trx("details_professional").insert({ user_id: userId });
+    return;
+  }
+
   await trx("details_professional").insert({
     user_id: userId,
     job_title: professional.jobTitle,
@@ -101,6 +115,11 @@ export async function createProfessionalData(
     attended_category_ids: professional.attendedCategoryIds.join(","),
     notes: professional.notes ?? null,
   });
+}
+
+/** Cria a extensão se ausente, sem sobrescrever dados profissionais existentes. */
+export async function ensureProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
+  await trx("details_professional").insert({ user_id: userId }).onConflict("user_id").ignore();
 }
 
 /** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
@@ -196,7 +215,7 @@ export async function createRequesterData(
  *
  * `specialties`/`attended_category_ids` são desencontradas do texto
  * separado por vírgula (formato do seed/createProfessionalData) para
- * array — mesmo parsing do card (`listAnalysts`).
+ * array — mesmo parsing do diretório de Responsáveis.
  */
 export interface UserProfileRow {
   user_id: number;
@@ -204,6 +223,8 @@ export interface UserProfileRow {
   email: string;
   avatar_url: string | null;
   profile_name: string;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
   requester: {
     area: string | null;
     department: string | null;
@@ -222,7 +243,15 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
   const user = await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("u.user_id", userId)
-    .first("u.user_id", "u.full_name", "u.email", "u.avatar_url", "p.name as profile_name");
+    .first(
+      "u.user_id",
+      "u.full_name",
+      "u.email",
+      "u.avatar_url",
+      "p.name as profile_name",
+      "p.is_assignable_triage",
+      "p.is_assignable_mapping",
+    );
 
   if (!user) return undefined;
 
@@ -241,6 +270,8 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
     email: user.email,
     avatar_url: user.avatar_url ?? null,
     profile_name: user.profile_name,
+    is_assignable_triage: user.is_assignable_triage,
+    is_assignable_mapping: user.is_assignable_mapping,
     requester: requester
       ? {
           area: requester.area ?? null,
@@ -468,11 +499,6 @@ export async function updateUserFields(
   }
 }
 
-/** Remove extensão profissional (quando role deixa de ser analista). */
-export async function deleteProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
-  await trx("details_professional").where({ user_id: userId }).del();
-}
-
 /** Sincroniza `requesters.full_name/corporate_email` após troca de nome/e-mail do usuário. */
 export async function syncRequesterIdentity(
   trx: Knex.Transaction,
@@ -503,30 +529,27 @@ export async function setTemporaryPassword(
   }
 }
 
-interface AnalystRow {
+interface AssignableProfessionalRow {
   user_id: number;
   full_name: string;
   email: string;
   job_title: string | null;
   attended_category_ids: string | null;
   notes: string | null;
-  professional_id: string | null;
+  professional_id: string;
 }
 
-export async function listAnalysts(): Promise<AssignAnalyst[]> {
+export async function listAssignableProfessionals(): Promise<AssignableProfessional[]> {
+  const profileIds = await findAssignableProfileIds({ queryable: db });
+  if (profileIds.length === 0) return [];
+
   const rows = (await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
-    // LEFT JOIN defensivo: usuário sem extensão (recém-criado ou dados antigos)
-    // ainda aparece no card com campos vazios — formato já previsto no contrato.
-    // A regra de licença (extensão com status 'inactive') permanece filtrando:
-    // o WHERE compensa o LEFT JOIN para excluir apenas extensões inativas.
-    .leftJoin("details_professional as dp", "dp.user_id", "u.user_id")
-    .where("p.name", "analista")
+    .join("details_professional as dp", "dp.user_id", "u.user_id")
+    .whereIn("p.profile_id", profileIds)
     .andWhere("p.is_active", true)
     .andWhere("u.is_active", true)
-    .andWhere((builder) => {
-      builder.where("dp.status", "active").orWhereNull("dp.user_id");
-    })
+    .andWhere("dp.status", "active")
     .select({
       user_id: "u.user_id",
       full_name: "u.full_name",
@@ -536,7 +559,7 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
       notes: "dp.notes",
       professional_id: "dp.professional_id",
     })
-    .orderBy("u.full_name", "asc")) as AnalystRow[];
+    .orderBy("u.full_name", "asc")) as AssignableProfessionalRow[];
 
   if (rows.length === 0) return [];
 
@@ -551,10 +574,7 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
-  // Analista SEM extensão não entra no COUNT (sem professional_id válido).
-  const professionalIds = rows
-    .map((r) => r.professional_id)
-    .filter((id): id is string => id !== null);
+  const professionalIds = rows.map((row) => row.professional_id);
   const counts = (await db("requests")
     .whereIn("professional_id", professionalIds)
     .select("professional_id")
@@ -566,13 +586,13 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   }
 
   return rows.map((row) => {
-    const categoriesForAnalyst: RequestCategory[] = [];
+    const categoriesForProfessional: RequestCategory[] = [];
     if (row.attended_category_ids) {
       for (const part of row.attended_category_ids.split(",")) {
         const id = Number(part.trim());
         if (!Number.isNaN(id)) {
           const name = categoryMap.get(id);
-          if (name) categoriesForAnalyst.push(name as RequestCategory);
+          if (name) categoriesForProfessional.push(name as RequestCategory);
         }
       }
     }
@@ -582,12 +602,10 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
       fullName: row.full_name,
       email: row.email,
       specialty: row.job_title ?? "",
-      categories: categoriesForAnalyst,
+      categories: categoriesForProfessional,
       notes: row.notes ?? null,
-      // Sem extensão não há carga para contar; contrato permite null.
-      requestLoad:
-        row.professional_id === null ? null : (countByProfessional.get(row.professional_id) ?? 0),
-    } satisfies AssignAnalyst;
+      requestLoad: countByProfessional.get(row.professional_id) ?? 0,
+    } satisfies AssignableProfessional;
   });
 }
 

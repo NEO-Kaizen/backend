@@ -178,7 +178,7 @@ export default {
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Lista de analistas disponíveis.",
+          description: "Lista de Responsáveis atribuíveis disponíveis.",
           content: {
             "application/json": {
               schema: {

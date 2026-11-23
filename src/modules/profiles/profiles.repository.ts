@@ -181,6 +181,33 @@ export async function replacePermissions(
 }
 
 /**
+ * Backfills professional extensions for active accounts in the Profile.
+ * Existing rows are preserved; the caller invokes this inside the Profile
+ * update transaction when a flag becomes enabled.
+ */
+export async function ensureProfessionalExtensionsForActiveUsers(
+  trx: Knex.Transaction,
+  profileId: number,
+): Promise<void> {
+  await trx.raw(
+    `
+      INSERT INTO details_professional (user_id)
+      SELECT u.user_id
+      FROM users AS u
+      WHERE u.profile_id = ?
+        AND u.is_active = TRUE
+        AND NOT EXISTS (
+          SELECT 1
+          FROM details_professional AS dp
+          WHERE dp.user_id = u.user_id
+        )
+      ON CONFLICT (user_id) DO NOTHING
+    `,
+    [profileId],
+  );
+}
+
+/**
  * Protocolos das solicitações abertas (status não terminal) atribuídas a
  * usuários do Perfil, na etapa indicada — a guarda 6 lista esses protocolos.
  *

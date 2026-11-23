@@ -281,17 +281,26 @@ async function resolveParticipants(
 /** Valida Atribuibilidade do candidato conforme flag e predicado RBAC. */
 async function assertCandidateEligible(
   queryable: Knex,
-  candidate: repository.MappingAssigneeCandidate,
+  candidate: repository.MappingAssigneeCandidate | null,
 ): Promise<void> {
   if (
+    !candidate ||
     candidate.professional_status !== "active" ||
     !candidate.user_is_active ||
     !candidate.profile_is_active
   ) {
-    throw new AppError("Designado inativo.", 422);
+    throw new AppError(
+      "O alvo não pode ser escolhido como Responsável.",
+      400,
+      "assignee_not_assignable",
+    );
   }
   if (!(await repository.isMappingAssigneeProfileAssignable(queryable, candidate.profile_id))) {
-    throw new AppError("O perfil do designado não permite executar o mapeamento.", 422);
+    throw new AppError(
+      "O alvo não pode ser escolhido como Responsável.",
+      400,
+      "assignee_not_assignable",
+    );
   }
 }
 
@@ -442,10 +451,7 @@ export const upsertMappingService = async (
         trx,
         payload.mappingAssigneeId,
       );
-      if (payload.mappingAssigneeId !== null && !candidate) {
-        throw new AppError("Designado não encontrado.", 422);
-      }
-      if (candidate) {
+      if (payload.mappingAssigneeId !== null) {
         await assertCandidateEligible(trx, candidate);
       }
 

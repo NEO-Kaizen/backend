@@ -24,7 +24,7 @@ import type {
   UpdateUserRequest,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type {
-  AssignAnalyst,
+  AssignableProfessional,
   ChangeUserStatusResponse,
   CreateUserResponse,
   ResetPasswordResponse,
@@ -39,7 +39,6 @@ import type { UpdateProfilePayload } from "../DTOs/users/UpdateProfileRequest.dt
 import * as repository from "./users.repository.ts";
 
 const AVATAR_DIR = "avatars";
-const ROLE_ANALYST = "analista";
 
 const CHANGE_ORIGIN_ADMIN = "admin";
 
@@ -198,8 +197,8 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   return repository.listUsers(query);
 }
 
-export async function listAnalysts(): Promise<AssignAnalyst[]> {
-  return repository.listAnalysts();
+export async function listAssignableProfessionals(): Promise<AssignableProfessional[]> {
+  return repository.listAssignableProfessionals();
 }
 
 export const getUserMetrics = async (): Promise<UserMetricsResponse> => {
@@ -235,6 +234,28 @@ export async function createUser(
     // evento falhar, a criação é desfeita (rollback) — nunca fica um usuário
     // sem histórico.
     user = await db.transaction(async (trx) => {
+      const currentProfile = await repository.findProfileById(profileId, trx, true);
+      if (!currentProfile || !currentProfile.is_active) {
+        throw new AppError(
+          "Perfil inativo não recebe conta nova nem designação.",
+          409,
+          CODE_PROFILE_INACTIVE,
+        );
+      }
+      if (currentProfile.is_root) {
+        throwRootAccountProtected();
+      }
+
+      const shouldHaveProfessionalExtension =
+        currentProfile.is_assignable_triage || currentProfile.is_assignable_mapping;
+      if (payload.professional !== undefined && !shouldHaveProfessionalExtension) {
+        throw new AppError(
+          "Dados profissionais só podem ser informados para Perfis atribuíveis.",
+          400,
+          "professional_profile_not_assignable",
+        );
+      }
+
       const created = await repository.createUser(
         trx,
         { fullName: payload.fullName, email: payload.email },
@@ -242,17 +263,10 @@ export async function createUser(
         profileId,
       );
 
-      // Issue A (#106): analista nasce com a extensão details_professional (1:1 com
-      // users, card de perfil) usando os dados profissionais enviados no payload —
-      // obrigatórios para o perfil (o schema já valida; guard defensivo para o
-      // service não depender do contrato de entrada). Atômico com a criação:
-      // se a extensão falhar, o usuário não é criado (rollback junto com a auditoria).
-      if (repository.isProfessionalProfile(payload.role)) {
-        const professional = payload.professional;
-        if (!professional) {
-          throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
-        }
-        await repository.createProfessionalData(trx, created.user_id, professional);
+      // A extensão é definida pelas flags do Perfil, nunca pelo nome. A linha
+      // nasce na mesma transação da conta, mesmo sem dados profissionais opcionais.
+      if (shouldHaveProfessionalExtension) {
+        await repository.createProfessionalData(trx, created.user_id, payload.professional);
       }
 
       await recordAudit(trx, {
@@ -398,24 +412,32 @@ function toProfessionalBlock(
   };
 }
 
+function toAssignableProfessionalBlock(
+  row: repository.UserProfileRow,
+): ProfessionalProfileBlock | null {
+  if (!row.is_assignable_triage && !row.is_assignable_mapping) {
+    return null;
+  }
+
+  return (
+    toProfessionalBlock(row.professional) ?? {
+      jobTitle: null,
+      specialties: [],
+      attendedCategoryIds: [],
+      notes: null,
+    }
+  );
+}
+
 /**
  * `GET /users/me` — perfil completo do próprio usuário
- * (dados básicos + bloco requester + bloco professional [analista] + avatar).
+ * (dados básicos + bloco requester + bloco professional atribuível + avatar).
  */
 export async function getMyProfile(userId: number): Promise<UserProfileResponseDTO> {
   const row = await repository.findUserProfile(userId);
   if (!row) {
     throw new AppError("Usuário não encontrado", 404);
   }
-
-  // Analista legado (sem linha em details_professional) recebe o bloco
-  // professional com defaults em vez de null — o contrato do "Meus dados"
-  // exige o bloco para o perfil Analista, sem erro e sem exigir migração
-  // de dados. Demais perfis permanecem com professional: null.
-  const professional: ProfessionalProfileBlock | null =
-    row.profile_name === ROLE_ANALYST && !row.professional
-      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
-      : toProfessionalBlock(row.professional);
 
   return {
     id: String(row.user_id),
@@ -424,7 +446,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     role: resolveRole(row.profile_name),
     avatarUrl: row.avatar_url,
     requester: toRequesterBlock(row.requester),
-    professional,
+    professional: toAssignableProfessionalBlock(row),
   } satisfies UserProfileResponseDTO;
 }
 
@@ -605,23 +627,33 @@ export async function updateUser(
     }
   }
 
-  const finalRoleName = payload.role ?? target.profile_name;
-  const isFinalAnalyst = repository.isProfessionalProfile(finalRoleName);
-  const wasAnalyst = repository.isProfessionalProfile(target.profile_name);
-
-  if (payload.professional !== undefined && !isFinalAnalyst) {
-    throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
-  }
-  if (isFinalAnalyst && !wasAnalyst && payload.professional === undefined) {
-    // Promoção para analista sem dados profissionais — exigir bloco.
-    throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
-  }
-
   // Snapshot para auditoria
   const before = await repository.findUserProfile(id);
 
   try {
     await db.transaction(async (trx) => {
+      const destinationProfileId = newProfileId ?? target.profile_id;
+      const destinationProfile = await repository.findProfileById(destinationProfileId, trx, true);
+      if (!destinationProfile) {
+        throw new AppError("Perfil inválido.", 400);
+      }
+      if (newProfileId !== undefined && !destinationProfile.is_active) {
+        throw new AppError(
+          "Perfil inativo não recebe conta nova nem designação.",
+          409,
+          CODE_PROFILE_INACTIVE,
+        );
+      }
+      const shouldHaveProfessionalExtension =
+        destinationProfile.is_assignable_triage || destinationProfile.is_assignable_mapping;
+      if (payload.professional !== undefined && !shouldHaveProfessionalExtension) {
+        throw new AppError(
+          "Dados profissionais só podem ser informados para Perfis atribuíveis.",
+          400,
+          "professional_profile_not_assignable",
+        );
+      }
+
       // 1. Campos básicos users (merge)
       await repository.updateUserFields(trx, id, {
         fullName: payload.fullName,
@@ -636,11 +668,11 @@ export async function updateUser(
         await repository.syncRequesterIdentity(trx, id, { fullName, corporateEmail });
       }
 
-      // 3. Professional (1:1) — merge
+      // 3. A extensão acompanha as flags do Perfil; dados enviados são merge.
       if (payload.professional !== undefined) {
         await repository.upsertProfessionalData(trx, id, payload.professional);
-      } else if (wasAnalyst && !isFinalAnalyst) {
-        await repository.deleteProfessionalData(trx, id);
+      } else if (shouldHaveProfessionalExtension) {
+        await repository.ensureProfessionalData(trx, id);
       }
 
       // 4. Requester (1:1) — merge parcial
@@ -684,11 +716,6 @@ export async function updateUser(
     role: resolveRole(updated.profile_name),
     avatarUrl: updated.avatar_url,
     requester: toRequesterBlock(updated.requester),
-    professional: (() => {
-      if (updated.profile_name === ROLE_ANALYST && !updated.professional) {
-        return { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null };
-      }
-      return toProfessionalBlock(updated.professional);
-    })(),
+    professional: toAssignableProfessionalBlock(updated),
   } satisfies UserProfileResponseDTO;
 }

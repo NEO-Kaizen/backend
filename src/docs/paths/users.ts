@@ -116,25 +116,53 @@ export default {
   "/users/analysts": {
     get: {
       tags: ["Usuários"],
-      summary: "Listar analistas",
+      summary: "Listar Responsáveis atribuíveis",
       description:
-        "Lista profissionais com perfil `Analista` ativos, sem paginação. Usado no modal de atribuição de triagem.",
+        "Exige `assignee_directory:read`. Lista contas ativas com extensão profissional ativa cujo Perfil tem flag de Atribuibilidade e todas as chaves de trabalho de triagem ou mapeamento. Não depende do nome do Perfil.",
       operationId: "listAnalysts",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Lista de analistas.",
+          description: "Lista direta de Responsáveis atribuíveis, sem paginação.",
           content: {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                items: {
+                  type: "object",
+                  required: [
+                    "id",
+                    "fullName",
+                    "email",
+                    "specialty",
+                    "categories",
+                    "notes",
+                    "requestLoad",
+                  ],
+                  properties: {
+                    id: { type: "string", example: "101" },
+                    fullName: { type: "string", example: "Maria Silva" },
+                    email: { type: "string", format: "email" },
+                    specialty: { type: "string", example: "Analista de Sistemas" },
+                    categories: { type: "array", items: { type: "string" } },
+                    notes: { type: "string", nullable: true },
+                    requestLoad: { type: "integer", nullable: true },
+                  },
+                },
               },
             },
           },
         },
         "401": {
           description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Ator sem `assignee_directory:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -235,7 +263,6 @@ export default {
                 email: { type: "string", format: "email", example: "novo@email.com" },
                 role: {
                   type: "string",
-                  enum: ["solicitante", "analista", "gestor", "administrador"],
                   example: "analista",
                 },
                 requester: {
@@ -256,7 +283,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Dados profissionais — obrigatório apenas quando o perfil é `analista`.",
+                    "Dados profissionais opcionais. Só podem ser enviados para Perfil com flag de Atribuibilidade; a extensão é criada automaticamente para Perfis atribuíveis.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {
@@ -324,7 +351,7 @@ export default {
         },
         "400": {
           description:
-            "Perfil inválido ou dados profissionais obrigatórios/exclusivos do analista.",
+            "Perfil inválido ou dados profissionais enviados para Perfil não atribuível.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -443,7 +470,6 @@ export default {
                 fullName: { type: "string" },
                 role: {
                   type: "string",
-                  enum: ["solicitante", "analista", "gestor", "administrador"],
                 },
                 requester: {
                   type: "object",
@@ -461,7 +487,8 @@ export default {
                 },
                 professional: {
                   type: "object",
-                  description: "Dados profissionais — somente para o perfil `analista`.",
+                  description:
+                    "Dados profissionais — permitidos apenas para Perfil com flag de Atribuibilidade.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {

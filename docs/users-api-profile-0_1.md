@@ -17,10 +17,9 @@ matriz de contas (RBAC § 4.2).
 ## Tipos compartilhados
 
 ```ts
-// Roles internas do sistema (fonte: src/shared/types/role.ts).
-// O valor retornado em `role` é o nome legível (ex.: "Analista"),
-// não o slug do perfil do banco.
-export type Role = "Administrador" | "Gestor" | "Analista" | "Solicitante";
+// O valor retornado em `role` é o nome legível do Perfil vigente,
+// incluindo Perfis customizados.
+export type Role = string;
 
 // Resposta de GET /users/me — perfil completo do próprio usuário.
 export interface UserProfileResponseDTO {
@@ -30,7 +29,7 @@ export interface UserProfileResponseDTO {
   role: Role; // perfil resolvido (nome legível)
   avatarUrl: string | null; // URL da foto em /uploads/avatars/<arquivo> ou null
   requester: RequesterProfileBlock | null; // bloco de solicitante (nullable)
-  professional: ProfessionalProfileBlock | null; // bloco profissional (nullable; analista apenas)
+  professional: ProfessionalProfileBlock | null; // presente para Perfil com flag de Atribuibilidade
 }
 
 // Bloco de dados de solicitante editável no "Meus dados".
@@ -179,7 +178,7 @@ HTTP/1.1 200 OK
 }
 ```
 
-**Exemplo real** — analista sem dados profissionais (legado, sem linha em `details_professional`):
+**Exemplo real** — usuário de Perfil atribuível sem dados profissionais (legado, sem linha em `details_professional`):
 
 ```json
 HTTP/1.1 200 OK
@@ -487,14 +486,14 @@ interface UpdateUserRequest {
     specialties: string[];
     attendedCategoryIds: number[];
     notes?: string;
-  }; // exclusivo de Analista
+  }; // permitido para Perfil com flag de Atribuibilidade
 }
 ```
 
 O modal também expõe `fullName`. O endpoint mantém compatibilidade com os
 demais campos administrativos já existentes (`email` e `role`), que não são
 expostos pelo modal desta versão. `professional` pode ser atualizado sem
-reenviar `role`; o service valida o papel atual do usuário no banco.
+reenviar `role`; o service valida as flags do Perfil atual no banco.
 
 **Response 200:** `UserProfileResponseDTO` atualizado.
 
@@ -511,7 +510,7 @@ Admin Root (`root_account_protected`) ou própria conta
 - `fullName`, `requester.additionalContact` e avatar são autoeditáveis por qualquer perfil. Quem tem `user:manage` também pode editar `requester.area`, `requester.department` e `requester.manager`; para os demais perfis, esses campos continuam exclusivos do fluxo administrativo em `PUT /users/:id`.
 - O campo `role` na resposta é o **nome legível** do perfil (ex.: "Analista"), resolvido a partir do `profiles.name` do banco — não é o slug interno.
 - `avatarUrl` é `null` quando o usuário não tem foto. A URL é relativa ao host: `/uploads/avatars/<storageKey>`. O servidor serve `/uploads/*` via `express.static` (conforme `app.ts`).
-- O bloco `professional` só está presente (não `null`) quando o actor tem perfil Analista E a extensão `details_professional` existe. Analistas legados (sem linha) recebem `professional` com defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`).
+- A extensão `details_professional` nasce com contas de Perfis que têm flag de Atribuibilidade, recebe backfill transacional ao ligar a flag ou mover a conta para um Perfil atribuível, e não depende do nome do Perfil. O bloco `professional` só é exposto para Perfis com ao menos uma flag ligada; extensões ausentes em Perfis atribuíveis recebem defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`).
 - A atualização do bloco `requester` faz UPSERT na extensão por `user_id` (1:1): se o usuário não tem linha, uma é criada; se tem, é atualizada. Isto garante que analistas legados sem extensão de requester recebem a linha ao primeiro `PUT`.
 - `removeAvatar: true` no JSON remove a foto do disco (`fs.unlink`) e define `users.avatar_url = null` na mesma transação da auditoria. Se o arquivo já não existe, a operação não falha (best-effort de remoção).
 - Atualização de nome, dados permitidos de requester, referência do avatar e auditoria ocorre na **mesma transação** de banco.

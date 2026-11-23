@@ -1,5 +1,5 @@
 export interface CreateProfessionalInput {
-  /** Cargo do analista (vira `job_title` → `specialty` no card). */
+  /** Cargo profissional (`job_title` → `specialty` no diretório). */
   jobTitle: string;
   /** Especialidades (vira `specialties`, texto separado por vírgula). */
   specialties: string[];
@@ -19,7 +19,7 @@ export interface CreateUserRequest {
   fullName: string;
   email: string;
   role: string;
-  /** Obrigatório quando `role = "analista"`; proibido para os demais perfis. */
+  /** Opcional; permitido apenas quando o Perfil tem uma flag de Atribuibilidade. */
   professional?: CreateProfessionalInput;
   requester: RequesterInput;
 }

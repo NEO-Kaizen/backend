@@ -867,7 +867,10 @@ async function validateAssigneeCandidate(
     stage === "triage" ? candidate.is_assignable_triage : candidate.is_assignable_mapping;
   if (
     !flagEnabled ||
-    !(await repository.profileHasAssignablePermissions(candidate.profile_id, stage))
+    !(await repository.profileHasAssignablePermissions(candidate.profile_id, stage, {
+      requireFlag: true,
+      requireActive: true,
+    }))
   ) {
     throw invalidTarget();
   }
