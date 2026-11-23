@@ -35,18 +35,20 @@ export interface ProfileLookupRow {
   is_assignable_mapping: boolean;
 }
 
+const PROFILE_LOOKUP_COLUMNS = [
+  "profile_id",
+  "name",
+  "is_root",
+  "is_active",
+  "is_assignable_triage",
+  "is_assignable_mapping",
+] as const;
+
 /** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
 export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
   return db("profiles")
     .whereRaw("lower(name) = lower(?)", [name])
-    .first(
-      "profile_id",
-      "name",
-      "is_root",
-      "is_active",
-      "is_assignable_triage",
-      "is_assignable_mapping",
-    );
+    .first(...PROFILE_LOOKUP_COLUMNS);
 }
 
 export interface FindProfileByIdOptions {
@@ -60,16 +62,7 @@ export async function findProfileById(
   options: FindProfileByIdOptions = {},
 ): Promise<ProfileLookupRow | undefined> {
   const { queryable = db, shouldLockForShare = false } = options;
-  const query = queryable("profiles")
-    .where({ profile_id: id })
-    .select(
-      "profile_id",
-      "name",
-      "is_root",
-      "is_active",
-      "is_assignable_triage",
-      "is_assignable_mapping",
-    );
+  const query = queryable("profiles").where({ profile_id: id }).select(PROFILE_LOOKUP_COLUMNS);
 
   if (shouldLockForShare) query.forShare();
 
