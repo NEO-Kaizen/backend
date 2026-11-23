@@ -234,7 +234,10 @@ export async function createUser(
     // evento falhar, a criação é desfeita (rollback) — nunca fica um usuário
     // sem histórico.
     user = await db.transaction(async (trx) => {
-      const currentProfile = await repository.findProfileById(profileId, trx, true);
+      const currentProfile = await repository.findProfileById(profileId, {
+        queryable: trx,
+        shouldLockForShare: true,
+      });
       if (!currentProfile || !currentProfile.is_active) {
         throw new AppError(
           "Perfil inativo não recebe conta nova nem designação.",
@@ -633,7 +636,10 @@ export async function updateUser(
   try {
     await db.transaction(async (trx) => {
       const destinationProfileId = newProfileId ?? target.profile_id;
-      const destinationProfile = await repository.findProfileById(destinationProfileId, trx, true);
+      const destinationProfile = await repository.findProfileById(destinationProfileId, {
+        queryable: trx,
+        shouldLockForShare: true,
+      });
       if (!destinationProfile) {
         throw new AppError("Perfil inválido.", 400);
       }

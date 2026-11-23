@@ -39,17 +39,22 @@ export async function findProfileByName(name: string): Promise<ProfileLookupRow 
     .first("profile_id", "is_root", "is_active", "is_assignable_triage", "is_assignable_mapping");
 }
 
-/** Perfil atual por ID; `forShare` impede mudança concorrente das flags na transação. */
+export interface FindProfileByIdOptions {
+  readonly queryable?: Knex;
+  readonly shouldLockForShare?: boolean;
+}
+
+/** Perfil atual por ID; o lock compartilhado impede mudança concorrente das flags. */
 export async function findProfileById(
   id: number,
-  queryable: Knex = db,
-  forShare = false,
+  options: FindProfileByIdOptions = {},
 ): Promise<ProfileLookupRow | undefined> {
+  const { queryable = db, shouldLockForShare = false } = options;
   const query = queryable("profiles")
     .where({ profile_id: id })
     .select("profile_id", "is_root", "is_active", "is_assignable_triage", "is_assignable_mapping");
 
-  if (forShare) query.forShare();
+  if (shouldLockForShare) query.forShare();
 
   return query.first();
 }
