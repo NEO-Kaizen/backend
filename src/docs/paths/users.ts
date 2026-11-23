@@ -363,8 +363,7 @@ export default {
           },
         },
         "409": {
-          description:
-            "E-mail já cadastrado, Perfil de destino inativo (`profile_inactive`) ou conta Responsável por solicitações abertas (`user_has_open_assignments`).",
+          description: "E-mail já cadastrado ou Perfil de destino inativo (`profile_inactive`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -556,7 +555,8 @@ export default {
           },
         },
         "409": {
-          description: "E-mail já cadastrado ou Perfil de destino inativo (`profile_inactive`).",
+          description:
+            "E-mail já cadastrado, Perfil de destino inativo (`profile_inactive`) ou conta Responsável por solicitações abertas (`user_has_open_assignments`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
