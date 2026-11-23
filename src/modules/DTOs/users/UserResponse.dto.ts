@@ -1,11 +1,12 @@
 import type { RequestCategory } from "../../../shared/types/requests.ts";
+import type { ProfileReference } from "../../../shared/types/profile.ts";
 
 export interface UserSummary {
   id: string;
   fullName: string;
   email: string;
   avatarUrl: string | null;
-  profile: string;
+  profile: ProfileReference;
   isActive: boolean;
   mustChangePassword: boolean;
   createdAt: string;
@@ -21,9 +22,7 @@ export interface AssignableProfessional {
   requestLoad: number;
 }
 
-export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {
-  /** Nome de exibição do Perfil vigente. */
-  role: string;
+export interface CreateUserResponse extends Omit<UserSummary, "avatarUrl"> {
   /** Exibida uma única vez — não recuperável depois. */
   temporaryPassword: string;
 }

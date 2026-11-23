@@ -12,7 +12,7 @@ export default {
           description: "Lista de registros de auditoria.",
           content: {
             "application/json": {
-              schema: { type: "array", items: { type: "object" } },
+              schema: { $ref: "#/components/schemas/AuditHistoryListResponse" },
             },
           },
         },
@@ -56,7 +56,7 @@ export default {
           description: "Detalhe do registro de auditoria.",
           content: {
             "application/json": {
-              schema: { type: "object" },
+              schema: { $ref: "#/components/schemas/AuditHistoryDetail" },
             },
           },
         },

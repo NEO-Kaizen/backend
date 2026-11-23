@@ -52,7 +52,7 @@ Cobre:
 - Detalhe público/autenticado (`GET /requests/:protocol/tracking`) → contrato do
   solicitante §§3, 9.
 - Triagem, status, atribuição de responsável (`PATCH /internal/assignee`,
-  `GET /users?profile=analista`) → `contract-assign-action.md`.
+  `GET /users?profileId=<id>`) → `contract-assign-action.md`.
 - Listagem pública (`GET /requests`, `GET /requests/:protocol`) → `api-requests.md`.
 - Mapeamento (`GET/PUT .../mapping`) → FE #127 (`audit/tratativa.md` T4).
 - Observações internas timeline → `audit/tratativa.md` T6.

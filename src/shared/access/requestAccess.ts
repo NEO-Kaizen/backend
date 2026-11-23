@@ -108,6 +108,7 @@ export async function recordAccessDeniedAttempt(
   actorId: number,
   ipAddress: string | undefined,
   detail: string,
+  deniedPermissionKeys: readonly PermissionKey[] = [],
 ): Promise<void> {
   await db.transaction(async (trx) => {
     await recordAudit(trx, {
@@ -120,6 +121,7 @@ export async function recordAccessDeniedAttempt(
       note: `Access denied: ${detail}`,
       ipAddress,
       changeOrigin: "system",
+      deniedPermissionKeys,
     });
   });
 }
@@ -130,8 +132,9 @@ export async function denyRequestAccess(
   actorId: number,
   ipAddress: string | undefined,
   detail: string,
+  deniedPermissionKeys: readonly PermissionKey[] = [],
 ): Promise<never> {
-  await recordAccessDeniedAttempt(protocol, actorId, ipAddress, detail);
+  await recordAccessDeniedAttempt(protocol, actorId, ipAddress, detail, deniedPermissionKeys);
   throw inaccessibleRequestError();
 }
 
@@ -148,12 +151,13 @@ export async function requireResponsibleCustody<T>(
   detail: string,
   responsibleId: (request: T) => number | null | undefined,
 ): Promise<T> {
-  if (
-    request === null ||
-    request === undefined ||
-    !hasResponsibleCustody(actor, key, responsibleId(request))
-  ) {
+  if (request === null || request === undefined) {
+    // Recurso inexistente não é recusa de Permissão: nenhuma chave vai para a trilha.
     return denyRequestAccess(protocol, actor.id, ipAddress, detail);
+  }
+
+  if (!hasResponsibleCustody(actor, key, responsibleId(request))) {
+    return denyRequestAccess(protocol, actor.id, ipAddress, detail, [key]);
   }
 
   return request;

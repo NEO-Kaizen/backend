@@ -437,7 +437,7 @@ A leitura administrativa do portal é por seção: a resposta devolve apenas as 
   "name": "Ana",
   "email": "ana@empresa.com",
   "avatarUrl": null,
-  "role": "Analista",
+  "profile": { "id": "2", "name": "Analista" },
   "mustChangePassword": false,
   "permissions": [
     { "key": "request:create", "custody": "global" },
@@ -453,7 +453,7 @@ O perfil `Solicitante` devolve exatamente as três chaves de autoatendimento:
 
 ```json
 {
-  "role": "Solicitante",
+  "profile": { "id": "1", "name": "Solicitante" },
   "permissions": [
     { "key": "request:create", "custody": "global" },
     { "key": "request:track", "custody": "own" },
@@ -462,7 +462,7 @@ O perfil `Solicitante` devolve exatamente as três chaves de autoatendimento:
 }
 ```
 
-- `role` é o nome do perfil, para exibição.
+- `profile` é `{ id, name }`: `id` é a identidade estável do Perfil e `name` é o rótulo de exibição. Nenhum dos dois participa da autorização.
 - `permissions` é a lista efetiva, na ordem do catálogo. Chave ausente significa permissão ausente.
 - `custody` usa os valores `global`, `own`, `assigned` e `all`.
 - A lista é calculada a partir do perfil vigente a cada requisição; mudanças no perfil valem na requisição seguinte.

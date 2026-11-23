@@ -34,7 +34,8 @@ const NOTE_COLUMNS = [
   "note.internal_note_id",
   "note.request_id",
   "note.author_user_id",
-  "note.author_role_at_creation",
+  "note.author_profile_id_at_creation",
+  "note.author_profile_name_at_creation",
   "note.content",
   "note.created_at",
   "author.full_name as author_name",
@@ -99,7 +100,6 @@ export async function listEventsPage(
 ): Promise<TimelineEventRow[]> {
   const query = db("audit_history as audit")
     .leftJoin("users as actor", "actor.user_id", "audit.user_id")
-    .leftJoin("profiles as actor_profile", "actor_profile.profile_id", "actor.profile_id")
     .where((scope) => {
       scope
         .where((requestScope) => {
@@ -144,7 +144,8 @@ export async function listEventsPage(
       "audit.occurred_at",
       "audit.user_id as actor_user_id",
       "actor.full_name as actor_name",
-      "actor_profile.name as actor_profile_name",
+      "audit.actor_profile_id",
+      "audit.actor_profile_name",
     )
     .orderBy("audit.occurred_at", "desc")
     .orderBy("audit.audit_id", "desc")
@@ -360,14 +361,15 @@ export async function findReadState(
 
 export async function insert(
   requestId: string,
-  author: { userId: number; role: string },
+  author: { userId: number; profileId: string; profileName: string },
   content: string,
 ): Promise<string> {
   const rows = (await db("request_internal_notes")
     .insert({
       request_id: requestId,
       author_user_id: author.userId,
-      author_role_at_creation: author.role,
+      author_profile_id_at_creation: Number(author.profileId),
+      author_profile_name_at_creation: author.profileName,
       content,
     })
     .returning("internal_note_id")) as Array<{ internal_note_id: string }>;

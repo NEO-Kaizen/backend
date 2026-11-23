@@ -17,14 +17,16 @@ Contrato Frontend ↔ Backend das observações privadas vinculadas a uma solici
 
 ### `request_internal_notes`
 
-Cada registro pertence a uma solicitação e a um usuário autor. O campo
-`author_role_at_creation` preserva o perfil que o autor possuía no momento da
-publicação, mesmo que seu perfil seja alterado posteriormente.
+Cada registro pertence a uma solicitação e a um usuário autor. O snapshot do
+Perfil é preservado em duas colunas: `author_profile_id_at_creation`
+(identidade estável) e `author_profile_name_at_creation` (nome congelado).
+Ambas foram introduzidas na migration
+`20261123160100_add_internal_note_author_profile.js`; renomear um Perfil não
+reescreve o passado.
 
-O campo é um snapshot em texto livre pelo nome do Perfil na época: a constraint
-que o travava em nomes fixos foi removida na migration
-`20261119120200_drop_internal_notes_author_role_check`, e os snapshots
-históricos permanecem como estão — renomear um Perfil não reescreve o passado.
+Notas anteriores ao snapshot só guardam o nome: a API expõe
+`profile: { id: null, name: <nome histórico> }` e **nunca** infere o ID a partir
+do nome mutável.
 
 O nome exibido vem de `users.full_name`. Usuários e solicitações referenciados
 não podem ser excluídos enquanto possuírem observações.
@@ -57,7 +59,7 @@ o ID da observação define a ordem.
       "author": {
         "id": "7",
         "name": "Rogério da Silva",
-        "role": "Analista"
+        "profile": { "id": "2", "name": "Analista" }
       }
     }
   ],
@@ -109,7 +111,7 @@ máximo 4.000 caracteres.
   "author": {
     "id": "7",
     "name": "Rogério da Silva",
-    "role": "Analista"
+    "profile": { "id": "2", "name": "Analista" }
   }
 }
 ```

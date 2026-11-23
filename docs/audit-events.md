@@ -4,7 +4,8 @@ Documentação interna do serviço de registro de eventos (issue #52).
 
 ## Modelo
 
-- Tabela `audit_history`: `entity_type`, `entity_id`, `action_type` (`<entidade>.<ação>`), `user_id` (executor), `previous_value`, `new_value`, `note`, `change_origin`, `created_at`.
+- Tabela `audit_history`: `entity_type`, `entity_id`, `action_type` (`<entidade>.<ação>`), `user_id` (executor), `actor_profile_id` e `actor_profile_name` (snapshot do Perfil do executor no evento), `denied_permission_keys` (chaves de Permissão avaliadas nas recusas `*.access_denied` — ausentes no gate ou sem Custódia suficiente), `previous_value`, `new_value`, `note`, `change_origin`, `occurred_at`.
+- O snapshot de Perfil é gravado por `recordAudit` na mesma transação da ação, a partir de `users.profile_id`. Eventos anteriores à migration `20261123160000_add_audit_actor_profile_snapshot.js` ficam `NULL`; nenhum Perfil é inferido do nome. A chave que **autorizou** a ação não é registrada.
 - Fonte de verdade em duas camadas:
   - Código: `src/shared/audit/auditCatalog.ts` (tipos + guards de runtime).
   - Banco: `CHECK chk_audit_history_entity_type` (rejeita entidade fora da lista).

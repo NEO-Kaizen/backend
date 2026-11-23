@@ -1,12 +1,12 @@
 export const AuthenticatedUser = {
   type: "object",
-  required: ["id", "email", "name", "role", "mustChangePassword"],
+  required: ["id", "email", "name", "profile", "mustChangePassword"],
   properties: {
     id: { type: "string", example: "101" },
     email: { type: "string", example: "administrador_teste@email.com" },
     name: { type: "string", example: "administrador" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
-    role: { type: "string", example: "Administrador" },
+    profile: { $ref: "#/components/schemas/ProfileReference" },
     mustChangePassword: { type: "boolean", example: false },
   },
 };

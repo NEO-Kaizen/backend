@@ -56,7 +56,9 @@ Não há exclusão física: desativar é a operação de saída. Um perfil com u
 
 - O DTO de perfil expõe `userCount`: quantas contas usam o perfil.
 - O nome do perfil é único, comparação case-insensitive, entre perfis ativos. Criar ou renomear para um nome já ativo é `400`.
-- O DTO de usuário expõe `profile: { id, name }`.
+- O DTO de usuário expõe `profile: { id, name }` (`ProfileReference`): `id` é `String(profiles.profile_id)`, a identidade estável, e `name` é só rótulo. Ver `docs/adr/0002-referencia-de-perfil.md`.
+- Criação e edição de conta enviam `profileId`; o nome nunca identifica nem autoriza.
+- Snapshots de Nota interna e de auditoria congelam `id` + `name` do Perfil da época. Registro anterior ao snapshot expõe `id = null` e o nome histórico, nunca um ID inferido.
 - Perfil inativo não recebe conta nova nem designação.
 
 ### 2.3 Duplicar um perfil
@@ -136,11 +138,11 @@ Os exemplos acima destacam as chaves internas que distinguem cada perfil. O auto
 
 ## 6. Efeito no frontend
 
-- `GET /auth/me` devolve `role` e `permissions: [{ key, custody }]`. A tela usa `has(key)` e o vínculo, não o nome do perfil.
+- `GET /auth/me` devolve `profile: { id, name }` e `permissions: [{ key, custody }]`. A tela usa `has(key)` e o vínculo, não o nome do perfil.
 - A abertura de solicitação usa `has("request:create")`; “minhas solicitações” usa `has("request:track")`; a resposta a pendências usa `has("pending_item:respond")`.
 - O cadastro de usuário lê os perfis com `profile:read` e mostra os ativos, inclusive customizados.
 - Abas, botões e guardas de rota derivam da chave. Uma tela nova não pergunta “é Administrador?”; pergunta “tem `theme:manage`?”.
 - A única porta sem chave é a pública anônima, no modo `PUBLIC`: sem sessão, não há ator nem perfil para avaliar.
 - Remover `request:create`, `request:track` ou `pending_item:respond` de um perfil exige confirmação explícita (ConfirmDialog) que diga a consequência — sem a chave, o autor perde a operação correspondente. A auditoria antes/depois permanece no servidor.
 - O rótulo do perfil vem do nome real do perfil; `getRoleDisplayLabel` se aposenta.
-- `role` continua no DTO para exibição, mas não é a fonte da decisão de acesso.
+- O nome do Perfil é só rótulo de exibição; a identidade estável é `profile.id` (e `profileId` nas escritas). Nenhum dos dois é a fonte da decisão de acesso.

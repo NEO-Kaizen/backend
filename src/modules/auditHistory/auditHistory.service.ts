@@ -15,6 +15,7 @@ import type {
 import * as repository from "./auditHistory.repository.ts";
 import type { AuditAccessScope } from "./auditHistory.repository.ts";
 import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
+import { toActorProfileSnapshot } from "../../shared/types/profile.ts";
 import { findRequestStatusContext } from "../requests/requests.repository.ts";
 
 const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
@@ -50,6 +51,7 @@ export async function listAuditHistoryLogs(
       kind: row.user_id === null ? "system" : "user",
       userId: row.user_id,
       displayName: row.actor_name,
+      profile: toActorProfileSnapshot(row.actor_profile_id, row.actor_profile_name),
     },
     occurred_at: row.occurred_at instanceof Date ? row.occurred_at.toISOString() : row.occurred_at,
   }));
@@ -77,6 +79,7 @@ function toDetail(
       kind: userId === null ? "system" : "user",
       userId,
       displayName: row.actor_name,
+      profile: toActorProfileSnapshot(row.actor_profile_id, row.actor_profile_name),
     },
     previous_value: row.previous_value,
     new_value: row.new_value,
@@ -84,6 +87,7 @@ function toDetail(
     last_technical_message: row.last_technical_message ?? null,
     ip_address: row.ip_address ?? null,
     change_origin: row.change_origin,
+    denied_permission_keys: row.denied_permission_keys ?? [],
     occurred_at: occurredAt,
   };
 }
@@ -121,6 +125,7 @@ export async function getAuditHistoryDetail(
         actor.id,
         ipAddress,
         "audit:read sem custódia",
+        ["audit:read"],
       );
       throw new AppError("Log não encontrado", 404);
     }

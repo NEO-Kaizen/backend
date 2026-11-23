@@ -41,6 +41,9 @@ export interface AuditActor {
   kind: "system" | "user";
   userId: number | null;
   displayName: string | null; // null quando kind = "system"
+  // Snapshot do Perfil do ator no momento do evento. null em ação de sistema
+  // e em evento anterior ao snapshot — nunca inferido do nome.
+  profile: { id: string; name: string } | null;
 }
 
 // Item da tabela de logs (colunas: ID, Tipo, Ação, Operador, Data)
@@ -75,6 +78,10 @@ export interface AuditHistoryDetail {
   last_technical_message: string | null; // snapshot do retorno público da transição
   ip_address: string | null; // IP do ator no momento do evento
   change_origin: string | null;
+  // Chaves de Permissão avaliadas na recusa (*.access_denied): ausentes no
+  // gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha.
+  // Vazio nas demais ações; a chave que autorizou não é registrada.
+  denied_permission_keys: string[];
   occurred_at: string; // ISO datetime
 }
 ```
@@ -100,9 +107,10 @@ qualquer processamento. A chave é `custodial`:
 | Sessão sem `audit:read`            | `403` `"Acesso restrito à permissão audit:read"` |
 | Evento fora da Custódia `assigned` | `404` `"Log não encontrado"`                     |
 
-- O nome do Perfil vem do banco a cada request (`profiles.name`); a troca
-  passa a valer imediatamente, mesmo com cookie antigo. A autorização usa
-  Permissões e Custódia, não o nome.
+- O ator do evento carrega um snapshot do Perfil (`actor_profile_id` +
+  `actor_profile_name`) gravado na mesma transação da ação. Renomear o Perfil
+  não reescreve o histórico. Eventos anteriores ao snapshot expõem
+  `actor.profile = null`; a autorização usa Permissões e Custódia, não o nome.
 - Usuário com `must_change_password` pendente só acessa `PUT
 /auth/change-password` e `GET /auth/me` — qualquer outra rota responde `403`.
 - As respostas trafegam com `Cache-Control: private, no-store` — dados
@@ -147,7 +155,8 @@ HTTP/1.1 200 OK
       "actor": {
         "kind": "user",
         "userId": 102,
-        "displayName": "Administrador Teste"
+        "displayName": "Administrador Teste",
+        "profile": { "id": "3", "name": "Administrador" }
       },
       "occurred_at": "2026-09-21T04:15:49.041Z"
     },
@@ -159,7 +168,8 @@ HTTP/1.1 200 OK
       "actor": {
         "kind": "user",
         "userId": 102,
-        "displayName": "Administrador Teste"
+        "displayName": "Administrador Teste",
+        "profile": { "id": "3", "name": "Administrador" }
       },
       "occurred_at": "2026-09-21T04:15:46.164Z"
     }
@@ -192,7 +202,8 @@ HTTP/1.1 200 OK
       "actor": {
         "kind": "user",
         "userId": 102,
-        "displayName": "Administrador Teste"
+        "displayName": "Administrador Teste",
+        "profile": { "id": "3", "name": "Administrador" }
       },
       "occurred_at": "2026-09-21T04:15:46.164Z"
     },
@@ -204,7 +215,8 @@ HTTP/1.1 200 OK
       "actor": {
         "kind": "user",
         "userId": 117,
-        "displayName": "Sol Clean B108"
+        "displayName": "Sol Clean B108",
+        "profile": { "id": "1", "name": "Solicitante" }
       },
       "occurred_at": "2026-09-21T04:07:14.180Z"
     },
@@ -216,7 +228,8 @@ HTTP/1.1 200 OK
       "actor": {
         "kind": "user",
         "userId": 102,
-        "displayName": "Administrador Teste"
+        "displayName": "Administrador Teste",
+        "profile": { "id": "3", "name": "Administrador" }
       },
       "occurred_at": "2026-09-21T04:07:13.775Z"
     }
@@ -296,7 +309,8 @@ HTTP/1.1 200 OK
   "actor": {
     "kind": "user",
     "userId": 102,
-    "displayName": "Administrador Teste"
+    "displayName": "Administrador Teste",
+    "profile": { "id": "3", "name": "Administrador" }
   },
   "previous_value": "{\"solicitationMode\":\"PUBLIC\"}",
   "new_value": "{\"solicitationMode\":\"PUBLIC\"}",
@@ -304,6 +318,7 @@ HTTP/1.1 200 OK
   "last_technical_message": null,
   "ip_address": null,
   "change_origin": null,
+  "denied_permission_keys": [],
   "occurred_at": "2026-09-21T04:15:49.041Z"
 }
 ```

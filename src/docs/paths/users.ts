@@ -208,9 +208,38 @@ export default {
     get: {
       tags: ["Usuários"],
       summary: "Listar Usuários",
-      description: "Lista todos os Usuários cadastrados. Exige a permissão `user:read`.",
+      description:
+        "Lista todos os Usuários cadastrados. Exige a permissão `user:read`. O filtro por Perfil usa a identidade estável (`profileId`), nunca o nome mutável.",
       operationId: "listUsers",
       security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "profileId",
+          in: "query",
+          required: false,
+          description: "Identidade estável do Perfil (perfis.profile_id).",
+          schema: { type: "string", example: "3" },
+        },
+        {
+          name: "search",
+          in: "query",
+          required: false,
+          description: "Busca por nome ou e-mail.",
+          schema: { type: "string", maxLength: 150 },
+        },
+        {
+          name: "page",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 10000, default: 1 },
+        },
+        {
+          name: "pageSize",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+        },
+      ],
       responses: {
         "200": {
           description: "Lista de Usuários.",
@@ -230,6 +259,15 @@ export default {
                   totalPages: { type: "integer", example: 3 },
                 },
               },
+            },
+          },
+        },
+        "400": {
+          description:
+            "`profileId` inválido ou inexistente (`Perfil inválido.`), ou query param desconhecido — o filtro legado por nome (`?profile=`) foi removido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
             },
           },
         },
@@ -264,11 +302,16 @@ export default {
           "application/json": {
             schema: {
               type: "object",
-              required: ["fullName", "email", "role", "requester"],
+              required: ["fullName", "email", "profileId", "requester"],
               properties: {
                 fullName: { type: "string", example: "Maria Silva" },
                 email: { type: "string", format: "email", example: "novo@email.com" },
-                role: { type: "string", example: "Coordenador" },
+                profileId: {
+                  type: "string",
+                  example: "3",
+                  description:
+                    "Identidade estável do Perfil (perfis.profile_id). O nome do Perfil não identifica nem autoriza.",
+                },
                 requester: {
                   type: "object",
                   description: "Dados do solicitante — obrigatórios para todos os perfis.",
@@ -312,7 +355,7 @@ export default {
                 value: {
                   fullName: "Maria Silva",
                   email: "maria.silva@empresa.com",
-                  role: "Analista",
+                  profileId: "3",
                   requester: {
                     area: "TI",
                     department: "Desenvolvimento",
@@ -332,7 +375,7 @@ export default {
                 value: {
                   fullName: "Carlos Souza",
                   email: "carlos.souza@empresa.com",
-                  role: "Solicitante",
+                  profileId: "1",
                   requester: {
                     area: "Administrativo",
                     manager: "Ana Paula",
@@ -472,7 +515,11 @@ export default {
               properties: {
                 email: { type: "string", format: "email" },
                 fullName: { type: "string" },
-                role: { type: "string", example: "Coordenador" },
+                profileId: {
+                  type: "string",
+                  example: "3",
+                  description: "Identidade estável do Perfil de destino (perfis.profile_id).",
+                },
                 requester: {
                   type: "object",
                   description: "Dados do solicitante (área, departamento e gestor).",
