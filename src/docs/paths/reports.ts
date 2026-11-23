@@ -40,7 +40,7 @@ export default {
       tags: ["Relatórios"],
       summary: "Exportar solicitações em CSV",
       description:
-        "Exporta a Fila em CSV. Exige `queue:export`; a Custódia `assigned` limita a exportação às solicitações em que o ator é Responsável. O Analista do perfil base não recebe essa permissão.",
+        "Exporta a Fila em CSV. Exige `queue:export`; a Custódia `assigned` limita a exportação às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente. O Analista do perfil base não recebe essa permissão.",
       operationId: "exportRequestsCsv",
       security: [{ cookieAuth: [] }],
       responses: {

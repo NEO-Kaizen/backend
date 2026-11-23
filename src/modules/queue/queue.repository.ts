@@ -8,8 +8,8 @@ import { applyQueueFilters } from "./queue.filters.ts";
 export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMetricsResponse> => {
   const query = db("requests").leftJoin("statuses as s", "s.status_id", "requests.status_id");
 
-  // Escopo custodial (contrato RBAC § 5): a Fila é `requests.responsible_id`;
-  // o responsável do mapeamento não amplia o escopo da Fila.
+  // `applyQueueFilters` aplica o mesmo escopo à lista e à exportação:
+  // Responsável da solicitação ou do Mapeamento corrente.
   if (scopedUserId !== undefined) {
     query
       .leftJoin(
@@ -17,8 +17,9 @@ export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMet
         "assignee.professional_id",
         "requests.professional_id",
       )
-      .andWhere("assignee.user_id", scopedUserId);
+      .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id");
   }
+  applyQueueFilters(query, { scopedUserId });
 
   const result = await query
     .select(
@@ -91,7 +92,7 @@ export const findQueueRequests = async (
 };
 
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {
-  const profileIds = await findAssignableProfileIds({ queryable: db, stage: "triage" });
+  const profileIds = await findAssignableProfileIds({ queryable: db });
   if (profileIds.length === 0) return [];
 
   return db("details_professional as dp")

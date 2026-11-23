@@ -4,7 +4,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Métricas da fila",
       description:
-        "Retorna métricas da fila. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável, e `all` não aplica filtro.",
+        "Retorna métricas da fila. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente, e `all` não aplica filtro.",
       operationId: "getQueueMetrics",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -40,7 +40,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Listar fila de atendimento",
       description:
-        "Centraliza a listagem da fila com paginação, busca e filtros. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável, e `all` não aplica filtro.",
+        "Centraliza a listagem da fila com paginação, busca e filtros. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente, e `all` não aplica filtro.",
       operationId: "getQueue",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -83,7 +83,8 @@ export default {
           name: "assigneeId",
           in: "query",
           required: false,
-          description: "UUID do profissional ou `unassigned`.",
+          description:
+            "ID do Responsável da triagem ou do Mapeamento corrente (UUID ou user_id), ou `unassigned`.",
           schema: { type: "string", example: "unassigned" },
         },
         {
