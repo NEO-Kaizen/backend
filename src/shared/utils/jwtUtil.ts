@@ -11,7 +11,6 @@ export interface TokenPayload {
   id: string;
   name: string;
   email: string;
-  role: string;
   /** Época (ms) de `users.password_changed_at` no momento da emissão — usado
    *  para revogar tokens emitidos antes de uma troca/redefinição de senha. */
   password_changed_at: number;
@@ -42,7 +41,6 @@ export function verifyToken(token: string): TokenPayload {
     typeof decoded.id !== "string" ||
     typeof decoded.name !== "string" ||
     typeof decoded.email !== "string" ||
-    typeof decoded.role !== "string" ||
     typeof decoded.password_changed_at !== "number" ||
     Number.isNaN(decoded.password_changed_at)
   ) {
@@ -55,7 +53,6 @@ export function verifyToken(token: string): TokenPayload {
     id: decoded.id,
     name: decoded.name,
     email: decoded.email,
-    role: decoded.role,
     password_changed_at: decoded.password_changed_at,
     scope,
   };

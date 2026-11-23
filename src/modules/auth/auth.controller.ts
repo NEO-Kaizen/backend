@@ -42,7 +42,6 @@ export const authenticate = async (req: Request, res: Response) => {
       id: foundUser.id,
       name: foundUser.name,
       email: foundUser.email,
-      role: foundUser.role,
       password_changed_at: foundUser.passwordChangedAt,
       scope: "change_password",
     });
@@ -65,7 +64,6 @@ export const authenticate = async (req: Request, res: Response) => {
     id: foundUser.id,
     name: foundUser.name,
     email: foundUser.email,
-    role: foundUser.role,
     password_changed_at: foundUser.passwordChangedAt,
     scope: "session",
   });
@@ -115,7 +113,6 @@ export const changePassword = async (req: Request, res: Response) => {
     id: updated.id,
     name: updated.name,
     email: updated.email,
-    role: updated.role,
     password_changed_at: updated.passwordChangedAt,
     scope: "session",
   });
