@@ -137,6 +137,14 @@ function throwRootAccountProtected(): never {
   );
 }
 
+function throwProfileInactive(): never {
+  throw new AppError(
+    "Perfil inativo não recebe conta nova nem designação.",
+    409,
+    CODE_PROFILE_INACTIVE,
+  );
+}
+
 function throwOutOfAuthority(): never {
   throw new AppError(
     "O Perfil-alvo tem autoridade igual ou maior que a sua; só é possível gerenciar Perfis estritamente abaixo.",
@@ -182,11 +190,7 @@ async function assertProfileIsManageable(
   }
 
   if (!profile.is_active) {
-    throw new AppError(
-      "Perfil inativo não recebe conta nova nem designação.",
-      409,
-      CODE_PROFILE_INACTIVE,
-    );
+    throwProfileInactive();
   }
 
   if (actorAuthority.isRoot) {
@@ -264,11 +268,7 @@ export async function createUser(
         shouldLockForShare: true,
       });
       if (!currentProfile || !currentProfile.is_active) {
-        throw new AppError(
-          "Perfil inativo não recebe conta nova nem designação.",
-          409,
-          CODE_PROFILE_INACTIVE,
-        );
+        throwProfileInactive();
       }
       if (currentProfile.is_root) {
         throwRootAccountProtected();
@@ -664,11 +664,7 @@ export async function updateUser(
         throw new AppError("Perfil inválido.", 400);
       }
       if (newProfileId !== undefined && !destinationProfile.is_active) {
-        throw new AppError(
-          "Perfil inativo não recebe conta nova nem designação.",
-          409,
-          CODE_PROFILE_INACTIVE,
-        );
+        throwProfileInactive();
       }
       const shouldHaveProfessionalExtension = resolveProfessionalExtensionRequirement(
         destinationProfile,

@@ -283,24 +283,19 @@ async function assertCandidateEligible(
   queryable: Knex,
   candidate: repository.MappingAssigneeCandidate | null,
 ): Promise<void> {
+  const invalidTarget = () =>
+    new AppError("O alvo não pode ser escolhido como Responsável.", 400, "assignee_not_assignable");
+
   if (
     !candidate ||
     candidate.professional_status !== "active" ||
     !candidate.user_is_active ||
     !candidate.profile_is_active
   ) {
-    throw new AppError(
-      "O alvo não pode ser escolhido como Responsável.",
-      400,
-      "assignee_not_assignable",
-    );
+    throw invalidTarget();
   }
   if (!(await repository.isMappingAssigneeProfileAssignable(queryable, candidate.profile_id))) {
-    throw new AppError(
-      "O alvo não pode ser escolhido como Responsável.",
-      400,
-      "assignee_not_assignable",
-    );
+    throw invalidTarget();
   }
 }
 
