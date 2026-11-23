@@ -50,6 +50,7 @@ const CODE_SELF_MANAGEMENT_FORBIDDEN = "self_management_forbidden";
 const CODE_PROFILE_INACTIVE = "profile_inactive";
 const CODE_USER_MANAGE_REQUIRED = "user_manage_required";
 const CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE = "professional_profile_not_assignable";
+const CODE_USER_HAS_OPEN_ASSIGNMENTS = "user_has_open_assignments";
 
 function shouldHaveProfessionalExtension(
   profile: Pick<
@@ -708,6 +709,14 @@ export async function updateUser(
       if (payload.professional !== undefined) {
         await repository.upsertProfessionalData(trx, id, payload.professional);
       } else if (wasAssignable && !isFinalAssignable) {
+        const assignedProtocols = await repository.listOpenAssignedProtocolsForUser(trx, id);
+        if (assignedProtocols.length > 0) {
+          throw new AppError(
+            `Reatribua as solicitações abertas ${assignedProtocols.join(", ")} antes de mover a conta para um Perfil não atribuível.`,
+            409,
+            CODE_USER_HAS_OPEN_ASSIGNMENTS,
+          );
+        }
         await repository.deleteProfessionalData(trx, id);
       } else if (shouldCreateExtension) {
         await repository.createProfessionalData(trx, id);

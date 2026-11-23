@@ -522,6 +522,28 @@ export async function deleteProfessionalData(trx: Knex.Transaction, userId: numb
   await trx("details_professional").where({ user_id: userId }).del();
 }
 
+/** Solicitações abertas em que a conta ainda é Responsável de triagem ou mapeamento. */
+export async function listOpenAssignedProtocolsForUser(
+  queryable: Knex,
+  userId: number,
+): Promise<string[]> {
+  const rows = (await queryable("requests as r")
+    .join("statuses as s", "s.status_id", "r.status_id")
+    .join("details_professional as dp", function () {
+      this.on("dp.professional_id", "=", "r.professional_id").orOn(
+        "dp.professional_id",
+        "=",
+        "r.mapping_professional_id",
+      );
+    })
+    .where("dp.user_id", userId)
+    .where("s.is_terminal", false)
+    .distinct("r.protocol")
+    .orderBy("r.protocol", "asc")) as Array<{ protocol: string }>;
+
+  return rows.map((row) => row.protocol);
+}
+
 /** Sincroniza `requesters.full_name/corporate_email` após troca de nome/e-mail do usuário. */
 export async function syncRequesterIdentity(
   trx: Knex.Transaction,

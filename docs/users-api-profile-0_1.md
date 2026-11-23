@@ -496,8 +496,9 @@ reenviar `role`; o service valida as flags do Perfil atual no banco.
 **Erros:** `400` para payload inválido ou conteúdo da Extensão de profissional enviado a Perfil não atribuível (`professional_profile_not_assignable`), `401` sem sessão, `403` sem
 `user:manage`, fora da matriz de contas (`account_out_of_authority`), conta
 Admin Root (`root_account_protected`) ou própria conta
-(`self_management_forbidden`), `409` para Perfil inativo (`profile_inactive`) e
-`404` para usuário inexistente.
+(`self_management_forbidden`), `409` para Perfil inativo (`profile_inactive`) ou
+conta Responsável por solicitações abertas (`user_has_open_assignments`) ao
+mover para Perfil não atribuível; `404` para usuário inexistente.
 
 ---
 
