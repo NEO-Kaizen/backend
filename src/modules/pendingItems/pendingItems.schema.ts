@@ -37,20 +37,6 @@ export const verifySchema = z.object({
   protocol: z.string().trim().min(1),
 });
 
-/**
- * Corpo do PATCH de resposta. O tipo do item (`field_edit` × `observation`)
- * só é conhecido no service; a borda valida o envelope tipado, rejeita chaves
- * fora do contrato e deixa a exigência do campo para a discriminação do item.
- */
-export const pendingItemResponseBodySchema = z
-  .object({
-    correctedValue: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
-    response: z.string().trim().min(1).max(2000).optional(),
-  })
-  .strict();
-
-export type PendingItemResponseBody = z.infer<typeof pendingItemResponseBodySchema>;
-
 export const reviewSchema = z.object({
   batchId: z.string().trim().min(1),
   requestAttachment: z.boolean().optional(),

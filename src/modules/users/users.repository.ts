@@ -4,7 +4,6 @@ import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
-import { normalizeEmail } from "../../shared/utils/normalizeIdentity.ts";
 import type {
   CreateProfessionalInput,
   CreateUserRequest,
@@ -12,9 +11,6 @@ import type {
 } from "../DTOs/users/UserRequests.dto.ts";
 import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequesterTable } from "../../shared/types/requests.ts";
-
-/** Nome do perfil de Administrador em `profiles.name`. */
-const ADMIN_PROFILE_NAME = "administrador";
 
 interface UserSummaryRow {
   user_id: number;
@@ -52,41 +48,6 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "p.name as profile_name",
       "p.is_active as profile_is_active",
     );
-}
-
-/**
- * Usuários ativos com perfil Administrador — destinatários do Evento de
- * Pendência respondida sem Responsável designado (RF20 — issue #159).
- */
-export async function findActiveAdminUserIds(trx?: Knex.Transaction): Promise<number[]> {
-  const conn = trx ?? db;
-  const rows = (await conn("users as u")
-    .join("profiles as p", "p.profile_id", "u.profile_id")
-    .where("p.name", ADMIN_PROFILE_NAME)
-    .andWhere("p.is_active", true)
-    .andWhere("u.is_active", true)
-    .select("u.user_id")
-    .orderBy("u.user_id", "asc")) as Array<{ user_id: number }>;
-
-  return rows.map((row) => Number(row.user_id));
-}
-
-/**
- * Conta dona do e-mail informado — usada para excluir o ator de uma resposta
- * pública sem `requester_user_id` (a identidade foi verificada pelo e-mail).
- */
-export async function findUserIdByEmail(
-  trx: Knex.Transaction,
-  email: string,
-): Promise<number | null> {
-  // `users.email` é normalizado na aplicação, mas dados legados podem ter
-  // caixa mista; a comparação case-insensitive garante a autoexclusão do ator
-  // em respostas públicas sem `requester_user_id`.
-  const row = (await trx("users")
-    .whereRaw("lower(email) = ?", [normalizeEmail(email)])
-    .first("user_id")) as { user_id: number } | undefined;
-
-  return row ? Number(row.user_id) : null;
 }
 
 /** Perfis que ganham a extensÃ£o de profissional (1:1 user â†’ details_professional)
@@ -617,7 +578,7 @@ export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
       db.raw('COUNT(u.*)::int as "total"'),
       db.raw('COUNT(CASE WHEN u.is_active THEN 1 END)::int as "active"'),
       db.raw('COUNT(CASE WHEN u.must_change_password THEN 1 END)::int as "pending"'),
-      db.raw('COUNT(CASE WHEN p.name = ? THEN 1 END)::int as "admins"', [ADMIN_PROFILE_NAME]),
+      db.raw("COUNT(CASE WHEN p.name = 'administrador' THEN 1 END)::int as \"admins\""),
     )
     .first();
 

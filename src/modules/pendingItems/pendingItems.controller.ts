@@ -1,12 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
-import {
-  createPendingItemsSchema,
-  pendingItemResponseBodySchema,
-  reviewSchema,
-  verifySchema,
-} from "./pendingItems.schema.ts";
+import { createPendingItemsSchema, reviewSchema, verifySchema } from "./pendingItems.schema.ts";
 import * as service from "./pendingItems.service.ts";
 import { createRateLimiter } from "../../shared/middleware/rateLimit.ts";
 
@@ -61,14 +56,14 @@ export async function respondPendingItem(req: Request, res: Response): Promise<R
   const pendingItemId = req.params.pendingItemId;
   if (!pendingItemId || typeof pendingItemId !== "string" || pendingItemId.trim() === "")
     throw new AppError("pendingItemId é obrigatório", 400);
-  const actor = req.user ? actorFromRequest(req) : null;
-  const parsed = pendingItemResponseBodySchema.safeParse(req.body);
-  if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
+  const isInternal = !!req.user;
+  const actorEmail = req.user?.email;
   const item = await service.respondPendingItem(
     protocol,
     pendingItemId.trim(),
-    parsed.data,
-    actor,
+    req.body as Record<string, unknown>,
+    actorEmail,
+    isInternal,
     req.ip,
     callerFromRequest(req),
   );
@@ -107,12 +102,16 @@ export async function reviewPendingItems(req: Request, res: Response): Promise<R
 
 export async function publicVerify(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  // ordem contrato 03 §7: rate-limit → formato → modo → identidade (todas as tentativas contam)
+  const body = {
+    ...(req.body as object),
+    protocol: (req.body as Record<string, unknown>)?.["protocol"] ?? protocol,
+  };
+  // ordem: rate-limit → formato → modo → identidade (todas as tentativas contam)
   const key = rateLimitKey(req.ip, protocol);
   if (!checkRateLimit(key))
     throw new AppError("Muitas tentativas. Tente novamente em alguns minutos.", 429);
 
-  const parsed = verifySchema.safeParse(req.body);
+  const parsed = verifySchema.safeParse(body);
   if (!parsed.success) throw new AppError(formatZodIssues(parsed.error), 400);
 
   await service.verifyPublicAccess(

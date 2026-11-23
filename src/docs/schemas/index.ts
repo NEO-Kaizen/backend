@@ -157,12 +157,6 @@ import {
 } from "./prioritization.ts";
 
 import {
-  NotificationStatusChangedPayload,
-  NotificationMappingScheduledPayload,
-  NotificationPendingItemLifecyclePayload,
-  NotificationPendingItemRespondedPayload,
-  NotificationPendingItemRespondedUnassignedPayload,
-  NotificationResponsibleAssignedPayload,
   NotificationPayload,
   NotificationItem,
   NotificationListResponse,
@@ -325,12 +319,6 @@ export const schemas = {
   EvaluatePrioritizationResponse,
 
   // Notifications
-  NotificationStatusChangedPayload,
-  NotificationMappingScheduledPayload,
-  NotificationPendingItemLifecyclePayload,
-  NotificationPendingItemRespondedPayload,
-  NotificationPendingItemRespondedUnassignedPayload,
-  NotificationResponsibleAssignedPayload,
   NotificationPayload,
   NotificationItem,
   NotificationListResponse,
