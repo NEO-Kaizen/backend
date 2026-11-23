@@ -52,7 +52,7 @@ type RequestCategory =
   | "Outros";
 ```
 
-**Erros:** `401` sem sessão, `403` sem `assignee_directory:read`, `500` → `{status:'error', statusCode, message}`.
+**Erros:** `400` para `stage` inválido, `401` sem sessão, `403` sem `assignee_directory:read`, `500` → `{status:'error', statusCode, message}`.
 
 **Exemplo (assignment — lista direta):**
 

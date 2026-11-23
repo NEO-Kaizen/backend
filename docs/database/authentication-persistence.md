@@ -435,7 +435,8 @@ Até o momento foram realizadas as seguintes validações:
 - importação da migration `create_users`;
 - presença das funções `up` e `down` nas três migrations;
 - validação da migration `insert_initial_profiles` com Prettier;
-- definição dos perfis iniciais `solicitante`, `analista`, `administrador` e `gestor`;
+- definição dos nomes históricos dos perfis iniciais e migração para os rótulos
+  `Solicitante`, `Analista`, `Administrador` e `Gestor`;
 - revisão da estratégia de inserção dos perfis sem utilização de `ON CONFLICT`;
 - revisão da compatibilidade da estratégia de inserção com PostgreSQL 9.0;
 - `npm run typecheck` executado sem erros;
