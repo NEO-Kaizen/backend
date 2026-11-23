@@ -292,7 +292,6 @@ async function saveAttachments(
       file_path: attachment.storageKey,
       content_type: attachment.mimeType,
       size_bytes: attachment.sizeBytes,
-      is_restricted: false,
       uploaded_by: uploadedBy,
       uploaded_at: trx.fn.now(),
     })),

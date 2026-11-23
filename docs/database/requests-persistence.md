@@ -1,133 +1,117 @@
-# Persistência dos Pedidos (Solicitações)
+# Persistência das Solicitações
 
-## Issue relacionada
+## Issues relacionadas
 
-Issue #23 — BANCO DE DADOS - Modelar persistência das solicitações
+- Issue #23 — BANCO DE DADOS - Modelar persistência das solicitações
+- Issue #53 — vínculo opcional da solicitação com `users`
+- Issue #130 — revisão do banco de dados e melhorias
 
 ## Objetivo
 
-Documentar a estrutura de banco de dados preparada para armazenar as solicitações
-do fluxo do Solicitante do NEO, incluindo o cadastro do solicitante, as tabelas de
-referência, a solicitação, suas pendências, anexos e preferências de horário, com
-seus relacionamentos, restrições, índices, regras de integridade e decisões de
-modelagem.
+Documentar a estrutura de banco de dados do fluxo de solicitações do NEO:
+solicitante, tabelas de referência, solicitação, pendências, anexos,
+preferências de horário, mapeamentos, triagens e observações internas, com seus
+relacionamentos, restrições, índices e decisões de modelagem.
 
 As regras de negócio que orientam esta modelagem estão em
 [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md); o contrato HTTP está em
-[`src/docs/`](../../src/docs/).
+[`src/docs/`](../../src/docs/). O inventário completo e os achados da revisão
+estão em [`schema-review-130.md`](schema-review-130.md). A fonte de verdade do
+schema é o diretório `migrations/`.
 
 ## Visão geral do modelo
 
-A persistência das solicitações é composta por nove tabelas:
+O domínio de solicitações é composto por estas tabelas:
 
 - `requesters`: dados do solicitante do pedido;
-- `categories`: categorias da demanda (dados de referência);
-- `statuses`: matriz pública de status (dados de referência);
-- `priorities`: faixas de priorização (dados de referência);
-- `details_professional`: responsáveis técnicos que podem ser atribuídos (1:1 com `users`);
+- `categories`: categorias da demanda (referência);
+- `statuses`: matriz de status (referência; 17 status canônicos desde o motor v4);
+- `priorities`: faixas de priorização (referência);
+- `details_professional`: responsáveis técnicos (1:1 com `users`);
 - `requests`: a solicitação e seus blocos de formulário e fluxo;
-- `pending_items`: pendências abertas por analistas;
-- `attachments`: anexos vinculados ao pedido e, opcionalmente, a uma pendência;
-- `request_time_preferences`: até três horários de preferência para mapeamento.
+- `pending_items`: pendências por campo abertas por analistas;
+- `attachments`: anexos do pedido e, opcionalmente, de uma pendência;
+- `request_time_preferences`: até três horários de preferência para mapeamento;
+- `mappings`: esforços de mapeamento de uma solicitação;
+- `mapping_participants`: participantes internos ou externos de um mapeamento;
+- `triages`: histórico versionado de triagens;
+- `request_internal_notes`: observações internas imutáveis;
+- `request_internal_note_read_states`: checkpoint de leitura por usuário.
 
-O relacionamento central é a `requests`: cada solicitação referencia exatamente um
-`requester`, uma `category` e um `status`, opcionalmente uma `priority`, um
-`professional`, e — quando criada por usuário autenticado (issue #53) — uma conta
-(`user`); além de possuir zero ou muitos `pending_items`, `attachments` e
-`request_time_preferences`.
+Tabelas fora deste domínio: `profiles`, `users`, `audit_history`,
+`prioritization_evaluations`, `criteria`, `system_themes` e `system_settings`.
 
 ### Diagrama de relacionamento
 
 ```mermaid
 erDiagram
     REQUESTERS ||--o{ REQUESTS : registers
+    USERS ||--o{ REQUESTS : "authenticated owner (optional)"
+    USERS ||--o| REQUESTERS : "account extension (optional)"
     CATEGORIES ||--o{ REQUESTS : classifies
-    STATUSES ||--o{ REQUESTS : has
+    STATUSES ||--o{ REQUESTS : "current / last public status"
     PRIORITIES ||--o{ REQUESTS : ranks
-    PROFESSIONALS ||--o{ REQUESTS : assigned_to
-    USERS ||--o{ REQUESTS : "verified owner (optional)"
+    DETAILS_PROFESSIONAL ||--o{ REQUESTS : "assigned / mapping assignee"
     REQUESTS ||--o{ PENDING_ITEMS : has
     REQUESTS ||--o{ ATTACHMENTS : has
     REQUESTS ||--o{ REQUEST_TIME_PREFERENCES : has
     PENDING_ITEMS ||--o{ ATTACHMENTS : may_have
-
-    REQUESTERS {
-        uuid requester_id PK
-        varchar full_name
-        varchar corporate_email
-        varchar area
-        varchar department
-        varchar manager_name
-        varchar additional_contact
-    }
-
-    REQUESTS {
-        bigint request_id PK
-        varchar protocol UK
-        uuid requester_id FK
-        integer requester_user_id FK
-        integer category_id FK
-        integer status_id FK
-        integer priority_id FK
-        uuid professional_id FK
-    }
-
-    USERS {
-        integer user_id PK
-    }
-
-    REQUEST_TIME_PREFERENCES {
-        integer request_time_preference_id PK
-        bigint request_id FK
-        timestamp scheduled_for
-    }
+    REQUESTS ||--o{ MAPPINGS : has
+    DETAILS_PROFESSIONAL ||--o{ MAPPINGS : assigned_to
+    STATUSES ||--o{ MAPPINGS : target_status
+    MAPPINGS ||--o{ MAPPING_PARTICIPANTS : has
+    USERS ||--o{ MAPPING_PARTICIPANTS : "internal participant"
+    REQUESTS ||--o{ TRIAGES : has
+    STATUSES ||--o{ TRIAGES : exit_status
+    USERS ||--o{ TRIAGES : assignee
+    REQUESTS ||--o{ REQUEST_INTERNAL_NOTES : has
+    USERS ||--o{ REQUEST_INTERNAL_NOTES : authors
+    REQUESTS ||--o{ REQUEST_INTERNAL_NOTE_READ_STATES : tracks
+    USERS ||--o{ REQUEST_INTERNAL_NOTE_READ_STATES : reads
 ```
 
-Onde: `PK` = Primary Key; `FK` = Foreign Key; `UK` = Unique Key.
+`PK` = Primary Key; `FK` = Foreign Key; `UK` = Unique Key.
 
 ## Tabela `requesters`
 
 Armazena os dados do solicitante informados no bloco `requester` do formulário.
+Opcionalmente estende uma conta de `users` (1:1).
 
-### Estrutura
+| Campo                | Tipo         | Obrigatório | Restrição / Default                                             | Finalidade                           |
+| -------------------- | ------------ | ----------- | --------------------------------------------------------------- | ------------------------------------ |
+| `requester_id`       | UUID         | Sim         | PK, `gen_random_uuid()`                                         | Identificador interno do solicitante |
+| `full_name`          | VARCHAR(150) | Sim         | NOT NULL                                                        | Nome completo — limite 150           |
+| `corporate_email`    | VARCHAR(254) | Sim         | NOT NULL; UK `uk_requesters_email`, UK `uk_requesters_email_ci` | E-mail corporativo — limite 254      |
+| `area`               | VARCHAR(100) | Não         | NULL permitido; indexado                                        | Área do solicitante — limite 100     |
+| `department`         | VARCHAR(100) | Não         | NULL permitido                                                  | Departamento — limite 100            |
+| `manager_name`       | VARCHAR(150) | Não         | NULL permitido                                                  | Gestor responsável — limite 150      |
+| `additional_contact` | VARCHAR(100) | Não         | NULL permitido                                                  | Contato adicional — limite 100       |
+| `user_id`            | INTEGER      | Não         | FK `users.user_id` (SET NULL); UK `uk_requesters_user`          | Conta correspondente (1:1)           |
+| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                                     | Data e hora de criação               |
 
-| Campo                | Tipo         | Obrigatório | Restrição / Default                      | Finalidade                           |
-| -------------------- | ------------ | ----------- | ---------------------------------------- | ------------------------------------ |
-| `requester_id`       | UUID         | Sim         | Primary Key, `gen_random_uuid()`         | Identificador interno do solicitante |
-| `full_name`          | VARCHAR(150) | Sim         | NOT NULL                                 | Nome completo — limite 150           |
-| `corporate_email`    | VARCHAR(254) | Sim         | NOT NULL; UNIQUE (`uk_requesters_email`) | E-mail corporativo — limite 254      |
-| `area`               | VARCHAR(100) | Sim         | NOT NULL; indexado                       | Área do solicitante — limite 100     |
-| `department`         | VARCHAR(100) | Não         | NULL permitido                           | Departamento — limite 100            |
-| `manager_name`       | VARCHAR(150) | Sim         | NOT NULL                                 | Gestor responsável — limite 150      |
-| `additional_contact` | VARCHAR(100) | Não         | NULL permitido                           | Contato adicional — limite 100       |
-| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`              | Data e hora de criação do registro   |
-
-### Restrições
-
-- `full_name`, `corporate_email`, `area` e `manager_name` são obrigatórios;
-- `department` e `additional_contact` são opcionais;
-- `corporate_email` é único (`uk_requesters_email`), permitindo deduplicar o
-  solicitante por e-mail; índice em `area` (`idx_requesters_area`).
+- `area` e `manager_name` passaram a ser nuláveis na migration
+  `20260921000000_add_requesters_user_id.js` (extensão criada antes da primeira
+  solicitação autenticada); o `POST /requests` continua exigindo ambos no
+  payload.
+- `corporate_email` tem unicidade case-insensitive (`uk_requesters_email_ci`,
+  sobre `lower(corporate_email)`); a aplicação normaliza para lowercase antes
+  de gravar/consultar. `uk_requesters_email` foi mantido para as buscas exatas
+  pela coluna, que não usam o índice de expressão.
 
 ## Tabela `categories`
 
-Armazena as categorias da demanda. É uma tabela de referência administrável pelo
-módulo de configurações.
+Tabela de referência administrável pelo módulo de configurações.
 
-### Estrutura
+| Campo           | Tipo        | Obrigatório | Restrição / Default                                                 | Finalidade                 |
+| --------------- | ----------- | ----------- | ------------------------------------------------------------------- | -------------------------- |
+| `category_id`   | INTEGER     | Sim         | PK, auto increment                                                  | Identificador da categoria |
+| `name`          | VARCHAR(80) | Sim         | UK `uk_categories_name`; UK `uk_categories_name_ci` (`lower(name)`) | Nome — limite 80           |
+| `description`   | TEXT        | Não         | NULL permitido                                                      | Descrição                  |
+| `status`        | ENUM        | Sim         | `active`/`inactive`; DEFAULT `active`                               | Situação do cadastro       |
+| `display_order` | INTEGER     | Não         | NULL permitido                                                      | Ordem de exibição          |
+| `created_at`    | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP`                                         | Data e hora de criação     |
 
-| Campo         | Tipo        | Obrigatório | Restrição / Default                     | Finalidade                 |
-| ------------- | ----------- | ----------- | --------------------------------------- | -------------------------- |
-| `category_id` | INTEGER     | Sim         | Primary Key, auto increment             | Identificador da categoria |
-| `name`        | VARCHAR(80) | Sim         | UNIQUE (`uk_categories_name`)           | Nome — limite 80           |
-| `description` | TEXT        | Não         | NULL permitido                          | Descrição da categoria     |
-| `status`      | ENUM        | Sim         | `active` / `inactive`; DEFAULT `active` | Situação do cadastro       |
-| `created_at`  | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP`             | Data e hora de criação     |
-
-### Restrições
-
-- `name` é único e obrigatório;
-- `status` usa o tipo nativo `category_status` com valor padrão `active`;
+- `uk_categories_name_ci` reforça no banco a unicidade case-insensitive.
 - índice em `status` (`idx_categories_status`).
 
 ## Tabela `statuses`
@@ -137,9 +121,23 @@ Armazena o catálogo de Status do Motor v4. Apenas parte dos Status é pública
 lista fechada. A semântica das flags e modos (`is_core`, `is_public`,
 `is_terminal`, `is_restricted`, `triage_mode`, `mapping_mode`) está em
 [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md); esta
-seção descreve apenas o schema.
+seção descreve apenas o schema. O default de `is_active` passou a `true` na
+revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
 
-### Estrutura
+| Campo           | Tipo         | Obrigatório | Restrição / Default                   | Finalidade                           |
+| --------------- | ------------ | ----------- | ------------------------------------- | ------------------------------------ |
+| `status_id`     | INTEGER      | Sim         | PK, auto increment                    | Identificador                        |
+| `order_number`  | INTEGER      | Sim         | UK `uk_statuses_order` (DEFERRABLE)   | Ordem de exibição                    |
+| `name`          | VARCHAR(100) | Sim         | UK `uk_statuses_name`                 | Nome                                 |
+| `description`   | TEXT         | Não         | NULL permitido                        | Descrição                            |
+| `tone`          | ENUM         | Sim         | `status_tone`; DEFAULT `info`         | Tom visual                           |
+| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)           | Status disponível para uso           |
+| `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                         | Status central do fluxo              |
+| `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                         | Exige administrador para transição   |
+| `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                         | Encerra a solicitação                |
+| `triage_mode`   | ENUM         | Sim         | `status_triage_mode`; DEFAULT `none`  | Como o status se relaciona à triagem |
+| `mapping_mode`  | ENUM         | Sim         | `status_mapping_mode`; DEFAULT `none` | Como se relaciona ao mapeamento      |
+| `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                         | Visível ao solicitante               |
 
 | Campo           | Tipo         | Obrigatório | Restrição / Default                          | Finalidade                    |
 | --------------- | ------------ | ----------- | -------------------------------------------- | ----------------------------- |
@@ -158,10 +156,17 @@ seção descreve apenas o schema.
 
 ### Restrições
 
-- `order_number` e `name` são únicos e obrigatórios;
+- `order_number` e `name` são únicos e obrigatórios; `order_number` é
+  `DEFERRABLE INITIALLY DEFERRED` para permitir a renumeração atômica do
+  `PATCH /portal-config/statuses`.
 - Status core (`1, 3, 4, 6, 7, 16, 17`) não podem ser removidos, renomeados,
   desativados nem ter flags/modos alterados;
 - o `CHECK` de `entity_type` da auditoria é independente deste catálogo.
+- O enum `status_tone` usa `error | success | info | warning | neutral`;
+  `status_triage_mode`/`status_mapping_mode` usam
+  `none | free | conclusion_only`.
+- As colunas legadas `is_final`, `is_triage_exit`, `closes_request` e
+  `visibility` foram removidas pelo motor v4.
 
 Valores semeados (referência, não invariante):
 
@@ -190,35 +195,36 @@ As regras de transição estão em
 
 ## Tabela `priorities`
 
-Armazena as faixas de priorização e o peso usado no cálculo do score.
+Faixas de priorização e peso usado no cálculo do score (RN-007/RN-008).
 
-### Estrutura
-
-| Campo            | Tipo         | Obrigatório | Restrição / Default            | Finalidade                                 |
-| ---------------- | ------------ | ----------- | ------------------------------ | ------------------------------------------ |
-| `priority_id`    | INTEGER      | Sim         | Primary Key, auto increment    | Identificador da faixa                     |
-| `level`          | VARCHAR(50)  | Sim         | UNIQUE (`uk_priorities_level`) | Nível: `Baixa`, `Média`, `Alta`, `Crítica` |
-| `min_score`      | INTEGER      | Sim         | NOT NULL                       | Limite inferior da faixa                   |
-| `max_score`      | INTEGER      | Sim         | NOT NULL                       | Limite superior da faixa                   |
-| `default_weight` | DECIMAL(3,2) | Sim         | NOT NULL                       | Peso padrão do cálculo                     |
-| `color_code`     | VARCHAR(50)  | Não         | NULL permitido                 | Cor associada                              |
-| `description`    | TEXT         | Não         | NULL permitido                 | Descrição da faixa                         |
-| `created_at`     | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`    | Data e hora de criação                     |
-
-### Restrições
-
-- `level` é único e usa o mesmo vocabulário de `RequestPriority` do contrato
-  (`Baixa`, `Média`, `Alta`, `Crítica`).
+| Campo            | Tipo         | Obrigatório | Restrição / Default         | Finalidade                          |
+| ---------------- | ------------ | ----------- | --------------------------- | ----------------------------------- |
+| `priority_id`    | INTEGER      | Sim         | PK, auto increment          | Identificador da faixa              |
+| `level`          | VARCHAR(50)  | Sim         | UK `uk_priorities_level`    | `Baixa`, `Média`, `Alta`, `Crítica` |
+| `min_score`      | DECIMAL(4,1) | Sim         | CHECK 10..50                | Limite inferior                     |
+| `max_score`      | DECIMAL(4,1) | Sim         | CHECK 10..50; `min <= max`  | Limite superior                     |
+| `default_weight` | DECIMAL(3,2) | Sim         | NOT NULL                    | Peso padrão                         |
+| `color_code`     | VARCHAR(50)  | Não         | NULL permitido              | Cor associada                       |
+| `description`    | TEXT         | Não         | NULL permitido              | Descrição                           |
+| `created_at`     | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP` | Data e hora de criação              |
 
 ## Tabela `details_professional`
 
-Dados de rotação dos responsáveis técnicos que podem ser atribuídos às
-solicitações. Cada registro é vinculado 1:1 a um usuário do sistema (`users`)
-— nome e e-mail vêm de lá, nunca daqui. Criada como `professionals` e
-renomeada/ajustada pela migration
-`20260917013250_rename_professionals_to_details_professional.js` (issue #50).
+Responsáveis técnicos atribuíveis (1:1 com `users`). Criada como
+`professionals` e renomeada pela migration
+`20260917013250_rename_professionals_to_details_professional.js`; nome e e-mail
+vêm de `users`, nunca desta tabela.
 
-### Estrutura
+| Campo                   | Tipo         | Obrigatório | Restrição / Default                         | Finalidade                    |
+| ----------------------- | ------------ | ----------- | ------------------------------------------- | ----------------------------- |
+| `professional_id`       | UUID         | Sim         | PK, `gen_random_uuid()`                     | Identificador do responsável  |
+| `user_id`               | INTEGER      | Sim         | NOT NULL; UK; FK `users.user_id` (RESTRICT) | Usuário correspondente        |
+| `job_title`             | VARCHAR(100) | Não         | NULL permitido                              | Cargo/função                  |
+| `specialties`           | TEXT         | Não         | NULL permitido                              | Especialidades                |
+| `attended_category_ids` | TEXT         | Não         | NULL permitido                              | Categorias atendidas          |
+| `status`                | ENUM         | Sim         | `active`/`inactive`; DEFAULT `active`       | Está na rotação de atribuição |
+| `capacity`              | INTEGER      | Sim         | DEFAULT 5                                   | Capacidade de atendimento     |
+| `notes`                 | TEXT         | Não         | NULL permitido                              | Observações internas          |
 
 | Campo                   | Tipo         | Obrigatório | Restrição / Default                     | Finalidade                        |
 | ----------------------- | ------------ | ----------- | --------------------------------------- | --------------------------------- |
@@ -245,88 +251,79 @@ Atribuibilidade (ver `docs/rules/assignment.md`):
 
 ## Tabela `requests`
 
-Armazena a solicitação, com uma coluna por campo dos blocos do formulário e as
-colunas de fluxo. Cada linha é um pedido, identificado pelo protocolo e pelo
-identificador interno sequencial.
+Cada linha é uma solicitação, identificada pelo protocolo público e pelo
+`request_id` interno sequencial.
 
 ### Identificação e blocos do formulário
 
-| Campo                          | Tipo          | Obrigatório | Restrição / Default                            | Finalidade                                 |
-| ------------------------------ | ------------- | ----------- | ---------------------------------------------- | ------------------------------------------ |
-| `request_id`                   | BIGINT        | Sim         | Primary Key, `nextval('requests_request_seq')` | Identificador interno sequencial           |
-| `protocol`                     | VARCHAR(25)   | Sim         | UNIQUE (`uk_requests_protocol`), NOT NULL      | Protocolo público FPE/Feistel              |
-| `requester_id`                 | UUID          | Sim         | Foreign Key, NOT NULL                          | Solicitante                                |
-| `title`                        | VARCHAR(150)  | Sim         | NOT NULL                                       | Título — limite 150                        |
-| `request_type`                 | VARCHAR(80)   | Sim         | NOT NULL                                       | Tipo de solicitação — limite 80            |
-| `process_name`                 | VARCHAR(150)  | Sim         | NOT NULL                                       | Nome do processo — limite 150              |
-| `need_description`             | VARCHAR(4000) | Sim         | NOT NULL                                       | Descrição da necessidade — limite 4.000    |
-| `problem_opportunity`          | VARCHAR(4000) | Sim         | NOT NULL                                       | Problema/oportunidade — limite 4.000       |
-| `expected_result`              | VARCHAR(4000) | Sim         | NOT NULL                                       | Resultado esperado — limite 4.000          |
-| `justification`                | VARCHAR(4000) | Sim         | NOT NULL                                       | Justificativa — limite 4.000               |
-| `process_description`          | VARCHAR(4000) | Sim         | NOT NULL                                       | Descrição do processo atual — limite 4.000 |
-| `process_steps`                | VARCHAR(4000) | Sim         | NOT NULL                                       | Etapas do processo — limite 4.000          |
-| `systems_used`                 | VARCHAR(255)  | Sim         | NOT NULL                                       | Sistemas utilizados — limite 255           |
-| `execution_frequency`          | VARCHAR(50)   | Sim         | NOT NULL                                       | Frequência — limite 50                     |
-| `approximate_volume`           | VARCHAR(100)  | Sim         | NOT NULL                                       | Volumetria — limite 100                    |
-| `people_involved`              | INTEGER       | Sim         | NOT NULL, CHECK `> 0`                          | Pessoas envolvidas                         |
-| `average_duration`             | VARCHAR(60)   | Sim         | NOT NULL                                       | Tempo médio — limite 60                    |
-| `estimated_monthly_effort`     | DECIMAL(10,2) | Sim         | NOT NULL, CHECK `>= 0`                         | Esforço mensal em horas                    |
-| `has_manual_controls`          | BOOLEAN       | Sim         | NOT NULL                                       | Existem controles manuais                  |
-| `manual_controls_detail`       | VARCHAR(1000) | Não         | NULL permitido                                 | Detalhe dos controles — limite 1.000       |
-| `main_risks`                   | VARCHAR(2000) | Sim         | NOT NULL                                       | Riscos — limite 2.000                      |
-| `client_impact`                | VARCHAR(2000) | Sim         | NOT NULL                                       | Impacto no cliente — limite 2.000          |
-| `operational_impact`           | ENUM          | Sim         | `Baixo`/`Médio`/`Alto`/`Crítico`; NOT NULL     | Impacto operacional                        |
-| `desired_deadline`             | DATE          | Sim         | NOT NULL                                       | Prazo desejado                             |
-| `perceived_criticality`        | ENUM          | Sim         | `Baixa`/`Média`/`Alta`/`Crítica`; NOT NULL     | Criticidade percebida                      |
-| `has_process_documentation`    | BOOLEAN       | Não         | NULL permitido                                 | Existe documentação do processo            |
-| `process_documentation_detail` | VARCHAR(1000) | Não         | NULL permitido                                 | Detalhe — limite 1.000                     |
-| `has_similar_solution`         | BOOLEAN       | Não         | NULL permitido                                 | Existe solução semelhante                  |
-| `similar_solution_detail`      | VARCHAR(1000) | Não         | NULL permitido                                 | Detalhe — limite 1.000                     |
-| `depends_on_other_areas`       | BOOLEAN       | Não         | NULL permitido                                 | Depende de outras áreas                    |
-| `other_areas_detail`           | VARCHAR(1000) | Não         | NULL permitido                                 | Detalhe — limite 1.000                     |
-| `handles_restricted_info`      | BOOLEAN       | Não         | NULL permitido                                 | Trata informações restritas                |
-| `restricted_info_detail`       | VARCHAR(1000) | Não         | NULL permitido                                 | Detalhe — limite 1.000                     |
-| `additional_notes`             | VARCHAR(2000) | Não         | NULL permitido                                 | Observações adicionais — limite 2.000      |
+| Campo                          | Tipo          | Obrigatório | Restrição / Default                   | Finalidade                      |
+| ------------------------------ | ------------- | ----------- | ------------------------------------- | ------------------------------- |
+| `request_id`                   | BIGINT        | Sim         | PK, `nextval('requests_request_seq')` | Identificador interno           |
+| `protocol`                     | VARCHAR(25)   | Sim         | UK `uk_requests_protocol`             | Protocolo público FPE/Feistel   |
+| `requester_id`                 | UUID          | Sim         | FK `requesters` (RESTRICT)            | Solicitante                     |
+| `title`                        | VARCHAR(150)  | Sim         | NOT NULL                              | Título                          |
+| `request_type`                 | VARCHAR(80)   | Sim         | NOT NULL                              | Tipo de solicitação             |
+| `process_name`                 | VARCHAR(150)  | Sim         | NOT NULL                              | Nome do processo                |
+| `need_description`             | VARCHAR(4000) | Sim         | NOT NULL                              | Descrição da necessidade        |
+| `problem_opportunity`          | VARCHAR(4000) | Sim         | NOT NULL                              | Problema/oportunidade           |
+| `expected_result`              | VARCHAR(4000) | Sim         | NOT NULL                              | Resultado esperado              |
+| `justification`                | VARCHAR(4000) | Sim         | NOT NULL                              | Justificativa                   |
+| `process_description`          | VARCHAR(4000) | Sim         | NOT NULL                              | Descrição do processo atual     |
+| `process_steps`                | VARCHAR(4000) | Sim         | NOT NULL                              | Etapas do processo              |
+| `systems_used`                 | VARCHAR(255)  | Sim         | NOT NULL                              | Sistemas utilizados             |
+| `execution_frequency`          | VARCHAR(50)   | Sim         | NOT NULL                              | Frequência                      |
+| `approximate_volume`           | VARCHAR(100)  | Sim         | NOT NULL                              | Volumetria                      |
+| `people_involved`              | INTEGER       | Sim         | CHECK `> 0`                           | Pessoas envolvidas              |
+| `average_duration`             | VARCHAR(60)   | Sim         | NOT NULL                              | Tempo médio                     |
+| `estimated_monthly_effort`     | DECIMAL(10,2) | Sim         | CHECK `>= 0`                          | Esforço mensal em horas         |
+| `has_manual_controls`          | BOOLEAN       | Sim         | NOT NULL                              | Existem controles manuais       |
+| `manual_controls_detail`       | VARCHAR(1000) | Não         | NULL permitido                        | Detalhe dos controles           |
+| `main_risks`                   | VARCHAR(2000) | Sim         | NOT NULL                              | Riscos                          |
+| `client_impact`                | VARCHAR(2000) | Sim         | NOT NULL                              | Impacto no cliente              |
+| `operational_impact`           | ENUM          | Sim         | `Baixo`/`Médio`/`Alto`/`Crítico`      | Impacto operacional             |
+| `desired_deadline`             | DATE          | Sim         | NOT NULL                              | Prazo desejado                  |
+| `perceived_criticality`        | ENUM          | Sim         | `Baixa`/`Média`/`Alta`/`Crítica`      | Criticidade percebida           |
+| `has_process_documentation`    | BOOLEAN       | Não         | NULL permitido                        | Existe documentação do processo |
+| `process_documentation_detail` | VARCHAR(1000) | Não         | NULL permitido                        | Detalhe                         |
+| `has_similar_solution`         | BOOLEAN       | Não         | NULL permitido                        | Existe solução semelhante       |
+| `similar_solution_detail`      | VARCHAR(1000) | Não         | NULL permitido                        | Detalhe                         |
+| `depends_on_other_areas`       | BOOLEAN       | Não         | NULL permitido                        | Depende de outras áreas         |
+| `other_areas_detail`           | VARCHAR(1000) | Não         | NULL permitido                        | Detalhe                         |
+| `handles_restricted_info`      | BOOLEAN       | Não         | NULL permitido                        | Trata informações restritas     |
+| `restricted_info_detail`       | VARCHAR(1000) | Não         | NULL permitido                        | Detalhe                         |
+| `additional_notes`             | VARCHAR(2000) | Não         | NULL permitido                        | Observações adicionais          |
 
-### Colunas de fluxo e triagem
+### Colunas de fluxo, triagem e acompanhamento
 
-| Campo                     | Tipo         | Obrigatório | Restrição / Default                                                          | Finalidade                                                                           |
-| ------------------------- | ------------ | ----------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `category_id`             | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Categoria da solicitação                                                             |
-| `status_id`               | INTEGER      | Sim         | Foreign Key, NOT NULL                                                        | Status atual do pedido                                                               |
-| `priority_id`             | INTEGER      | Não         | Foreign Key, NULL permitido                                                  | Prioridade, preenchida após a triagem                                                |
-| `preliminary_complexity`  | VARCHAR(50)  | Não         | NULL permitido                                                               | Complexidade preliminar                                                              |
-| `screening_result`        | VARCHAR(50)  | Não         | NULL permitido                                                               | Resultado legado da triagem (não escrito pelo fluxo atual)                           |
-| `screening_justification` | TEXT         | Não         | NULL permitido                                                               | Justificativa da triagem                                                             |
-| `identified_risks`        | TEXT         | Não         | NULL permitido                                                               | Riscos identificados                                                                 |
-| `professional_id`         | UUID         | Não         | Foreign Key, NULL permitido                                                  | Responsável técnico atribuído                                                        |
-| `requester_user_id`       | INTEGER      | Não         | Foreign Key NULL permitido → `users.user_id`, `ON DELETE SET NULL`, indexada | Conta autenticada que criou a solicitação (modo autenticado); `NULL` no modo público |
-| `internal_notes`          | TEXT         | Não         | NULL permitido                                                               | Notas internas                                                                       |
-| `next_steps`              | TEXT         | Não         | NULL permitido                                                               | Próximos passos                                                                      |
-| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                                                                     | Usuário/e-mail de criação                                                            |
-| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                                                  | Data e hora de criação                                                               |
-| `updated_by`              | VARCHAR(254) | Não         | NULL permitido                                                               | Usuário/e-mail da última atualização                                                 |
-| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                                               | Data e hora da última atualização                                                    |
-| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido                                                               | Última atualização visível ao solicitante                                            |
-| `last_technical_message`  | TEXT         | Não         | NULL permitido                                                               | Última mensagem pública do responsável                                               |
-| `estimated_completion`    | DATE         | Não         | NULL permitido                                                               | Previsão de conclusão (`yyyy-mm-dd`)                                                 |
-| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido                                                               | Data/hora da reunião de mapeamento                                                   |
-| `meeting_link`            | TEXT         | Não         | NULL permitido                                                               | Link de acesso à reunião                                                             |
+| Campo                     | Tipo         | Obrigatório | Restrição / Default                            | Finalidade                                         |
+| ------------------------- | ------------ | ----------- | ---------------------------------------------- | -------------------------------------------------- |
+| `category_id`             | INTEGER      | Sim         | FK `categories` (RESTRICT)                     | Categoria                                          |
+| `status_id`               | INTEGER      | Sim         | FK `statuses` (RESTRICT)                       | Status atual                                       |
+| `last_public_status_id`   | INTEGER      | Não         | FK `statuses` (RESTRICT); indexado             | Último status público (painel do solicitante)      |
+| `priority_id`             | INTEGER      | Não         | FK `priorities` (RESTRICT)                     | Prioridade                                         |
+| `professional_id`         | UUID         | Não         | FK `details_professional` (SET NULL)           | Responsável técnico                                |
+| `mapping_professional_id` | UUID         | Não         | FK `details_professional` (SET NULL); indexado | Designado para executar o mapeamento               |
+| `requester_user_id`       | INTEGER      | Não         | FK `users` (SET NULL); indexado                | Conta autenticada que criou (NULL no modo público) |
+| `screening_result`        | VARCHAR(50)  | Não         | CHECK `ck_requests_screening_result`           | Resultado da triagem: `elegivel`/`nao_elegivel`    |
+| `internal_notes`          | TEXT         | Não         | NULL permitido                                 | Notas internas (campo texto legado, em uso)        |
+| `next_steps`              | TEXT         | Não         | NULL permitido                                 | Próximos passos                                    |
+| `last_technical_message`  | TEXT         | Não         | NULL permitido                                 | Última mensagem pública do responsável             |
+| `estimated_completion`    | DATE         | Não         | NULL permitido                                 | Previsão de conclusão                              |
+| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido                                 | Data/hora da reunião de mapeamento                 |
+| `meeting_link`            | TEXT         | Não         | NULL permitido                                 | Link da reunião                                    |
+| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                                       | Usuário/e-mail de criação                          |
+| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                    | Criação                                            |
+| `updated_by`              | VARCHAR(254) | Não         | NULL permitido                                 | Usuário/e-mail da última atualização               |
+| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização                                 |
+| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização visível ao solicitante          |
 
-### Restrições
-
-- `requester_id` referencia `requesters.requester_id` com `ON DELETE RESTRICT`;
-- `requester_user_id` referencia `users.user_id` com `ON DELETE SET NULL`
-  (anulável — solicitações públicas não vinculam conta);
-- `category_id` referencia `categories.category_id` com `ON DELETE RESTRICT`;
-- `status_id` referencia `statuses.status_id` com `ON DELETE RESTRICT`;
-- `priority_id` referencia `priorities.priority_id` com `ON DELETE RESTRICT`;
-- `professional_id` referencia `details_professional.professional_id` com `ON DELETE SET NULL`;
+- Índices: `idx_requests_created_at`, `_status`, `_category`, `_priority`,
+  `_professional`, `_requester`, `_requester_user`, `_mapping_professional`,
+  `_last_public_status`, `_desired_deadline`.
 - `people_involved > 0` (`ck_requests_people_involved`);
-- `estimated_monthly_effort >= 0` (`ck_requests_estimated_monthly_effort`);
-- índices: `idx_requests_created_at`, `idx_requests_status`, `idx_requests_category`,
-  `idx_requests_priority`, `idx_requests_professional`, `idx_requests_requester`,
-  `idx_requests_requester_user`.
+  `estimated_monthly_effort >= 0` (`ck_requests_estimated_monthly_effort`).
+- `screening_result` aceita apenas `elegivel`, `nao_elegivel` ou `NULL`
+  (`ck_requests_screening_result`).
 
 ### Respostas "Sim/Não (+ detalhamento)"
 
@@ -340,87 +337,202 @@ responsabilidade da aplicação.
 Armazena pendências por campo/observação. As regras de ciclo de vida estão em
 [`docs/rules/pending-items.md`](../rules/pending-items.md).
 
-### Estrutura
-
-| Campo                | Tipo         | Obrigatório | Restrição / Default                                      | Finalidade                           |
-| -------------------- | ------------ | ----------- | -------------------------------------------------------- | ------------------------------------ |
-| `pending_item_id`    | UUID         | Sim         | Primary Key, `gen_random_uuid()`                         | Identificador do item                |
-| `request_id`         | BIGINT       | Sim         | FK `requests.request_id`                                 | Solicitação associada                |
-| `batch_id`           | UUID         | Sim         | NOT NULL                                                 | Agrupa o lote                        |
-| `type`               | ENUM         | Sim         | `field_edit`/`observation`                               | Tipo do item                         |
-| `field_key`          | VARCHAR(100) | Não         | NULL em `observation`                                    | Chave do catálogo de campos          |
-| `field_label`        | VARCHAR(150) | Não         | Snapshot do rótulo                                       | Exibição                             |
-| `current_value`      | TEXT         | Não         | JSON serializado                                         | Snapshot do valor na criação         |
-| `comment`            | TEXT         | Sim         | 1..2000                                                  | Pedido do analista                   |
-| `description`        | TEXT         | Sim         | Espelho legado de `comment`                              | Compatibilidade                      |
-| `corrected_value`    | TEXT         | Não         | JSON serializado                                         | Resposta de `field_edit`             |
-| `response_text`      | TEXT         | Não         | Resposta de `observation`                                | Resposta discursiva                  |
-| `status`             | ENUM         | Sim         | `requested`/`responded`/`validated`; DEFAULT `requested` | Situação do item                     |
-| `request_attachment` | BOOLEAN      | Sim         | DEFAULT FALSE                                            | Exigência do LOTE                    |
-| `deadline`           | DATE         | Não         | NULL permitido                                           | Prazo (não preenchido hoje)          |
-| `created_by`         | VARCHAR(100) | Sim         | NOT NULL                                                 | Usuário/e-mail de criação            |
-| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                              | Data de criação (resetada no reopen) |
-| `responded_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Resposta do solicitante              |
-| `validated_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Validação do analista                |
-
-### Restrições
+| Campo                | Tipo         | Obrigatório | Restrição / Default                                      | Finalidade                        |
+| -------------------- | ------------ | ----------- | -------------------------------------------------------- | --------------------------------- |
+| `pending_item_id`    | UUID         | Sim         | PK, `gen_random_uuid()`                                  | Identificador                     |
+| `request_id`         | BIGINT       | Sim         | FK `requests` (CASCADE)                                  | Solicitação                       |
+| `batch_id`           | UUID         | Sim         | DEFAULT `gen_random_uuid()`; indexado                    | Agrupa pendências criadas juntas  |
+| `type`               | ENUM         | Sim         | `field_edit`/`observation`                               | Tipo                              |
+| `field_key`          | VARCHAR(100) | Não         | NULL permitido                                           | Chave do campo alvo               |
+| `field_label`        | VARCHAR(255) | Não         | NULL permitido                                           | Rótulo do campo                   |
+| `current_value`      | JSONB        | Não         | NULL permitido                                           | Valor atual do campo              |
+| `comment`            | TEXT         | Sim         | NOT NULL                                                 | Observação da pendência           |
+| `status`             | ENUM         | Sim         | `requested`/`responded`/`validated`; DEFAULT `requested` | Situação                          |
+| `corrected_value`    | JSONB        | Não         | NULL permitido                                           | Valor corrigido pelo solicitante  |
+| `response_text`      | TEXT         | Não         | NULL permitido                                           | Resposta textual                  |
+| `responded_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Respondida em                     |
+| `validated_at`       | TIMESTAMPTZ  | Não         | NULL permitido                                           | Validada em                       |
+| `request_attachment` | BOOLEAN      | Sim         | DEFAULT FALSE                                            | Exige anexo do solicitante        |
+| `deadline`           | DATE         | Não         | NULL permitido                                           | Prazo                             |
+| `created_by`         | VARCHAR(254) | Sim         | NOT NULL                                                 | Usuário/e-mail de criação         |
+| `created_at`         | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                              | Criação                           |
+| `description`        | TEXT         | Sim         | NOT NULL                                                 | **Legado** — espelho de `comment` |
 
 - `request_id` referencia `requests.request_id` com `ON DELETE CASCADE`;
 - `type` usa o tipo nativo `pending_item_type`;
 - `status` usa o tipo nativo `pending_item_status` com valor padrão
   `requested`;
 - `batch_id` + `request_attachment` são uniformes no lote;
-- índices em `request_id`, `batch_id` e `status`.
+- Índices: `idx_pending_items_status`, `_request_status`, `_batch`. O índice
+  simples `idx_pending_items_request` foi removido na revisão #130 (prefixo já
+  coberto por `_request_status`).
+- As colunas `requested_fields`, `requires_attachment`,
+  `expected_attachment_type`, `resolution`, `resolved_by` e `resolved_at`
+  foram removidas pela revisão do banco (substituídas pelo contrato 03).
+- A coluna `is_visible_to_requester` foi removida (toda pendência é para o
+  solicitante).
 
 ## Tabela `attachments`
 
-Armazena os metadados dos anexos derivados no servidor a partir das partes
-binárias do `POST /requests`.
+Metadados dos anexos derivados no servidor.
 
-### Estrutura
+| Campo             | Tipo          | Obrigatório | Restrição / Default           | Finalidade               |
+| ----------------- | ------------- | ----------- | ----------------------------- | ------------------------ |
+| `attachment_id`   | UUID          | Sim         | PK, `gen_random_uuid()`       | Identificador do anexo   |
+| `request_id`      | BIGINT        | Sim         | FK `requests` (CASCADE)       | Solicitação associada    |
+| `pending_item_id` | UUID          | Não         | FK `pending_items` (SET NULL) | Pendência associada      |
+| `file_name`       | VARCHAR(255)  | Sim         | NOT NULL                      | Nome original            |
+| `file_path`       | VARCHAR(1000) | Sim         | NOT NULL                      | Caminho de armazenamento |
+| `content_type`    | VARCHAR(100)  | Sim         | CHECK de formato              | MIME do anexo            |
+| `size_bytes`      | BIGINT        | Sim         | CHECK 1..10MB                 | Tamanho em bytes         |
+| `uploaded_by`     | VARCHAR(254)  | Não         | NULL permitido                | Usuário/e-mail do envio  |
+| `uploaded_at`     | TIMESTAMPTZ   | Sim         | DEFAULT `CURRENT_TIMESTAMP`   | Data e hora do envio     |
 
-| Campo             | Tipo          | Obrigatório | Restrição / Default              | Finalidade                         |
-| ----------------- | ------------- | ----------- | -------------------------------- | ---------------------------------- |
-| `attachment_id`   | UUID          | Sim         | Primary Key, `gen_random_uuid()` | Identificador do anexo             |
-| `request_id`      | BIGINT        | Sim         | Foreign Key, NOT NULL            | Solicitação associada              |
-| `pending_item_id` | UUID          | Não         | Foreign Key, NULL permitido      | Pendência associada, quando houver |
-| `file_name`       | VARCHAR(255)  | Sim         | NOT NULL                         | Nome original — limite 255         |
-| `file_path`       | VARCHAR(1000) | Sim         | NOT NULL                         | Caminho de armazenamento           |
-| `content_type`    | VARCHAR(100)  | Sim         | NOT NULL, CHECK de formato       | MIME do anexo                      |
-| `size_bytes`      | BIGINT        | Sim         | NOT NULL, CHECK de tamanho       | Tamanho em bytes                   |
-| `is_restricted`   | BOOLEAN       | Sim         | DEFAULT FALSE                    | Anexo restrito                     |
-| `uploaded_by`     | VARCHAR(254)  | Não         | NULL permitido                   | Usuário/e-mail do envio            |
-| `uploaded_at`     | TIMESTAMPTZ   | Sim         | DEFAULT `CURRENT_TIMESTAMP`      | Data e hora do envio               |
-
-### Restrições
-
-- `request_id` referencia `requests.request_id` com `ON DELETE CASCADE`;
-- `pending_item_id` referencia `pending_items.pending_item_id` com `ON DELETE SET NULL`;
-- `size_bytes > 0 AND size_bytes <= 10485760` (`ck_attachments_size_bytes` — 10MB);
-- `content_type` restrito a PDF, DOCX, XLSX, PNG e JPG (`ck_attachments_content_type`);
-- índices: `idx_attachments_request`, `idx_attachments_pending_item`,
-  `idx_attachments_restricted`, `idx_attachments_uploaded_at`.
+- `content_type` restrito a PDF, DOCX, XLSX, PNG e JPG
+  (`ck_attachments_content_type`).
+- Índices: `_pending_item`, `_uploaded_at` e `_request_uploaded` (novo, para a
+  listagem ordenada por envio). O antigo `idx_attachments_request` foi removido
+  por ser redundante com `_request_uploaded`. A coluna `is_restricted` e seu
+  índice ocioso foram removidos pela revisão do banco.
 
 ## Tabela `request_time_preferences`
 
-Armazena as até três opções de data/hora declaradas pelo solicitante para o
-mapeamento (`schedulePreferences`).
-
-### Estrutura
+Até três opções de data/hora declaradas pelo solicitante para o mapeamento.
 
 | Campo                        | Tipo        | Obrigatório | Restrição / Default         | Finalidade                 |
 | ---------------------------- | ----------- | ----------- | --------------------------- | -------------------------- |
-| `request_time_preference_id` | INTEGER     | Sim         | Primary Key, auto increment | Identificador do horário   |
-| `request_id`                 | BIGINT      | Sim         | Foreign Key, NOT NULL       | Solicitação associada      |
-| `scheduled_for`              | TIMESTAMP   | Sim         | NOT NULL                    | Data e hora no formato ISO |
-| `created_at`                 | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP` | Data e hora de criação     |
+| `request_time_preference_id` | INTEGER     | Sim         | PK, auto increment          | Identificador              |
+| `request_id`                 | BIGINT      | Sim         | FK `requests` (CASCADE)     | Solicitação associada      |
+| `scheduled_for`              | TIMESTAMP   | Sim         | NOT NULL                    | Data e hora (sem timezone) |
+| `created_at`                 | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP` | Criação                    |
 
-### Restrições
+- `(request_id, scheduled_for)` é único (`uk_request_time_preferences_slot`).
+- `scheduled_for` é `timestamp` sem timezone por decisão explícita do helper
+  (`src/shared/utils/date.ts`); a troca para `timestamptz` exige mudança
+  coordenada no código.
+- O limite de três opções é validado pela aplicação.
 
-- `request_id` referencia `requests.request_id` com `ON DELETE CASCADE`;
-- `(request_id, scheduled_for)` é único (`uk_request_time_preferences_slot`);
-- o limite de três opções por solicitação não é expresso no banco e deve ser
-  validado pela aplicação (contrato `POST /requests`).
+## Tabela `mappings`
+
+Esforços de mapeamento de uma solicitação (1:N). No máximo um esforço aberto por
+solicitação.
+
+| Campo                    | Tipo          | Obrigatório | Restrição / Default                            | Finalidade                     |
+| ------------------------ | ------------- | ----------- | ---------------------------------------------- | ------------------------------ |
+| `mapping_id`             | UUID          | Sim         | PK, `gen_random_uuid()`                        | Identificador exposto na API   |
+| `request_id`             | BIGINT        | Sim         | FK `requests` (CASCADE)                        | Solicitação                    |
+| `professional_id`        | UUID          | Não         | FK `details_professional` (SET NULL); indexado | Designado a executar           |
+| `scheduled_for`          | TIMESTAMPTZ   | Não         | NULL permitido                                 | Data/hora agendada             |
+| `duration_minutes`       | INTEGER       | Não         | CHECK 15..480                                  | Duração                        |
+| `modality`               | ENUM          | Não         | `mapping_modality` (`REMOTE`/`IN_PERSON`)      | Modalidade                     |
+| `meeting_link`           | VARCHAR(500)  | Não         | NULL permitido                                 | Link                           |
+| `location`               | VARCHAR(500)  | Não         | NULL permitido                                 | Local                          |
+| `notes`                  | VARCHAR(2000) | Não         | NULL permitido                                 | Observações                    |
+| `is_concluded`           | BOOLEAN       | Sim         | DEFAULT FALSE                                  | Esforço concluído              |
+| `concluded_at`           | TIMESTAMPTZ   | Não         | NULL permitido                                 | Concluído em                   |
+| `target_status_id`       | INTEGER       | Não         | FK `statuses` (RESTRICT); indexado             | Status de destino na conclusão |
+| `justification`          | TEXT          | Não         | NULL permitido                                 | Justificativa da conclusão     |
+| `last_technical_message` | TEXT          | Não         | NULL permitido                                 | Última mensagem pública        |
+| `created_by`             | VARCHAR(254)  | Sim         | NOT NULL                                       | Criado por                     |
+| `created_at`             | TIMESTAMPTZ   | Sim         | DEFAULT `CURRENT_TIMESTAMP`                    | Criação                        |
+| `updated_by`             | VARCHAR(254)  | Não         | NULL permitido                                 | Atualizado por                 |
+| `updated_at`             | TIMESTAMPTZ   | Não         | NULL permitido                                 | Última atualização             |
+
+- `duration_minutes` usa `ck_mappings_duration_minutes` (15 a 480).
+- Índices: `_request_concluded`, `_professional`, `_target_status`,
+  `_request_created` (novo). O índice simples `idx_mappings_request` foi removido
+  na revisão #130 (prefixo já coberto por `_request_concluded`).
+- **Invariante:** `uk_mappings_one_open_per_request` — índice único parcial em
+  `request_id` `WHERE is_concluded = false`.
+- **CHECK** `ck_mappings_concluded_at`: `concluded_at` é preenchido se e somente
+  se `is_concluded` for `true`.
+
+## Tabela `mapping_participants`
+
+Participantes de um mapeamento: internos (vinculados a `users.user_id`) ou
+externos (nome/e-mail informados no payload).
+
+| Campo            | Tipo         | Obrigatório | Restrição / Default             | Finalidade                          |
+| ---------------- | ------------ | ----------- | ------------------------------- | ----------------------------------- |
+| `participant_id` | UUID         | Sim         | PK, `gen_random_uuid()`         | Identificador                       |
+| `mapping_id`     | UUID         | Sim         | FK `mappings` (CASCADE)         | Mapeamento                          |
+| `user_id`        | INTEGER      | Não         | FK `users` (RESTRICT); indexado | Participante interno                |
+| `name`           | VARCHAR(255) | Não         | NULL permitido                  | Nome (interno herdado ou externo)   |
+| `email`          | VARCHAR(255) | Não         | NULL permitido                  | E-mail (interno herdado ou externo) |
+| `created_at`     | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`     | Criação                             |
+
+- `uk_mapping_participants_user` → único (`mapping_id`, `user_id`).
+- `uk_mapping_participants_email` → único (`mapping_id`, `lower(email)`).
+- `idx_mapping_participants_user`. O índice `idx_mapping_participants_mapping`
+  foi removido na revisão #130 (prefixo já coberto pelas duas UKs).
+- **CHECK** `ck_mapping_participants_internal_or_external`:
+  `user_id IS NOT NULL OR (name IS NOT NULL AND email IS NOT NULL)`.
+- A FK com `ON DELETE RESTRICT` impede que a remoção de um usuário transforme
+  um participante interno em aparente participante externo.
+
+## Tabela `triages`
+
+Histórico versionado de triagens (append). O snapshot fica normalizado em
+colunas; a proveniência (`occurred_at`/ator/origem) vem do `audit_history`
+(`entity_type = 'request'`, `action_type = 'request.triage'`).
+
+| Campo                                 | Tipo          | Obrigatório | Restrição / Default                | Finalidade                      |
+| ------------------------------------- | ------------- | ----------- | ---------------------------------- | ------------------------------- |
+| `triage_id`                           | UUID          | Sim         | PK (fornecido pela aplicação)      | Identificador                   |
+| `request_id`                          | BIGINT        | Sim         | FK `requests` (CASCADE)            | Solicitação                     |
+| `adherent_to_scope`                   | VARCHAR(3)    | Sim         | CHECK `Sim`/`Não`/`''`             | Aderente ao escopo              |
+| `adherent_justification`              | TEXT          | Sim         | DEFAULT `''`                       | Justificativa                   |
+| `change_category`                     | VARCHAR(3)    | Sim         | CHECK `Sim`/`Não`/`''`             | Muda de categoria               |
+| `new_category`                        | VARCHAR(40)   | Sim         | DEFAULT `''`                       | Nova categoria                  |
+| `preliminary_complexity`              | TEXT          | Sim         | DEFAULT `''`                       | Complexidade preliminar         |
+| `perceived_risks`                     | TEXT          | Sim         | DEFAULT `''`                       | Riscos percebidos               |
+| `suggested_responsible`               | VARCHAR(150)  | Sim         | DEFAULT `''`                       | Responsável sugerido            |
+| `suggested_responsible_justification` | TEXT          | Sim         | DEFAULT `''`                       | Justificativa do responsável    |
+| `exit_status`                         | INTEGER       | Sim         | FK `statuses` (RESTRICT); indexado | Status de saída                 |
+| `result`                              | VARCHAR(1000) | Sim         | NOT NULL                           | Resultado                       |
+| `conclusion_justification`            | TEXT          | Sim         | NOT NULL                           | Justificativa da conclusão      |
+| `assignee_user_id`                    | INTEGER       | Não         | FK `users` (SET NULL); indexado    | Designado (v4)                  |
+| `assignee_name`                       | TEXT          | Não         | NULL permitido                     | Snapshot do nome do designado   |
+| `assignee_email`                      | TEXT          | Não         | NULL permitido                     | Snapshot do e-mail do designado |
+| `last_technical_message`              | TEXT          | Não         | NULL permitido                     | Última mensagem pública         |
+
+- Índices: `idx_triages_request_triage` (`request_id`, `triage_id`),
+  `_exit_status`, `_assignee_user`.
+
+## Tabelas de observações internas
+
+### `request_internal_notes`
+
+Observações internas imutáveis, uma linha por nota.
+
+| Campo                     | Tipo        | Obrigatório | Restrição / Default                       | Finalidade                   |
+| ------------------------- | ----------- | ----------- | ----------------------------------------- | ---------------------------- |
+| `internal_note_id`        | BIGSERIAL   | Sim         | PK                                        | Identificador                |
+| `request_id`              | BIGINT      | Sim         | FK `requests` (RESTRICT)                  | Solicitação                  |
+| `author_user_id`          | INTEGER     | Sim         | FK `users` (RESTRICT); indexado           | Autor                        |
+| `author_role_at_creation` | VARCHAR(30) | Sim         | CHECK `Analista`/`Gestor`/`Administrador` | Perfil no momento da criação |
+| `content`                 | TEXT        | Sim         | CHECK 1..4000 (após `btrim`)              | Conteúdo                     |
+| `created_at`              | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP`               | Criação                      |
+
+- UK `uk_request_internal_notes_request_note` (`request_id`,
+  `internal_note_id`) — alvo da FK composta do checkpoint.
+- `idx_request_internal_notes_timeline` (`request_id`, `created_at`,
+  `internal_note_id`) e `idx_request_internal_notes_author`.
+
+### `request_internal_note_read_states`
+
+Checkpoint de leitura por usuário (uma linha por solicitação/usuário).
+
+| Campo               | Tipo        | Obrigatório | Restrição / Default                          | Finalidade         |
+| ------------------- | ----------- | ----------- | -------------------------------------------- | ------------------ |
+| `request_id`        | BIGINT      | Sim         | PK composta; FK composta → notes             | Solicitação        |
+| `user_id`           | INTEGER     | Sim         | PK composta; FK `users` (RESTRICT); indexado | Usuário            |
+| `last_read_note_id` | BIGINT      | Sim         | FK composta → notes; indexado                | Última nota lida   |
+| `read_at`           | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP`                  | Momento da leitura |
+
+- PK `pk_request_internal_note_read_states` (`request_id`, `user_id`).
+- FK `fk_internal_note_read_states_request_note` (`request_id`,
+  `last_read_note_id`) → `request_internal_notes` (RESTRICT).
 
 ## Protocolo
 
@@ -429,21 +541,22 @@ O identificador público de rastreio é o **protocolo**, uma coluna de texto
 derivado do `request_id` interno por FPE/Feistel (ex.: `MAAT-8K3P-9X2M`),
 conforme as regras em [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md).
 
-- o `request_id` é gerado por uma sequence dedicada (`requests_request_seq`),
-  garantindo unicidade sob concorrência sem expor o sequencial;
-- a geração do protocolo é responsabilidade da aplicação, que pré-aloca o
-  `request_id` com `nextval`, calcula o código FPE e o grava no mesmo `INSERT`;
-- o domínio do FPE deve ser dimensionado acima do volume esperado de IDs; a
-  restrição `UNIQUE` da coluna atua como rede de segurança contra colisões;
-- buracos na sequência (valores consumidos em transações desfeitas) são
-  aceitáveis, pois o `request_id` é um identificador interno.
+- `request_id` é gerado pela sequence `requests_request_seq`;
+- a aplicação pré-aloca o `request_id` com `nextval`, calcula o código FPE e o
+  grava no mesmo `INSERT`;
+- a constraint `UNIQUE` do protocolo atua como rede de segurança contra
+  colisões;
+- buracos na sequence são aceitáveis (o `request_id` é interno).
 
 ## Decisões de modelagem
 
 - **Solicitante em tabela própria:** `requesters` evita repetir dados do
-  solicitante a cada pedido e permite o acompanhamento por e-mail.
-- **Solicitante único por e-mail:** `corporate_email` é `UNIQUE`
-  (`uk_requesters_email`), permitindo `upsert` do solicitante no cadastro.
+  solicitante e permite acompanhamento por e-mail; `corporate_email` é único
+  (case-sensitive; a aplicação normaliza).
+- **Vínculo com a conta autenticada:** `requests.requester_user_id` (anulável,
+  `ON DELETE SET NULL`) referencia a conta; o snapshot público continua em
+  `requesters`. A coincidência de e-mail entre conta e snapshot é invariante da
+  aplicação, não do banco.
 - **`created_by` com o e-mail do solicitante:** no `POST /requests` público não
   há usuário autenticado; a coluna guarda o e-mail normalizado do solicitante
   (por isso foi alargada para `VARCHAR(254)`).
@@ -471,6 +584,17 @@ conforme as regras em [`docs/rules/requests-lifecycle.md`](../rules/requests-lif
   cada horário vira uma linha, com `ON DELETE CASCADE`.
 - **Prioridade nula até a triagem:** `priority_id` é nullable até o processo de
   priorização preencher o nível.
+- **Triagem versionada:** `triages` guarda o snapshot imutável; o estado atual
+  não é sobrescrito.
+- **Mapeamento com histórico:** `mappings` é 1:N por solicitação, com no máximo
+  um aberto (índice único parcial).
+- **Participantes internos/externos:** `mapping_participants.user_id` é
+  opcional; externos exigem nome e e-mail (CHECK). Desde a revisão #130 a FK
+  interna usa `ON DELETE RESTRICT` para não perder a proveniência do participante.
+- **Observações internas imutáveis:** `request_internal_notes` não é editada;
+  correções viram novas notas. O checkpoint de leitura é por usuário.
+- **Auditoria append-only:** `audit_history` tem trigger que impede UPDATE/DELETE
+  (`20260923000001_add_audit_history_append_only_guard.js`).
 - **Exclusão de anexos:** `attachments.request_id` usa `ON DELETE CASCADE`
   (anexo não existe sem o pedido), enquanto a referência a `pending_items` usa
   `ON DELETE SET NULL`.
@@ -496,56 +620,34 @@ Não fazem parte desta Issue:
 
 ## Migrations
 
-A estrutura é controlada por migrations do Knex, executadas após as migrations de
-autenticação (diretório `migrations/` na raiz, fora do escopo desta seção). A
+A estrutura é controlada por migrations do Knex, em três diretórios:
+`migrations/` (autenticação, configuração e auditoria),
+`migrations/requester_request/` (domínio de solicitações) e
+`migrations/users/`. O `knexfile.js` carrega os três e ordena por timestamp. A
 lista abaixo é o núcleo inicial; migrations posteriores de status, pendências,
 anexos e auditoria vivem em `migrations/requester_request/` e prevalecem sobre
 esta fotografia. Ordem do núcleo:
 
-1. `202609100001_create_requesters.js`
-2. `202609100002_create_categories.js`
-3. `202609100003_create_priorities.js`
-4. `202609100004_create_statuses.js`
-5. `202609100005_create_professionals.js`
-6. `202609100006_create_requests.js`
-7. `202609100007_create_pending_items.js`
-8. `202609100008_create_attachments.js`
-9. `202609100009_create_request_time_preferences.js`
-10. `202609100010_unique_requesters_email.js`
-11. `202609100011_requests_created_by_length.js`
-12. `202609100012_email_columns_length.js`
-13. `202609100013_insert_reference_data.js`
-14. `202609100014_add_public_tracking_fields_to_requests.js`
-15. `20260911015500_alter_priorities_score_columns.js`
-16. `20260912003734_create_criteria.js`
-17. `20260914000000_add_priorities_score_checks.js`
-18. `20260916120000_add_requester_user_fk_to_requests.js` (issue #53)
-19. `20260917013250_rename_professionals_to_details_professional.js` (depende de `users`)
+Marcos relevantes do domínio:
 
-A ordem respeita as dependências: as tabelas de referência e `requesters` são
-criadas antes de `requests`, e as tabelas filhas (`pending_items`, `attachments`,
-`request_time_preferences`) depois de `requests`.
-
-### Migração da issue #53 — vínculo com `users`
-
-`20260916120000_add_requester_user_fk_to_requests.js` adiciona à `requests` a
-coluna `requester_user_id` (`INTEGER`, anulável, FK → `users.user_id` com
-`ON DELETE SET NULL`) e o índice `idx_requests_requester_user`. O `down`
-remove o índice e a coluna — não altera nenhuma migration já integrada.
-
-### Dados de referência
-
-Os seeds em `seeds/requester_request/` populam dados de desenvolvimento para
-`requesters`, `criteria`, `priorities`, `statuses`, `users`, `details_professional`, `requests`,
-`pending_items`, `attachments`, `request_time_preferences` e
-`prioritization_evaluations`. O seed de `requests` ajusta a sequence `requests_request_seq` após inserir IDs explícitos,
-evitando colisão com o próximo `nextval`, e preenche os campos do painel público
-(`last_technical_message`, `estimated_completion`, `meeting_scheduled_for`,
-`meeting_link`). O seed de `users` (`004_users.js`) roda antes de `requests`
-para satisfazer a FK da issue #53. A partir dessa issue, o seed de `requests`
-também demonstra os dois modos de origem: solicitações públicas
-(`requester_user_id = NULL`) e autenticadas (`requester_user_id`
-preenchido, incluindo perfil interno solicitando).
+1. `202609100001`–`202609100014`: modelagem inicial (requesters, referências,
+   requests, pendências, anexos e preferências).
+2. `20260916120000`: vínculo opcional `requests.requester_user_id` (issue #53).
+3. `20260917013250`: rename `professionals` → `details_professional`.
+4. `20260918000000`: `mappings` e `mapping_participants`.
+5. `20260921000000`: `requesters.user_id` (1:1 com `users`).
+6. `20260921000002`: contrato de pendências 03 (`batch_id`, `comment`, ciclo
+   `requested/responded/validated`).
+7. `20260922000000`: remove `is_visible_to_requester`.
+8. `20260923000000`: `triages`.
+9. `20260924000000` + `20260926000000`: motor de status v4 (status 1–17).
+10. `20260927000000`: revisão do banco (índices de FK, invariantes de mapeamento
+    e `audit_history.occurred_at` como `timestamptz`).
+11. `20260928000000`: limpeza de legados, unicidade case-insensitive de e-mails,
+    CHECK de conclusão de mapeamento e índice de timeline de auditoria.
+12. `20260929000000`: defaults alinhados à aplicação, `varchar(254)` nas colunas
+    de e-mail, índices redundantes removidos, índices de consulta, CHECKs de
+    domínio e FK de participante interno com `RESTRICT`.
 
 ### Execução
 
@@ -557,27 +659,10 @@ npm run migrate:make -- migration-name
 
 ## Validações
 
-### Realizadas
+- `npm run migrate:latest` em banco novo — 58 migrations;
+- `npm run seed:run` — 11 seeds;
+- rollback/reaplicação das três migrations da revisão;
+- `npm run typecheck`, `npm run lint` e Prettier nos arquivos alterados.
 
-- `npm run typecheck` e `npm run lint` sem erros;
-- migrations e seeds validados com Prettier;
-- nomes técnicos em inglês, conforme o padrão do projeto;
-- `npm run migrate:latest` executado (banco novo: `28 migrations` em batch 1) e
-  estrutura conferida no banco;
-- `migrate:down` da migration da issue #53 executado (coluna, índice e FK
-  removidos sem resíduos) e reaplicado;
-- `npm run seed:run` executado (`10 seeds`), demonstrando os dois modos de origem;
-- revisão da modelagem por outro integrante (backend) concluída.
-
-### Pendentes
-
-- registrar a evidência da geração do protocolo FPE/Feistel na issue do gerador;
-- integração de aplicação: gravar `requester_user_id` no fluxo autenticado
-  (fora do escopo da issue #53).
-
-## Status da Issue
-
-A estrutura de persistência, as migrations de schema, os seeds de
-desenvolvimento, a documentação e as evidências de migrate/rollback estão
-concluídas para a issue #53 (vínculo `requests.requester_user_id` → `users`),
-incluindo a revisão do relacionamento.
+O detalhamento dos achados e das melhorias da revisão está em
+[`schema-review-130.md`](schema-review-130.md).

@@ -111,26 +111,35 @@ Cada usuário possui um identificador único, um e-mail utilizado para identific
 
 ### Estrutura
 
-| Campo           | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                     |
-| --------------- | ------------ | ----------- | --------------------------- | ---------------------------------------------- |
-| `user_id`       | INTEGER      | Sim         | Primary Key, auto increment | Identificador único do usuário                 |
-| `full_name`     | VARCHAR(150) | Sim         | NOT NULL                    | Nome completo do usuário                       |
-| `email`         | VARCHAR(254) | Sim         | UNIQUE, NOT NULL            | E-mail utilizado para identificação do usuário |
-| `password_hash` | VARCHAR(255) | Sim         | NOT NULL                    | Armazena exclusivamente o hash da senha        |
-| `profile_id`    | INTEGER      | Sim         | Foreign Key, NOT NULL       | Identifica o perfil associado ao usuário       |
-| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE                | Indica se o usuário está ativo                 |
-| `created_at`    | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro             |
-| `updated_at`    | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada   |
+| Campo                  | Tipo         | Obrigatório | Restrição / Default                                       | Finalidade                                     |
+| ---------------------- | ------------ | ----------- | --------------------------------------------------------- | ---------------------------------------------- |
+| `user_id`              | INTEGER      | Sim         | Primary Key, auto increment                               | Identificador único do usuário                 |
+| `full_name`            | VARCHAR(150) | Sim         | NOT NULL                                                  | Nome completo do usuário                       |
+| `email`                | VARCHAR(254) | Sim         | UK `users_email_unique`, UK `uk_users_email_ci`, NOT NULL | E-mail utilizado para identificação do usuário |
+| `password_hash`        | VARCHAR(255) | Sim         | NOT NULL                                                  | Armazena exclusivamente o hash da senha        |
+| `profile_id`           | INTEGER      | Sim         | Foreign Key, NOT NULL                                     | Identifica o perfil associado ao usuário       |
+| `is_active`            | BOOLEAN      | Sim         | DEFAULT TRUE                                              | Indica se o usuário está ativo                 |
+| `must_change_password` | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)                               | Exige troca de senha no primeiro acesso        |
+| `created_at`           | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                                 | Data e hora de criação do registro             |
+| `updated_at`           | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                                 | Data e hora da última atualização registrada   |
 
 ### Restrições
 
 - `user_id` é a chave primária da tabela;
 - `email` não pode ser nulo;
-- `email` deve possuir valor único;
+- `email` deve possuir valor único, inclusive ignorando caixa
+  (`uk_users_email_ci`, sobre `lower(email)`);
+- `users_email_unique` foi mantido de propósito: a unicidade simples já é
+  implicada pelo índice `lower(email)`, mas é ele que atende `WHERE email = $1`
+  no login (o índice de expressão não serve para busca exata pela coluna);
 - `password_hash` não pode ser nulo;
 - `profile_id` não pode ser nulo;
 - `profile_id` referencia `profiles.profile_id`;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
+- `must_change_password` possui valor padrão `TRUE` desde a revisão #130,
+  alinhado ao cadastro feito pela aplicação. Os seeds informam o valor
+  explicitamente (`false` nos usuários de teste, `true` nos cenários de troca
+  pendente), para não depender do default;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
 ### Relacionamento com `profiles`
@@ -165,7 +174,7 @@ A geração e a validação do hash são responsabilidades do Backend. O banco d
 
 O e-mail é utilizado como identificador para autenticação e possui restrição `UNIQUE`.
 
-Para manter uma representação consistente dos endereços de e-mail, a aplicação deverá normalizar o valor para letras minúsculas antes da persistência e da consulta.
+Para manter uma representação consistente dos endereços de e-mail, a aplicação normaliza o valor para letras minúsculas antes da persistência e da consulta. O banco reforça a mesma regra com `uk_users_email_ci` (`UNIQUE (lower(email))`), criado na revisão do banco (issue #130).
 
 Essa regra deverá ser validada em conjunto com o Backend antes da conclusão da Issue.
 
@@ -199,9 +208,9 @@ O e-mail é utilizado como identificador para o processo de autenticação, mas 
 
 ### Unicidade do e-mail
 
-A coluna `email` possui restrição `UNIQUE` para impedir que dois usuários sejam cadastrados com o mesmo endereço de e-mail.
+A coluna `email` possui restrição `UNIQUE` para impedir que dois usuários sejam cadastrados com o mesmo endereço de e-mail. O índice `uk_users_email_ci` estende a regra para variações de caixa.
 
-A normalização do e-mail para letras minúsculas será responsabilidade da aplicação e deverá ser validada em conjunto com o Backend.
+A normalização do e-mail para letras minúsculas é feita pela aplicação e garantida pelo banco desde a revisão do banco (issue #130).
 
 ### Armazenamento de senha
 
