@@ -63,7 +63,9 @@ export async function up(knex) {
   `);
 
   // O valor foi gravado a partir de `now()` convertido para `timestamp`; usar a
-  // timezone da sessão na conversão reconstrói o instante original.
+  // timezone da sessão na conversão reconstrói o instante original. Isto assume
+  // que a sessão da migration usa a mesma timezone da aplicação que gravou os
+  // valores.
   await knex.raw(`
     ALTER TABLE "audit_history"
     ALTER COLUMN "occurred_at" TYPE timestamptz

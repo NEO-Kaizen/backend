@@ -487,7 +487,6 @@ export async function addPendingItemAttachmentTx(input: {
       file_path: input.saved.storageKey,
       content_type: input.saved.mimeType,
       size_bytes: input.saved.sizeBytes,
-      is_restricted: false,
       uploaded_by: "requester",
       uploaded_at: trx.fn.now(),
     });

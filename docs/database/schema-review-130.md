@@ -47,7 +47,7 @@ inventário consolidado e o registro das decisões.
 | `details_professional`              | `professional_id` (uuid)              | `user_id` → `users` (RESTRICT)                                                                                                                        | PK, UK `user_id`, `idx_details_professional_status`                                                                                                                                                                                       |
 | `requests`                          | `request_id` (bigint, sequence)       | `requester_id`, `category_id`, `status_id`, `priority_id`, `professional_id`, `requester_user_id`, `mapping_professional_id`, `last_public_status_id` | `idx_requests_created_at`, `_status`, `_category`, `_priority`, `_professional`, `_requester`, `_requester_user`, `_mapping_professional`, `_last_public_status`, `_desired_deadline` (novo); CHECK `ck_requests_screening_result` (novo) |
 | `pending_items`                     | `pending_item_id` (uuid)              | `request_id` → `requests` (CASCADE)                                                                                                                   | `idx_pending_items_status`, `_request_status`, `_batch`                                                                                                                                                                                   |
-| `attachments`                       | `attachment_id` (uuid)                | `request_id` → `requests` (CASCADE); `pending_item_id` → `pending_items` (SET NULL)                                                                   | `idx_attachments_request`, `_pending_item`, `_uploaded_at`, `_request_uploaded` (novo)                                                                                                                                                    |
+| `attachments`                       | `attachment_id` (uuid)                | `request_id` → `requests` (CASCADE); `pending_item_id` → `pending_items` (SET NULL)                                                                   | `_pending_item`, `_uploaded_at`, `_request_uploaded` (novo)                                                                                                                                                                               |
 | `request_time_preferences`          | `request_time_preference_id` (serial) | `request_id` → `requests` (CASCADE)                                                                                                                   | PK, UK (`request_id`, `scheduled_for`)                                                                                                                                                                                                    |
 | `mappings`                          | `mapping_id` (uuid)                   | `request_id` → `requests` (CASCADE); `professional_id` → `details_professional` (SET NULL); `target_status_id` → `statuses` (RESTRICT)                | `idx_mappings_request_concluded`, `_professional` (novo), `_target_status` (novo), `_request_created` (novo), UK parcial `uk_mappings_one_open_per_request` (novo), CHECK `ck_mappings_concluded_at` (novo)                               |
 | `mapping_participants`              | `participant_id` (uuid)               | `mapping_id` → `mappings` (CASCADE); `user_id` → `users` (RESTRICT)                                                                                   | UK (`mapping_id`, `user_id`), UK (`mapping_id`, `lower(email)`), `_user` (novo), CHECK `ck_mapping_participants_internal_or_external` (novo)                                                                                              |
@@ -64,18 +64,19 @@ Todas as colunas abaixo foram removidas por
 preenchiam. Os campos que as substituem (`triages.*`, `pending_items.comment` e
 os campos do contrato 03) permanecem.
 
-| Tabela          | Colunas                                                                                                           | Situação                                                   |
-| --------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `requests`      | `preliminary_complexity`, `screening_justification`, `identified_risks`                                           | Substituídas por `triages.*`; sem referências em `src/`.   |
-| `pending_items` | `requested_fields`, `requires_attachment`, `expected_attachment_type`, `resolution`, `resolved_by`, `resolved_at` | Legado anterior ao contrato 03; sem referências em `src/`. |
-| `attachments`   | `is_restricted`                                                                                                   | A aplicação grava apenas `false` e nunca lê/filtra.        |
+| Tabela          | Colunas                                                                                                           | Situação                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `requests`      | `preliminary_complexity`, `screening_justification`, `identified_risks`                                           | Substituídas por `triages.*`; sem referências em `src/`.                                       |
+| `pending_items` | `requested_fields`, `requires_attachment`, `expected_attachment_type`, `resolution`, `resolved_by`, `resolved_at` | Legado anterior ao contrato 03; sem referências em `src/`.                                     |
+| `attachments`   | `is_restricted`                                                                                                   | A aplicação gravava apenas `false`, nunca lia/filtrava; as gravações foram removidas neste PR. |
 
 Observações:
 
 - `requests.screening_result` **não** é legado: continua sendo lido/escrito.
 - `pending_items.description` **não** é legado: é fallback de `comment`.
-- `attachments.is_restricted` é populado nos seeds com `true`/`false`, mas a
-  aplicação não consome o valor.
+- `attachments.is_restricted` era populado nos seeds e em dois repositórios
+  (`requests.repository.ts` e `pendingItems.repository.ts`), mas nunca era lido
+  ou filtrado. Seeds e gravações foram ajustados neste PR.
 
 ### 2. FKs sem índice
 
@@ -100,10 +101,12 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
 - **Participante interno ou externo**: a aplicação grava `user_id` para
   internos e `name`/`email` para externos, mas o banco aceitava uma linha sem
   nenhum dos dois.
-- **Domínio de `audit_history.change_origin`**: `admin`, `system`, `internal` e
-  `requester`, sem CHECK no banco.
+- **Domínio de `audit_history.change_origin`**: os valores gravados pela
+  aplicação são `user`, `admin`, `system`, `requester`, `manual`, `internal` e
+  `self` (`src/shared/audit/auditCatalog.ts`), sem CHECK no banco.
 - **Domínio de `requests.screening_result`**: `elegivel` e `nao_elegivel` (ou
-  `NULL`), sem CHECK no banco. Um typo virava "não elegível" silenciosamente.
+  `NULL`), sem CHECK no banco. Um typo virava "não elegível" silenciosamente. O
+  CHECK criado é defensivo: o fluxo atual apenas lê a coluna.
 
 ### 4. Timezone
 
@@ -127,11 +130,13 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
 ### 6. Índices ociosos e redundantes — resolvido
 
 - `idx_attachments_restricted` foi removido junto da coluna
-  `attachments.is_restricted`, que a aplicação nunca filtra nem lê.
-- `idx_mappings_request`, `idx_pending_items_request` e
-  `idx_mapping_participants_mapping` foram removidos: seus prefixos já são
-  atendidos, respectivamente, por `idx_mappings_request_concluded`,
-  `idx_pending_items_request_status` e pelas duas UKs de `mapping_participants`.
+  `attachments.is_restricted`, que a aplicação nunca filtrava nem lia; as duas
+  inserções que ainda gravavam `false` também foram removidas neste PR.
+- `idx_mappings_request`, `idx_pending_items_request`,
+  `idx_mapping_participants_mapping` e `idx_attachments_request` foram
+  removidos: seus prefixos já são atendidos, respectivamente, por
+  `idx_mappings_request_concluded`, `idx_pending_items_request_status`, pelas
+  duas UKs de `mapping_participants` e por `idx_attachments_request_uploaded`.
 
 ### 7. Defaults divergentes da aplicação — resolvido
 
@@ -141,6 +146,9 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
 - `statuses.is_active` nascia `false`, embora a aplicação só exiba status ativos.
   Já houve correção reativa (`20260920000001_activate_triage_exit_statuses.js`);
   o default continua sendo a origem do problema.
+- Os seeds de desenvolvimento agora informam `must_change_password`
+  explicitamente: `false` para os usuários de teste e `true` apenas nos três
+  cenários de troca pendente, para não depender do novo default.
 
 ### 8. Colunas de auditoria curtas — resolvido
 
@@ -208,15 +216,20 @@ Migration `20260929000000_database_review_integrity_tuning.js`:
    para `true`.
 2. Alarga para `varchar(254)` as colunas de e-mail que ainda eram `varchar(100)`
    (`mappings.created_by`/`updated_by` e `pending_items.created_by`).
-3. Remove os três índices redundantes e cria os três índices de consulta do
-   item 9.
-4. Cria `ck_audit_history_change_origin` e `ck_requests_screening_result`,
-   ambos com `NOT VALID` + `VALIDATE`. Os valores distintos foram conferidos
-   antes da criação; a aplicação também grava `requester` em `change_origin`,
-   que não aparecia nos seeds.
+3. Remove os quatro índices redundantes (`idx_mappings_request`,
+   `idx_pending_items_request`, `idx_mapping_participants_mapping` e
+   `idx_attachments_request`) e cria os três índices de consulta do item 9.
+4. Cria `ck_audit_history_change_origin` com o domínio completo de `ChangeOrigin`
+   (`user`, `admin`, `system`, `requester`, `manual`, `internal`, `self`) e
+   `ck_requests_screening_result`, ambos com `NOT VALID` + `VALIDATE`. Uma
+   consulta de preflight aborta a migration com mensagem acionável se houver
+   valor histórico fora do domínio. `screening_result` é constraint defensiva:
+   o aplicativo apenas lê a coluna.
 5. Recria a FK `mapping_participants_user_id_foreign` com `ON DELETE RESTRICT`.
 
-O `down` restaura defaults, larguras, índices, CHECKs e a FK originais.
+O `down` restaura defaults, larguras, índices, CHECKs e a FK originais. Se um
+e-mail de 101–254 caracteres tiver sido gravado após o `up`, o estreitamento
+para `varchar(100)` no `down` falha — limitação conhecida do rollback.
 
 ## Validação
 
@@ -224,10 +237,16 @@ Executada contra PostgreSQL 18 em Docker:
 
 - `npm run migrate:latest` — 58 migrations no total;
 - `npm run seed:run` — 11 seeds;
-- rollback e reaplicação das três migrations da revisão;
+- rollback e reaplicação das três migrations da revisão (com seeds aplicados);
 - conferência via `psql` dos índices, das CHECKs, da ausência das colunas
   legadas, dos defaults e do tipo `timestamp with time zone` em
   `audit_history.occurred_at`;
+- smoke test dos fluxos que a validação anterior não cobria: insert de anexo de
+  solicitação e de pendência sem `is_restricted`, inserts em `audit_history` com
+  os sete valores reais de `change_origin` (`user`, `admin`, `system`,
+  `requester`, `manual`, `internal`, `self`) e verificação de que os usuários de
+  seed têm `must_change_password` explícito (`false` nos de teste, `true` nos
+  três cenários de troca pendente);
 - testes negativos: e-mail duplicado em caixa diferente, `concluded_at`
   divergente de `is_concluded`, participante sem `user_id`/nome/e-mail, segundo
   mapeamento aberto, `change_origin` fora do domínio, `screening_result`

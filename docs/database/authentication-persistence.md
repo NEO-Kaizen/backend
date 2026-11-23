@@ -134,7 +134,9 @@ Cada usuário possui um identificador único, um e-mail utilizado para identific
 - `profile_id` referencia `profiles.profile_id`;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
 - `must_change_password` possui valor padrão `TRUE` desde a revisão #130,
-  alinhado ao cadastro feito pela aplicação;
+  alinhado ao cadastro feito pela aplicação. Os seeds informam o valor
+  explicitamente (`false` nos usuários de teste, `true` nos cenários de troca
+  pendente), para não depender do default;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
 ### Relacionamento com `profiles`

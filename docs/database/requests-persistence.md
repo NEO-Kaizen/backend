@@ -389,9 +389,10 @@ Metadados dos anexos derivados no servidor.
 
 - `content_type` restrito a PDF, DOCX, XLSX, PNG e JPG
   (`ck_attachments_content_type`).
-- Índices: `idx_attachments_request`, `_pending_item`, `_uploaded_at`,
-  `_request_uploaded` (novo, para a listagem ordenada por envio). A coluna
-  `is_restricted` e seu índice ocioso foram removidos pela revisão do banco.
+- Índices: `_pending_item`, `_uploaded_at` e `_request_uploaded` (novo, para a
+  listagem ordenada por envio). O antigo `idx_attachments_request` foi removido
+  por ser redundante com `_request_uploaded`. A coluna `is_restricted` e seu
+  índice ocioso foram removidos pela revisão do banco.
 
 ## Tabela `request_time_preferences`
 

@@ -19,6 +19,9 @@
  * @returns { Promise<void> }
  */
 export async function up(knex) {
+  // `CONCURRENTLY` não cabe aqui: o Knex roda cada migration em transação e o
+  // PostgreSQL proíbe `CREATE INDEX CONCURRENTLY` dentro de transação. A
+  // construção dos índices únicos deve acontecer em janela sem escrita.
   await knex.raw(
     'CREATE UNIQUE INDEX IF NOT EXISTS "uk_users_email_ci" ON "users" (lower("email"))',
   );
