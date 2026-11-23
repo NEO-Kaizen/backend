@@ -107,11 +107,11 @@ export async function listProfilePermissions(
 }
 
 /**
- * Cria a extensão de profissional dentro da transação fornecida (atômica com a
- * criação do usuário). `professional_id` nasce do default da coluna
- * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
- * `specialties` e `attended_category_ids` são textos separados por vírgula —
- * mesmo formato lido pelo card de profissionais atribuíveis.
+ * Garante a Extensão de profissional dentro da transação. Se ausente, cria a
+ * linha com o conteúdo opcional; se já existe, mantém o registro sem sobrescrever.
+ * `professional_id`, `capacity` e `status` usam os defaults do schema.
+ * `specialties` e `attended_category_ids` são serializados como texto separado
+ * por vírgulas, no formato lido pelo diretório de profissionais atribuíveis.
  */
 export async function createProfessionalData(
   trx: Knex.Transaction,
