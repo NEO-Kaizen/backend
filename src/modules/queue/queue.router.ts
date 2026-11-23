@@ -6,8 +6,8 @@ import { getMappingController, putMappingController } from "./mapping.controller
 
 const queueRoutes = express.Router();
 
-// Fila e métricas: a chave faz o gate; o service aplica a Custódia de
-// `queue:read` (Fila do ator por `requests.responsible_id`).
+// Fila e métricas: a chave faz o gate; o service aplica `queue:read` à
+// Custódia do Responsável da solicitação ou do Mapeamento corrente.
 queueRoutes.get("/metrics", authMiddleware, requirePermission("queue:read"), getMetricsController);
 
 queueRoutes.get("/", authMiddleware, requirePermission("queue:read"), centralizedQueue);

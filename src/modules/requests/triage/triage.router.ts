@@ -7,8 +7,8 @@ const triageRoutes = express.Router();
 
 triageRoutes.use(authMiddleware);
 
-// Leitura e escrita por chave; a Custódia (`requests.responsible_id`) é
-// aplicada no service, em um lugar só por domínio.
+// Leitura e escrita por chave; a Custódia vem de
+// `requests.professional_id` → `details_professional.user_id`.
 triageRoutes.get("/:protocol/triage", requirePermission("triage:read"), getTriage);
 triageRoutes.post("/:protocol/triage", requirePermission("triage:write"), saveTriage);
 

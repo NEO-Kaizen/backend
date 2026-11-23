@@ -11,7 +11,7 @@ import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import type { NamedPermissionActor } from "../../../shared/access/permissionActor.ts";
 import * as repository from "./triage.repository.ts";
 
-/** Custódia da triagem: `requests.responsible_id` (§ 5 do contrato RBAC). */
+/** Custódia da Triagem: user_id ligado a `requests.professional_id` (§5 RBAC). */
 function hasTriageCustody(
   actor: NamedPermissionActor,
   key: PermissionKey,
