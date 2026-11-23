@@ -21,6 +21,27 @@ const NOTIFICATION_COLUMNS = [
   "created_at",
 ] as const;
 
+/**
+ * Lê o `created_at` exato da âncora (microssegundos) como texto. O driver
+ * converte TIMESTAMPTZ para `Date` em milissegundos; usar esse `Date` no
+ * comparativo faria a própria âncora ser reenviada no replay e poderia
+ * pular/reordenar itens que dividem o mesmo milissegundo.
+ */
+async function findAnchorCreatedAt(
+  recipientUserId: number,
+  notificationId: string,
+): Promise<string | undefined> {
+  const row = (await db("notifications")
+    .where({
+      notification_id: notificationId,
+      recipient_user_id: recipientUserId,
+    })
+    .select(db.raw(`to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.USOF') as created_at`))
+    .first()) as { created_at: string } | undefined;
+
+  return row?.created_at;
+}
+
 export async function listByRecipient(
   recipientUserId: number,
   cursor: NotificationCursor | null,
@@ -37,20 +58,16 @@ export async function listByRecipient(
     .limit(limit + 1);
 
   if (cursor) {
-    // A âncora é relida do banco: `created_at` é TIMESTAMPTZ com precisão de
-    // microssegundos, enquanto o cursor carrega o Date (milissegundos). Usar o
-    // valor exato evita pular a Notificação seguinte quando várias dividem o
-    // mesmo instante (ex.: vários destinatários na mesma transação).
-    const anchor = (await db("notifications")
-      .where({ notification_id: cursor.notificationId, recipient_user_id: recipientUserId })
-      .first("created_at")) as { created_at: Date | string } | undefined;
+    // A âncora é relida do banco como texto com microssegundos; o cursor
+    // carrega apenas o id e não pode depender do Date truncado pelo driver.
+    const anchorCreatedAt = await findAnchorCreatedAt(recipientUserId, cursor.notificationId);
 
-    if (!anchor) {
+    if (!anchorCreatedAt) {
       throw new AppError("Cursor inválido.", 400);
     }
 
-    query = query.whereRaw("(created_at, notification_id) < (?, ?)", [
-      anchor.created_at,
+    query = query.whereRaw("(created_at, notification_id) < (?::timestamptz, ?::uuid)", [
+      anchorCreatedAt,
       cursor.notificationId,
     ]);
   }
@@ -78,23 +95,25 @@ export async function findByIdsForRecipient(
  * Notificações criadas depois da âncora (`Last-Event-ID`) para o destinatário.
  * A âncora precisa pertencer ao destinatário; caso contrário, nada é
  * reenviado — a consulta não revela Notificação de terceiros.
+ *
+ * O comparativo usa o `created_at` exato (microssegundos) e exclui a própria
+ * âncora, então reconectar não reenvia o último evento recebido.
  */
 export async function findAfterIdForRecipient(
   recipientUserId: number,
   notificationId: string,
 ): Promise<NotificationRow[]> {
-  const anchor = (await db("notifications")
-    .where({
-      notification_id: notificationId,
-      recipient_user_id: recipientUserId,
-    })
-    .first("created_at")) as { created_at: Date | string } | undefined;
+  const anchorCreatedAt = await findAnchorCreatedAt(recipientUserId, notificationId);
 
-  if (!anchor) return [];
+  if (!anchorCreatedAt) return [];
 
   return (await db("notifications")
     .where("recipient_user_id", recipientUserId)
-    .whereRaw("(created_at, notification_id) > (?, ?)", [anchor.created_at, notificationId])
+    .whereNot("notification_id", notificationId)
+    .whereRaw("(created_at, notification_id) > (?::timestamptz, ?::uuid)", [
+      anchorCreatedAt,
+      notificationId,
+    ])
     .select(NOTIFICATION_COLUMNS)
     .orderBy([
       { column: "created_at", order: "asc" },
