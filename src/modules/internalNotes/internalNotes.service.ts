@@ -25,6 +25,7 @@ import type {
   TimelineNote,
   TriageHistoryEntry,
 } from "../DTOs/internalNotes/InternalNotes.dto.ts";
+import { toActorProfileSnapshot, toProfileSnapshot } from "../../shared/types/profile.ts";
 import * as repository from "./internalNotes.repository.ts";
 import type { ListTimelineQuery, TimelineCursorPayload } from "./internalNotes.schema.ts";
 
@@ -41,13 +42,17 @@ function toNoteDTO(row: InternalNoteRow): TimelineNote {
     author: {
       id: String(row.author_user_id),
       name: row.author_name,
-      role: row.author_role_at_creation,
+      profile: toProfileSnapshot(
+        row.author_profile_id_at_creation,
+        row.author_profile_name_at_creation,
+      ),
     },
   };
 }
 
 export interface InternalNotesActor extends PermissionActor {
-  readonly role: string;
+  readonly profileId: string;
+  readonly profileName: string;
 }
 
 async function requireRequestAccess(
@@ -58,8 +63,13 @@ async function requireRequestAccess(
 ): Promise<string> {
   const request = await repository.findRequestIdByProtocol(protocol);
 
-  if (!request || !hasResponsibleCustody(actor, key, request.responsible_user_id)) {
+  if (!request) {
+    // Recurso inexistente não é recusa de Permissão: nenhuma chave vai para a trilha.
     return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`);
+  }
+
+  if (!hasResponsibleCustody(actor, key, request.responsible_user_id)) {
+    return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`, [key]);
   }
 
   return String(request.request_id);
@@ -188,18 +198,19 @@ function composeEventText(
 interface ActorSource {
   actor_user_id: number | null;
   actor_name: string | null;
+  actor_profile_id: number | null;
   actor_profile_name: string | null;
 }
 
 function toActorDTO(row: ActorSource): TimelineActorDTO | null {
-  if (row.actor_user_id === null || row.actor_name === null || row.actor_profile_name === null) {
+  if (row.actor_user_id === null || row.actor_name === null) {
     return null;
   }
 
   return {
     id: String(row.actor_user_id),
     name: row.actor_name,
-    role: row.actor_profile_name,
+    profile: toActorProfileSnapshot(row.actor_profile_id, row.actor_profile_name),
   };
 }
 
@@ -360,7 +371,7 @@ export async function createInternalNote(
   const requestId = await requireRequestAccess(protocol, actor, "internal_note:write", ipAddress);
   const internalNoteId = await repository.insert(
     requestId,
-    { userId: actor.id, role: actor.role },
+    { userId: actor.id, profileId: actor.profileId, profileName: actor.profileName },
     payload.content,
   );
   const note = await repository.findById(internalNoteId);

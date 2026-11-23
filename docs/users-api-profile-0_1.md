@@ -22,7 +22,7 @@ export interface UserProfileResponseDTO {
   id: string; // user_id como string
   fullName: string; // nome completo do usuário (autoeditável)
   email: string; // e-mail corporativo (imutável)
-  role: string; // nome real do Perfil em `profiles.name`
+  profile: { id: string; name: string }; // identidade estável + rótulo do Perfil
   avatarUrl: string | null; // URL da foto em /uploads/avatars/<arquivo> ou null
   requester: RequesterProfileBlock | null; // bloco de solicitante (nullable)
   professional: ProfessionalProfileBlock | null; // presente para Perfil ativo com flag de Atribuibilidade
@@ -106,7 +106,7 @@ export interface UserProfileResponseDTO {
   id: string;
   fullName: string;
   email: string;
-  role: string;
+  profile: { id: string; name: string };
   avatarUrl: string | null;
   requester: RequesterProfileBlock | null;
   professional: ProfessionalProfileBlock | null;
@@ -129,7 +129,7 @@ HTTP/1.1 200 OK
   "id": "42",
   "fullName": "Fernando Alves",
   "email": "fernando.alves@neo.com.br",
-  "role": "Analista",
+  "profile": { "id": "2", "name": "Analista" },
   "avatarUrl": "/uploads/avatars/abc123-def456.jpg",
   "requester": {
     "area": "Tecnologia",
@@ -162,7 +162,7 @@ HTTP/1.1 200 OK
   "id": "17",
   "fullName": "Maria Oliveira",
   "email": "maria.oliveira@neo.com.br",
-  "role": "Solicitante",
+  "profile": { "id": "1", "name": "Solicitante" },
   "avatarUrl": null,
   "requester": {
     "area": "Recursos Humanos",
@@ -183,7 +183,7 @@ HTTP/1.1 200 OK
   "id": "8",
   "fullName": "Ana Costa",
   "email": "ana.costa@neo.com.br",
-  "role": "Analista",
+  "profile": { "id": "2", "name": "Analista" },
   "avatarUrl": null,
   "requester": null,
   "professional": {
@@ -276,7 +276,7 @@ HTTP/1.1 200 OK
   "id": "17",
   "fullName": "Maria Oliveira Santos",
   "email": "maria.oliveira@neo.com.br",
-  "role": "Solicitante",
+  "profile": { "id": "1", "name": "Solicitante" },
   "avatarUrl": null,
   "requester": {
     "area": "Recursos Humanos",
@@ -317,7 +317,7 @@ HTTP/1.1 200 OK
   "id": "42",
   "fullName": "Fernando Alves",
   "email": "fernando.alves@neo.com.br",
-  "role": "Analista",
+  "profile": { "id": "2", "name": "Analista" },
   "avatarUrl": "/uploads/avatars/xyz789-abc123.jpg",
   "requester": {
     "area": "Tecnologia",
@@ -472,6 +472,8 @@ administrados pelo portal:
 
 ```ts
 interface UpdateUserRequest {
+  email?: string;
+  profileId?: string; // identidade estável do Perfil de destino
   requester?: {
     area?: string;
     department?: string | null; // null remove o departamento
@@ -487,9 +489,9 @@ interface UpdateUserRequest {
 ```
 
 O modal também expõe `fullName`. O endpoint mantém compatibilidade com os
-demais campos administrativos já existentes (`email` e `role`), que não são
-expostos pelo modal desta versão. `professional` pode ser atualizado sem
-reenviar `role`; o service valida as flags do Perfil atual no banco.
+demais campos administrativos já existentes (`email` e `profileId`), que não
+são expostos pelo modal desta versão. `professional` pode ser atualizado sem
+reenviar `profileId`; o service valida as flags do Perfil atual no banco.
 
 **Response 200:** `UserProfileResponseDTO` atualizado.
 
@@ -507,7 +509,7 @@ erros de validação por campo e `404` para usuário inexistente.
 ## Observações do contrato
 
 - `fullName`, `requester.additionalContact` e avatar são autoeditáveis por qualquer perfil. Quem tem `user:manage` também pode editar `requester.area`, `requester.department` e `requester.manager`; para os demais perfis, esses campos continuam exclusivos do fluxo administrativo em `PUT /users/:id`.
-- O campo `role` na resposta é o nome real do Perfil em `profiles.name`; Perfis customizados aparecem pelo nome configurado.
+- O campo `profile` na resposta é `{ id, name }`: `id` é `String(profiles.profile_id)`, a identidade estável, e `name` é o nome real do Perfil. Perfis customizados aparecem pelo nome configurado. Nome e ID não participam da autorização.
 - `avatarUrl` é `null` quando o usuário não tem foto. A URL é relativa ao host: `/uploads/avatars/<storageKey>`. O servidor serve `/uploads/*` via `express.static` (conforme `app.ts`).
 - A Extensão de profissional (`details_professional`) nasce na mesma transação da conta quando o Perfil está ativo e tem uma flag de Atribuibilidade; recebe backfill transacional ao ligar uma flag em Perfil com usuários ativos ou ao mover uma conta para Perfil ativo com flag. Seu conteúdo é opcional. Para uma conta legada sem linha, `GET /users/me` devolve o bloco `professional` com defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`) sem inserir a extensão; essa conta permanece fora do diretório até o backfill.
 - A API recusa com `409 user_has_open_assignments` tanto a desativação quanto a mudança para Perfil não atribuível enquanto a conta for Responsável por solicitações abertas. Reatribua essas solicitações antes da operação; após isso, ao mover para Perfil não atribuível, a Extensão é removida na mesma transação.
@@ -515,7 +517,7 @@ erros de validação por campo e `404` para usuário inexistente.
 - `removeAvatar: true` no JSON remove a foto do disco (`fs.unlink`) e define `users.avatar_url = null` na mesma transação da auditoria. Se o arquivo já não existe, a operação não falha (best-effort de remoção).
 - Atualização de nome, dados permitidos de requester, referência do avatar e auditoria ocorre na **mesma transação** de banco.
 - Auditoria: toda atualização gera evento `user.update_profile` no catálogo de auditoria (`src/shared/audit/auditCatalog.ts`), com `previousValue` (snapshot anterior em JSON) e `newValue` (JSON resumido dos campos alterados + `avatarChanged`).
-- Valores de `role` são nomes de Perfil retornados diretamente do banco. Limites de caracteres (Especificação 3.0 §4 / validação Zod) são espelhados entre UI e backend.
+- O Perfil é referenciado por `profileId` (`String(profiles.profile_id)`); o nome é só rótulo de exibição. Limites de caracteres (Especificação 3.0 §4 / validação Zod) são espelhados entre UI e backend.
 - A rota `PUT /users/me` está posicionada **antes** dos gates de chave no router — é acessível a qualquer perfil interno autenticado (self-service); a exceção de área/departamento/gestor é decidida pela chave `user:manage`.
 - `POST /requests` e `GET /requests` continuam inalterados por esta issue; o `corporate_email` do bloco requester de `PUT /users/me` não afeta a lógica de criação de solicitações (que usa `resolveRequesterId` por e-mail independentemente).
 - Foto de perfil é pública via `GET /uploads/*` (decisão MVP). Restrição de visibilidade pode ser adicionada em issue futura.

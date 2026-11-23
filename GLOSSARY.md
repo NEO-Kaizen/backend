@@ -134,6 +134,10 @@ _Evitar_: cadastro de analista, dados profissionais.
 Conjunto de permissões atribuído a um usuário. Os cinco perfis base — _Solicitante_, _Analista_, _Visualizador_, _Administrador_ e _Admin Root_ — são semeados com a matriz de referência. O _Solicitante_ base tem as três chaves de autoatendimento (`request:create`, `request:track` e `pending_item:respond`) e nenhuma chave interna. Perfis customizados são compostos das mesmas permissões por quem tem `profile:manage`; o cliente cria perfis, não capabilities. O _Solicitante_ descreve um ator externo e não ocupa a hierarquia interna.
 _Evitar_: papel, cargo, função, role.
 
+**Referência de Perfil**:
+Par `{ id, name }` que aponta para um Perfil. `id` é `String(profiles.profile_id)`, a identidade estável usada em URLs e payloads (`profileId`); `name` é o rótulo de exibição, mutável. Em snapshot histórico de Nota interna ou auditoria, o par é congelado; quando só o nome foi registrado, `id` é `null` e nunca é inferido. Nome e ID não autorizam — a decisão é por Permissões e Custódia.
+_Evitar_: role, nome do perfil como identificador.
+
 **Admin Root**:
 Perfil raiz do sistema, identificado por `is_root` e único: existe no máximo uma conta com ele, criada apenas pelo seed, sem auto-registro nem promoção pela API e fora das rotas administrativas. Tem todas as permissões, gerencia qualquer conta — inclusive de autoridade igual — e é o único que edita o perfil Admin Root.
 _Evitar_: super-admin, root, administrador mestre.

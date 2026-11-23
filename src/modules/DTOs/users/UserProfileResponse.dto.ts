@@ -1,9 +1,11 @@
+import type { ProfileReference } from "../../../shared/types/profile.ts";
+
 /** Resposta de `GET /users/me` e `GET /users/:id` — perfil completo. */
 export interface UserProfileResponseDTO {
   id: string;
   fullName: string;
   email: string;
-  role: string;
+  profile: ProfileReference;
   avatarUrl: string | null;
   requester: RequesterProfileBlock | null;
   professional: ProfessionalProfileBlock | null;

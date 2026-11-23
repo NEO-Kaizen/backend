@@ -27,7 +27,7 @@ Exige sessão e `assignee_directory:read`. Retorna apenas contas ativas, com ext
 AssignableProfessional[] // lista direta de profissionais atribuíveis à etapa, sem envelope paginado
 ```
 
-> `listUsers` (admin) continua `GET /users?profile=&search=&category=&page=&pageSize=` paginado `PaginatedResponse<UserSummary>`; `listAssignableProfessionals` (assignment.service) usa `GET /users/analysts?stage=...` (ou omite a etapa para Triagem).
+> `listUsers` (admin) continua `GET /users?profileId=&search=&page=&pageSize=` paginado `PaginatedResponse<UserSummary>`; `listAssignableProfessionals` (assignment.service) usa `GET /users/analysts?stage=...` (ou omite a etapa para Triagem).
 
 ```ts
 interface AssignableProfessional {

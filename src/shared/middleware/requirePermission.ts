@@ -18,6 +18,7 @@ async function recordDeniedPermissionAttempt(
       userId: actorId,
       note,
       ipAddress: req.ip,
+      deniedPermissionKeys: keys,
     });
     return;
   }
@@ -33,6 +34,7 @@ async function recordDeniedPermissionAttempt(
     userId: actorId,
     note,
     ipAddress: req.ip,
+    deniedPermissionKeys: keys,
   });
 }
 

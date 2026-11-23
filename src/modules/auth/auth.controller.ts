@@ -53,7 +53,7 @@ export const authenticate = async (req: Request, res: Response) => {
       name: foundUser.name,
       email: foundUser.email,
       avatarUrl: foundUser.avatarUrl,
-      role: foundUser.role,
+      profile: foundUser.profile,
       mustChangePassword: true,
     };
 
@@ -75,7 +75,7 @@ export const authenticate = async (req: Request, res: Response) => {
     name: foundUser.name,
     email: foundUser.email,
     avatarUrl: foundUser.avatarUrl,
-    role: foundUser.role,
+    profile: foundUser.profile,
     mustChangePassword: false,
   };
 
@@ -91,7 +91,7 @@ export const me = async (req: Request, res: Response) => {
     name: sessionUser.name,
     email: sessionUser.email,
     avatarUrl: sessionUser.avatarUrl,
-    role: sessionUser.role,
+    profile: sessionUser.profile,
     mustChangePassword: sessionUser.mustChangePassword,
     permissions: sessionUser.permissions,
   };
@@ -124,7 +124,7 @@ export const changePassword = async (req: Request, res: Response) => {
     name: updated.name,
     email: updated.email,
     avatarUrl: updated.avatarUrl,
-    role: updated.role,
+    profile: updated.profile,
     mustChangePassword: false,
   };
 

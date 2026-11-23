@@ -21,13 +21,14 @@ function protocolFromRequest(req: Request): string {
 
 function actorFromRequest(req: Request): InternalNotesActor {
   const actor = permissionActorFromRequest(req);
-  const role = req.user?.role;
+  const profileId = req.user?.profileId;
+  const profileName = req.user?.profileName;
 
-  if (!role) {
+  if (!profileId || !profileName) {
     throw new AppError("Token inválido ou expirado", 401);
   }
 
-  return { ...actor, role };
+  return { ...actor, profileId, profileName };
 }
 
 export const listInternalNotes = async (req: Request, res: Response): Promise<Response> => {

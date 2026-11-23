@@ -2,8 +2,10 @@ export interface InternalNoteRow {
   internal_note_id: string;
   request_id: string;
   author_user_id: number;
-  /** Snapshot do Perfil na época da criação; não participa da autorização. */
-  author_role_at_creation: string;
+  /** Snapshot da identidade do Perfil na criação; `null` em notas antigas. */
+  author_profile_id_at_creation: number | null;
+  /** Snapshot do nome do Perfil na criação; não participa da autorização. */
+  author_profile_name_at_creation: string;
   content: string;
   created_at: Date;
   author_name: string;
@@ -54,6 +56,9 @@ export interface TimelineEventRow {
   occurred_at: Date;
   actor_user_id: number | null;
   actor_name: string | null;
+  /** Snapshot da identidade do Perfil do ator; `null` em eventos antigos. */
+  actor_profile_id: number | null;
+  /** Snapshot do nome do Perfil do ator; `null` em eventos antigos. */
   actor_profile_name: string | null;
 }
 

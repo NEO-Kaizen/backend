@@ -175,7 +175,7 @@ interface TimelineNote {
   id: string; // internal_note_id (numérico) — usado no PUT /read
   content: string; // 1..4000 (trim), imutável
   createdAt: string; // ISO-8601 UTC
-  author: { id: string; name: string; role: string };
+  author: { id: string; name: string; profile: { id: string | null; name: string } };
 }
 
 interface TimelineEvent {
@@ -185,7 +185,7 @@ interface TimelineEvent {
   text: string; // frase completa já renderizada no BE, pt-BR (§8)
   // ex.: "Status alterado: Em triagem" · "Responsável removido"
   occurredAt: string; // ISO-8601 UTC (audit_history.occurred_at)
-  actor: { id: string; name: string; role: string } | null; // null = usuário removido/inexistente
+  actor: { id: string; name: string; profile: { id: string; name: string } | null } | null; // null = ação de sistema
   changeOrigin: TimelineChangeOrigin;
   // Opcionais e restritos a `request.status_change` (issue #124):
   justification?: string | null; // justificativa INTERNA (audit_history.note); nunca o retorno público
@@ -271,7 +271,7 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
 - **Response:** `201` `TimelineNote` completa (`type: "note"` incluído, para o
   frontend poder inserir na timeline sem transformação).
 - **Autoria:** obtida exclusivamente da sessão (`user_id` +
-  `author_role_at_creation`); o cliente nunca envia autoria.
+  `author_profile_id_at_creation`/`author_profile_name_at_creation`); o cliente nunca envia autoria.
 - **Erros:** `400` `content` vazio/ausente ou > 4000
   (`A observação deve ter no máximo 4000 caracteres.`) · `401` · `403` · `404`.
 - Publicar **não** avança o checkpoint do autor (nem gera badge para ele).
@@ -359,12 +359,12 @@ O cliente nunca interpreta o conteúdo — só repassa de resposta em resposta.
     `lastTechnicalMessage` do snapshot `audit_history.last_technical_message`
     (preenchido só no destino público; `null` no interno).
 
-- **`actor`:** `audit_history.user_id` LEFT JOIN `users` ⋈ `profiles`.
-  `user_id` nulo (ação de sistema, ex. gatilho RN-010/mapping.complete, ou
-  usuário removido — FK `SET NULL`) → `actor: null`. Diferente das notas
-  (`author_role_at_creation`), **eventos não preservam perfil histórico**:
-  `actor.role` é o perfil **vigente** do usuário no momento da leitura,
-  capitalizado no JSON.
+- **`actor`:** `audit_history.user_id` LEFT JOIN `users`. `user_id` nulo
+  (ação de sistema, ex. gatilho RN-010/mapping.complete) → `actor: null`.
+  Notas e eventos preservam o Perfil da época em snapshot
+  (`author_profile_id_at_creation`/`author_profile_name_at_creation` e
+  `actor_profile_id`/`actor_profile_name`). Eventos anteriores ao snapshot
+  expõem `actor.profile: null`; nenhum Perfil é inferido do nome.
 - **IDs namespaced:** notas mantêm o id numérico puro (compatível com
   `PUT /read`); eventos usam `audit:<audit_id>` — chaves únicas na união e
   pré-existem no contrato do frontend.
@@ -442,7 +442,7 @@ página** (D-N9).
       "action": "mapping.assign",
       "text": "Responsável pelo mapeamento alterado: Júlia Reis",
       "occurredAt": "2026-09-19T14:11:02.000Z",
-      "actor": { "id": "9", "name": "Júlia Reis", "role": "Analista" },
+      "actor": { "id": "9", "name": "Júlia Reis", "profile": { "id": "2", "name": "Analista" } },
       "changeOrigin": "internal"
     },
     {
@@ -451,7 +451,11 @@ página** (D-N9).
       "action": "request.assign",
       "text": "Responsável atribuído: Marcos Lima",
       "occurredAt": "2026-09-18T15:05:44.000Z",
-      "actor": { "id": "2", "name": "Carla Dias", "role": "Administrador" },
+      "actor": {
+        "id": "2",
+        "name": "Carla Dias",
+        "profile": { "id": "3", "name": "Administrador" }
+      },
       "changeOrigin": "admin"
     }
   ],
@@ -524,7 +528,7 @@ página** (D-N9).
       "id": "2",
       "content": "A área responsável foi acionada e deve retornar até o fim do dia.",
       "createdAt": "2026-09-18T16:20:00.000Z",
-      "author": { "id": "2", "name": "Marcos Lima", "role": "Gestor" }
+      "author": { "id": "2", "name": "Marcos Lima", "profile": { "id": "4", "name": "Gestor" } }
     },
     {
       "type": "event",
@@ -532,7 +536,7 @@ página** (D-N9).
       "action": "request.status_change",
       "text": "Status alterado: Em triagem",
       "occurredAt": "2026-09-18T15:02:10.000Z",
-      "actor": { "id": "7", "name": "Ana Souza", "role": "Analista" },
+      "actor": { "id": "7", "name": "Ana Souza", "profile": { "id": "2", "name": "Analista" } },
       "changeOrigin": "admin"
     },
     {
@@ -540,7 +544,7 @@ página** (D-N9).
       "id": "1",
       "content": "Os critérios iniciais foram revisados. Precisamos confirmar a alçada de aprovação antes do mapeamento.",
       "createdAt": "2026-09-18T13:45:00.000Z",
-      "author": { "id": "7", "name": "Ana Souza", "role": "Analista" }
+      "author": { "id": "7", "name": "Ana Souza", "profile": { "id": "2", "name": "Analista" } }
     }
   ],
   "nextCursor": null,
@@ -580,7 +584,7 @@ página** (D-N9).
   "id": "3",
   "content": "Confirmar alçada com o financeiro na sexta.",
   "createdAt": "2026-09-22T17:12:00.000Z",
-  "author": { "id": "7", "name": "Ana Souza", "role": "Analista" }
+  "author": { "id": "7", "name": "Ana Souza", "profile": { "id": "2", "name": "Analista" } }
 }
 ```
 

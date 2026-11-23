@@ -27,6 +27,7 @@ function recordTriageAccessDenied(
   actor: NamedPermissionActor,
   ipAddress: string | undefined,
   detail: string,
+  deniedPermissionKeys: readonly PermissionKey[],
 ): Promise<void> {
   return recordAccessDeniedAttempt({
     entityType: "request",
@@ -34,6 +35,7 @@ function recordTriageAccessDenied(
     userId: actor.id,
     note: `Triagem negada: ${detail}`,
     ipAddress,
+    deniedPermissionKeys,
   });
 }
 
@@ -49,7 +51,9 @@ export async function getTriage(
 
   const canAccess = hasTriageCustody(actor, "triage:read", request.assignee_user_id ?? null);
   if (!canAccess) {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia para ler a Triagem");
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia para ler a Triagem", [
+      "triage:read",
+    ]);
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
@@ -75,7 +79,9 @@ export async function createTriage(
   // O bypass administrativo vigente exige `request:status_override` global;
   // a Custódia de `triage:write` ainda é checada separadamente.
   if (request.status_is_restricted && !hasAdministrativeAuditOrigin(actor.permissions)) {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação em Status restrito");
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação em Status restrito", [
+      "request:status_override",
+    ]);
     throw new AppError(
       "A Triagem não pode ser registrada enquanto a solicitação estiver em status restrito.",
       403,
@@ -85,7 +91,9 @@ export async function createTriage(
 
   const canAccess = hasTriageCustody(actor, "triage:write", request.assignee_user_id ?? null);
   if (!canAccess) {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia da solicitação");
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia da solicitação", [
+      "triage:write",
+    ]);
     throw new AppError(
       "Você não tem permissão ou Custódia para registrar a Triagem.",
       403,
