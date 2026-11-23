@@ -706,7 +706,7 @@ export async function updateUser(
       } else if (wasAssignable && !isFinalAssignable) {
         await repository.deleteProfessionalData(trx, id);
       } else if (shouldCreateExtension) {
-        await repository.ensureProfessionalData(trx, id);
+        await repository.createProfessionalData(trx, id);
       }
 
       // 4. Requester (1:1) — merge parcial

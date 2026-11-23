@@ -125,23 +125,20 @@ export async function createProfessionalData(
   userId: number,
   professional?: CreateProfessionalInput,
 ): Promise<void> {
-  if (!professional) {
-    await trx("details_professional").insert({ user_id: userId });
-    return;
-  }
-
-  await trx("details_professional").insert({
-    user_id: userId,
-    job_title: professional.jobTitle,
-    specialties: professional.specialties.join(", "),
-    attended_category_ids: professional.attendedCategoryIds.join(","),
-    notes: professional.notes ?? null,
-  });
-}
-
-/** Cria a extensão se ausente, sem sobrescrever seu conteúdo existente. */
-export async function ensureProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
-  await trx("details_professional").insert({ user_id: userId }).onConflict("user_id").ignore();
+  await trx("details_professional")
+    .insert(
+      professional
+        ? {
+            user_id: userId,
+            job_title: professional.jobTitle,
+            specialties: professional.specialties.join(", "),
+            attended_category_ids: professional.attendedCategoryIds.join(","),
+            notes: professional.notes ?? null,
+          }
+        : { user_id: userId },
+    )
+    .onConflict("user_id")
+    .ignore();
 }
 
 /** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
