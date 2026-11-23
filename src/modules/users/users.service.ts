@@ -49,6 +49,7 @@ const CODE_ROOT_ACCOUNT_PROTECTED = "root_account_protected";
 const CODE_SELF_MANAGEMENT_FORBIDDEN = "self_management_forbidden";
 const CODE_PROFILE_INACTIVE = "profile_inactive";
 const CODE_USER_MANAGE_REQUIRED = "user_manage_required";
+const CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE = "professional_profile_not_assignable";
 
 function shouldCreateProfessionalExtension(
   profile: Pick<repository.ProfileLookupRow, "is_assignable_triage" | "is_assignable_mapping">,
@@ -67,7 +68,7 @@ function resolveProfessionalExtensionRequirement(
     throw new AppError(
       "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
       400,
-      "professional_profile_not_assignable",
+      CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE,
     );
   }
 
@@ -261,7 +262,7 @@ export async function createUser(
     throw new AppError(
       "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
       400,
-      "professional_profile_not_assignable",
+      CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE,
     );
   }
 
@@ -660,7 +661,7 @@ export async function updateUser(
     throw new AppError(
       "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
       400,
-      "professional_profile_not_assignable",
+      CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE,
     );
   }
   // Snapshot para auditoria
