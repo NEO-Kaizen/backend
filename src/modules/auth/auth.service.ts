@@ -8,7 +8,7 @@ import {
 import { comparePassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { ChangePasswordRequest } from "../DTOs/auth/ChangePasswordRequest.dto.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
-import type { ProfileReference } from "../../shared/types/profile.ts";
+import { toProfileReference, type ProfileReference } from "../../shared/types/profile.ts";
 import * as authRepository from "./auth.repository.ts";
 
 export interface SessionUserResult {
@@ -61,7 +61,7 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    profile: { id: String(user.profile_id), name: user.profile_name },
+    profile: toProfileReference(user.profile_id, user.profile_name),
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
   };
@@ -83,7 +83,7 @@ export async function getSessionUser(userId: number): Promise<SessionUserWithPer
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    profile: { id: String(user.profile_id), name: user.profile_name },
+    profile: toProfileReference(user.profile_id, user.profile_name),
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
     permissions: buildEffectivePermissions(grants),
@@ -141,7 +141,7 @@ export async function changePassword(
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    profile: { id: String(user.profile_id), name: user.profile_name },
+    profile: toProfileReference(user.profile_id, user.profile_name),
     mustChangePassword: false,
     passwordChangedAt: new Date(password_changed_at).getTime(),
   };

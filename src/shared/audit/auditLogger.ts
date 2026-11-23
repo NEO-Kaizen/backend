@@ -24,8 +24,9 @@ export interface AuditEntryBase {
   ipAddress?: string | null;
   changeOrigin?: string | null;
   /**
-   * Chaves de Permissão exigidas e ausentes na recusa (`*.access_denied`).
-   * Vazio nas demais ações: a chave que **autorizou** não é registrada.
+   * Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no
+   * gate ou presentes sem Custódia suficiente na linha. Vazio nas demais
+   * ações: a chave que **autorizou** não é registrada.
    */
   deniedPermissionKeys?: readonly PermissionKey[];
 }
@@ -39,6 +40,18 @@ export type AuditEntry<
   A extends ComposedAuditAction<E> = ComposedAuditAction<E>,
 > = AuditEntryBase & { entityType: E; actionType: A };
 
+interface ActorProfileRow {
+  profile_id: number;
+  name: string;
+}
+
+/** Guard de linha do banco: `recordAudit` não confia em shape sem validar. */
+function isActorProfileRow(value: unknown): value is ActorProfileRow {
+  if (typeof value !== "object" || value === null) return false;
+  if (!("profile_id" in value) || !("name" in value)) return false;
+  return Number.isInteger(value.profile_id) && typeof value.name === "string";
+}
+
 /**
  * Snapshot do Perfil do ator no momento do evento. O nome fica congelado; o
  * ID é a identidade estável. Ações de sistema (`userId` nulo) não têm Perfil.
@@ -46,17 +59,17 @@ export type AuditEntry<
 async function resolveActorProfile(
   trx: Knex.Transaction,
   userId: number | null,
-): Promise<{ id: number; name: string } | null> {
+): Promise<ActorProfileRow | null> {
   if (userId === null) {
     return null;
   }
 
-  const row = (await trx("users as u")
+  const row: unknown = await trx("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("u.user_id", userId)
-    .first("p.profile_id as id", "p.name")) as { id: number; name: string } | undefined;
+    .first("p.profile_id", "p.name");
 
-  return row ?? null;
+  return isActorProfileRow(row) ? row : null;
 }
 
 /**
@@ -97,7 +110,7 @@ export async function recordAudit<E extends AuditEntityName, A extends ComposedA
     last_technical_message: entry.lastTechnicalMessage ?? null,
     ip_address: entry.ipAddress ?? null,
     change_origin: entry.changeOrigin ?? null,
-    actor_profile_id: actorProfile?.id ?? null,
+    actor_profile_id: actorProfile?.profile_id ?? null,
     actor_profile_name: actorProfile?.name ?? null,
     denied_permission_keys: entry.deniedPermissionKeys ? [...entry.deniedPermissionKeys] : [],
   });

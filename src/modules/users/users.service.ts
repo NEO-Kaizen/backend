@@ -36,6 +36,7 @@ import type {
   ProfessionalProfileBlock,
 } from "../DTOs/users/UserProfileResponse.dto.ts";
 import type { UpdateProfilePayload } from "../DTOs/users/UpdateProfileRequest.dto.ts";
+import { toProfileReference } from "../../shared/types/profile.ts";
 import * as repository from "./users.repository.ts";
 
 const AVATAR_DIR = "avatars";
@@ -298,7 +299,7 @@ export async function createUser(
     id: String(user.user_id),
     fullName: user.full_name,
     email: user.email,
-    profile: { id: String(profile.profile_id), name: profile.name },
+    profile: toProfileReference(profile.profile_id, profile.name),
     isActive: user.is_active,
     mustChangePassword: user.must_change_password,
     createdAt: user.created_at.toISOString(),
@@ -432,7 +433,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     id: String(row.user_id),
     fullName: row.full_name,
     email: row.email,
-    profile: { id: String(row.profile_id), name: row.profile_name },
+    profile: toProfileReference(row.profile_id, row.profile_name),
     avatarUrl: row.avatar_url,
     requester: toRequesterBlock(row.requester),
     professional,
@@ -691,7 +692,7 @@ export async function updateUser(
     id: String(updated.user_id),
     fullName: updated.full_name,
     email: updated.email,
-    profile: { id: String(updated.profile_id), name: updated.profile_name },
+    profile: toProfileReference(updated.profile_id, updated.profile_name),
     avatarUrl: updated.avatar_url,
     requester: toRequesterBlock(updated.requester),
     professional: (() => {

@@ -15,23 +15,12 @@ import type {
 import * as repository from "./auditHistory.repository.ts";
 import type { AuditAccessScope } from "./auditHistory.repository.ts";
 import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
-import type { ProfileReference } from "../../shared/types/profile.ts";
+import { toActorProfileSnapshot } from "../../shared/types/profile.ts";
 import { findRequestStatusContext } from "../requests/requests.repository.ts";
 
 const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
   Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
 ) as Record<AuditEntityName, string>;
-
-/** Snapshot de Perfil do ator; eventos sem snapshot (ou de sistema) ficam `null`. */
-function toActorProfile(
-  profileId: number | string | null,
-  profileName: string | null,
-): ProfileReference | null {
-  if (profileId === null || profileName === null) {
-    return null;
-  }
-  return { id: String(profileId), name: profileName };
-}
 
 /** Recorte da Custódia `audit:read` para as consultas administrativas. */
 function auditScopeFor(actor: PermissionActor): AuditAccessScope {
@@ -62,7 +51,7 @@ export async function listAuditHistoryLogs(
       kind: row.user_id === null ? "system" : "user",
       userId: row.user_id,
       displayName: row.actor_name,
-      profile: toActorProfile(row.actor_profile_id, row.actor_profile_name),
+      profile: toActorProfileSnapshot(row.actor_profile_id, row.actor_profile_name),
     },
     occurred_at: row.occurred_at instanceof Date ? row.occurred_at.toISOString() : row.occurred_at,
   }));
@@ -90,7 +79,7 @@ function toDetail(
       kind: userId === null ? "system" : "user",
       userId,
       displayName: row.actor_name,
-      profile: toActorProfile(row.actor_profile_id, row.actor_profile_name),
+      profile: toActorProfileSnapshot(row.actor_profile_id, row.actor_profile_name),
     },
     previous_value: row.previous_value,
     new_value: row.new_value,

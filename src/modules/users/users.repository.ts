@@ -14,6 +14,7 @@ import type {
 } from "../DTOs/users/UserRequests.dto.ts";
 import type { AssignableProfessional, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequestCategory } from "../../shared/types/requests.ts";
+import { toProfileReference } from "../../shared/types/profile.ts";
 
 interface UserSummaryRow {
   user_id: number;
@@ -423,7 +424,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       fullName: row.full_name,
       email: row.email,
       avatarUrl: row.avatar_url,
-      profile: { id: String(row.profile_id), name: row.profile_name },
+      profile: toProfileReference(row.profile_id, row.profile_name),
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,
       createdAt: row.created_at.toISOString(),

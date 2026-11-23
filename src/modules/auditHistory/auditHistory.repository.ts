@@ -29,7 +29,7 @@ interface AuditHistoryDetailRow {
   action_type: string;
   user_id: number | string | null;
   actor_name: string | null;
-  actor_profile_id: number | string | null;
+  actor_profile_id: number | null;
   actor_profile_name: string | null;
   previous_value: string | null;
   new_value: string | null;

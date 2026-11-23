@@ -13,7 +13,7 @@ export const TimelineActor = {
     name: { type: "string", example: "Maria Silva" },
     profile: {
       nullable: true,
-      allOf: [{ $ref: "#/components/schemas/ProfileReference" }],
+      allOf: [{ $ref: "#/components/schemas/ProfileSnapshot" }],
       description:
         "Snapshot do Perfil. `null` quando o evento não registrou Perfil; em notas antigas, `profile.id` é `null`.",
     },
@@ -62,8 +62,8 @@ export const TimelineEvent = {
       enum: ["admin", "system", "internal"],
       example: "internal",
     },
-    justification: { type: ["string", "null"] },
-    lastTechnicalMessage: { type: ["string", "null"] },
+    justification: { type: "string", nullable: true },
+    lastTechnicalMessage: { type: "string", nullable: true },
   },
 };
 
@@ -80,7 +80,7 @@ export const InternalNotesResponse = {
         ],
       },
     },
-    nextCursor: { type: ["string", "null"], example: "eyJ0IjoiMjAyNi0xMS0yM1QxMjowMDowMFoi" },
+    nextCursor: { type: "string", nullable: true, example: "eyJ0IjoiMjAyNi0xMS0yM1QxMjowMDowMFoi" },
     unseenCount: { type: "integer", example: 0 },
     triages: { type: "array", items: { type: "object" } },
     mappings: { type: "array", items: { type: "object" } },

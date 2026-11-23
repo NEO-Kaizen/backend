@@ -22,16 +22,36 @@ export const ProfileReference = {
   required: ["id", "name"],
   properties: {
     id: {
-      type: ["string", "null"],
+      type: "string",
       example: "6",
-      description:
-        "Identidade estável do Perfil. `null` apenas em snapshot histórico sem ID registrado.",
+      description: "Identidade estável do Perfil (`String(profiles.profile_id)`).",
     },
     name: {
       type: "string",
       example: "Analista",
-      description:
-        "Rótulo do Perfil — histórico quando vem de snapshot; nunca autoriza nem identifica.",
+      description: "Rótulo vigente do Perfil; nunca autoriza nem identifica.",
+    },
+  },
+};
+
+/**
+ * Snapshot histórico de Perfil. O nome é o do momento do registro; `id` é
+ * `null` quando o registro antigo guardou apenas o nome — nunca inferido.
+ */
+export const ProfileSnapshot = {
+  type: "object",
+  required: ["id", "name"],
+  properties: {
+    id: {
+      type: "string",
+      nullable: true,
+      example: "2",
+      description: "Identidade registrada na época; `null` quando só o nome foi preservado.",
+    },
+    name: {
+      type: "string",
+      example: "Analista",
+      description: "Nome congelado no momento do registro.",
     },
   },
 };

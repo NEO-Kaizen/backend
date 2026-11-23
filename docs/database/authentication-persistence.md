@@ -486,13 +486,13 @@ autoriza. Ver `docs/adr/0002-referencia-de-perfil.md`.
 O snapshot de Perfil não vive em `users`: ele é congelado no registro histórico
 que o exibiu.
 
-| Tabela                   | Coluna                            | Papel                                                          |
-| ------------------------ | --------------------------------- | -------------------------------------------------------------- |
-| `request_internal_notes` | `author_profile_id_at_creation`   | ID do Perfil do autor na criação; `NULL` em notas históricas   |
-| `request_internal_notes` | `author_profile_name_at_creation` | Nome do Perfil do autor na criação (congelado)                 |
-| `audit_history`          | `actor_profile_id`                | ID do Perfil do ator no evento; `NULL` em eventos anteriores   |
-| `audit_history`          | `actor_profile_name`              | Nome do Perfil do ator no evento (congelado)                   |
-| `audit_history`          | `denied_permission_keys`          | Chaves ausentes nas recusas `*.access_denied`; `{}` nas demais |
+| Tabela                   | Coluna                            | Papel                                                                      |
+| ------------------------ | --------------------------------- | -------------------------------------------------------------------------- |
+| `request_internal_notes` | `author_profile_id_at_creation`   | ID do Perfil do autor na criação; `NULL` em notas históricas               |
+| `request_internal_notes` | `author_profile_name_at_creation` | Nome do Perfil do autor na criação (congelado; `varchar(60)`)              |
+| `audit_history`          | `actor_profile_id`                | ID do Perfil do ator no evento; `NULL` em eventos anteriores               |
+| `audit_history`          | `actor_profile_name`              | Nome do Perfil do ator no evento (congelado; `varchar(60)`)                |
+| `audit_history`          | `denied_permission_keys`          | Chaves de Permissão avaliadas na recusa `*.access_denied`; `{}` nas demais |
 
 As duas FKs usam `ON DELETE RESTRICT`, coerentes com a trilha append-only:
 Perfil não é excluído fisicamente e o histórico não perde a identidade
@@ -503,4 +503,6 @@ Migrations reversíveis:
 `20261123160100_add_internal_note_author_profile.js`. O `down` remove as colunas
 novas e restaura `author_profile_name_at_creation` como
 `author_role_at_creation`; o ID registrado nos registros novos é perdido, o nome
-histórico permanece.
+histórico permanece. O rollback da Nota interna falha explicitamente se existir
+nome de Perfil acima de 30 caracteres, porque estreitar a coluna truncaria o
+snapshot.

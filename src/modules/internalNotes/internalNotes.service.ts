@@ -25,6 +25,7 @@ import type {
   TimelineNote,
   TriageHistoryEntry,
 } from "../DTOs/internalNotes/InternalNotes.dto.ts";
+import { toActorProfileSnapshot, toProfileSnapshot } from "../../shared/types/profile.ts";
 import * as repository from "./internalNotes.repository.ts";
 import type { ListTimelineQuery, TimelineCursorPayload } from "./internalNotes.schema.ts";
 
@@ -41,13 +42,10 @@ function toNoteDTO(row: InternalNoteRow): TimelineNote {
     author: {
       id: String(row.author_user_id),
       name: row.author_name,
-      profile: {
-        id:
-          row.author_profile_id_at_creation === null
-            ? null
-            : String(row.author_profile_id_at_creation),
-        name: row.author_profile_name_at_creation,
-      },
+      profile: toProfileSnapshot(
+        row.author_profile_id_at_creation,
+        row.author_profile_name_at_creation,
+      ),
     },
   };
 }
@@ -207,10 +205,7 @@ function toActorDTO(row: ActorSource): TimelineActorDTO | null {
   return {
     id: String(row.actor_user_id),
     name: row.actor_name,
-    profile:
-      row.actor_profile_id === null || row.actor_profile_name === null
-        ? null
-        : { id: String(row.actor_profile_id), name: row.actor_profile_name },
+    profile: toActorProfileSnapshot(row.actor_profile_id, row.actor_profile_name),
   };
 }
 

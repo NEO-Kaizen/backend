@@ -10,7 +10,10 @@ export interface AccessDeniedAttempt {
   readonly userId: number;
   readonly note: string;
   readonly ipAddress?: string;
-  /** Chaves exigidas e ausentes na recusa — vazio quando a recusa não é de Permissão. */
+  /**
+   * Chaves de Permissão avaliadas na recusa: ausentes no gate ou presentes sem
+   * Custódia suficiente na linha. Vazio quando a recusa não é de Permissão.
+   */
   readonly deniedPermissionKeys?: readonly PermissionKey[];
 }
 

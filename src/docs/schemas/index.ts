@@ -75,6 +75,7 @@ import {
 import {
   Profile,
   ProfileReference,
+  ProfileSnapshot,
   ProfilePermission,
   ProfileKeyCatalog,
   ProfilePermissionCatalogEntry,
@@ -136,6 +137,7 @@ export {
   ReviewDecisionReopen,
   Profile,
   ProfileReference,
+  ProfileSnapshot,
   ProfilePermission,
   ProfileKeyCatalog,
   ProfilePermissionCatalogEntry,
@@ -205,6 +207,7 @@ export const schemas = {
   ReviewDecisionReopen,
   Profile,
   ProfileReference,
+  ProfileSnapshot,
   ProfilePermission,
   ProfileKeyCatalog,
   ProfilePermissionCatalogEntry,
