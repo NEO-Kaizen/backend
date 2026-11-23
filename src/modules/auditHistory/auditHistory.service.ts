@@ -1,5 +1,11 @@
+import type { PermissionActor } from "../../shared/access/requestAccess.ts";
+import {
+  custodyFor,
+  hasResponsibleCustody,
+  recordAccessDeniedAttempt,
+  requireResponsibleCustody,
+} from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import type { Role } from "../../shared/types/role.ts";
 import type {
   AuditHistoryQuery,
   AuditHistorySummary,
@@ -7,6 +13,7 @@ import type {
   AuditHistoryListResponse,
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
+import type { AuditAccessScope } from "./auditHistory.repository.ts";
 import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import { findRequestStatusContext } from "../requests/requests.repository.ts";
 
@@ -14,10 +21,25 @@ const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
   Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
 ) as Record<AuditEntityName, string>;
 
+/** Recorte da Custódia `audit:read` para as consultas administrativas. */
+function auditScopeFor(actor: PermissionActor): AuditAccessScope {
+  const custody = custodyFor(actor, "audit:read");
+
+  if (custody === "all") {
+    return { responsibleUserId: null };
+  }
+  if (custody === "assigned") {
+    return { responsibleUserId: actor.id };
+  }
+
+  throw new AppError("Acesso restrito à permissão audit:read", 403);
+}
+
 export async function listAuditHistoryLogs(
   filters: AuditHistoryQuery,
+  actor: PermissionActor,
 ): Promise<AuditHistoryListResponse> {
-  const { items, total } = await repository.listAuditHistory(filters);
+  const { items, total } = await repository.listAuditHistory(filters, auditScopeFor(actor));
 
   const formatted: AuditHistorySummary[] = items.map((row) => ({
     audit_id: Number(row.audit_id),
@@ -66,53 +88,68 @@ function toDetail(
   };
 }
 
-export async function getAuditHistoryDetail(auditId: number): Promise<AuditHistoryDetail> {
+/**
+ * Detalhe administrativo. Em `assigned`, o evento precisa pertencer a uma
+ * solicitação sob a Custódia do ator; a recusa é o mesmo 404 do id inexistente.
+ */
+export async function getAuditHistoryDetail(
+  auditId: number,
+  actor: PermissionActor,
+  ipAddress: string | undefined,
+): Promise<AuditHistoryDetail> {
   const row = await repository.findAuditHistoryById(auditId);
   if (!row) {
+    await recordAccessDeniedAttempt(
+      `audit:${auditId}`,
+      actor.id,
+      ipAddress,
+      "audit:read log inexistente",
+    );
     throw new AppError("Log não encontrado", 404);
   }
+
+  const scope = auditScopeFor(actor);
+  if (scope.responsibleUserId !== null) {
+    const protocol = await repository.findAuditTargetProtocol(row.entity_type, row.entity_id);
+    const request = protocol ? await findRequestStatusContext(protocol) : undefined;
+    const isVisible =
+      request !== undefined && hasResponsibleCustody(actor, "audit:read", request.assignee_user_id);
+
+    if (!isVisible) {
+      await recordAccessDeniedAttempt(
+        protocol ?? `audit:${row.audit_id}`,
+        actor.id,
+        ipAddress,
+        "audit:read sem custódia",
+      );
+      throw new AppError("Log não encontrado", 404);
+    }
+  }
+
   return toDetail(row);
 }
 
 /**
  * Timeline de auditoria por protocolo (`GET /audit-logs/:protocol`, issue
- * #124). Acesso: Administrador/Gestor (admin-like) ou ANALYST_ASSIGNEE da
- * solicitação (responsável da triagem ou designado do mapeamento).
+ * #124). A chave `audit:read` é o gate da rota; a linha é resolvida pela
+ * Custódia do Responsável corrente, sem revelar existência fora dela.
  */
 export async function listAuditLogsByProtocol(
   protocol: string,
-  actor: { id: number; role: Role },
+  actor: PermissionActor,
+  ipAddress: string | undefined,
 ): Promise<AuditHistoryDetail[]> {
   const normalized = protocol.trim();
-  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
 
-  const request = await findRequestStatusContext(normalized);
-  if (!request) {
-    // Sem vazar existência: não-custódia recebe 403 genérico; só perfis com
-    // leitura ampla veem o 404 real.
-    if (!isManagerLike) {
-      throw new AppError(
-        "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-        403,
-        "INSUFFICIENT_ROLE_PERMISSIONS",
-      );
-    }
-    throw new AppError("Protocolo não encontrado", 404);
-  }
-
-  const isAssignee =
-    request.assignee_user_id !== null && Number(request.assignee_user_id) === actor.id;
-  const isMappingAssignee =
-    request.mapping_assignee_user_id !== null &&
-    Number(request.mapping_assignee_user_id) === actor.id;
-
-  if (!isManagerLike && !isAssignee && !isMappingAssignee) {
-    throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
-      403,
-      "INSUFFICIENT_ROLE_PERMISSIONS",
-    );
-  }
+  const request = await requireResponsibleCustody(
+    await findRequestStatusContext(normalized),
+    actor,
+    "audit:read",
+    normalized,
+    ipAddress,
+    "audit:read sem custódia",
+    (row) => row.assignee_user_id,
+  );
 
   const rows = await repository.listAuditHistoryByProtocol(request.protocol);
   return rows.map((row) => toDetail(row));

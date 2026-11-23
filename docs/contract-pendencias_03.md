@@ -64,11 +64,13 @@ Cobre:
 ## 3. Autenticação e autorização
 
 - **Internas** (criar + revisar + leitura interna completa): cookie **`session_id`**
-  (JWT opaco `HttpOnly`, `SameSite=Lax`, `Secure` só em produção), perfis
-  `Analista`/`Gestor`/`Administrador`. Criar/revisar exige **Administrador ou o
-  responsável atribuído** (`assignee`, mesma regra do botão "Editar" / `canTriage`).
-  Demais casos → `403`. Sem cookie/inválido → `401`. Perfil `Solicitante` em rota
-  interna → `403`.
+  (JWT opaco `HttpOnly`, `SameSite=Lax`, `Secure` só em produção).
+  Criar exige `pending_item:write` e revisar exige `pending_item:review`, ambos
+  com **Custódia** do Responsável corrente (`requests.responsible_id`); `all`
+  dispensa o filtro de linha. A leitura interna exige `pending_item:read` com a
+  mesma Custódia. Sem a chave a rota responde `403`; linha fora da Custódia
+  responde `404` genérico e registra a Tentativa em `request.access_denied`.
+  Sem cookie/inválido → `401`.
 - **Públicas / solicitante** (listar próprias pendências, responder item, anexar):
   identidade **protocolo + nome + e-mail** (PEND-006). Fluxo:
   1. `POST /requests/:protocol/public/verify` com `{ name, email, protocol }`
@@ -94,10 +96,11 @@ Cobre:
      `verifiedAt` do front + rate-limit do back) → `401 { "message": "Valide seus
 dados para acompanhar esta solicitação." }` (genérico, sem revelar qual campo
      divergiu nem se o protocolo existe).
-- Sessão interna (`session_id`) também é aceita nas rotas do solicitante: perfil
-  interno entra como `analyst`; `Solicitante` dono entra como `requester`
-  (mesma regra de `requester-pedency-tracking-contract.md` §1.1, menos o JWT
-  `requester_access`).
+- A sessão não decide a porta por Perfil: qualquer conta com
+  `pending_item:respond` em `own` lê e responde às próprias pendências pela
+  **Posse** (`requests.requester_user_id` e, em linhas legadas, o e-mail da
+  conta). A mesma conta que também tem chave interna lê pela porta interna
+  (`pending_item:read` + Custódia); não existe bypass de custódia por Perfil.
 - Rate-limit no `verify`: 10 tentativas / 10 min por IP + protocolo (todas as
   tentativas contam) → `429`.
 
@@ -158,16 +161,16 @@ solicitação:
 
 ## 7. Endpoints
 
-| Método | Rota                                                           | Auth                                                                   | Resposta                                                                                         |
-| ------ | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| POST   | `/requests/:protocol/pending-items`                            | cookie `session_id` (`Administrador` ou `assignee`)                    | `201 CreatePendingItemsResponse` (sem `solicitationStatus` — D-P18)                              |
-| GET    | `/requests/:protocol/pending-items`                            | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `200 ListPendingItemsResponse` (`batchId` + `requestAttachment` + `items`)                       |
-| PATCH  | `/requests/:protocol/pending-items/:pendingItemId`             | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `200 PendingItem` (`responded`)                                                                  |
-| POST   | `/requests/:protocol/pending-items/:pendingItemId/attachments` | cookie `session_id` **ou** header `X-Requester-Identity` (pública, §3) | `201 InternalAttachment`                                                                         |
-| PATCH  | `/requests/:protocol/pending-items/review`                     | cookie `session_id` (`Administrador` ou `assignee`)                    | `200 ReviewPendingItemsResponse` (sem `solicitationStatus` — D-P18; parcial e repetível — D-P23) |
-| GET    | `/requests/:protocol/internal` (estendido)                     | cookie `session_id` (interna)                                          | `200 InternalRequestDetail + unread/correctionAlert/pendingSummary`                              |
-| GET    | `/requests/:protocol/tracking`                                 | cookie `session_id` do dono **ou** header `X-Requester-Identity` (§3)  | `200 { mode: 'public' \| 'authenticated', details }`                                             |
-| POST   | `/requests/:protocol/public/verify`                            | pública                                                                | `200 { canAccess: true }` (bool, sem JWT)                                                        |
+| Método | Rota                                                           | Auth                                                                                             | Resposta                                                                                         |
+| ------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| POST   | `/requests/:protocol/pending-items`                            | cookie + `pending_item:write` sob Custódia                                                       | `201 CreatePendingItemsResponse` (sem `solicitationStatus` — D-P18)                              |
+| GET    | `/requests/:protocol/pending-items`                            | cookie (`pending_item:read`+Custódia ou `pending_item:respond` posse) **ou** header público (§3) | `200 ListPendingItemsResponse` (`batchId` + `requestAttachment` + `items`)                       |
+| PATCH  | `/requests/:protocol/pending-items/:pendingItemId`             | cookie (`pending_item:respond` posse) **ou** header público (§3)                                 | `200 PendingItem` (`responded`)                                                                  |
+| POST   | `/requests/:protocol/pending-items/:pendingItemId/attachments` | cookie (`pending_item:respond` posse) **ou** header público (§3)                                 | `201 InternalAttachment`                                                                         |
+| PATCH  | `/requests/:protocol/pending-items/review`                     | cookie + `pending_item:review` sob Custódia                                                      | `200 ReviewPendingItemsResponse` (sem `solicitationStatus` — D-P18; parcial e repetível — D-P23) |
+| GET    | `/requests/:protocol/internal` (estendido)                     | cookie `session_id` (interna)                                                                    | `200 InternalRequestDetail + unread/correctionAlert/pendingSummary`                              |
+| GET    | `/requests/:protocol/tracking`                                 | cookie `session_id` do dono **ou** header `X-Requester-Identity` (§3)                            | `200 { mode: 'public' \| 'authenticated', details }`                                             |
+| POST   | `/requests/:protocol/public/verify`                            | pública                                                                                          | `200 { canAccess: true }` (bool, sem JWT)                                                        |
 
 Tipos comuns:
 
@@ -229,7 +232,7 @@ export interface PendingSummary {
 
 ### POST /requests/:protocol/pending-items — Solicitar (observação e/ou campos)
 
-- **Auth:** cookie `session_id` (`Administrador` ou `assignee`); senão `403`.
+- **Auth:** cookie `session_id` + `pending_item:write` sob Custódia; sem a chave → `403`; linha fora da Custódia → `404`.
 - **Body:** `CreatePendingItemsBody` (`application/json`):
   ```ts
   export interface CreatePendingItemsBody {
@@ -268,7 +271,7 @@ export interface PendingSummary {
 - **Auth (como enviar — D-P19):** duas formas, ambas com `:protocol` no path
   (deve ser idêntico ao verificado, anti-IDOR):
   - Interna: `Cookie: session_id=<jwt>` (navegador reenvia com
-    `credentials: "include"`); perfis `Analista`/`Gestor`/`Administrador`.
+    `credentials: "include"`) + `pending_item:read` sob Custódia, ou `pending_item:respond` em `own` para a própria solicitação.
   - Pública: header `X-Requester-Identity: {"name":"...","email":"..."}`
     (valores idênticos aos aprovados no `POST .../public/verify`, guardados em
     `sessionStorage` com vida útil da página). O backend revalida nome/e-mail
@@ -350,7 +353,7 @@ Revisão parcial e repetível (D-P23): cada chamada decide **1..N** itens `respo
 do lote; itens omitidos permanecem `responded` ("revisar depois") para decidir em
 chamada posterior. O lote só fecha quando não restar nenhum `responded`.
 
-- **Auth:** cookie `session_id` (`Administrador` ou `assignee`); senão `403`.
+- **Auth:** cookie `session_id` + `pending_item:review` sob Custódia; sem a chave → `403`; linha fora da Custódia → `404`.
 - **Body:**
   ```ts
   export type ReviewPendingItemDecision =
@@ -443,8 +446,8 @@ chamada posterior. O lote só fecha quando não restar nenhum `responded`.
 - **Erros (ordem):** `400` protocolo ausente; `401` genérico
   (`Valide seus dados para acompanhar esta solicitação.`) — identidade
   ausente/divergente/expirada ou protocolo inexistente no modo público
-  (anti-enumeração); `403` portal `AUTHENTICATED` sem sessão e perfil interno
-  (este deve usar `/internal`); `404` protocolo inexistente **ou** não-dono em
+  (anti-enumeração); `403` sessão sem `request:track` ou identidade pública no
+  modo `AUTHENTICATED`; `404` protocolo inexistente **ou** fora da Posse em
   sessão (não revela a existência).
 - **IDOR/anti-enumeração:** o `:protocol` da URL é a chave de busca; a
   identidade pública é comparada contra o snapshot `requesters` (nome/e-mail
@@ -547,8 +550,8 @@ chamada posterior. O lote só fecha quando não restar nenhum `responded`.
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `400`  | `observation` e `items` ambos ausentes/vazios, `observation`/`response` vazio ou > 2000, `comment` vazio, `fieldKey` fora do catálogo/não marcável, `correctedValue` ausente, campo do outro tipo no `PATCH`, anexo com tipo/tamanho inválido, `reopen` sem `comment`, body malformado |
 | `401`  | Sem cookie/identidade, sessão inválida/expirada, identidade pública divergente (genérico), troca de senha obrigatória onde aplicável                                                                                                                                                   |
-| `403`  | Perfil sem acesso (`Solicitante` em rota interna), não-`assignee` e não-`Admin` em criar/revisar, portal em `AUTHENTICATED` no `verify`                                                                                                                                                |
-| `404`  | Protocolo/item/lote inexistente, item/anexo de outro protocolo (genérico anti-IDOR)                                                                                                                                                                                                    |
+| `403`  | Sessão sem a chave da operação (`pending_item:read`/`write`/`review`/`respond`), identidade pública em `AUTHENTICATED` no `verify`                                                                                                                                                     |
+| `404`  | Protocolo/item/lote inexistente, fora da Custódia/Posse ou item/anexo de outro protocolo (genérico anti-IDOR)                                                                                                                                                                          |
 | `409`  | `PATCH` em item já `responded`/`validated`; `review` em item não `responded`; criar em solicitação `Concluído`/`Cancelado`                                                                                                                                                             |
 | `429`  | Rate-limit no `verify` (10/10 min por IP+protocolo)                                                                                                                                                                                                                                    |
 | `500`  | Erro interno (sem detalhe vazado)                                                                                                                                                                                                                                                      |

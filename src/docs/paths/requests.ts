@@ -5,8 +5,9 @@ export default {
       summary: "Listar Solicitações por e-mail",
       description:
         "Lista Solicitações vinculadas a um e-mail de solicitante, ordenadas da mais recente para a mais antiga. " +
-        "No modo `PUBLIC`, o e-mail vem da query (obrigatório). No modo `AUTHENTICATED`, " +
-        "exige sessão e lista apenas as Solicitações do e-mail da sessão (recusa `?email=` com 400).",
+        "Sem sessão no modo `PUBLIC`, o e-mail vem da query (obrigatório) e a porta pública não avalia chaves. " +
+        "Com sessão (em `PUBLIC` ou `AUTHENTICATED`), exige `request:track` em `own`, lista apenas as " +
+        "Solicitações do e-mail da sessão e recusa `?email=` com 400.",
       operationId: "getRequestsByEmail",
       parameters: [
         {
@@ -58,6 +59,22 @@ export default {
             },
           },
         },
+        "401": {
+          description: "Modo `AUTHENTICATED` sem sessão válida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `request:track`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
     post: {
@@ -65,8 +82,8 @@ export default {
       summary: "Criar solicitação",
       description:
         "Cadastra uma nova solicitação, gera o protocolo e persiste os blocos do formulário. " +
-        "Público no modo `PUBLIC`; no modo `AUTHENTICATED` exige sessão e a identidade é resolvida " +
-        "pelo usuário logado (campos de identidade do payload são validados, mas sobrescritos).",
+        "Sem sessão no modo `PUBLIC`, é público. Com sessão (em `PUBLIC` ou `AUTHENTICATED`), exige " +
+        "`request:create`, e a identidade é resolvida pelo usuário logado (campos do payload são validados, mas sobrescritos).",
       operationId: "postRequest",
       requestBody: {
         required: true,
@@ -132,6 +149,22 @@ export default {
             },
           },
         },
+        "401": {
+          description: "Modo `AUTHENTICATED` sem sessão válida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `request:create`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -179,7 +212,9 @@ export default {
       tags: ["Solicitações"],
       summary: "Consultar solicitação pelo protocolo",
       description:
-        "Consulta pública (modo `PUBLIC`) ou autenticada (modo `AUTHENTICATED`, retorna 404 se não pertencer ao usuário logado).",
+        "Consulta sem sessão no modo `PUBLIC` ou autenticada com sessão: com sessão, exige `request:track` em `own` " +
+        "e retorna 404 se não pertencer ao usuário logado. Qualquer Perfil autenticado que tenha aberto a " +
+        "solicitação usa esta projeção do Solicitante.",
       operationId: "getRequestsByProtocol",
       parameters: [
         {
@@ -200,7 +235,23 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo não encontrado.",
+          description: "Protocolo não encontrado ou fora da Posse do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Modo `AUTHENTICATED` sem sessão válida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `request:track`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -487,9 +538,12 @@ export default {
   "/requests/{protocol}/tracking": {
     get: {
       tags: ["Solicitações"],
-      summary: "Acompanhamento público da solicitação",
+      summary: "Acompanhamento da solicitação",
       description:
-        "Acompanhamento do solicitante via dual-auth (cookie de sessão OU header `X-Requester-Identity`).",
+        "Acompanhamento via dual-auth (cookie de sessão OU header `X-Requester-Identity`). " +
+        "Com sessão, exige `request:track` em `own`; a Posse é o vínculo `requester_user_id` e, em linhas legadas, o e-mail da conta. " +
+        "Qualquer Perfil autenticado que abriu a solicitação recebe apenas a projeção do Solicitante. " +
+        "Sem sessão no modo `PUBLIC`, a identidade pública é validada sem chave.",
       operationId: "getTracking",
       security: [],
       parameters: [
@@ -510,7 +564,23 @@ export default {
           },
         },
         "404": {
-          description: "Protocolo não encontrado.",
+          description: "Protocolo não encontrado ou fora da Posse do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Identidade pública ausente/divergente ou sessão inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `request:track` ou identidade pública no modo `AUTHENTICATED`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

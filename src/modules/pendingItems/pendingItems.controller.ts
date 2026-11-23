@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { permissionActorFromRequest } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { createPendingItemsSchema, reviewSchema, verifySchema } from "./pendingItems.schema.ts";
@@ -13,9 +14,14 @@ function rateLimitKey(ip: string | undefined, protocol: string): string {
 
 function callerFromRequest(req: Request): {
   user?: typeof req.user;
+  permissions?: typeof req.permissions;
   requesterIdentity?: { name: string; email: string } | null;
 } {
-  return { user: req.user, requesterIdentity: req.requesterIdentity ?? null };
+  return {
+    user: req.user,
+    permissions: req.permissions,
+    requesterIdentity: req.requesterIdentity ?? null,
+  };
 }
 
 function assertProtocol(req: Request): string {
@@ -25,13 +31,6 @@ function assertProtocol(req: Request): string {
   return p.trim();
 }
 
-function actorFromRequest(req: Request): { id: number; email: string; role: string } {
-  if (!req.user) throw new AppError("Token inválido ou expirado", 401);
-  const id = Number(req.user.id);
-  if (!Number.isInteger(id)) throw new AppError("Token inválido ou expirado", 401);
-  return { id, email: req.user.email, role: req.user.role };
-}
-
 export async function createPendingItems(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
   const parsed = createPendingItemsSchema.safeParse(req.body);
@@ -39,7 +38,7 @@ export async function createPendingItems(req: Request, res: Response): Promise<R
   const result = await service.createPendingItems(
     protocol,
     parsed.data as never,
-    actorFromRequest(req),
+    permissionActorFromRequest(req),
     req.ip,
   );
   return res.status(201).json(result);
@@ -47,7 +46,7 @@ export async function createPendingItems(req: Request, res: Response): Promise<R
 
 export async function listPendingItems(req: Request, res: Response): Promise<Response> {
   const protocol = assertProtocol(req);
-  const result = await service.listPendingItems(protocol, callerFromRequest(req));
+  const result = await service.listPendingItems(protocol, callerFromRequest(req), req.ip);
   return res.status(200).json(result);
 }
 
@@ -56,14 +55,10 @@ export async function respondPendingItem(req: Request, res: Response): Promise<R
   const pendingItemId = req.params.pendingItemId as string;
   if (!pendingItemId || pendingItemId.trim() === "")
     throw new AppError("pendingItemId é obrigatório", 400);
-  const isInternal = !!req.user;
-  const actorEmail = req.user?.email;
   const item = await service.respondPendingItem(
     protocol,
     pendingItemId.trim(),
     req.body as Record<string, unknown>,
-    actorEmail,
-    isInternal,
     req.ip,
     callerFromRequest(req),
   );
@@ -94,7 +89,7 @@ export async function reviewPendingItems(req: Request, res: Response): Promise<R
   const result = await service.reviewPendingItems(
     protocol,
     parsed.data as never,
-    actorFromRequest(req),
+    permissionActorFromRequest(req),
     req.ip,
   );
   return res.status(200).json(result);

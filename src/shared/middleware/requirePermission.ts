@@ -22,10 +22,7 @@ async function recordDeniedPermissionAttempt(
     return;
   }
 
-  const resources = new Set(keys.map((key) => key.split(":")[0]));
-  if (resources.size !== 1) return;
-
-  const [resource] = resources;
+  const resource = req.baseUrl.split("/").filter(Boolean).at(-1);
   if (resource !== "queue" && resource !== "reports" && resource !== "prioritization") return;
 
   const routePath =
@@ -39,11 +36,17 @@ async function recordDeniedPermissionAttempt(
   });
 }
 
+function permissionDeniedMessage(keys: readonly PermissionKey[]): string {
+  return keys.length === 1
+    ? `Acesso restrito à permissão ${keys[0]}`
+    : `Acesso restrito às permissões ${keys.join(" ou ")}`;
+}
+
 /**
- * Gate grosso de rota (contrato RBAC § 5): sessão válida e a chave. Não
- * resolve a linha — a Custódia é aplicada pelo serviço de cada domínio, que
- * lê o vínculo da chave em `req.permissions`. Deve ser usado após o
- * `authMiddleware`, como o `requireRole`.
+ * Gate grosso de rota (contrato RBAC § 5): sessão válida e ao menos uma das
+ * chaves. Não resolve a linha — a Custódia é aplicada pelo serviço de cada
+ * domínio, que lê o vínculo da chave em `req.permissions`. Deve ser usado após
+ * o `authMiddleware`, como o `requireRole`.
  *
  * Dívida deliberada (ticket 06 — contração, #167): este gate lê as concessões
  * do banco a cada requisição com chave e importa o repositório de
@@ -79,11 +82,7 @@ export function requireAnyPermission(keys: readonly PermissionKey[]) {
 
     if (!permissions.some((permission) => requiredKeys.includes(permission.key))) {
       await recordDeniedPermissionAttempt(req, Number(req.user.id), requiredKeys);
-      const message =
-        requiredKeys.length === 1
-          ? `Acesso restrito à permissão ${requiredKeys[0]}`
-          : `Acesso restrito a uma das permissões ${requiredKeys.join(", ")}`;
-      next(new AppError(message, 403));
+      next(new AppError(permissionDeniedMessage(requiredKeys), 403));
       return;
     }
 
@@ -95,4 +94,21 @@ export function requireAnyPermission(keys: readonly PermissionKey[]) {
 
 export function requirePermission(key: PermissionKey) {
   return requireAnyPermission([key]);
+}
+/**
+ * Gate de chave para rotas que também aceitam a porta pública. Sem sessão não
+ * há ator nem chave: a validação fica com o fluxo público do serviço. Com
+ * sessão, exige ao menos uma das chaves informadas.
+ */
+export function requirePermissionIfSession(keys: PermissionKey | readonly PermissionKey[]) {
+  const gate = requireAnyPermission(typeof keys === "string" ? [keys] : keys);
+
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      next();
+      return;
+    }
+
+    await gate(req, res, next);
+  };
 }

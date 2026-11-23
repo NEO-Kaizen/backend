@@ -1,6 +1,9 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requirePermission } from "../../shared/middleware/requirePermission.ts";
+import {
+  requirePermission,
+  requirePermissionIfSession,
+} from "../../shared/middleware/requirePermission.ts";
 import { requireAccessMode } from "../../shared/middleware/accessMode.ts";
 import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import { uploadFields } from "../../shared/middleware/upload.ts";
@@ -21,7 +24,13 @@ const requestsRoutes = express.Router();
 
 // Rotas de solicitação respeitam o modo de abertura do portal: em `PUBLIC`
 // permanecem públicas; em `AUTHENTICATED` o `requireAccessMode` exige sessão.
-requestsRoutes.get("/", requireAccessMode(), getRequestsByEmail);
+// Com sessão, a chave de autoatendimento gate a operação (RBAC § 7).
+requestsRoutes.get(
+  "/",
+  requireAccessMode(),
+  requirePermissionIfSession("request:track"),
+  getRequestsByEmail,
+);
 
 // Responsáveis pela triagem — lista de profissionais (issue #50).
 requestsRoutes.get(
@@ -49,9 +58,15 @@ requestsRoutes.patch(
 );
 
 // Acompanhamento do solicitante (contrato `contract-pendencias_03.md` §3):
-// dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
-// antes de `/:protocol` para não ser capturado por engano.
-requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);
+// dual-auth (cookie de sessão OU header `X-Requester-Identity`). Com sessão,
+// `request:track` gate a operação e a linha é resolvida pela Posse no service.
+// Declarado antes de `/:protocol` para não ser capturado por engano.
+requestsRoutes.get(
+  "/:protocol/tracking",
+  requesterDualAuth,
+  requirePermissionIfSession("request:track"),
+  getTracking,
+);
 
 // Motor de Status: request:status_change e Custódia são resolvidos no service;
 // alvos restritos ou fora do fluxo exigem request:status_override global.
@@ -62,7 +77,12 @@ requestsRoutes.patch(
   patchRequestStatus,
 );
 
-requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
+requestsRoutes.get(
+  "/:protocol",
+  requireAccessMode(),
+  requirePermissionIfSession("request:track"),
+  getRequestsByProtocol,
+);
 requestsRoutes.get(
   "/:protocol/internal",
   authMiddleware,
@@ -78,7 +98,13 @@ requestsRoutes.patch(
 );
 
 // O guard vem antes do `uploadFields` para não processar multipart de uma
-// requisição que será rejeitada por falta de sessão.
-requestsRoutes.post("/", requireAccessMode(), uploadFields, postRequest);
+// requisição que será rejeitada por falta de sessão ou de `request:create`.
+requestsRoutes.post(
+  "/",
+  requireAccessMode(),
+  requirePermissionIfSession("request:create"),
+  uploadFields,
+  postRequest,
+);
 
 export default requestsRoutes;

@@ -1,9 +1,9 @@
 import db from "../../database/conection.ts";
+import type { Role } from "../../shared/types/role.ts";
 import type {
   AuditTimelineAction,
   InternalNoteReadStateRow,
   InternalNoteRow,
-  InternalRole,
   MappingHistoryAssignee,
   MappingHistoryParticipant,
   MappingHistoryRow,
@@ -14,6 +14,7 @@ import type {
 
 interface RequestIdentityRow {
   request_id: string;
+  responsible_user_id: number | null;
 }
 
 // `request.override_status_admin` é persistido pelo bypass de Administrador no
@@ -43,7 +44,22 @@ const NOTE_COLUMNS = [
 export async function findRequestIdByProtocol(
   protocol: string,
 ): Promise<RequestIdentityRow | undefined> {
-  return db("requests").where({ protocol }).first("request_id");
+  return db("requests")
+    .leftJoin(
+      "details_professional as responsible_professional",
+      "responsible_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin(
+      "users as responsible_user",
+      "responsible_user.user_id",
+      "responsible_professional.user_id",
+    )
+    .where({ "requests.protocol": protocol })
+    .first({
+      request_id: "requests.request_id",
+      responsible_user_id: "responsible_user.user_id",
+    });
 }
 
 export async function listNotesPage(
@@ -345,7 +361,7 @@ export async function findReadState(
 
 export async function insert(
   requestId: string,
-  author: { userId: number; role: InternalRole },
+  author: { userId: number; role: Role },
   content: string,
 ): Promise<string> {
   const rows = (await db("request_internal_notes")
