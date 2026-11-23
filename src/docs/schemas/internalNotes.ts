@@ -12,6 +12,7 @@ export const TimelineActor = {
     id: { type: "string", example: "101" },
     name: { type: "string", example: "Maria Silva" },
     profile: {
+      type: "object",
       nullable: true,
       allOf: [{ $ref: "#/components/schemas/ProfileSnapshot" }],
       description:
@@ -52,6 +53,7 @@ export const TimelineEvent = {
     text: { type: "string", example: "Status alterado: Em análise" },
     occurredAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
     actor: {
+      type: "object",
       nullable: true,
       allOf: [{ $ref: "#/components/schemas/TimelineActor" }],
       description: "`null` em ações de sistema.",

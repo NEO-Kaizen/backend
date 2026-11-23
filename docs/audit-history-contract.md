@@ -43,7 +43,7 @@ export interface AuditActor {
   displayName: string | null; // null quando kind = "system"
   // Snapshot do Perfil do ator no momento do evento. null em ação de sistema
   // e em evento anterior ao snapshot — nunca inferido do nome.
-  profile: { id: string | null; name: string } | null;
+  profile: { id: string; name: string } | null;
 }
 
 // Item da tabela de logs (colunas: ID, Tipo, Ação, Operador, Data)

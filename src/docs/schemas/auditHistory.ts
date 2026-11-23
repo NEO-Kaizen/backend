@@ -10,6 +10,7 @@ export const AuditActor = {
     userId: { type: "integer", nullable: true, example: 101 },
     displayName: { type: "string", nullable: true, example: "Maria Silva" },
     profile: {
+      type: "object",
       nullable: true,
       allOf: [{ $ref: "#/components/schemas/ProfileReference" }],
       description: "Snapshot do Perfil do ator; `null` em ações de sistema e eventos antigos.",

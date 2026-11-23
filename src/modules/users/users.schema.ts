@@ -34,13 +34,16 @@ const profileIdSchema = z
   .regex(/^[1-9]\d*$/, "Perfil inválido.")
   .max(10, "Perfil inválido.");
 
-export const createUserSchema = z.object({
-  fullName: requiredString(150),
-  email: emailSchema,
-  profileId: profileIdSchema,
-  professional: professionalSchema.optional(),
-  requester: requesterSchema,
-});
+export const createUserSchema = z
+  .object({
+    fullName: requiredString(150),
+    email: emailSchema,
+    profileId: profileIdSchema,
+    professional: professionalSchema.optional(),
+    requester: requesterSchema,
+  })
+  // `role` e demais campos removidos na contração são recusados, não ignorados.
+  .strict();
 
 export const listUsersQuerySchema = z
   .object({
@@ -86,6 +89,7 @@ export const updateUserSchema = z
     professional: professionalSchema.optional(),
     requester: requesterPatchSchema.optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     if (Object.keys(value).length === 0) {
       ctx.addIssue({
