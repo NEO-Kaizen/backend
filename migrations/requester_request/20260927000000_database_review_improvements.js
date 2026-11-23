@@ -35,6 +35,17 @@ const FK_INDEXES = [
   { table: "triages", column: "assignee_user_id", index: "idx_triages_assignee_user" },
 ];
 
+// `occurred_at` era gravado como `timestamp` na timezone da sessão que fazia o
+// insert. Para reconstruir o instante, a conversão precisa usar a MESMA zona;
+// o padrão é UTC (default do PostgreSQL), configurável para bases com histórico
+// gravado em outra zona. `set_config(..., true)` fixa a zona na transação da
+// migration, tornando `up` e `down` determinísticos e simétricos.
+const SOURCE_TIMEZONE = process.env.MIGRATION_SOURCE_TIMEZONE || "UTC";
+
+async function useSourceTimezone(knex) {
+  await knex.raw("SELECT set_config('TimeZone', ?, true)", [SOURCE_TIMEZONE]);
+}
+
 export async function up(knex) {
   for (const { table, column, index } of FK_INDEXES) {
     await knex.raw(`CREATE INDEX IF NOT EXISTS "${index}" ON "${table}" ("${column}")`);
@@ -62,10 +73,9 @@ export async function up(knex) {
     VALIDATE CONSTRAINT "ck_mapping_participants_internal_or_external"
   `);
 
-  // O valor foi gravado a partir de `now()` convertido para `timestamp`; usar a
-  // timezone da sessão na conversão reconstrói o instante original. Isto assume
-  // que a sessão da migration usa a mesma timezone da aplicação que gravou os
-  // valores.
+  // O valor foi gravado a partir de `now()` convertido para `timestamp`;
+  // interpretá-lo na zona configurada reconstrói o instante original.
+  await useSourceTimezone(knex);
   await knex.raw(`
     ALTER TABLE "audit_history"
     ALTER COLUMN "occurred_at" TYPE timestamptz
@@ -78,6 +88,8 @@ export async function up(knex) {
  * @returns { Promise<void> }
  */
 export async function down(knex) {
+  await useSourceTimezone(knex);
+
   await knex.raw(`
     ALTER TABLE "audit_history"
     ALTER COLUMN "occurred_at" TYPE timestamp

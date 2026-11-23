@@ -115,7 +115,11 @@ O PostgreSQL não cria índice automático para FK. As FKs abaixo não tinham
 
 - `audit_history.occurred_at` era `timestamp` sem timezone, enquanto o service
   serializa com `toISOString()` (`auditHistory.service.ts`). Dependendo da
-  timezone do processo, o instante podia deslocar.
+  timezone do processo, o instante podia deslocar. A migration fixa a timezone
+  de origem com `MIGRATION_SOURCE_TIMEZONE` (padrão `UTC`, o default do
+  PostgreSQL) via `set_config(..., true)`; o mesmo valor é usado no `down`, sem
+  depender da configuração acidental da sessão. Bases com histórico gravado por
+  sessões em outra zona devem informar a variável antes de rodar a migration.
 - `request_time_preferences.scheduled_for` continua `timestamp` sem timezone por
   decisão explícita (`src/shared/utils/date.ts`); a troca exige mudança
   coordenada no helper.
@@ -195,7 +199,9 @@ Migration `20260927000000_database_review_improvements.js`:
    CHECK (user_id IS NOT NULL OR (name IS NOT NULL AND email IS NOT NULL))
    ```
 4. Converte `audit_history.occurred_at` para `timestamptz`, reinterpretando o
-   valor na timezone da sessão (`USING occurred_at AT TIME ZONE current_setting('TimeZone')`).
+   valor na timezone configurada por `MIGRATION_SOURCE_TIMEZONE` (padrão `UTC`,
+   aplicada com `set_config(..., true)`) via
+   `USING occurred_at AT TIME ZONE current_setting('TimeZone')`.
 
 O `down` reverte todos os itens acima. A constraint
 `ck_mapping_participants_internal_or_external` é criada com `NOT VALID` e
