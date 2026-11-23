@@ -685,6 +685,9 @@ export async function updateUser(
       if (!sourceProfile) {
         throw new AppError("Perfil inválido.", 400);
       }
+      if (!sourceProfile.is_active) {
+        throwProfileInactive();
+      }
       const destinationProfileId = newProfileId ?? target.profile_id;
       const destinationProfile =
         destinationProfileId === sourceProfile.profile_id
