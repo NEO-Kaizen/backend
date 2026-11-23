@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import type { AssignabilityStage } from "../../shared/access/assignability.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
@@ -196,8 +197,8 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   return repository.listUsers(query);
 }
 
-export async function listAnalysts(): Promise<AssignAnalyst[]> {
-  return repository.listAnalysts();
+export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAnalyst[]> {
+  return repository.listAnalysts(stage);
 }
 
 export const getUserMetrics = async (): Promise<UserMetricsResponse> => {

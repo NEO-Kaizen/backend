@@ -17,7 +17,8 @@ import {
 
 const usersRoutes = express.Router();
 
-// Lista para modal de atribuição — contrato em `docs/contract-assign-action.md`.
+// Lista para modal de atribuição, filtrada pela etapa — contrato em
+// `docs/contract-assign-action.md`.
 // Autenticado; o gate por `assignee_directory:read` é dívida do ticket de
 // Atribuibilidade (#169), que migra o diretório para flag + predicado.
 usersRoutes.get("/analysts", authMiddleware, listAnalysts);

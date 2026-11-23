@@ -118,9 +118,18 @@ export default {
       tags: ["Usuários"],
       summary: "Listar profissionais atribuíveis",
       description:
-        "Lista usuários de Perfis ativos atribuíveis à etapa conforme flags e chaves de trabalho, sem paginação. Usado no modal de atribuição.",
+        "Lista usuários de Perfis ativos atribuíveis à etapa conforme flags e chaves de trabalho, sem paginação. Use `stage=triage` (padrão) para Triagem ou `stage=mapping` para Mapeamento.",
       operationId: "listAnalysts",
       security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          in: "query",
+          name: "stage",
+          required: false,
+          schema: { type: "string", enum: ["triage", "mapping"], default: "triage" },
+          description: "Etapa da Atribuibilidade usada para filtrar os profissionais.",
+        },
+      ],
       responses: {
         "200": {
           description: "Lista de profissionais atribuíveis.",
@@ -130,6 +139,14 @@ export default {
                 type: "array",
                 items: { $ref: "#/components/schemas/UserListItem" },
               },
+            },
+          },
+        },
+        "400": {
+          description: "Etapa inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
             },
           },
         },

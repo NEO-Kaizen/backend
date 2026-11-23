@@ -6,6 +6,7 @@ import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zo
 import {
   changeUserStatusSchema,
   createUserSchema,
+  listAssignableProfessionalsQuerySchema,
   listUsersQuerySchema,
   updateUserSchema,
 } from "./users.schema.ts";
@@ -43,9 +44,15 @@ export const getUserMetrics = async (_req: Request, res: Response): Promise<Resp
   return res.status(200).json(metrics);
 };
 
-export const listAnalysts = async (_req: Request, res: Response): Promise<Response> => {
-  const analysts = await service.listAnalysts();
-  return res.status(200).json(analysts);
+export const listAnalysts = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = listAssignableProfessionalsQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const professionals = await service.listAnalysts(parsed.data.stage);
+  return res.status(200).json(professionals);
 };
 
 export const listUsers = async (req: Request, res: Response): Promise<Response> => {

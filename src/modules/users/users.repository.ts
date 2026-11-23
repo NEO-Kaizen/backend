@@ -6,6 +6,7 @@ import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/typ
 import {
   findAssignableProfileIds,
   profileHasAssignablePermissions,
+  type AssignabilityStage,
 } from "../../shared/access/assignability.ts";
 import type {
   CreateProfessionalInput,
@@ -531,8 +532,8 @@ interface AnalystRow {
   professional_id: string | null;
 }
 
-export async function listAnalysts(): Promise<AssignAnalyst[]> {
-  const assignableProfileIds = await findAssignableProfileIds();
+export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAnalyst[]> {
+  const assignableProfileIds = await findAssignableProfileIds({ stage });
   if (assignableProfileIds.length === 0) return [];
 
   const rows = (await db("users as u")

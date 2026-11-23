@@ -57,6 +57,10 @@ export const listUsersQuerySchema = z.object({
     .default(10),
 });
 
+export const listAssignableProfessionalsQuerySchema = z.object({
+  stage: z.enum(["triage", "mapping"]).default("triage"),
+});
+
 export const requesterPatchSchema = z.object({
   area: requiredText(100).optional(),
   department: z.union([optionalText(100), z.null()]).optional(),
