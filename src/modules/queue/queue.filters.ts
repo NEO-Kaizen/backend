@@ -27,6 +27,16 @@ function applyMappingAssigneeMatch(
           )
           .whereRaw("mapping.request_id = requests.request_id")
           .andWhere("mapping.is_concluded", false)
+          .whereRaw(
+            `mapping.mapping_id = (
+              SELECT latest_mapping.mapping_id
+              FROM mappings AS latest_mapping
+              WHERE latest_mapping.request_id = requests.request_id
+                AND latest_mapping.is_concluded = FALSE
+              ORDER BY latest_mapping.created_at DESC, latest_mapping.updated_at DESC
+              LIMIT 1
+            )`,
+          )
           .andWhere(`mapping_assignee.${selector.field}`, selector.value),
       )
       .orWhereExists((initialMappingAssignee) =>
