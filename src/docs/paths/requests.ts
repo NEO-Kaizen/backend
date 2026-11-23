@@ -608,6 +608,46 @@ export default {
       },
     },
   },
+  "/requests/{protocol}/assignee": {
+    patch: {
+      tags: ["Solicitações"],
+      summary: "Atribuir responsável (rota legada)",
+      description:
+        "Rota legada de designação de responsável. Recebe `assigneeId` (id de usuário) " +
+        "ou `mappingAssigneeId` e aplica a exclusividade triagem ↔ mapeamento. " +
+        "Exige perfil Analista ou Administrador.",
+      operationId: "patchAssigneeLegacy",
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                assigneeId: { type: "string", nullable: true },
+                mappingAssigneeId: { type: "string", nullable: true },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "Responsável atribuído com sucesso." },
+        "401": { description: "Sem sessão." },
+        "403": { description: "Perfil sem permissão." },
+        "404": { description: "Solicitação ou analista não encontrado." },
+      },
+    },
+  },
   "/requests/{protocol}/internal/assignee": {
     patch: {
       tags: ["Solicitações"],

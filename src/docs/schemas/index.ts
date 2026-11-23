@@ -13,6 +13,7 @@ import {
   Role,
   ProfileName,
   UserMetrics,
+  UserListItem,
   UserSummary,
   UserListResponse,
   RequesterProfileBlock,
@@ -42,6 +43,7 @@ import {
   CreateRequestPayload,
   CreateRequestResponse,
   RequestSummary,
+  RequestDetail,
   PaginatedRequestSummary,
   PublicMeeting,
   PublicRequestDetail,
@@ -150,6 +152,7 @@ import {
 } from "./portal.ts";
 
 import {
+  PrioritizationCriteria,
   PrioritizationCriterion,
   PrioritizationCriteriaList,
   EvaluatePrioritizationRequest,
@@ -186,6 +189,7 @@ export const schemas = {
   Role,
   ProfileName,
   UserMetrics,
+  UserListItem,
   UserSummary,
   UserListResponse,
   RequesterProfileBlock,
@@ -214,6 +218,7 @@ export const schemas = {
   CreateRequestPayload,
   CreateRequestResponse,
   RequestSummary,
+  RequestDetail,
   PaginatedRequestSummary,
   PublicMeeting,
   PublicRequestDetail,
@@ -318,6 +323,7 @@ export const schemas = {
   PortalPrioritizationWeightsPatchBody,
 
   // Prioritization
+  PrioritizationCriteria,
   PrioritizationCriterion,
   PrioritizationCriteriaList,
   EvaluatePrioritizationRequest,

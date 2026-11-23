@@ -98,6 +98,8 @@ export default {
         },
       },
     },
+  },
+  "/requests/{protocol}/internal-notes/read": {
     put: {
       tags: ["Notas internas"],
       summary: "Marcar notas internas como lidas",
