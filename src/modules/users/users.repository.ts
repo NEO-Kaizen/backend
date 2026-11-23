@@ -13,7 +13,7 @@ import type {
   CreateUserRequest,
   ListUsersQuery,
 } from "../DTOs/users/UserRequests.dto.ts";
-import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
+import type { AssignableProfessional, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequestCategory } from "../../shared/types/requests.ts";
 
 interface UserSummaryRow {
@@ -97,7 +97,7 @@ export async function isAssignableProfile(profileId: number): Promise<boolean> {
  * criação do usuário). `professional_id` nasce do default da coluna
  * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
  * `specialties` e `attended_category_ids` são textos separados por vírgula —
- * mesmo formato lido pelo card (split em `listAnalysts`).
+ * mesmo formato lido pelo card de profissionais atribuíveis.
  */
 export async function createProfessionalData(
   trx: Knex.Transaction,
@@ -206,7 +206,7 @@ export async function createRequesterData(
  *
  * `specialties`/`attended_category_ids` são desencontradas do texto
  * separado por vírgula (formato do seed/createProfessionalData) para
- * array — mesmo parsing do card (`listAnalysts`).
+ * array — mesmo parsing do diretório de profissionais atribuíveis.
  */
 export interface UserProfileRow {
   user_id: number;
@@ -522,33 +522,29 @@ export async function setTemporaryPassword(
   }
 }
 
-interface AnalystRow {
+interface AssignableProfessionalRow {
   user_id: number;
   full_name: string;
   email: string;
   job_title: string | null;
   attended_category_ids: string | null;
   notes: string | null;
-  professional_id: string | null;
+  professional_id: string;
 }
 
-export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAnalyst[]> {
+export async function listAssignableProfessionals(
+  stage: AssignabilityStage,
+): Promise<AssignableProfessional[]> {
   const assignableProfileIds = await findAssignableProfileIds({ stage });
   if (assignableProfileIds.length === 0) return [];
 
   const rows = (await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
-    // LEFT JOIN defensivo: usuário sem extensão (recém-criado ou dados antigos)
-    // ainda aparece no card com campos vazios — formato já previsto no contrato.
-    // A regra de licença (extensão com status 'inactive') permanece filtrando:
-    // o WHERE compensa o LEFT JOIN para excluir apenas extensões inativas.
-    .leftJoin("details_professional as dp", "dp.user_id", "u.user_id")
+    .join("details_professional as dp", "dp.user_id", "u.user_id")
     .whereIn("p.profile_id", assignableProfileIds)
     .andWhere("p.is_active", true)
     .andWhere("u.is_active", true)
-    .andWhere((builder) => {
-      builder.where("dp.status", "active").orWhereNull("dp.user_id");
-    })
+    .andWhere("dp.status", "active")
     .select({
       user_id: "u.user_id",
       full_name: "u.full_name",
@@ -558,7 +554,7 @@ export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAna
       notes: "dp.notes",
       professional_id: "dp.professional_id",
     })
-    .orderBy("u.full_name", "asc")) as AnalystRow[];
+    .orderBy("u.full_name", "asc")) as AssignableProfessionalRow[];
 
   if (rows.length === 0) return [];
 
@@ -574,9 +570,7 @@ export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAna
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
   // Usuário sem extensão não entra no COUNT (sem professional_id válido).
-  const professionalIds = rows
-    .map((r) => r.professional_id)
-    .filter((id): id is string => id !== null);
+  const professionalIds = rows.map((row) => row.professional_id);
   const counts = (await db("requests")
     .whereIn("professional_id", professionalIds)
     .select("professional_id")
@@ -588,13 +582,13 @@ export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAna
   }
 
   return rows.map((row) => {
-    const categoriesForAnalyst: RequestCategory[] = [];
+    const categoriesForProfessional: RequestCategory[] = [];
     if (row.attended_category_ids) {
       for (const part of row.attended_category_ids.split(",")) {
         const id = Number(part.trim());
         if (!Number.isNaN(id)) {
           const name = categoryMap.get(id);
-          if (name) categoriesForAnalyst.push(name as RequestCategory);
+          if (name) categoriesForProfessional.push(name as RequestCategory);
         }
       }
     }
@@ -604,12 +598,10 @@ export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAna
       fullName: row.full_name,
       email: row.email,
       specialty: row.job_title ?? "",
-      categories: categoriesForAnalyst,
+      categories: categoriesForProfessional,
       notes: row.notes ?? null,
-      // Sem extensão não há carga para contar; contrato permite null.
-      requestLoad:
-        row.professional_id === null ? null : (countByProfessional.get(row.professional_id) ?? 0),
-    } satisfies AssignAnalyst;
+      requestLoad: countByProfessional.get(row.professional_id) ?? 0,
+    } satisfies AssignableProfessional;
   });
 }
 

@@ -24,7 +24,7 @@ import type {
   UpdateUserRequest,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type {
-  AssignAnalyst,
+  AssignableProfessional,
   ChangeUserStatusResponse,
   CreateUserResponse,
   ResetPasswordResponse,
@@ -197,8 +197,10 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   return repository.listUsers(query);
 }
 
-export async function listAnalysts(stage: AssignabilityStage): Promise<AssignAnalyst[]> {
-  return repository.listAnalysts(stage);
+export async function listAssignableProfessionals(
+  stage: AssignabilityStage,
+): Promise<AssignableProfessional[]> {
+  return repository.listAssignableProfessionals(stage);
 }
 
 export const getUserMetrics = async (): Promise<UserMetricsResponse> => {

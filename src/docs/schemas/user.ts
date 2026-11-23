@@ -22,6 +22,24 @@ export const UserListItem = {
   },
 };
 
+export const AssignableProfessional = {
+  type: "object",
+  required: ["id", "fullName", "email", "specialty", "categories", "notes", "requestLoad"],
+  properties: {
+    id: { type: "string", example: "101" },
+    fullName: { type: "string", example: "Maria Silva" },
+    email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
+    specialty: { type: "string", example: "Analista de Sistemas" },
+    categories: {
+      type: "array",
+      items: { type: "string" },
+      example: ["Sistemas", "Automação"],
+    },
+    notes: { type: "string", nullable: true, example: "Disponível à tarde." },
+    requestLoad: { type: "integer", nullable: true, example: 3 },
+  },
+};
+
 export const RequesterProfileBlock = {
   type: "object",
   required: ["area", "department", "manager", "additionalContact"],

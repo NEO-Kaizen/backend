@@ -8,7 +8,7 @@ import {
   getMyProfile,
   getUser,
   getUserMetrics,
-  listAnalysts,
+  listAssignableProfessionals,
   listUsers,
   resetUserPassword,
   updateMyProfile,
@@ -17,11 +17,13 @@ import {
 
 const usersRoutes = express.Router();
 
-// Lista para modal de atribuição, filtrada pela etapa — contrato em
-// `docs/contract-assign-action.md`.
-// Autenticado; o gate por `assignee_directory:read` é dívida do ticket de
-// Atribuibilidade (#169), que migra o diretório para flag + predicado.
-usersRoutes.get("/analysts", authMiddleware, listAnalysts);
+// Lista profissionais atribuíveis à etapa para o modal de atribuição.
+usersRoutes.get(
+  "/analysts",
+  authMiddleware,
+  requirePermission("assignee_directory:read"),
+  listAssignableProfessionals,
+);
 
 // Issue #125 — "Meus dados" (self-service, qualquer perfil interno).
 usersRoutes.get("/me", authMiddleware, getMyProfile);

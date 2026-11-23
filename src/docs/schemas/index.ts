@@ -12,6 +12,7 @@ import {
 import {
   UserMetrics,
   UserListItem,
+  AssignableProfessional,
   RequesterProfileBlock,
   ProfessionalProfileBlock,
   UserProfileResponse,
@@ -78,6 +79,7 @@ export {
   ChangePasswordResponse,
   UserMetrics,
   UserListItem,
+  AssignableProfessional,
   RequesterProfileBlock,
   ProfessionalProfileBlock,
   UserProfileResponse,
@@ -135,6 +137,7 @@ export const schemas = {
   ChangePasswordResponse,
   UserMetrics,
   UserListItem,
+  AssignableProfessional,
   RequesterProfileBlock,
   ProfessionalProfileBlock,
   UserProfileResponse,

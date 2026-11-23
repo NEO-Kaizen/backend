@@ -11,7 +11,7 @@ export interface UserSummary {
   createdAt: string;
 }
 
-export interface AssignAnalyst {
+export interface AssignableProfessional {
   id: string;
   fullName: string;
   email: string;
@@ -20,9 +20,6 @@ export interface AssignAnalyst {
   notes: string | null;
   requestLoad: number | null;
 }
-
-// compat alias — contrato contract-assign-action.md usa AssignAnalyst; manter Analyst como alias até remover usos legados
-export type Analyst = AssignAnalyst;
 
 export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {
   /** Nome de exibição do Perfil vigente. */

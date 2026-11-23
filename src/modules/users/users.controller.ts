@@ -44,14 +44,17 @@ export const getUserMetrics = async (_req: Request, res: Response): Promise<Resp
   return res.status(200).json(metrics);
 };
 
-export const listAnalysts = async (req: Request, res: Response): Promise<Response> => {
+export const listAssignableProfessionals = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
   const parsed = listAssignableProfessionalsQuerySchema.safeParse(req.query);
 
   if (!parsed.success) {
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const professionals = await service.listAnalysts(parsed.data.stage);
+  const professionals = await service.listAssignableProfessionals(parsed.data.stage);
   return res.status(200).json(professionals);
 };
 

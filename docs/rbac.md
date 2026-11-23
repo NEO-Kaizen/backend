@@ -437,7 +437,7 @@ A leitura administrativa do portal é por seção: a resposta devolve apenas as 
   "name": "Ana",
   "email": "ana@empresa.com",
   "avatarUrl": null,
-  "role": "Analista",
+  "role": "analista",
   "mustChangePassword": false,
   "permissions": [
     { "key": "request:create", "custody": "global" },
@@ -453,7 +453,7 @@ O perfil `Solicitante` devolve exatamente as três chaves de autoatendimento:
 
 ```json
 {
-  "role": "Solicitante",
+  "role": "solicitante",
   "permissions": [
     { "key": "request:create", "custody": "global" },
     { "key": "request:track", "custody": "own" },

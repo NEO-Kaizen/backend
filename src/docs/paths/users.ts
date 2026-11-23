@@ -118,8 +118,8 @@ export default {
       tags: ["Usuários"],
       summary: "Listar profissionais atribuíveis",
       description:
-        "Lista usuários de Perfis ativos atribuíveis à etapa conforme flags e chaves de trabalho, sem paginação. Use `stage=triage` (padrão) para Triagem ou `stage=mapping` para Mapeamento.",
-      operationId: "listAnalysts",
+        "Lista usuários de Perfis ativos atribuíveis à etapa conforme flags e chaves de trabalho. Exige `assignee_directory:read`. Use `stage=triage` (padrão) para Triagem ou `stage=mapping` para Mapeamento.",
+      operationId: "listAssignableProfessionals",
       security: [{ cookieAuth: [] }],
       parameters: [
         {
@@ -137,7 +137,7 @@ export default {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/UserListItem" },
+                items: { $ref: "#/components/schemas/AssignableProfessional" },
               },
             },
           },
@@ -152,6 +152,14 @@ export default {
         },
         "401": {
           description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem `assignee_directory:read`.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
