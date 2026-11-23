@@ -312,7 +312,7 @@ export default {
                 value: {
                   fullName: "Maria Silva",
                   email: "maria.silva@empresa.com",
-                  role: "analista",
+                  role: "Analista",
                   requester: {
                     area: "TI",
                     department: "Desenvolvimento",
@@ -332,7 +332,7 @@ export default {
                 value: {
                   fullName: "Carlos Souza",
                   email: "carlos.souza@empresa.com",
-                  role: "solicitante",
+                  role: "Solicitante",
                   requester: {
                     area: "Administrativo",
                     manager: "Ana Paula",
