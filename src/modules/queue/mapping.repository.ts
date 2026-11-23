@@ -58,10 +58,6 @@ export interface MappingRequestContext {
   status_id: number | null;
   is_terminal: boolean;
   is_restricted: boolean;
-  /** Título da solicitação — compõe a Allowlist do Evento de Agendamento. */
-  title: string;
-  /** Destinatário do Evento de Agendamento (solicitante autenticado). */
-  requester_user_id: number | null;
 }
 
 /** Candidato a designado do mapeamento (mínimo para elegibilidade + resposta). */
@@ -109,8 +105,6 @@ export const findMappingRequestContext = async (
       status_id: "requests.status_id",
       is_terminal: "s.is_terminal",
       is_restricted: "s.is_restricted",
-      title: "requests.title",
-      requester_user_id: "requests.requester_user_id",
     });
 
   return row ?? null;

@@ -1,13 +1,13 @@
 import type { Knex } from "knex";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
+import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
-export interface StatusRow {
+interface StatusRow {
   status_id: number;
   name: string;
   isPublic: boolean;
-  isRestricted: boolean;
 }
 
 interface CategoryRow {
@@ -15,7 +15,7 @@ interface CategoryRow {
   name: string;
 }
 
-export interface RequestContextRow {
+interface RequestContextRow {
   request_id: string;
   protocol: string;
   professional_id: string | null;
@@ -25,8 +25,6 @@ export interface RequestContextRow {
   status_is_restricted: boolean;
   status_is_terminal: boolean;
   category_name: string | null;
-  requester_user_id: number | null;
-  title: string;
 }
 
 export async function findRequestContext(protocol: string): Promise<RequestContextRow | undefined> {
@@ -45,8 +43,6 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       status_is_restricted: "s.is_restricted",
       status_is_terminal: "s.is_terminal",
       category_name: "c.name",
-      requester_user_id: "r.requester_user_id",
-      title: "r.title",
     });
 }
 
@@ -139,15 +135,12 @@ export async function findLatestTriage(protocol: string): Promise<TriageAssessme
 }
 
 /**
- * Resolve a saída da triagem contra `statuses`. Motor de Status v4 (delta
- * §3.1): elegível = `isActive && isRestricted===false && triageMode` em
- * `free`/`conclusion_only` — substitui o antigo filtro `isTriageExit`.
- * Contrato puro: só id numérico — literais antigos (nomes) são rejeitados
- * com 422 (`contract-triage_04.md` §Observações).
- *
- * O filtro `is_restricted=false` garante que a saída da triagem nunca seja
- * restrita; o valor é projetado e repassado ao emissor de Notificação, sem
- * depender de um literal no call site.
+ * Resolve a saída da triagem contra `statuses`. Motor de Status v4 (ver
+ * `docs/rules/triage.md`, seção Status de saída): elegível =
+ * `isActive && isRestricted===false && triageMode` em `free`/`conclusion_only`
+ * — substitui o antigo filtro `isTriageExit`. Formato do fio: só id numérico —
+ * literais antigos (nomes) são rejeitados com 422 (ver `docs/rules/triage.md`,
+ * seção Regras condicionais).
  */
 export async function resolveExitStatus(value: number): Promise<StatusRow | undefined> {
   if (!Number.isSafeInteger(value) || value <= 0) return undefined;
@@ -155,28 +148,16 @@ export async function resolveExitStatus(value: number): Promise<StatusRow | unde
     .where({ is_active: true, is_restricted: false })
     .where({ triage_mode: "conclusion_only" })
     .where({ status_id: value })
-    .first("status_id as status_id", "name", "is_public", "is_restricted")
-    .then(
-      (
-        row:
-          | { status_id: number; name: string; is_public: boolean; is_restricted: boolean }
-          | undefined,
-      ) =>
-        row
-          ? {
-              status_id: row.status_id,
-              name: row.name,
-              isPublic: row.is_public,
-              isRestricted: row.is_restricted,
-            }
-          : undefined,
-    );
+    .first("status_id as status_id", "name", "is_public")
+    .then((row: { status_id: number; name: string; is_public: boolean } | undefined) =>
+      row ? { status_id: row.status_id, name: row.name, isPublic: row.is_public } : undefined,
+    ) as Promise<StatusRow | undefined>;
 }
 
 /**
- * Resolve a categoria de destino contra o cadastro **ativo**
- * (`contract-triage_04.md` §1 — `newCategory` deve estar ativo). Contrato:
- * name-string (nunca id).
+ * Resolve a categoria de destino contra o cadastro **ativo** (ver
+ * `docs/rules/triage.md`, seção Regras condicionais — `newCategory` deve estar
+ * ativo). Formato do fio: name-string (nunca id).
  */
 export async function resolveCategoryId(value: string): Promise<CategoryRow | undefined> {
   const raw = value.trim();
@@ -187,28 +168,17 @@ export async function resolveCategoryId(value: string): Promise<CategoryRow | un
     .first("category_id as category_id", "name") as Promise<CategoryRow | undefined>;
 }
 
-export interface ApplyRequestOutcomeInput {
-  protocol: string;
-  categoryId: number | null;
-  statusId: number;
-  isStatusPublic: boolean;
-  lastTechnicalMessage: string | null;
-  expectedStatusId: number;
-  updatedBy: string;
-  trx?: Knex.Transaction;
-}
-
-export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Promise<void> {
-  const {
-    protocol,
-    categoryId,
-    statusId,
-    isStatusPublic,
-    lastTechnicalMessage,
-    expectedStatusId,
-    updatedBy,
-    trx,
-  } = input;
+export async function applyRequestOutcome(
+  protocol: string,
+  categoryId: number | null,
+  statusId: number,
+  statusIsPublic: boolean,
+  lastTechnicalMessage: string | null,
+  expectedStatusId: number,
+  updatedBy: string,
+  releaseAssignee: boolean,
+  trx?: Knex.Transaction,
+): Promise<void> {
   const source = trx ?? db;
 
   const updates: Record<string, unknown> = {
@@ -221,9 +191,11 @@ export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Prom
   // release automático): a solicitação volta a ficar sem responsável de
   // triagem e depende de nova atribuição. O snapshot do autor permanece em
   // `triages.assignee_*`.
-  updates.professional_id = null;
+  if (releaseAssignee) {
+    updates.professional_id = null;
+  }
 
-  if (isStatusPublic) {
+  if (statusIsPublic) {
     if (!lastTechnicalMessage) {
       throw new Error("Retorno ao solicitante obrigatório para status público.");
     }
@@ -244,6 +216,16 @@ export async function applyRequestOutcome(input: ApplyRequestOutcomeInput): Prom
   if (updatedRows === 0) {
     throw new AppError("Solicitação foi atualizada por outra operação.", 409);
   }
+}
+
+export interface TriageAuditContext {
+  actorId: number;
+  previousStatus: string | null;
+  previousCategory: string | null;
+  nextStatus: string;
+  justification: string;
+  ipAddress?: string;
+  changeOrigin: "admin" | "internal";
 }
 
 /**
@@ -278,5 +260,71 @@ export async function insertTriage(
     assignee_name: triage.assignee?.name ?? null,
     assignee_email: triage.assignee?.email ?? null,
     last_technical_message: triage.lastTechnicalMessage,
+  });
+}
+
+export async function saveTriageDecision(
+  protocol: string,
+  requestId: string,
+  triage: TriageAssessment,
+  categoryId: number | null,
+  statusId: number,
+  statusIsPublic: boolean,
+  lastTechnicalMessage: string | null,
+  expectedStatusId: number,
+  updatedBy: string,
+  previousAssignee: { professionalId: string | null; userId: number | null },
+  audit: TriageAuditContext,
+): Promise<void> {
+  await db.transaction(async (trx) => {
+    await insertTriage(requestId, triage, trx);
+    await applyRequestOutcome(
+      protocol,
+      categoryId,
+      statusId,
+      statusIsPublic,
+      lastTechnicalMessage,
+      expectedStatusId,
+      updatedBy,
+      true,
+      trx,
+    );
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: protocol,
+      actionType: "request.triage",
+      userId: audit.actorId,
+      previousValue: JSON.stringify({
+        status: audit.previousStatus,
+        category: audit.previousCategory,
+      }),
+      newValue: JSON.stringify({
+        triageId: triage.id,
+        exitStatus: triage.exitStatus,
+        status: audit.nextStatus,
+      }),
+      // `note` = justificativa interna (conclusão da triagem); o retorno
+      // público só é persistido quando o status de saída é público.
+      note: audit.justification,
+      lastTechnicalMessage: statusIsPublic ? lastTechnicalMessage : null,
+      ipAddress: audit.ipAddress,
+      changeOrigin: audit.changeOrigin,
+    });
+
+    // Liberação automática do responsável na conclusão da triagem. Evento só
+    // quando havia vínculo; `previousValue` segue a convenção de
+    // `request.unassign` (user_id do responsável anterior). Origem `system`.
+    if (previousAssignee.professionalId !== null) {
+      await recordAudit(trx, {
+        entityType: "request",
+        entityId: protocol,
+        actionType: "request.unassign",
+        userId: audit.actorId,
+        previousValue: previousAssignee.userId === null ? null : String(previousAssignee.userId),
+        newValue: null,
+        ipAddress: audit.ipAddress,
+        changeOrigin: "system",
+      });
+    }
   });
 }

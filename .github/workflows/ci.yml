@@ -75,7 +75,6 @@ jobs:
       PROTOCOL_FPE_KEY: ci-only-not-a-secret
       PORT: 3000
       UPLOAD_DIR: /tmp/neo-kaizen-uploads
-      VERIFY_PASSWORD: steste123
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -130,14 +129,6 @@ jobs:
           echo "::error::API did not answer GET /portal-config after 30 attempts"
           cat /tmp/api.log
           exit 1
-      - name: Verify pending item notifications (API)
-        run: npm run verify:notifications
-      - name: Verify notification rollback (transaction)
-        run: npm run verify:notifications:rollback
-      - name: Show API log on failure
-        if: failure()
-        run: |
-          if [ -f /tmp/api.log ]; then cat /tmp/api.log; fi
       - name: Stop API
         if: always()
         run: |

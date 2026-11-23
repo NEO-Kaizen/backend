@@ -88,7 +88,7 @@ export default {
       tags: ["Pendências"],
       summary: "Responder pendência",
       description:
-        "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos Administradores ativos (RF20 — issue #159).",
+        "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth.",
       operationId: "respondPendingItem",
       security: dualAuth,
       parameters: [protocolParam, pendingItemParam],
