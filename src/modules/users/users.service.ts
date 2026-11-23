@@ -1,5 +1,11 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
+import type { PermissionActor } from "../../shared/access/requestAccess.ts";
+import {
+  buildEffectivePermissions,
+  type EffectivePermission,
+} from "../../shared/catalog/permissionCatalog.ts";
 import db from "../../database/conection.ts";
 import path from "node:path";
 import fs from "node:fs";
@@ -8,7 +14,6 @@ import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
 import { resolveRole } from "../../shared/utils/roleUtils.ts";
-import type { Role } from "../../shared/types/role.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { Knex } from "knex";
 import type {
@@ -37,6 +42,25 @@ const ROLE_ANALYST = "analista";
 
 const CHANGE_ORIGIN_ADMIN = "admin";
 
+/** Códigos estáveis das recusas da matriz de contas (contrato RBAC § 4.2). */
+const CODE_ACCOUNT_OUT_OF_AUTHORITY = "account_out_of_authority";
+const CODE_ROOT_ACCOUNT_PROTECTED = "root_account_protected";
+const CODE_SELF_MANAGEMENT_FORBIDDEN = "self_management_forbidden";
+const CODE_PROFILE_INACTIVE = "profile_inactive";
+const CODE_USER_MANAGE_REQUIRED = "user_manage_required";
+
+/**
+ * Ator da matriz de contas — as Permissões vêm do gate (`req.permissions`).
+ * É o recorte de `PermissionActor` que a matriz precisa: o e-mail só importa à
+ * Custódia de solicitações.
+ */
+export type AccountActor = Pick<PermissionActor, "id" | "permissions">;
+
+interface ActorAuthority {
+  readonly isRoot: boolean;
+  readonly grants: readonly EffectivePermission[];
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === "object" && error !== null && (error as { code?: string }).code === "23505"
@@ -51,30 +75,119 @@ function parseUserId(rawId: string): number {
   return id;
 }
 
+/** Autoridade do ator: Permissões do gate + marca `is_root` do Perfil vigente. */
+async function resolveActorAuthority(actor: AccountActor): Promise<ActorAuthority> {
+  const actorUser = await repository.findUserById(actor.id);
+
+  if (!actorUser) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+
+  return { isRoot: actorUser.profile_is_root, grants: actor.permissions };
+}
+
 /**
- * Valida que o perfil-alvo pode ser gerenciado pelo perfil atual.
- *
- * Hoje apenas Administrador gerencia contas (rotas protegidas por
- * requireRole) e ninguém gerencia contas de **Administrador** — evita
- * escalonamento vertical (um admin assumir o controle de outro admin).
- * Evolui para uma hierarquia ordenada quando houver novos perfis gestores.
+ * Permissões efetivas do próprio ator para o autoatendimento, que não passa
+ * pelo gate de chave. Lida do banco a cada chamada (§ 5).
  */
-function assertRoleIsManageable(role: Role): void {
-  if (role === "Administrador") {
-    throw new AppError("Não é possível gerenciar contas de Administradores", 403);
+export async function loadActorPermissions(actorId: number): Promise<EffectivePermission[]> {
+  const actorUser = await repository.findUserById(actorId);
+
+  if (!actorUser) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+
+  const grants = await repository.listProfilePermissions(actorUser.profile_id);
+
+  return buildEffectivePermissions(grants);
+}
+
+/** Concessões de um Perfil, validadas pelo catálogo (chave, vínculo e dependências). */
+async function resolveProfileGrants(profileId: number): Promise<readonly EffectivePermission[]> {
+  const grants = await repository.listProfilePermissions(profileId);
+
+  return buildEffectivePermissions(grants);
+}
+
+/** Conta do Perfil Admin Root: única, criada só pelo seed e fora de rota (§ 4.2). */
+function throwRootAccountProtected(): never {
+  throw new AppError(
+    "A conta Admin Root é criada apenas pelo seed e não pode ser gerenciada pelas rotas administrativas.",
+    403,
+    CODE_ROOT_ACCOUNT_PROTECTED,
+  );
+}
+
+function throwOutOfAuthority(): never {
+  throw new AppError(
+    "O Perfil-alvo tem autoridade igual ou maior que a sua; só é possível gerenciar Perfis estritamente abaixo.",
+    403,
+    CODE_ACCOUNT_OUT_OF_AUTHORITY,
+  );
+}
+
+/**
+ * Conta existente sob a matriz (contrato RBAC § 4.2): conta do Perfil Admin Root
+ * fica fora de rota; o Admin Root gerencia qualquer outra; os demais gerenciam
+ * apenas Perfis **estritamente abaixo** do seu.
+ */
+async function assertAccountIsManageable(
+  target: { readonly profile_id: number; readonly profile_is_root: boolean },
+  actorAuthority: ActorAuthority,
+): Promise<void> {
+  if (target.profile_is_root) {
+    throwRootAccountProtected();
+  }
+
+  if (actorAuthority.isRoot) {
+    return;
+  }
+
+  const targetGrants = await resolveProfileGrants(target.profile_id);
+
+  if (!isAuthorityStrictlyBelow(targetGrants, actorAuthority.grants)) {
+    throwOutOfAuthority();
   }
 }
 
 /**
- * A conta Admin Root existe no máximo uma vez e é criada apenas pelo seed
- * (variáveis de ambiente): nenhuma rota administrativa a cria, promove,
- * desativa, troca de perfil ou redefine (contrato RBAC § 4.2).
+ * Perfil de destino (criação ou designação): não pode ser Admin Root nem estar
+ * inativo, e precisa estar estritamente abaixo do ator.
  */
-function assertNotRootAccount(isRoot: boolean): void {
-  if (isRoot) {
+async function assertProfileIsManageable(
+  profile: repository.ProfileLookupRow,
+  actorAuthority: ActorAuthority,
+): Promise<void> {
+  if (profile.is_root) {
+    throwRootAccountProtected();
+  }
+
+  if (!profile.is_active) {
     throw new AppError(
-      "A conta Admin Root é criada apenas pelo seed e não pode ser gerenciada pelas rotas administrativas.",
+      "Perfil inativo não recebe conta nova nem designação.",
+      409,
+      CODE_PROFILE_INACTIVE,
+    );
+  }
+
+  if (actorAuthority.isRoot) {
+    return;
+  }
+
+  const profileGrants = await resolveProfileGrants(profile.profile_id);
+
+  if (!isAuthorityStrictlyBelow(profileGrants, actorAuthority.grants)) {
+    throwOutOfAuthority();
+  }
+}
+
+/** Ninguém gerencia a própria conta pelas rotas administrativas (§ 4.2). */
+function assertNotSelfManagement(targetId: number, actorId: number): void {
+  if (targetId === actorId) {
+    throw new AppError(
+      "Você não pode gerenciar a própria conta pelas rotas administrativas.",
       403,
+      CODE_SELF_MANAGEMENT_FORBIDDEN,
     );
   }
 }
@@ -100,7 +213,7 @@ export const getUserMetrics = async (): Promise<UserMetricsResponse> => {
 
 export async function createUser(
   payload: CreateUserRequest,
-  actorUserId: number,
+  actor: AccountActor,
   ipAddress: string | undefined,
 ): Promise<CreateUserResponse> {
   // Perfil é algo do banco (fonte de verdade), não um enum do código: perfis
@@ -111,13 +224,12 @@ export async function createUser(
     throw new AppError("Perfil inválido.", 400);
   }
 
-  // A conta Admin Root nasce apenas do seed: nenhuma rota cria conta com ele.
-  assertNotRootAccount(profile.is_root);
+  // Matriz de contas ANTES de criar (§ 4.2): Admin Root fora de rota, Perfil
+  // inativo recusado e autoridade estritamente abaixo do ator.
+  const actorAuthority = await resolveActorAuthority(actor);
+  await assertProfileIsManageable(profile, actorAuthority);
 
   const profileId = profile.profile_id;
-
-  // Hierarquia ANTES de criar: nenhum perfil cria contas de Administrador.
-  assertRoleIsManageable(resolveRole(payload.role));
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -152,7 +264,7 @@ export async function createUser(
         entityType: "user",
         entityId: String(created.user_id),
         actionType: "user.create",
-        userId: actorUserId,
+        userId: actor.id,
         newValue: payload.email,
         ipAddress,
         changeOrigin: CHANGE_ORIGIN_ADMIN,
@@ -190,22 +302,20 @@ export async function createUser(
 export async function changeUserStatus(
   rawId: string,
   payload: ChangeUserStatusRequest,
-  actorUserId: number,
+  actor: AccountActor,
   ipAddress: string | undefined,
 ): Promise<ChangeUserStatusResponse> {
   const id = parseUserId(rawId);
 
-  if (id === actorUserId) {
-    throw new AppError("Você não pode modificar a própria conta", 400);
-  }
+  assertNotSelfManagement(id, actor.id);
 
   const user = await repository.findUserById(id);
   if (!user) {
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  assertNotRootAccount(user.profile_is_root);
-  assertRoleIsManageable(resolveRole(user.profile_name));
+  const actorAuthority = await resolveActorAuthority(actor);
+  await assertAccountIsManageable(user, actorAuthority);
 
   // Update e evento de auditoria na MESMA transação: se o evento falhar,
   // a mudança de status é desfeita (rollback).
@@ -216,7 +326,7 @@ export async function changeUserStatus(
       entityType: "user",
       entityId: String(id),
       actionType: payload.isActive ? "user.activate" : "user.deactivate",
-      userId: actorUserId,
+      userId: actor.id,
       previousValue: String(user.is_active),
       newValue: String(payload.isActive),
       ipAddress,
@@ -229,22 +339,20 @@ export async function changeUserStatus(
 
 export async function resetPassword(
   rawId: string,
-  actorUserId: number,
+  actor: AccountActor,
   ipAddress: string | undefined,
 ): Promise<ResetPasswordResponse> {
   const id = parseUserId(rawId);
 
-  if (id === actorUserId) {
-    throw new AppError("Você não pode modificar a própria conta", 400);
-  }
+  assertNotSelfManagement(id, actor.id);
 
   const user = await repository.findUserById(id);
   if (!user) {
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  assertNotRootAccount(user.profile_is_root);
-  assertRoleIsManageable(resolveRole(user.profile_name));
+  const actorAuthority = await resolveActorAuthority(actor);
+  await assertAccountIsManageable(user, actorAuthority);
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -258,7 +366,7 @@ export async function resetPassword(
       entityType: "user",
       entityId: String(id),
       actionType: "user.reset_password",
-      userId: actorUserId,
+      userId: actor.id,
       ipAddress,
       changeOrigin: CHANGE_ORIGIN_ADMIN,
     });
@@ -332,20 +440,17 @@ export async function getUser(rawId: string): Promise<UserProfileResponseDTO> {
 
 /**
  * `PUT /users/me` — `fullName`, `additionalContact` e avatar são
- * autoeditáveis. O próprio Administrador também pode editar seus dados
- * administrativos de requester. Dados profissionais continuam pertencendo
- * ao fluxo administrativo em `PUT /users/:id`.
+ * autoeditáveis. Quem tem `user:manage` também pode editar os próprios dados
+ * administrativos de requester. Dados profissionais continuam pertencendo ao
+ * fluxo administrativo em `PUT /users/:id`.
  */
 export async function updateMyProfile(
-  userId: number,
-  actorUserId: number,
+  actor: AccountActor,
   payload: UpdateProfilePayload,
   avatarFile?: Express.Multer.File,
 ): Promise<UserProfileResponseDTO> {
-  // Self-service apenas.
-  if (actorUserId !== userId) {
-    throw new AppError("Você não pode editar o perfil de outro usuário", 403);
-  }
+  // Self-service: o dono da conta é o próprio ator.
+  const userId = actor.id;
 
   // Operação de avatar ambígua: remover E enviar arquivo novo na mesma
   // requisição. Sem este guard o arquivo seria descartado em silêncio (o
@@ -384,11 +489,17 @@ export async function updateMyProfile(
       const changesAdministrativeFields =
         "area" in rawRequester || "department" in rawRequester || "manager" in rawRequester;
 
-      // A autorização usa o perfil persistido no banco, não apenas o JWT.
-      if (changesAdministrativeFields && resolveRole(user.profile_name) !== "Administrador") {
+      // A autorização decide por chave: só quem tem `user:manage` altera os
+      // dados administrativos do próprio bloco requester (§ 4.2).
+      const canManageAccounts = actor.permissions.some(
+        (permission) => permission.key === "user:manage",
+      );
+
+      if (changesAdministrativeFields && !canManageAccounts) {
         throw new AppError(
-          "Área, departamento e gestor só podem ser alterados por administrador. Use PUT /users/:id.",
+          "Área, departamento e gestor só podem ser alterados por quem tem a permissão user:manage. Use PUT /users/:id.",
           403,
+          CODE_USER_MANAGE_REQUIRED,
         );
       }
 
@@ -425,7 +536,7 @@ export async function updateMyProfile(
       entityType: "user",
       entityId: String(userId),
       actionType: "user.update_profile",
-      userId: actorUserId,
+      userId: actor.id,
       previousValue: JSON.stringify(previousValue),
       newValue: JSON.stringify({
         fullName: payload.fullName ?? null,
@@ -462,53 +573,41 @@ function removeAvatarFile(currentUrl: string): void {
 }
 
 /**
- * `PUT /users/:id` — edição completa admin-only (merge). Atualiza
- * `fullName`, `email`, `role`, `professional` e `requester` de forma
- * parcial (ausente mantém). Auditoria `user.update`, transação atômica.
- * Exceção para Administrador alvo: só `requester` pode ser alterado.
+ * `PUT /users/:id` — edição completa por `user:manage` (merge). Atualiza
+ * `fullName`, `email`, `role`, `professional` e `requester` de forma parcial
+ * (ausente mantém). Auditoria `user.update`, transação atômica. A matriz de
+ * contas (§ 4.2) governa a conta-alvo e o Perfil de destino da designação.
  */
 export async function updateUser(
   rawId: string,
   payload: UpdateUserRequest,
-  actorUserId: number,
+  actor: AccountActor,
   ipAddress: string | undefined,
 ): Promise<UserProfileResponseDTO> {
   const id = parseUserId(rawId);
 
-  if (id === actorUserId) {
-    throw new AppError("Você não pode modificar a própria conta", 400);
-  }
+  assertNotSelfManagement(id, actor.id);
 
   const target = await repository.findUserById(id);
   if (!target) {
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  assertNotRootAccount(target.profile_is_root);
+  const actorAuthority = await resolveActorAuthority(actor);
+  await assertAccountIsManageable(target, actorAuthority);
 
-  const isTargetAdmin = resolveRole(target.profile_name) === "Administrador";
-  const hasNonRequesterPatch =
-    payload.fullName !== undefined ||
-    payload.email !== undefined ||
-    payload.role !== undefined ||
-    payload.professional !== undefined;
-
-  if (isTargetAdmin && hasNonRequesterPatch) {
-    throw new AppError("Não é possível gerenciar contas de Administradores", 403);
-  }
-
-  // Valida novo role se informado, bloqueando criação/promoção para Administrador
-  // e a designação do Perfil Admin Root (conta criada apenas pelo seed).
+  // A designação só é validada quando o Perfil realmente muda: reenviar o
+  // Perfil atual não é designação nova (e não deve esbarrar em Perfil inativo).
   let newProfileId: number | undefined;
   if (payload.role !== undefined) {
     const profile = await repository.findProfileByName(payload.role);
     if (!profile) {
       throw new AppError("Perfil inválido.", 400);
     }
-    assertNotRootAccount(profile.is_root);
-    const role = resolveRole(payload.role);
-    assertRoleIsManageable(role);
-    newProfileId = profile.profile_id;
+    if (profile.profile_id !== target.profile_id) {
+      await assertProfileIsManageable(profile, actorAuthority);
+      newProfileId = profile.profile_id;
+    }
   }
 
   const finalRoleName = payload.role ?? target.profile_name;
@@ -521,13 +620,6 @@ export async function updateUser(
   if (isFinalAnalyst && !wasAnalyst && payload.professional === undefined) {
     // Promoção para analista sem dados profissionais — exigir bloco.
     throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
-  }
-  if (
-    payload.professional !== undefined &&
-    !repository.isProfessionalProfile(payload.role ?? target.profile_name)
-  ) {
-    // Role não-analista com professional já tratado acima; guarda extra para caso role ausente.
-    throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
   }
 
   // Snapshot para auditoria
@@ -572,7 +664,7 @@ export async function updateUser(
         entityType: "user",
         entityId: String(id),
         actionType: "user.update",
-        userId: actorUserId,
+        userId: actor.id,
         previousValue: JSON.stringify(before ?? null),
         newValue: JSON.stringify(payload),
         ipAddress,

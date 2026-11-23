@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
+import { permissionActorFromRequest } from "../../shared/access/requestAccess.ts";
 import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   changeUserStatusSchema,
@@ -10,8 +11,10 @@ import {
 } from "./users.schema.ts";
 import { updateProfileSchema } from "../DTOs/users/UpdateProfileRequest.dto.ts";
 import * as service from "./users.service.ts";
+import type { AccountActor } from "./users.service.ts";
 
-function actorUserId(req: Request): number {
+/** Id do ator autenticado, vindo de `req.user` (o gate já validou a sessão). */
+function actorIdFromRequest(req: Request): number {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -20,6 +23,18 @@ function actorUserId(req: Request): number {
     throw new AppError("Token inválido ou expirado", 401);
   }
   return id;
+}
+
+/** Ator da matriz de contas — `req.permissions` é populado pelo gate de chave. */
+function actorFromRequest(req: Request): AccountActor {
+  return permissionActorFromRequest(req);
+}
+
+/** Ator do autoatendimento — as Permissões vêm do próprio módulo, sem gate. */
+async function selfActorFromRequest(req: Request): Promise<AccountActor> {
+  const id = actorIdFromRequest(req);
+  const permissions = await service.loadActorPermissions(id);
+  return { id, permissions };
 }
 
 export const getUserMetrics = async (_req: Request, res: Response): Promise<Response> => {
@@ -53,7 +68,7 @@ export const createUser = async (req: Request, res: Response): Promise<Response>
     throw new ValidationError(fields, message);
   }
 
-  const created = await service.createUser(parsed.data, actorUserId(req), req.ip);
+  const created = await service.createUser(parsed.data, actorFromRequest(req), req.ip);
 
   return res.status(201).json(created);
 };
@@ -69,7 +84,7 @@ export const updateUser = async (req: Request, res: Response): Promise<Response>
   const updated = await service.updateUser(
     req.params.id as string,
     parsed.data,
-    actorUserId(req),
+    actorFromRequest(req),
     req.ip,
   );
 
@@ -92,7 +107,7 @@ export const changeUserStatus = async (req: Request, res: Response): Promise<Res
   const updated = await service.changeUserStatus(
     req.params.id as string,
     parsed.data,
-    actorUserId(req),
+    actorFromRequest(req),
     req.ip,
   );
 
@@ -100,7 +115,7 @@ export const changeUserStatus = async (req: Request, res: Response): Promise<Res
 };
 
 export const resetUserPassword = async (req: Request, res: Response): Promise<Response> => {
-  const reset = await service.resetPassword(req.params.id as string, actorUserId(req), req.ip);
+  const reset = await service.resetPassword(req.params.id as string, actorFromRequest(req), req.ip);
 
   return res.status(200).json(reset);
 };
@@ -109,19 +124,21 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<Re
  * GET /users/me — perfil completo do próprio usuário
  * (dados básicos + bloco requester + bloco professional [analista] + avatar).
  */
-export const getMyProfile = async (_req: Request, res: Response): Promise<Response> => {
-  const profile = await service.getMyProfile(actorUserId(_req));
+export const getMyProfile = async (req: Request, res: Response): Promise<Response> => {
+  const profile = await service.getMyProfile(actorIdFromRequest(req));
 
   return res.status(200).json(profile);
 };
 
 /**
  * PUT /users/me — atualiza nome, contato adicional e/ou foto de perfil.
- * O próprio Administrador também pode atualizar área, departamento e gestor.
+ * Quem tem `user:manage` também pode atualizar área, departamento e gestor.
  * Self-service (actor == owner). Multipart:
  * campo `payload` (JSON) + campo `avatar` (arquivo opcional).
  */
 export const updateMyProfile = async (req: Request, res: Response): Promise<Response> => {
+  const actor = await selfActorFromRequest(req);
+
   const payloadPart: unknown = req.body?.payload;
 
   if (typeof payloadPart !== "string" || payloadPart.trim() === "") {
@@ -135,41 +152,13 @@ export const updateMyProfile = async (req: Request, res: Response): Promise<Resp
     throw new AppError("A parte 'payload' contém um JSON inválido.", 400);
   }
 
-  // Mensagem explícita para perfis que tentem alterar dados administrativos.
-  // O próprio Administrador é a única exceção no self-service.
-  if (
-    parsedPayload !== null &&
-    typeof parsedPayload === "object" &&
-    "requester" in (parsedPayload as Record<string, unknown>)
-  ) {
-    const rawReq = (parsedPayload as Record<string, unknown>).requester as Record<
-      string,
-      unknown
-    > | null;
-    if (
-      req.user?.role !== "Administrador" &&
-      rawReq !== null &&
-      typeof rawReq === "object" &&
-      ("area" in rawReq || "department" in rawReq || "manager" in rawReq)
-    ) {
-      throw new AppError(
-        "Área, departamento e gestor só podem ser alterados por administrador. Use PUT /users/:id.",
-        403,
-      );
-    }
-  }
-
   const parsed = updateProfileSchema.safeParse(parsedPayload);
   if (!parsed.success) {
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const updated = await service.updateMyProfile(
-    actorUserId(req),
-    actorUserId(req),
-    parsed.data,
-    req.file,
-  );
+  // A regra de área/departamento/gestor (`user:manage`) é aplicada no service.
+  const updated = await service.updateMyProfile(actor, parsed.data, req.file);
 
   return res.status(200).json(updated);
 };

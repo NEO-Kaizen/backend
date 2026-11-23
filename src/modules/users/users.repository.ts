@@ -26,11 +26,12 @@ interface UserSummaryRow {
 export interface ProfileLookupRow {
   profile_id: number;
   is_root: boolean;
+  is_active: boolean;
 }
 
 /** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
 export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
-  return db("profiles").where({ name }).first("profile_id", "is_root");
+  return db("profiles").where({ name }).first("profile_id", "is_root", "is_active");
 }
 
 export async function findProfileIdByName(name: string): Promise<number | null> {
@@ -59,6 +60,15 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "p.is_active as profile_is_active",
       "p.is_root as profile_is_root",
     );
+}
+
+/** Concessões do Perfil (chave + vínculo), insumo da matriz de contas (§ 4.2). */
+export async function listProfilePermissions(
+  profileId: number,
+): Promise<Array<{ permission_key: string; custody: string }>> {
+  return db("profile_permissions")
+    .where({ profile_id: profileId })
+    .select("permission_key", "custody");
 }
 
 /** Perfis que ganham a extensão de profissional (1:1 user → details_professional)

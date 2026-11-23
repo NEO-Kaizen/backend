@@ -34,6 +34,7 @@ import { MappingResponse } from "./mapping.ts";
 
 import {
   PortalConfig,
+  PortalSections,
   PortalTheme,
   PortalAssets,
   PortalCategory,
@@ -82,6 +83,7 @@ export {
   TriagemResponse,
   MappingResponse,
   PortalConfig,
+  PortalSections,
   PortalTheme,
   PortalAssets,
   PortalCategory,
@@ -129,6 +131,7 @@ export const schemas = {
   TriagemResponse,
   MappingResponse,
   PortalConfig,
+  PortalSections,
   PortalTheme,
   PortalAssets,
   PortalCategory,

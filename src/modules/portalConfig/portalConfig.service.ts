@@ -1,12 +1,15 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { PORTAL_SECTION_READ_KEY } from "../../shared/access/portalSections.ts";
 import { canonicalJson } from "../../shared/utils/json.ts";
 import db from "../../database/conection.ts";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import type {
   AccessSection,
   AssetsSection,
   CategoriesSection,
   IdentitySection,
+  PortalSections,
   PortalAssetsPatch,
   PortalCategory,
   PortalStatus,
@@ -56,6 +59,49 @@ function statusToPortal(st: StatusRow): PortalStatus {
     tone: st.tone,
     isActive: st.is_active ?? true,
   };
+}
+
+// ---------------------------------------------------------------------------
+// R0 — GET /portal-config/sections (seções legíveis, por chave)
+// ---------------------------------------------------------------------------
+
+/**
+ * Projeção consolidada recortada pelas seções que o ator pode ler. Cada seção
+ * exige a própria chave de leitura (RBAC § 3.7); a projeção pública de
+ * `GET /portal-config` permanece sem chave.
+ */
+export async function getReadableSections(
+  permissions: readonly EffectivePermission[],
+): Promise<PortalSections> {
+  const readableKeys = new Set(permissions.map((permission) => permission.key));
+  const config = await getPortalConfig();
+  const response: PortalSections = {};
+
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.portalSetting)) {
+    response.platformName = config.platformName;
+    response.solicitationMode = config.solicitationMode;
+    response.protocolMask = config.protocolMask;
+  }
+
+  // A chave de tema cobre tema e assets (RBAC § 3.7).
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.theme)) {
+    response.theme = config.theme;
+    response.assets = config.assets;
+  }
+
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.category)) {
+    response.categories = config.categories;
+  }
+
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.status)) {
+    response.statuses = config.statuses;
+  }
+
+  if (readableKeys.has(PORTAL_SECTION_READ_KEY.prioritizationConfig)) {
+    response.prioritizationWeights = config.prioritizationWeights;
+  }
+
+  return response;
 }
 
 // ---------------------------------------------------------------------------
