@@ -138,7 +138,7 @@ Este documento define **como escrever código** neste repositório. Ele não red
 - `req.query` é read-only no Express 5; valide os valores como `string | string[] | ParsedQs`.
 - Use `res.status(...).json(...)` e responda uma vez.
 - Autenticação: `authMiddleware` (`src/shared/middleware/auth.ts`) valida o cookie JWT e resolve o perfil no banco.
-- Autorização: rotas migradas a RBAC usam `requirePermission(key)`; a custódia da linha é resolvida no service do domínio. `requireRole(...)` permanece apenas em módulos ainda não migrados. Use `requireAccessMode()` para o modo de acesso do portal. O papel vem do banco, nunca do JWT.
+- Autorização: rotas protegidas usam `requirePermission(key)`; a custódia da linha é resolvida no service do domínio. Use `requireAccessMode()` para o modo de acesso do portal. O nome do Perfil vem do banco, nunca do JWT, e não participa da decisão de acesso.
 - Rotas de solicitante usam `requesterDualAuth` quando aceitam sessão ou identidade pública.
 - Não confie em role/ID enviado pelo cliente; autorize no servidor em toda operação sobre recurso.
 - CORS não é controle de acesso.

@@ -10,35 +10,34 @@ Frontend `feat/82-2-assign-analyst` (QuickActions → Atribuir analista). O que 
 
 ### GET /users/analysts
 
-Lista analistas para o modal. **Endpoint definitivo, sem query, sem paginação** — retorna todos os analistas (filtros só no front).
+Lista profissionais atribuíveis para o modal. Sem paginação; filtra pela etapa informada.
 
 ```http
-GET /users/analysts -> 200 Analyst[]
+GET /users/analysts?stage=triage -> 200 AssignableProfessional[]
+GET /users/analysts?stage=mapping -> 200 AssignableProfessional[]
 ```
 
-**Query:** nenhuma — backend retorna `Analyst[]` completo (todos com `profile === "Analista"`). `search` (nome/especialidade) e `category` são filtrados 100% no frontend (`AssignAction.svelte` com `normalize`).
+Exige sessão e `assignee_directory:read`.
+
+**Query:** `stage` aceita `triage` ou `mapping`; ausente equivale a `triage` para compatibilidade. O backend filtra pelos perfis ativos cuja flag e chaves de Atribuibilidade atendem à etapa solicitada. `search` (nome/especialidade) e `category` continuam filtrados 100% no frontend (`AssignAction.svelte` com `normalize`).
 
 **Resposta 200:**
 
 ```ts
-Analyst[] // lista direta de todos os analistas, sem envelope paginado e sem query string
+AssignableProfessional[] // lista direta de profissionais atribuíveis à etapa, sem envelope paginado
 ```
 
-> `listUsers` (admin) continua `GET /users?profile=&search=&category=&page=&pageSize=` paginado `PaginatedResponse<UserSummary>`; `listAnalysts` (assignment.service) usa `GET /users/analysts` sem parâmetros.
+> `listUsers` (admin) continua `GET /users?profile=&search=&category=&page=&pageSize=` paginado `PaginatedResponse<UserSummary>`; `listAssignableProfessionals` (assignment.service) usa `GET /users/analysts?stage=...` (ou omite a etapa para Triagem).
 
 ```ts
-interface Analyst extends UserSummary {
+interface AssignableProfessional {
   id: string;
   fullName: string;
   email: string;
-  profile: "Analista";
-  isActive: boolean;
-  mustChangePassword: boolean;
-  createdAt: string; // ISO
   specialty: string; // "" permitido → frontend oculta linha
   categories: RequestCategory[]; // [] permitido → sem chips
   notes: string | null; // null/vazio → sem bloco NOTAS
-  requestLoad: number | null; // null → sem coluna demandas
+  requestLoad: number; // zero quando não há solicitações atribuídas
 }
 type RequestCategory =
   | "Automação"
@@ -53,7 +52,7 @@ type RequestCategory =
   | "Outros";
 ```
 
-**Erros:** `401/403/500` → `{status:'error', statusCode, message}`.
+**Erros:** `400` para `stage` inválido, `401` sem sessão, `403` sem `assignee_directory:read`, `500` → `{status:'error', statusCode, message}`.
 
 **Exemplo (assignment — lista direta):**
 
@@ -63,8 +62,6 @@ type RequestCategory =
     "id": "20",
     "fullName": "Rafael Alves",
     "email": "rafael.alves@maat.com.br",
-    "profile": "Analista",
-    "isActive": true,
     "specialty": "Eletricista residencial",
     "categories": ["Apoio técnico", "Automação"],
     "notes": "Disponível à tarde; já atuou nesta região.",
@@ -92,9 +89,9 @@ Body (mapeamento):  { "mappingAssigneeId": "22" }
 
 **Regras backend:**
 
-- Se `assigneeId` → `detail.assignee = {id, name, email}` do usuário `Analista` encontrado, `detail.lastUpdate = now`, refletir em `GET /queue` (`assigneeId`/`assignee`)
+- Se `assigneeId` → `detail.assignee = {id, name, email}` do usuário com Perfil atribuível à Triagem, `detail.lastUpdate = now`, refletir em `GET /queue` (`assigneeId`/`assignee`)
 - Se `mappingAssigneeId` → `detail.mappingAssignee = {id, name, email}`, `detail.lastUpdate = now` (não altera `GET /queue` triagem)
-- Validar `analystId` existe e `profile === "Analista"` e `isActive === true`
+- Validar o usuário existe, o Perfil está ativo e é atribuível à etapa da operação conforme flag e chaves de trabalho
 - `protocol` é `encodeURIComponent(protocol)` (ex.: `MAAT-8K3P-9X2M`)
 
 **Resposta 200:** `InternalRequestDetail` com campo atualizado:
@@ -164,14 +161,14 @@ Frontend envia `assigneeId` quando `responsibility === "triagem"`, `mappingAssig
 
 ## Auth
 
-Cookie obrigatório. `GET /users/analysts` e `PATCH .../assignee` exigem sessão válida. Atribuição restrita a `Administrador` ou `ANALYST_ASSIGNEE` atual (triage ou mapeamento) — implementado no service (`canAssignRequest`, issue #124).
+Cookie obrigatório. `GET /users/analysts` e `PATCH .../assignee` exigem sessão válida. A atribuição exige `request:assign`, Custódia válida e um Perfil de destino atribuível à etapa conforme flag e chaves de trabalho.
 
 ---
 
 ## Mocks (DEV)
 
-- `src/lib/mocks/users.mock.ts` — `mockUsers` com 6 ativos + `listUsersMock` paginado (admin) e `listAnalystsMock` **sem paginação e sem filtros** (`Analyst[]` direto, só `profile === "Analista"`) para `assignment.service`; filtros `search`/`category` são 100% no front (`AssignAction`)
-- `src/lib/api/user.api.ts` — `listUsers` (`GET /users?...` paginado) e `listAnalysts` (`GET /users/analysts` sem query) — `assignment.service` usa `listAnalysts()` sem argumentos
+- `src/lib/mocks/users.mock.ts` — `mockUsers` com 6 ativos + `listUsersMock` paginado (admin) e lista de profissionais atribuíveis por etapa (`AssignableProfessional[]` direto); filtros `search`/`category` são 100% no front (`AssignAction`)
+- `src/lib/api/user.api.ts` — `listUsers` (`GET /users?...` paginado) e `listAnalysts` (`GET /users/analysts?stage=...`; Triagem é o padrão compatível)
 - `src/lib/mocks/requests.mock.ts` — `mockInternalRequestDetails` com `assignee` e `mappingAssignee: null`, `assignAnalystMock(protocol, analystId, responsibility)` atualiza campo correto e `mockRequests` para `triagem`
 - `MOCK_DOMAINS.users` / `MOCK_DOMAINS.request` controlam mocks; em prod `dev===false` elimina branches (DCE)
 

@@ -1,10 +1,8 @@
-import type { Role } from "../../../shared/types/role.ts";
-
 export interface LoginResponseDTO {
   id: string;
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  role: string;
   mustChangePassword: boolean;
 }

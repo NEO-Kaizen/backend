@@ -9,16 +9,78 @@ export const UserMetrics = {
   },
 };
 
-export const UserListItem = {
+export const UserSummary = {
   type: "object",
-  required: ["id", "email", "name", "role", "isActive"],
+  required: [
+    "id",
+    "fullName",
+    "email",
+    "avatarUrl",
+    "profile",
+    "isActive",
+    "mustChangePassword",
+    "createdAt",
+  ],
   properties: {
     id: { type: "string", example: "101" },
+    fullName: { type: "string", example: "Analista Teste" },
     email: { type: "string", example: "analista_teste@email.com" },
-    name: { type: "string", example: "Analista Teste" },
-    role: { type: "string", example: "analista" },
+    avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
+    profile: { type: "string", example: "Analista" },
     isActive: { type: "boolean", example: true },
-    avatarUrl: { type: "string", nullable: true },
+    mustChangePassword: { type: "boolean", example: false },
+    createdAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
+  },
+};
+
+export const CreateUserResponse = {
+  type: "object",
+  required: [
+    "id",
+    "fullName",
+    "email",
+    "role",
+    "isActive",
+    "mustChangePassword",
+    "createdAt",
+    "temporaryPassword",
+  ],
+  properties: {
+    id: { type: "string", example: "101" },
+    fullName: { type: "string", example: "Maria Silva" },
+    email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
+    role: { type: "string", example: "Analista" },
+    isActive: { type: "boolean", example: true },
+    mustChangePassword: { type: "boolean", example: true },
+    createdAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
+    temporaryPassword: { type: "string", example: "Abc123!xyz" },
+  },
+};
+
+export const ChangeUserStatusResponse = {
+  type: "object",
+  required: ["id", "isActive"],
+  properties: {
+    id: { type: "string", example: "101" },
+    isActive: { type: "boolean", example: false },
+  },
+};
+
+export const AssignableProfessional = {
+  type: "object",
+  required: ["id", "fullName", "email", "specialty", "categories", "notes", "requestLoad"],
+  properties: {
+    id: { type: "string", example: "101" },
+    fullName: { type: "string", example: "Maria Silva" },
+    email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
+    specialty: { type: "string", example: "Analista de Sistemas" },
+    categories: {
+      type: "array",
+      items: { type: "string" },
+      example: ["Sistemas", "Automação"],
+    },
+    notes: { type: "string", nullable: true, example: "Disponível à tarde." },
+    requestLoad: { type: "integer", example: 3 },
   },
 };
 
@@ -51,7 +113,7 @@ export const UserProfileResponse = {
     id: { type: "string", example: "101" },
     fullName: { type: "string", example: "Maria Silva" },
     email: { type: "string", example: "maria.silva@empresa.com" },
-    role: { type: "string", example: "analista" },
+    role: { type: "string", example: "Analista" },
     avatarUrl: { type: ["string", "null"], example: "/uploads/avatars/1-foto.jpg" },
     requester: { $ref: "#/components/schemas/RequesterProfileBlock" },
     professional: { $ref: "#/components/schemas/ProfessionalProfileBlock" },

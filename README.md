@@ -221,7 +221,8 @@ src/
     │   └── errorHandler.ts # Middleware de captura e resposta global de erros
     ├── types/
     │   ├── express.d.ts    # Extensão da tipagem nativa do Express (ex: req.user)
-    │   └── role.ts         # Enum de perfis de usuário (Analista, Gestor, Administrador)
+    │   ├── profile.ts      # Tipos do Perfil e da composição de Permissões
+    │   └── user.ts         # Tipos de usuário, autenticação e sessão
     └── utils/
         └── jwtUtil.ts      # Geração e validação de tokens JWT assinados
 ```

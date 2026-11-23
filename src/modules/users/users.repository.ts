@@ -3,13 +3,16 @@ import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
+import {
+  findAssignableProfileIds,
+  type AssignabilityStage,
+} from "../../shared/access/assignability.ts";
 import type {
   CreateProfessionalInput,
   CreateUserRequest,
   ListUsersQuery,
 } from "../DTOs/users/UserRequests.dto.ts";
-import type { AssignAnalyst, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
+import type { AssignableProfessional, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
 import type { RequestCategory } from "../../shared/types/requests.ts";
 
 interface UserSummaryRow {
@@ -25,13 +28,16 @@ interface UserSummaryRow {
 
 export interface ProfileLookupRow {
   profile_id: number;
+  name: string;
   is_root: boolean;
   is_active: boolean;
 }
 
 /** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
 export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
-  return db("profiles").where({ name }).first("profile_id", "is_root", "is_active");
+  return db("profiles")
+    .whereRaw("lower(name) = lower(?)", [name])
+    .first("profile_id", "name", "is_root", "is_active");
 }
 
 export async function findProfileIdByName(name: string): Promise<number | null> {
@@ -71,23 +77,12 @@ export async function listProfilePermissions(
     .select("permission_key", "custody");
 }
 
-/** Perfis que ganham a extensão de profissional (1:1 user → details_professional)
- *  na criação de conta. Apenas `analista`: a extensão é o card do analista e a
- *  elegibilidade de atribuição também é restrita a `analista`
- *  (regra legada do subfluxo de Mapeamento). */
-export const PROFESSIONAL_PROFILES = ["analista"] as const;
-
-/** True quando o perfil informado deve nascer com a extensão details_professional. */
-export function isProfessionalProfile(profileName: string): boolean {
-  return (PROFESSIONAL_PROFILES as readonly string[]).includes(profileName.trim().toLowerCase());
-}
-
 /**
  * Cria a extensão de profissional dentro da transação fornecida (atômica com a
  * criação do usuário). `professional_id` nasce do default da coluna
  * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
  * `specialties` e `attended_category_ids` são textos separados por vírgula —
- * mesmo formato lido pelo card (split em `listAnalysts`).
+ * mesmo formato lido pelo card de profissionais atribuíveis.
  */
 export async function createProfessionalData(
   trx: Knex.Transaction,
@@ -196,10 +191,11 @@ export async function createRequesterData(
  *
  * `specialties`/`attended_category_ids` são desencontradas do texto
  * separado por vírgula (formato do seed/createProfessionalData) para
- * array — mesmo parsing do card (`listAnalysts`).
+ * array — mesmo parsing do diretório de profissionais atribuíveis.
  */
 export interface UserProfileRow {
   user_id: number;
+  profile_id: number;
   full_name: string;
   email: string;
   avatar_url: string | null;
@@ -222,7 +218,14 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
   const user = await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("u.user_id", userId)
-    .first("u.user_id", "u.full_name", "u.email", "u.avatar_url", "p.name as profile_name");
+    .first(
+      "u.user_id",
+      "u.profile_id",
+      "u.full_name",
+      "u.email",
+      "u.avatar_url",
+      "p.name as profile_name",
+    );
 
   if (!user) return undefined;
 
@@ -237,6 +240,7 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
 
   return {
     user_id: user.user_id,
+    profile_id: user.profile_id,
     full_name: user.full_name,
     email: user.email,
     avatar_url: user.avatar_url ?? null,
@@ -325,7 +329,7 @@ export async function upsertRequesterData(
 
 /**
  * Upsert da extensão profissional por `user_id` (1:1).
- * Garante presença no "Meus dados" para analistas legados.
+ * Garante presença no "Meus dados" para usuários atribuíveis legados.
  * `status`/`capacity` NÃO são alterados (defaults do schema).
  * `specialties`/`attended_category_ids` são serializados como texto
  * separado por vírgula (mesmo formato do seed/`createProfessionalData`).
@@ -382,7 +386,7 @@ function baseQuery(query: ListUsersQuery) {
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where((builder) => {
       if (query.profile) {
-        builder.where("p.name", query.profile);
+        builder.whereRaw("lower(p.name) = lower(?)", [query.profile]);
       }
       if (query.search) {
         const escapedSearch = query.search.replace(/[\\%_]/g, "\\$&");
@@ -423,7 +427,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       fullName: row.full_name,
       email: row.email,
       avatarUrl: row.avatar_url,
-      profile: resolveRole(row.profile_name),
+      profile: row.profile_name,
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,
       createdAt: row.created_at.toISOString(),
@@ -468,7 +472,7 @@ export async function updateUserFields(
   }
 }
 
-/** Remove extensão profissional (quando role deixa de ser analista). */
+/** Remove a extensão profissional quando o Perfil deixa de ser atribuível. */
 export async function deleteProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
   await trx("details_professional").where({ user_id: userId }).del();
 }
@@ -503,30 +507,29 @@ export async function setTemporaryPassword(
   }
 }
 
-interface AnalystRow {
+interface AssignableProfessionalRow {
   user_id: number;
   full_name: string;
   email: string;
   job_title: string | null;
   attended_category_ids: string | null;
   notes: string | null;
-  professional_id: string | null;
+  professional_id: string;
 }
 
-export async function listAnalysts(): Promise<AssignAnalyst[]> {
+export async function listAssignableProfessionals(
+  stage: AssignabilityStage,
+): Promise<AssignableProfessional[]> {
+  const assignableProfileIds = await findAssignableProfileIds({ stage });
+  if (assignableProfileIds.length === 0) return [];
+
   const rows = (await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
-    // LEFT JOIN defensivo: usuário sem extensão (recém-criado ou dados antigos)
-    // ainda aparece no card com campos vazios — formato já previsto no contrato.
-    // A regra de licença (extensão com status 'inactive') permanece filtrando:
-    // o WHERE compensa o LEFT JOIN para excluir apenas extensões inativas.
-    .leftJoin("details_professional as dp", "dp.user_id", "u.user_id")
-    .where("p.name", "analista")
+    .join("details_professional as dp", "dp.user_id", "u.user_id")
+    .whereIn("p.profile_id", assignableProfileIds)
     .andWhere("p.is_active", true)
     .andWhere("u.is_active", true)
-    .andWhere((builder) => {
-      builder.where("dp.status", "active").orWhereNull("dp.user_id");
-    })
+    .andWhere("dp.status", "active")
     .select({
       user_id: "u.user_id",
       full_name: "u.full_name",
@@ -536,7 +539,7 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
       notes: "dp.notes",
       professional_id: "dp.professional_id",
     })
-    .orderBy("u.full_name", "asc")) as AnalystRow[];
+    .orderBy("u.full_name", "asc")) as AssignableProfessionalRow[];
 
   if (rows.length === 0) return [];
 
@@ -551,10 +554,8 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
-  // Analista SEM extensão não entra no COUNT (sem professional_id válido).
-  const professionalIds = rows
-    .map((r) => r.professional_id)
-    .filter((id): id is string => id !== null);
+  // O INNER JOIN garante um professional_id válido para cada resultado.
+  const professionalIds = rows.map((row) => row.professional_id);
   const counts = (await db("requests")
     .whereIn("professional_id", professionalIds)
     .select("professional_id")
@@ -566,13 +567,13 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   }
 
   return rows.map((row) => {
-    const categoriesForAnalyst: RequestCategory[] = [];
+    const categoriesForProfessional: RequestCategory[] = [];
     if (row.attended_category_ids) {
       for (const part of row.attended_category_ids.split(",")) {
         const id = Number(part.trim());
         if (!Number.isNaN(id)) {
           const name = categoryMap.get(id);
-          if (name) categoriesForAnalyst.push(name as RequestCategory);
+          if (name) categoriesForProfessional.push(name as RequestCategory);
         }
       }
     }
@@ -582,12 +583,10 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
       fullName: row.full_name,
       email: row.email,
       specialty: row.job_title ?? "",
-      categories: categoriesForAnalyst,
+      categories: categoriesForProfessional,
       notes: row.notes ?? null,
-      // Sem extensão não há carga para contar; contrato permite null.
-      requestLoad:
-        row.professional_id === null ? null : (countByProfessional.get(row.professional_id) ?? 0),
-    } satisfies AssignAnalyst;
+      requestLoad: countByProfessional.get(row.professional_id) ?? 0,
+    } satisfies AssignableProfessional;
   });
 }
 
@@ -599,7 +598,7 @@ export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
       db.raw('COUNT(u.*)::int as "total"'),
       db.raw('COUNT(CASE WHEN u.is_active THEN 1 END)::int as "active"'),
       db.raw('COUNT(CASE WHEN u.must_change_password THEN 1 END)::int as "pending"'),
-      db.raw("COUNT(CASE WHEN p.name = 'administrador' THEN 1 END)::int as \"admins\""),
+      db.raw("COUNT(CASE WHEN lower(p.name) = 'administrador' THEN 1 END)::int as \"admins\""),
     )
     .first();
 

@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { isProfileAssignable, type AssignabilityStage } from "../../shared/access/assignability.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
@@ -14,7 +15,6 @@ import Config from "../../configs.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { Knex } from "knex";
 import type {
@@ -24,7 +24,7 @@ import type {
   UpdateUserRequest,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type {
-  AssignAnalyst,
+  AssignableProfessional,
   ChangeUserStatusResponse,
   CreateUserResponse,
   ResetPasswordResponse,
@@ -39,7 +39,6 @@ import type { UpdateProfilePayload } from "../DTOs/users/UpdateProfileRequest.dt
 import * as repository from "./users.repository.ts";
 
 const AVATAR_DIR = "avatars";
-const ROLE_ANALYST = "analista";
 
 const CHANGE_ORIGIN_ADMIN = "admin";
 
@@ -198,8 +197,10 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   return repository.listUsers(query);
 }
 
-export async function listAnalysts(): Promise<AssignAnalyst[]> {
-  return repository.listAnalysts();
+export async function listAssignableProfessionals(
+  stage: AssignabilityStage,
+): Promise<AssignableProfessional[]> {
+  return repository.listAssignableProfessionals(stage);
 }
 
 export const getUserMetrics = async (): Promise<UserMetricsResponse> => {
@@ -225,6 +226,14 @@ export async function createUser(
   await assertProfileIsManageable(profile, actorAuthority);
 
   const profileId = profile.profile_id;
+  const isAssignable = await isProfileAssignable(profileId);
+  const professional = payload.professional;
+  if (isAssignable && !professional) {
+    throw new AppError("Dados profissionais são obrigatórios para Perfis atribuíveis.", 400);
+  }
+  if (!isAssignable && professional) {
+    throw new AppError("Dados profissionais só podem ser informados para Perfis atribuíveis.", 400);
+  }
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -242,16 +251,10 @@ export async function createUser(
         profileId,
       );
 
-      // Issue A (#106): analista nasce com a extensão details_professional (1:1 com
-      // users, card de perfil) usando os dados profissionais enviados no payload —
-      // obrigatórios para o perfil (o schema já valida; guard defensivo para o
-      // service não depender do contrato de entrada). Atômico com a criação:
+      // Perfil atribuível nasce com a extensão details_professional (1:1 com
+      // users) usando os dados profissionais enviados no payload. Atômico com a criação:
       // se a extensão falhar, o usuário não é criado (rollback junto com a auditoria).
-      if (repository.isProfessionalProfile(payload.role)) {
-        const professional = payload.professional;
-        if (!professional) {
-          throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
-        }
+      if (professional) {
         await repository.createProfessionalData(trx, created.user_id, professional);
       }
 
@@ -286,7 +289,7 @@ export async function createUser(
     id: String(user.user_id),
     fullName: user.full_name,
     email: user.email,
-    role: resolveRole(payload.role),
+    role: profile.name,
     isActive: user.is_active,
     mustChangePassword: user.must_change_password,
     createdAt: user.created_at.toISOString(),
@@ -400,7 +403,7 @@ function toProfessionalBlock(
 
 /**
  * `GET /users/me` — perfil completo do próprio usuário
- * (dados básicos + bloco requester + bloco professional [analista] + avatar).
+ * (dados básicos + bloco requester + bloco professional [Perfil atribuível] + avatar).
  */
 export async function getMyProfile(userId: number): Promise<UserProfileResponseDTO> {
   const row = await repository.findUserProfile(userId);
@@ -408,12 +411,11 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  // Analista legado (sem linha em details_professional) recebe o bloco
-  // professional com defaults em vez de null — o contrato do "Meus dados"
-  // exige o bloco para o perfil Analista, sem erro e sem exigir migração
-  // de dados. Demais perfis permanecem com professional: null.
+  const isAssignable = await isProfileAssignable(row.profile_id);
+  // Usuário atribuível legado sem details_professional recebe o bloco com
+  // defaults em vez de null, sem exigir migração de dados.
   const professional: ProfessionalProfileBlock | null =
-    row.profile_name === ROLE_ANALYST && !row.professional
+    isAssignable && !row.professional
       ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
       : toProfessionalBlock(row.professional);
 
@@ -421,7 +423,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     id: String(row.user_id),
     fullName: row.full_name,
     email: row.email,
-    role: resolveRole(row.profile_name),
+    role: row.profile_name,
     avatarUrl: row.avatar_url,
     requester: toRequesterBlock(row.requester),
     professional,
@@ -605,16 +607,15 @@ export async function updateUser(
     }
   }
 
-  const finalRoleName = payload.role ?? target.profile_name;
-  const isFinalAnalyst = repository.isProfessionalProfile(finalRoleName);
-  const wasAnalyst = repository.isProfessionalProfile(target.profile_name);
+  const wasAssignable = await isProfileAssignable(target.profile_id);
+  const isFinalAssignable =
+    newProfileId === undefined ? wasAssignable : await isProfileAssignable(newProfileId);
 
-  if (payload.professional !== undefined && !isFinalAnalyst) {
-    throw new AppError("Dados profissionais são exclusivos do perfil Analista", 400);
+  if (payload.professional !== undefined && !isFinalAssignable) {
+    throw new AppError("Dados profissionais só podem ser informados para Perfis atribuíveis.", 400);
   }
-  if (isFinalAnalyst && !wasAnalyst && payload.professional === undefined) {
-    // Promoção para analista sem dados profissionais — exigir bloco.
-    throw new AppError("Dados profissionais são obrigatórios para o perfil Analista", 400);
+  if (isFinalAssignable && !wasAssignable && payload.professional === undefined) {
+    throw new AppError("Dados profissionais são obrigatórios para Perfis atribuíveis.", 400);
   }
 
   // Snapshot para auditoria
@@ -639,7 +640,7 @@ export async function updateUser(
       // 3. Professional (1:1) — merge
       if (payload.professional !== undefined) {
         await repository.upsertProfessionalData(trx, id, payload.professional);
-      } else if (wasAnalyst && !isFinalAnalyst) {
+      } else if (wasAssignable && !isFinalAssignable) {
         await repository.deleteProfessionalData(trx, id);
       }
 
@@ -681,11 +682,11 @@ export async function updateUser(
     id: String(updated.user_id),
     fullName: updated.full_name,
     email: updated.email,
-    role: resolveRole(updated.profile_name),
+    role: updated.profile_name,
     avatarUrl: updated.avatar_url,
     requester: toRequesterBlock(updated.requester),
     professional: (() => {
-      if (updated.profile_name === ROLE_ANALYST && !updated.professional) {
+      if (isFinalAssignable && !updated.professional) {
         return { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null };
       }
       return toProfessionalBlock(updated.professional);

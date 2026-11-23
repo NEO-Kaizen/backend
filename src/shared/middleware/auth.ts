@@ -4,7 +4,6 @@ import { AppError } from "../errors/AppError.ts";
 import { verifyToken, type TokenPayload } from "../utils/jwtUtil.ts";
 import Config from "../../configs.ts";
 import { getAuthState } from "../../modules/auth/auth.repository.ts";
-import { resolveRole } from "../utils/roleUtils.ts";
 
 const { JsonWebTokenError, NotBeforeError, TokenExpiredError } = jwt;
 const COOKIE_NAME = Config.COOKIE_NAME;
@@ -71,14 +70,12 @@ export async function authMiddleware(
       return;
     }
 
-    // O papel vem do banco a cada request — nunca do JWT. Assim, uma troca
-    // de perfil passa a valer imediatamente em todas as rotas protegidas por
-    // `requireRole`, mesmo com o cookie antigo ainda válido.
+    // O nome do Perfil vem do banco a cada request — nunca do JWT.
     req.user = {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      role: resolveRole(userState.profile_name),
+      role: userState.profile_name,
     };
 
     req.authScope = scope;

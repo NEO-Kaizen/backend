@@ -6,6 +6,7 @@ import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zo
 import {
   changeUserStatusSchema,
   createUserSchema,
+  listAssignableProfessionalsQuerySchema,
   listUsersQuerySchema,
   updateUserSchema,
 } from "./users.schema.ts";
@@ -43,9 +44,18 @@ export const getUserMetrics = async (_req: Request, res: Response): Promise<Resp
   return res.status(200).json(metrics);
 };
 
-export const listAnalysts = async (_req: Request, res: Response): Promise<Response> => {
-  const analysts = await service.listAnalysts();
-  return res.status(200).json(analysts);
+export const listAssignableProfessionals = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  const parsed = listAssignableProfessionalsQuerySchema.safeParse(req.query);
+
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const professionals = await service.listAssignableProfessionals(parsed.data.stage);
+  return res.status(200).json(professionals);
 };
 
 export const listUsers = async (req: Request, res: Response): Promise<Response> => {
@@ -122,7 +132,7 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<Re
 
 /**
  * GET /users/me — perfil completo do próprio usuário
- * (dados básicos + bloco requester + bloco professional [analista] + avatar).
+ * (dados básicos + bloco requester + bloco professional [Perfil atribuível] + avatar).
  */
 export const getMyProfile = async (req: Request, res: Response): Promise<Response> => {
   const profile = await service.getMyProfile(actorIdFromRequest(req));

@@ -129,6 +129,28 @@ jobs:
           echo "::error::API did not answer GET /portal-config after 30 attempts"
           cat /tmp/api.log
           exit 1
+      - name: Smoke test POST /profiles audit entity
+        run: |
+          curl --fail --silent --show-error \
+            --cookie-jar /tmp/profile-session.txt \
+            --header "Content-Type: application/json" \
+            --data '{"email":"administrador_teste@email.com","password":"steste123"}' \
+            http://127.0.0.1:3000/auth/login \
+            --output /tmp/profile-login.json
+
+          status=$(curl --silent --show-error \
+            --output /tmp/profile-create.json \
+            --write-out '%{http_code}' \
+            --cookie /tmp/profile-session.txt \
+            --header "Content-Type: application/json" \
+            --data '{"name":"CI profile audit smoke","permissions":[]}' \
+            http://127.0.0.1:3000/profiles)
+
+          if [ "$status" != "201" ]; then
+            echo "::error::POST /profiles returned HTTP $status"
+            cat /tmp/profile-create.json
+            exit 1
+          fi
       - name: Stop API
         if: always()
         run: |

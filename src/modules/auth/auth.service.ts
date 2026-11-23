@@ -1,8 +1,6 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
-import type { Role } from "../../shared/types/role.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import {
   buildEffectivePermissions,
   type EffectivePermission,
@@ -17,7 +15,7 @@ export interface SessionUserResult {
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  role: string;
   mustChangePassword: boolean;
   /** Época (ms) de `users.password_changed_at` — vai no payload do JWT. */
   passwordChangedAt: number;
@@ -62,7 +60,7 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    role: resolveRole(user.profile_name),
+    role: user.profile_name,
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
   };
@@ -84,7 +82,7 @@ export async function getSessionUser(userId: number): Promise<SessionUserWithPer
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    role: resolveRole(user.profile_name),
+    role: user.profile_name,
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
     permissions: buildEffectivePermissions(grants),
@@ -142,7 +140,7 @@ export async function changePassword(
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    role: resolveRole(user.profile_name),
+    role: user.profile_name,
     mustChangePassword: false,
     passwordChangedAt: new Date(password_changed_at).getTime(),
   };
