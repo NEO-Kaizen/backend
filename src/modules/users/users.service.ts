@@ -298,7 +298,7 @@ export async function createUser(
         throwRootAccountProtected();
       }
 
-      const shouldHaveProfessionalExtension = resolveProfessionalExtensionRequirement(
+      const needsProfessionalExtension = resolveProfessionalExtensionRequirement(
         currentProfile,
         payload.professional,
       );
@@ -312,7 +312,7 @@ export async function createUser(
 
       // A extensão é definida pelas flags do Perfil, nunca pelo nome. A linha
       // nasce na mesma transação da conta.
-      if (shouldHaveProfessionalExtension) {
+      if (needsProfessionalExtension) {
         await repository.createProfessionalData(trx, created.user_id, payload.professional);
       }
 
@@ -701,7 +701,7 @@ export async function updateUser(
       }
       const wasAssignable = shouldHaveProfessionalExtension(sourceProfile);
       const isFinalAssignable = shouldHaveProfessionalExtension(destinationProfile);
-      const shouldCreateExtension = resolveProfessionalExtensionRequirement(
+      const needsProfessionalExtension = resolveProfessionalExtensionRequirement(
         destinationProfile,
         payload.professional,
       );
@@ -726,7 +726,7 @@ export async function updateUser(
       } else if (wasAssignable && !isFinalAssignable) {
         await assertUserHasNoOpenAssignments(trx, id);
         await repository.deleteProfessionalData(trx, id);
-      } else if (shouldCreateExtension) {
+      } else if (needsProfessionalExtension) {
         await repository.createProfessionalData(trx, id);
       }
 
