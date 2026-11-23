@@ -219,7 +219,7 @@ export async function fetchDashboardFilterOptions(): Promise<DashboardFilterOpti
 /** Retorna todas as solicitações dos filtros ativos, sem paginação. */
 export async function fetchQueueExportRows(
   filters: QueueFilterQuery,
-  scopedUserId?: number,
+  scopedUserId: number | undefined,
 ): Promise<QueueExportRow[]> {
   const query = db("requests")
     .join("requesters as requester", "requester.requester_id", "requests.requester_id")
