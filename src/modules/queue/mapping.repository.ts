@@ -117,7 +117,8 @@ export const findMappingRequestContext = async (
 };
 
 /**
- * Status de destino da conclusão do mapeamento (delta v4 §3.2): projeção com
+ * Status de destino da conclusão do mapeamento (ver
+ * `docs/rules/requests-lifecycle.md`, seção Mapeamento): projeção com
  * eligible check `isActive && isRestricted===false && mappingMode` em
  * `conclusion_only`/`free`. `undefined` = inativo/restrito/modo inadequado.
  */

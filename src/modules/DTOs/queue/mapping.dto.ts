@@ -1,5 +1,5 @@
 // DTOs do subfluxo de Mapeamento (`/queue/requests/:protocol/mapping`).
-// Contrato fechado com o frontend em `contrato-mapeamento.md` (issue #86).
+// Contrato HTTP na especificação OpenAPI (`src/docs/paths/queue.ts`; issue #86).
 //
 // `id` do participante referencia `users.user_id`; quando ausente, o
 // participante é externo (nome/e-mail enviados no payload). O `id` do
@@ -54,7 +54,8 @@ export interface ResolvedParticipant {
  *
  * `id` = `details_professional.professional_id` (uuid) — ecoável no
  * `mappingAssigneeId` do payload. `userId` = `users.user_id` (int, string) —
- * usado na comparação `mappingAssigneeId === currentUser.id` (contrato §9).
+ * usado na comparação `mappingAssigneeId === currentUser.id` (ver
+ * `docs/rules/assignment.md`).
  */
 export interface MappingAssignee {
   id: string;
@@ -92,9 +93,11 @@ export interface MappingResponseDTO {
  * permitido apenas ao responsável da solicitação ou Administrador.
  * `completeMapping` é exclusivo do `PUT` (não aparece na resposta).
  * `targetStatus` (PortalStatus.id) é obrigatório quando `completeMapping:true`
- * — status de destino do fluxo de mapeamento (delta v4 §3.2).
+ * — status de destino do fluxo de mapeamento (ver
+ * `docs/rules/requests-lifecycle.md`, seção Mapeamento).
  * `justification` (1..4000) é obrigatória quando `completeMapping:true` —
- * toda mudança de status exige justificativa (delta §3.3).
+ * toda mudança de status exige justificativa (ver
+ * `docs/rules/requests-lifecycle.md`, seção Troca direta de status).
  */
 export interface MappingPayloadDTO {
   id?: string;

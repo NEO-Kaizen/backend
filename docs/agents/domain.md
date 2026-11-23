@@ -7,7 +7,11 @@ repositório ao explorar o código.
 
 - **`GLOSSARY.md`** na raiz do repositório, ou
 - **`GLOSSARY-MAP.md`** na raiz do repositório, se existir: ele aponta para um `GLOSSARY.md` por contexto. Leia cada um que for relevante para o tópico.
+- **`docs/rules/`**: leia o documento da área em que você vai trabalhar. Ele reúne as regras de negócio que a OpenAPI não expressa.
 - **`docs/adr/`**: leia os ADRs que tocam a área em que você vai trabalhar. Em repositórios multi-contexto, verifique também `src/<context>/docs/adr/` para decisões específicas do contexto.
+- **`src/docs/`**: a especificação OpenAPI é a fonte única do contrato HTTP. Consulte-a para rota, payload, resposta, enum e status code; não os descreva em `docs/`.
+- **`docs/superseded.md`**: se um link antigo apontar para um contrato removido, este índice diz para onde o conteúdo foi.
+- **`docs/rbac.md`** e **`docs/custom-roles.md`** quando o assunto for acesso, custódia ou perfis.
 
 Se algum desses arquivos não existir, **prossiga em silêncio**. Não sinalize a
 ausência; não sugira criá-los de antemão. A skill `/domain-modeling` (acessada
@@ -21,10 +25,13 @@ Repositório de contexto único (a maioria dos repositórios):
 ```
 /
 ├── GLOSSARY.md
-├── docs/adr/
-│   ├── 0001-event-sourced-orders.md
-│   └── 0002-postgres-for-write-model.md
+├── docs/
+│   ├── adr/                 ← decisões difíceis de reverter
+│   ├── rules/               ← regras de negócio por fluxo
+│   ├── database/            ← persistência
+│   └── rbac.md              ← acesso
 └── src/
+    └── docs/                ← especificação OpenAPI (contrato HTTP)
 ```
 
 Repositório multi-contexto (presença de `GLOSSARY-MAP.md` na raiz):

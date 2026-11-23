@@ -8,7 +8,7 @@ Este documento define **como escrever código** neste repositório. Ele não red
 
 | Vou…                                               | Leia                                  |
 | -------------------------------------------------- | ------------------------------------- |
-| escrever ou alterar rota, controller ou middleware | §5 e §7; contrato em `docs/`          |
+| escrever ou alterar rota, controller ou middleware | §5 e §7; contrato em `src/docs/` (§9) |
 | escrever service ou regra de domínio               | §4 e §5                               |
 | escrever repository, query ou migration            | §6; persistência em `docs/database/`  |
 | escrever teste                                     | §10; decisão pendente na issue #135   |
@@ -158,10 +158,11 @@ Este documento define **como escrever código** neste repositório. Ele não red
 
 ## 9. Contratos e documentação
 
-- O contrato HTTP vive em `docs/*.md`; o código consome o contrato, não o redefine no handler.
-- Alteração de rota, payload, resposta ou status code atualiza o documento correspondente no mesmo PR.
-- Exemplos de contrato não contêm PII.
+- A especificação OpenAPI em `src/docs/` é a fonte única do contrato HTTP; o código consome o contrato, não o redefine no handler.
+- Alteração de rota, payload, resposta ou status code atualiza `src/docs/` e `docs/openapi.json` (`npm run docs:openapi`) no mesmo PR; `npm run check` falha se as rotas reais e a spec divergirem.
+- Regras de negócio — o que o domínio decide, não o formato do fio — vivem em `docs/rules/`.
 - Decisões de arquitetura que sejam difíceis de reverter viram ADR em `docs/adr/`.
+- Exemplos de contrato não contêm PII.
 - Use o vocabulário do `GLOSSARY.md` em títulos, mensagens e documentos.
 
 ## 10. Testes

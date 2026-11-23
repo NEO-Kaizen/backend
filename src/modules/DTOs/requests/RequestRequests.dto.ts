@@ -50,7 +50,8 @@ export type ListRequestsInput = Omit<ListRequestsQuery, "email"> & { email?: str
 
 /**
  * Resposta do `PATCH /requests/:protocol/status` (issue #124 — Motor de Status
- * v4, delta §3.3): protocolo + nomes dos status anterior/novo + instante.
+ * v4; ver `docs/rules/requests-lifecycle.md`, seção Troca direta de status):
+ * protocolo + nomes dos status anterior/novo + instante.
  */
 export interface UpdateStatusResponse {
   protocol: string;

@@ -10,19 +10,125 @@ import {
 } from "./auth.ts";
 
 import {
+  Role,
+  ProfileName,
   UserMetrics,
-  UserListItem,
+  UserSummary,
+  UserListResponse,
   RequesterProfileBlock,
   ProfessionalProfileBlock,
   UserProfileResponse,
+  AssignAnalyst,
+  RequesterInput,
+  ProfessionalInput,
+  CreateUserRequest,
+  CreateUserResponse,
+  UpdateUserRequest,
+  UpdateProfilePayload,
+  ChangeUserStatusRequest,
+  ChangeUserStatusResponse,
+  ResetPasswordResponse,
 } from "./user.ts";
-import { RequestSummary, RequestDetail } from "./request.ts";
 
-import { QueueMetrics, QueueItem, QueueResponse } from "./queue.ts";
+import {
+  RequestStatus,
+  RequestPriority,
+  RequestCategory,
+  YesNoDetail,
+  RequesterBlock,
+  DemandBlock,
+  OperationalBlock,
+  ComplementaryBlock,
+  CreateRequestPayload,
+  CreateRequestResponse,
+  RequestSummary,
+  PaginatedRequestSummary,
+  PublicMeeting,
+  PublicRequestDetail,
+  Assignee,
+  PrioritizationBlock,
+  PendingSummary,
+  UnreadState,
+  CorrectionAlert,
+  InternalAttachment,
+  InternalRequestDetail,
+  UpdateRequesterBlock,
+  UpdateInternalRequestPayload,
+  PublicOperationalImpacts,
+  RequesterOperational,
+  RequesterAttachment,
+  PublicRequestDetails,
+  RequesterRequestDetails,
+  PublicTrackingResponse,
+  AuthenticatedTrackingResponse,
+  TrackingResponse,
+  AssigneeSummary,
+  AssignRequestPayload,
+  AssignRequestResponse,
+  AssignAnalystPayload,
+  UpdateStatusPayload,
+  UpdateStatusResponse,
+} from "./request.ts";
 
-import { TriagemResponse } from "./triage.ts";
+import {
+  QueueMetrics,
+  QueueAssignee,
+  QueueItem,
+  QueueResponse,
+  MappingParticipant,
+  MappingParticipantInput,
+  MappingAssignee,
+  MappingResponse,
+  MappingHistoryResponse,
+  MappingPayload,
+} from "./queue.ts";
 
-import { MappingResponse } from "./mapping.ts";
+import { TriageAssignee, TriagemResponse, CreateTriagePayload } from "./triage.ts";
+
+import {
+  PendingFieldRef,
+  PendingAttachment,
+  PendingItem,
+  ListPendingItemsResponse,
+  CreatePendingItemsBody,
+  CreatePendingItemsResponse,
+  ReviewPendingItemsBody,
+  ReviewDecisionValidate,
+  ReviewDecisionReopen,
+  ReviewPendingItemsResponse,
+  RespondPendingItemBody,
+  PublicVerifyBody,
+  PublicVerifyResponse,
+} from "./pendingItems.ts";
+
+import {
+  TimelineActor,
+  TimelineNote,
+  TimelineEvent,
+  TimelineItem,
+  TriageHistoryEntry,
+  MappingHistoryEntry,
+  InternalNotesResponse,
+  CreateInternalNoteRequest,
+  MarkInternalNotesReadRequest,
+} from "./internalNotes.ts";
+
+import {
+  AuditActor,
+  AuditHistorySummary,
+  AuditHistoryListResponse,
+  AuditHistoryDetail,
+} from "./auditHistory.ts";
+
+import {
+  DashboardSituation,
+  DashboardSummary,
+  DashboardStatusMetric,
+  DashboardPriorityMetric,
+  DashboardCategoryMetric,
+  DashboardTrendPoint,
+  DashboardResponse,
+} from "./reports.ts";
 
 import {
   PortalConfig,
@@ -33,6 +139,7 @@ import {
   PrioritizationWeights,
   ThemeTokens,
   ThemeGradient,
+  StatusMode,
   StatusToneTokens,
   PortalAccessPatchBody,
   PortalIdentityPatchBody,
@@ -42,9 +149,12 @@ import {
   PortalPrioritizationWeightsPatchBody,
 } from "./portal.ts";
 
-import { PrioritizationCriteria } from "./prioritization.ts";
-
-import { ReviewDecisionValidate, ReviewDecisionReopen } from "./pendingItems.ts";
+import {
+  PrioritizationCriterion,
+  PrioritizationCriteriaList,
+  EvaluatePrioritizationRequest,
+  EvaluatePrioritizationResponse,
+} from "./prioritization.ts";
 
 import {
   NotificationStatusChangedPayload,
@@ -60,79 +170,136 @@ import {
   NotificationMarkAllReadResponse,
 } from "./notifications.ts";
 
-export {
-  ErrorResponse,
-  ValidationErrorResponse,
-  AuthenticatedUser,
-  LoginRequest,
-  LoginResponse,
-  LogoutResponse,
-  ChangePasswordRequest,
-  ChangePasswordResponse,
-  UserMetrics,
-  UserListItem,
-  RequesterProfileBlock,
-  ProfessionalProfileBlock,
-  UserProfileResponse,
-  RequestSummary,
-  RequestDetail,
-  QueueMetrics,
-  QueueItem,
-  QueueResponse,
-  TriagemResponse,
-  MappingResponse,
-  PortalConfig,
-  PortalTheme,
-  PortalAssets,
-  PortalCategory,
-  PortalStatus,
-  PrioritizationWeights,
-  ThemeTokens,
-  ThemeGradient,
-  StatusToneTokens,
-  PortalAccessPatchBody,
-  PortalIdentityPatchBody,
-  PortalThemePatchBody,
-  PortalCategoriesPatchBody,
-  PortalStatusesPatchBody,
-  PortalPrioritizationWeightsPatchBody,
-  PrioritizationCriteria,
-  ReviewDecisionValidate,
-  ReviewDecisionReopen,
-  NotificationStatusChangedPayload,
-  NotificationMappingScheduledPayload,
-  NotificationPendingItemRespondedPayload,
-  NotificationPendingItemRespondedUnassignedPayload,
-  NotificationResponsibleAssignedPayload,
-  NotificationPayload,
-  NotificationItem,
-  NotificationListResponse,
-  NotificationUnreadCountResponse,
-  NotificationMarkReadResponse,
-  NotificationMarkAllReadResponse,
-};
-
 export const schemas = {
   ErrorResponse,
   ValidationErrorResponse,
+
+  // Auth
   AuthenticatedUser,
   LoginRequest,
   LoginResponse,
   LogoutResponse,
   ChangePasswordRequest,
   ChangePasswordResponse,
+
+  // Users
+  Role,
+  ProfileName,
   UserMetrics,
-  UserListItem,
+  UserSummary,
+  UserListResponse,
   RequesterProfileBlock,
   ProfessionalProfileBlock,
   UserProfileResponse,
+  AssignAnalyst,
+  RequesterInput,
+  ProfessionalInput,
+  CreateUserRequest,
+  CreateUserResponse,
+  UpdateUserRequest,
+  UpdateProfilePayload,
+  ChangeUserStatusRequest,
+  ChangeUserStatusResponse,
+  ResetPasswordResponse,
+
+  // Requests (shared blocks + public/internal views)
+  RequestStatus,
+  RequestPriority,
+  RequestCategory,
+  YesNoDetail,
+  RequesterBlock,
+  DemandBlock,
+  OperationalBlock,
+  ComplementaryBlock,
+  CreateRequestPayload,
+  CreateRequestResponse,
   RequestSummary,
-  RequestDetail,
+  PaginatedRequestSummary,
+  PublicMeeting,
+  PublicRequestDetail,
+  Assignee,
+  PrioritizationBlock,
+  PendingSummary,
+  UnreadState,
+  CorrectionAlert,
+  InternalAttachment,
+  InternalRequestDetail,
+  UpdateRequesterBlock,
+  UpdateInternalRequestPayload,
+  PublicOperationalImpacts,
+  RequesterOperational,
+  RequesterAttachment,
+  PublicRequestDetails,
+  RequesterRequestDetails,
+  PublicTrackingResponse,
+  AuthenticatedTrackingResponse,
+  TrackingResponse,
+  AssigneeSummary,
+  AssignRequestPayload,
+  AssignRequestResponse,
+  AssignAnalystPayload,
+  UpdateStatusPayload,
+  UpdateStatusResponse,
+
+  // Queue + mapping
   QueueMetrics,
+  QueueAssignee,
   QueueItem,
   QueueResponse,
-  TriagemResponse,
+  MappingParticipant,
+  MappingParticipantInput,
+  MappingAssignee,
   MappingResponse,
+  MappingHistoryResponse,
+  MappingPayload,
+
+  // Triage
+  TriageAssignee,
+  TriagemResponse,
+  CreateTriagePayload,
+
+  // Pending items
+  PendingFieldRef,
+  PendingAttachment,
+  PendingItem,
+  ListPendingItemsResponse,
+  CreatePendingItemsBody,
+  CreatePendingItemsResponse,
+  ReviewPendingItemsBody,
+  ReviewDecisionValidate,
+  ReviewDecisionReopen,
+  ReviewPendingItemsResponse,
+  RespondPendingItemBody,
+  PublicVerifyBody,
+  PublicVerifyResponse,
+
+  // Internal notes
+  TimelineActor,
+  TimelineNote,
+  TimelineEvent,
+  TimelineItem,
+  TriageHistoryEntry,
+  MappingHistoryEntry,
+  InternalNotesResponse,
+  CreateInternalNoteRequest,
+  MarkInternalNotesReadRequest,
+
+  // Audit history
+  AuditActor,
+  AuditHistorySummary,
+  AuditHistoryListResponse,
+  AuditHistoryDetail,
+
+  // Reports
+  DashboardSituation,
+  DashboardSummary,
+  DashboardStatusMetric,
+  DashboardPriorityMetric,
+  DashboardCategoryMetric,
+  DashboardTrendPoint,
+  DashboardResponse,
+
+  // Portal config
   PortalConfig,
   PortalTheme,
   PortalAssets,
@@ -141,6 +308,7 @@ export const schemas = {
   PrioritizationWeights,
   ThemeTokens,
   ThemeGradient,
+  StatusMode,
   StatusToneTokens,
   PortalAccessPatchBody,
   PortalIdentityPatchBody,
@@ -148,9 +316,14 @@ export const schemas = {
   PortalCategoriesPatchBody,
   PortalStatusesPatchBody,
   PortalPrioritizationWeightsPatchBody,
-  PrioritizationCriteria,
-  ReviewDecisionValidate,
-  ReviewDecisionReopen,
+
+  // Prioritization
+  PrioritizationCriterion,
+  PrioritizationCriteriaList,
+  EvaluatePrioritizationRequest,
+  EvaluatePrioritizationResponse,
+
+  // Notifications
   NotificationStatusChangedPayload,
   NotificationMappingScheduledPayload,
   NotificationPendingItemRespondedPayload,

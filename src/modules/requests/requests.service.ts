@@ -176,13 +176,13 @@ export async function listRequestsByEmail(
 }
 
 // --- Consulta administrativa/interna (issue #48) ---------------------------
-// Difere de findRequest (pÃºblica, issue #34): retorna o DTO interno completo,
-// nunca o pÃºblico. Ver docs/requests-internal-query-contract.md.
+// Difere de findRequest (pública, issue #34): retorna o DTO interno completo,
+// nunca o público. Ver `docs/rules/pending-items.md`.
 
-// Resposta "Sim/NÃ£o (+ detalhamento)": undefined quando o campo nÃ£o foi
-// respondido (Bloco 4 Ã© opcional â€” o contrato espera a chave ausente, nÃ£o
-// null; res.json/JSON.stringify jÃ¡ removem chaves com valor undefined),
-// false para "NÃ£o", string com o detalhe para "Sim".
+// Resposta "Sim/Não (+ detalhamento)": undefined quando o campo não foi
+// respondido (Bloco 4 é opcional — o contrato espera a chave ausente, não
+// null; res.json/JSON.stringify já removem chaves com valor undefined),
+// false para "Não", string com o detalhe para "Sim".
 function toYesNoDetail(hasFlag: boolean | null, detail: string | null): YesNoDetail | undefined {
   if (hasFlag === null || hasFlag === undefined) return undefined;
   if (hasFlag === false) return false;
@@ -239,7 +239,8 @@ export async function findInternalByProtocol(
       }
     : null;
 
-  // PendÃªncias (contract-pendencias_03): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
+  // Pendências (`docs/rules/pending-items.md`): pendingSummary/unread/correctionAlert
+  // derivados sem tabela de leitura.
   const pendingSummary = await (async () => {
     try {
       const summary = await pendingItemsRepo.pendingSummaryByRequestId(requestId);
@@ -1225,17 +1226,18 @@ function canAssignRequest(
   return isTriageAssignee || isMappingAssignee;
 }
 
-// --- PATCH /requests/:protocol/status (issue #124 â€” Motor de Status v4) -----
-// Rota Ãºnica de troca de status (delta `portal-config-statuses-amend.md` Â§3.3):
-// - `Administrador`: bypass de triageMode/mappingMode/isRestricted â€” pode ir a
-//   qualquer status `isActive` (inativo â†’ 409);
-// - `ANALYST_ASSIGNEE` (responsÃ¡vel pela triagem ou designado do mapeamento,
-//   qualquer perfil interno com custÃ³dia â€” inclusive Gestor): sÃ³ status ativo,
+// --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
+// Rota única de troca de status (ver `docs/rules/requests-lifecycle.md`, seção
+// Troca direta de status):
+// - `Administrador`: bypass de triageMode/mappingMode/isRestricted — pode ir a
+//   qualquer status `isActive` (inativo → 409);
+// - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
+//   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
 //   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
-// - status terminais (`isTerminal`) nunca sÃ£o saÃ­da â€” fluxo encerrado nÃ£o
-//   reabre por este endpoint (â†’ 422).
-// Auditoria: bypass â†’ `request.override_status_admin`; normal â†’
-// `request.status_change`; negado â†’ `request.access_denied`.
+// - status terminais (`isTerminal`) não bloqueiam a saída hoje — reabrir uma
+//   solicitação encerrada por esta rota é decisão pendente (issue #148).
+// Auditoria: bypass → `request.override_status_admin`; normal →
+// `request.status_change`; negado → `request.access_denied`.
 
 async function recordStatusAccessDeniedAudit(
   protocol: string,
