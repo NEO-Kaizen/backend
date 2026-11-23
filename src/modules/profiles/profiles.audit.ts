@@ -14,31 +14,37 @@ import { profileSnapshot } from "./profiles.composition.ts";
 
 export type ProfileAuditAction = ComposedAuditAction<"profile">;
 
+/**
+ * Estado completo de um Perfil na trilha: a linha e a composição vigente
+ * NAQUELE momento. Cada lado carrega a própria composição — o "antes" nunca
+ * pode herdar as Permissões do "depois" numa edição de composição.
+ */
+export interface ProfileAuditState {
+  row: ProfileWithUserCountRow;
+  permissions: readonly EffectivePermission[];
+}
+
 export interface ProfileAuditEntry {
   actorUserId: number;
   profileId: number;
   actionType: ProfileAuditAction;
-  /** `null` em criação e duplicação. */
-  previous: ProfileWithUserCountRow | null;
-  next: ProfileWithUserCountRow;
-  permissions: readonly EffectivePermission[];
+  /** Estado anterior; `null` em criação e duplicação. */
+  previous: ProfileAuditState | null;
+  next: ProfileAuditState;
   ipAddress: string | undefined;
   /** Justificativa interna, quando a ação tiver uma (ex.: origem da duplicação). */
   note?: string | null;
 }
 
-function snapshotOf(
-  row: ProfileWithUserCountRow,
-  permissions: readonly EffectivePermission[],
-): string {
+function snapshotOf(state: ProfileAuditState): string {
   return profileSnapshot({
-    name: row.name,
-    description: row.description,
-    isActive: row.is_active,
-    isRoot: row.is_root,
-    isAssignableTriage: row.is_assignable_triage,
-    isAssignableMapping: row.is_assignable_mapping,
-    permissions,
+    name: state.row.name,
+    description: state.row.description,
+    isActive: state.row.is_active,
+    isRoot: state.row.is_root,
+    isAssignableTriage: state.row.is_assignable_triage,
+    isAssignableMapping: state.row.is_assignable_mapping,
+    permissions: state.permissions,
   });
 }
 
@@ -51,8 +57,8 @@ export async function recordProfileAudit(
     entityId: String(entry.profileId),
     actionType: entry.actionType,
     userId: entry.actorUserId,
-    previousValue: entry.previous ? snapshotOf(entry.previous, entry.permissions) : null,
-    newValue: snapshotOf(entry.next, entry.permissions),
+    previousValue: entry.previous ? snapshotOf(entry.previous) : null,
+    newValue: snapshotOf(entry.next),
     note: entry.note ?? null,
     ipAddress: entry.ipAddress,
     changeOrigin: "admin",

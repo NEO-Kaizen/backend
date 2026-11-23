@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import path from "node:path";
@@ -36,12 +37,6 @@ const AVATAR_DIR = "avatars";
 const ROLE_ANALYST = "analista";
 
 const CHANGE_ORIGIN_ADMIN = "admin";
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && (error as { code?: string }).code === "23505"
-  );
-}
 
 function parseUserId(rawId: string): number {
   const id = Number(rawId);

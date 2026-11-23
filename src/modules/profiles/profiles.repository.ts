@@ -85,7 +85,7 @@ export async function findActiveProfileByName(
 }
 
 /** O perfil vigente do ator é o Admin Root? A marca vem do banco, nunca do nome/token. */
-export async function actorIsRoot(actorUserId: number): Promise<boolean> {
+export async function isActorRoot(actorUserId: number): Promise<boolean> {
   const row = await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("u.user_id", actorUserId)

@@ -1,4 +1,8 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import {
+  isUniqueViolation,
+  uniqueViolationConstraint,
+} from "../../shared/errors/databaseErrors.ts";
 import db from "../../database/conection.ts";
 import {
   ASSIGNABILITY_PREDICATES,
@@ -44,16 +48,17 @@ function parseProfileId(rawId: string): number {
   return id;
 }
 
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && (error as { code?: string }).code === "23505"
-  );
-}
+/**
+ * Índices que garantem a unicidade do nome do Perfil — o índice parcial
+ * (`uk_profiles_active_name_lower`) e a constraint global anterior, ainda
+ * presente durante um rollback. Outras violações de unicidade não são
+ * recusas de nome e sobem como estão.
+ */
+const PROFILE_NAME_CONSTRAINTS = new Set(["uk_profiles_active_name_lower", "profiles_name_unique"]);
 
 /**
- * Executa a escrita e traduz a violação do índice único parcial
- * (`uk_profiles_active_name_lower`) na recusa de negócio — a checagem do
- * service pode perder a corrida, o banco não.
+ * Executa a escrita e traduz a violação do índice único de nome na recusa de
+ * negócio — a checagem do service pode perder a corrida, o banco não.
  */
 async function runProfileWrite<T>(
   operation: () => Promise<T>,
@@ -62,9 +67,14 @@ async function runProfileWrite<T>(
   try {
     return await operation();
   } catch (error) {
-    if (isUniqueViolation(error)) {
+    const nameConflict =
+      isUniqueViolation(error) &&
+      PROFILE_NAME_CONSTRAINTS.has(uniqueViolationConstraint(error) ?? "");
+
+    if (nameConflict) {
       throw new AppError(conflictMessage, 400, "profile_name_taken");
     }
+
     throw error;
   }
 }
@@ -228,8 +238,7 @@ export async function createProfile(
         profileId: row.profile_id,
         actionType: "profile.create",
         previous: null,
-        next: { ...row, user_count: 0 },
-        permissions,
+        next: { row: { ...row, user_count: 0 }, permissions },
         ipAddress,
       });
 
@@ -257,7 +266,7 @@ export async function updateProfile(
   const currentPermissions = await permissionsOf(id);
 
   // Guarda 2 — só o Admin Root edita o Perfil Admin Root.
-  if (current.is_root && !(await repository.actorIsRoot(actor.userId))) {
+  if (current.is_root && !(await repository.isActorRoot(actor.userId))) {
     throw new AppError(
       "Apenas o Admin Root edita o perfil Admin Root.",
       403,
@@ -334,9 +343,8 @@ export async function updateProfile(
         actorUserId: actor.userId,
         profileId: id,
         actionType: "profile.update",
-        previous: current,
-        next: nextRow,
-        permissions: nextPermissions,
+        previous: { row: current, permissions: currentPermissions },
+        next: { row: nextRow, permissions: nextPermissions },
         ipAddress,
       });
     }),
@@ -391,9 +399,11 @@ export async function changeProfileStatus(
           actorUserId: actor.userId,
           profileId: id,
           actionType: payload.isActive ? "profile.activate" : "profile.deactivate",
-          previous: current,
-          next: { ...current, is_active: payload.isActive },
-          permissions: currentPermissions,
+          previous: { row: current, permissions: currentPermissions },
+          next: {
+            row: { ...current, is_active: payload.isActive },
+            permissions: currentPermissions,
+          },
           ipAddress,
         });
       }),
@@ -448,8 +458,7 @@ export async function duplicateProfile(
         profileId: row.profile_id,
         actionType: "profile.duplicate",
         previous: null,
-        next: { ...row, user_count: 0 },
-        permissions: sourcePermissions,
+        next: { row: { ...row, user_count: 0 }, permissions: sourcePermissions },
         ipAddress,
         note: `Duplicado do perfil ${source.name} (#${source.profile_id})`,
       });
