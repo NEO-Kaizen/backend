@@ -1,11 +1,9 @@
-import type { Role } from "./role.ts";
-
 export interface User {
   id: string;
   email: string;
   name: string;
   password: string;
-  role: Role;
+  role: string;
 }
 
 export type AuthenticatedUser = Omit<User, "password">;

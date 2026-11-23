@@ -3,7 +3,10 @@ import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import type { AuthUserRow, UserMetricsResponse, UserRow } from "../../shared/types/user.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
+import {
+  findAssignableProfileIds,
+  profileHasAssignablePermissions,
+} from "../../shared/access/assignability.ts";
 import type {
   CreateProfessionalInput,
   CreateUserRequest,
@@ -25,13 +28,14 @@ interface UserSummaryRow {
 
 export interface ProfileLookupRow {
   profile_id: number;
+  name: string;
   is_root: boolean;
   is_active: boolean;
 }
 
 /** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
 export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
-  return db("profiles").where({ name }).first("profile_id", "is_root", "is_active");
+  return db("profiles").where({ name }).first("profile_id", "name", "is_root", "is_active");
 }
 
 export async function findProfileIdByName(name: string): Promise<number | null> {
@@ -71,15 +75,20 @@ export async function listProfilePermissions(
     .select("permission_key", "custody");
 }
 
-/** Perfis que ganham a extensão de profissional (1:1 user → details_professional)
- *  na criação de conta. Apenas `analista`: a extensão é o card do analista e a
- *  elegibilidade de atribuição também é restrita a `analista`
- *  (regra legada do subfluxo de Mapeamento). */
-export const PROFESSIONAL_PROFILES = ["analista"] as const;
+/** Um Perfil atribuível em qualquer etapa precisa da extensão profissional. */
+export async function isAssignableProfile(profileId: number): Promise<boolean> {
+  const [isAssignableToTriage, isAssignableToMapping] = await Promise.all([
+    profileHasAssignablePermissions(profileId, "triage", {
+      requireFlag: true,
+      requireActive: true,
+    }),
+    profileHasAssignablePermissions(profileId, "mapping", {
+      requireFlag: true,
+      requireActive: true,
+    }),
+  ]);
 
-/** True quando o perfil informado deve nascer com a extensão details_professional. */
-export function isProfessionalProfile(profileName: string): boolean {
-  return (PROFESSIONAL_PROFILES as readonly string[]).includes(profileName.trim().toLowerCase());
+  return isAssignableToTriage || isAssignableToMapping;
 }
 
 /**
@@ -200,6 +209,7 @@ export async function createRequesterData(
  */
 export interface UserProfileRow {
   user_id: number;
+  profile_id: number;
   full_name: string;
   email: string;
   avatar_url: string | null;
@@ -222,7 +232,14 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
   const user = await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("u.user_id", userId)
-    .first("u.user_id", "u.full_name", "u.email", "u.avatar_url", "p.name as profile_name");
+    .first(
+      "u.user_id",
+      "u.profile_id",
+      "u.full_name",
+      "u.email",
+      "u.avatar_url",
+      "p.name as profile_name",
+    );
 
   if (!user) return undefined;
 
@@ -237,6 +254,7 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
 
   return {
     user_id: user.user_id,
+    profile_id: user.profile_id,
     full_name: user.full_name,
     email: user.email,
     avatar_url: user.avatar_url ?? null,
@@ -325,7 +343,7 @@ export async function upsertRequesterData(
 
 /**
  * Upsert da extensão profissional por `user_id` (1:1).
- * Garante presença no "Meus dados" para analistas legados.
+ * Garante presença no "Meus dados" para usuários atribuíveis legados.
  * `status`/`capacity` NÃO são alterados (defaults do schema).
  * `specialties`/`attended_category_ids` são serializados como texto
  * separado por vírgula (mesmo formato do seed/`createProfessionalData`).
@@ -423,7 +441,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       fullName: row.full_name,
       email: row.email,
       avatarUrl: row.avatar_url,
-      profile: resolveRole(row.profile_name),
+      profile: row.profile_name,
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,
       createdAt: row.created_at.toISOString(),
@@ -468,7 +486,7 @@ export async function updateUserFields(
   }
 }
 
-/** Remove extensão profissional (quando role deixa de ser analista). */
+/** Remove a extensão profissional quando o Perfil deixa de ser atribuível. */
 export async function deleteProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
   await trx("details_professional").where({ user_id: userId }).del();
 }
@@ -514,6 +532,9 @@ interface AnalystRow {
 }
 
 export async function listAnalysts(): Promise<AssignAnalyst[]> {
+  const assignableProfileIds = await findAssignableProfileIds();
+  if (assignableProfileIds.length === 0) return [];
+
   const rows = (await db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     // LEFT JOIN defensivo: usuário sem extensão (recém-criado ou dados antigos)
@@ -521,7 +542,7 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
     // A regra de licença (extensão com status 'inactive') permanece filtrando:
     // o WHERE compensa o LEFT JOIN para excluir apenas extensões inativas.
     .leftJoin("details_professional as dp", "dp.user_id", "u.user_id")
-    .where("p.name", "analista")
+    .whereIn("p.profile_id", assignableProfileIds)
     .andWhere("p.is_active", true)
     .andWhere("u.is_active", true)
     .andWhere((builder) => {
@@ -551,7 +572,7 @@ export async function listAnalysts(): Promise<AssignAnalyst[]> {
   // > pendencia: requestLoad hoje é COUNT(*) ao vivo (requests.professional_id).
   // Deve virar coluna materializada (users.request_load ou details_professional.request_load)
   // mantida por trigger soma/subtrai em INSERT/UPDATE/DELETE de requests.
-  // Analista SEM extensão não entra no COUNT (sem professional_id válido).
+  // Usuário sem extensão não entra no COUNT (sem professional_id válido).
   const professionalIds = rows
     .map((r) => r.professional_id)
     .filter((id): id is string => id !== null);

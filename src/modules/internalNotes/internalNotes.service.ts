@@ -5,8 +5,6 @@ import {
   type PermissionActor,
 } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
-import type { Role } from "../../shared/types/role.ts";
 import type {
   AuditTimelineAction,
   InternalNoteRow,
@@ -49,7 +47,7 @@ function toNoteDTO(row: InternalNoteRow): TimelineNote {
 }
 
 export interface InternalNotesActor extends PermissionActor {
-  readonly role: Role;
+  readonly role: string;
 }
 
 async function requireRequestAccess(
@@ -201,7 +199,7 @@ function toActorDTO(row: ActorSource): TimelineActorDTO | null {
   return {
     id: String(row.actor_user_id),
     name: row.actor_name,
-    role: resolveRole(row.actor_profile_name),
+    role: row.actor_profile_name,
   };
 }
 

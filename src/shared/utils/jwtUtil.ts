@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 import { AppError } from "../errors/AppError.ts";
-import { isRole, type Role } from "../types/role.ts";
 import Config from "../../configs.ts";
 
 const { sign, verify } = jwt;
@@ -12,7 +11,7 @@ export interface TokenPayload {
   id: string;
   name: string;
   email: string;
-  role: Role;
+  role: string;
   /** Época (ms) de `users.password_changed_at` no momento da emissão — usado
    *  para revogar tokens emitidos antes de uma troca/redefinição de senha. */
   password_changed_at: number;
@@ -45,8 +44,7 @@ export function verifyToken(token: string): TokenPayload {
     typeof decoded.email !== "string" ||
     typeof decoded.role !== "string" ||
     typeof decoded.password_changed_at !== "number" ||
-    Number.isNaN(decoded.password_changed_at) ||
-    !isRole(decoded.role)
+    Number.isNaN(decoded.password_changed_at)
   ) {
     throw new AppError("Token inválido", 401);
   }

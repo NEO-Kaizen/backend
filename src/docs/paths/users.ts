@@ -116,14 +116,14 @@ export default {
   "/users/analysts": {
     get: {
       tags: ["Usuários"],
-      summary: "Listar analistas",
+      summary: "Listar profissionais atribuíveis",
       description:
-        "Lista profissionais com perfil `Analista` ativos, sem paginação. Usado no modal de atribuição de triagem.",
+        "Lista usuários de Perfis ativos atribuíveis à etapa conforme flags e chaves de trabalho, sem paginação. Usado no modal de atribuição.",
       operationId: "listAnalysts",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Lista de analistas.",
+          description: "Lista de profissionais atribuíveis.",
           content: {
             "application/json": {
               schema: {
@@ -233,11 +233,7 @@ export default {
               properties: {
                 fullName: { type: "string", example: "Maria Silva" },
                 email: { type: "string", format: "email", example: "novo@email.com" },
-                role: {
-                  type: "string",
-                  enum: ["solicitante", "analista", "gestor", "administrador"],
-                  example: "analista",
-                },
+                role: { type: "string", example: "Coordenador" },
                 requester: {
                   type: "object",
                   description: "Dados do solicitante — obrigatórios para todos os perfis.",
@@ -256,7 +252,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Dados profissionais — obrigatório apenas quando o perfil é `analista`.",
+                    "Dados profissionais — obrigatórios quando o Perfil é atribuível pela composição e flags.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {
@@ -324,7 +320,7 @@ export default {
         },
         "400": {
           description:
-            "Perfil inválido ou dados profissionais obrigatórios/exclusivos do analista.",
+            "Perfil inválido ou dados profissionais obrigatórios/exclusivos de Perfis atribuíveis.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -441,10 +437,7 @@ export default {
               properties: {
                 email: { type: "string", format: "email" },
                 fullName: { type: "string" },
-                role: {
-                  type: "string",
-                  enum: ["solicitante", "analista", "gestor", "administrador"],
-                },
+                role: { type: "string", example: "Coordenador" },
                 requester: {
                   type: "object",
                   description: "Dados do solicitante (área, departamento e gestor).",
@@ -461,7 +454,7 @@ export default {
                 },
                 professional: {
                   type: "object",
-                  description: "Dados profissionais — somente para o perfil `analista`.",
+                  description: "Dados profissionais — somente para Perfis atribuíveis.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {

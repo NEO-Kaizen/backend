@@ -1,11 +1,9 @@
-import type { Role } from "../../../shared/types/role.ts";
-
 /** Resposta de `GET /users/me` e `GET /users/:id` — perfil completo. */
 export interface UserProfileResponseDTO {
   id: string;
   fullName: string;
   email: string;
-  role: Role;
+  role: string;
   avatarUrl: string | null;
   requester: RequesterProfileBlock | null;
   professional: ProfessionalProfileBlock | null;
@@ -19,7 +17,7 @@ export interface RequesterProfileBlock {
   additionalContact: string | null;
 }
 
-/** Bloco de dados profissionais administrado pelo Admin (apenas analista). */
+/** Bloco de dados profissionais do usuário atribuível. */
 export interface ProfessionalProfileBlock {
   jobTitle: string | null;
   specialties: string[];

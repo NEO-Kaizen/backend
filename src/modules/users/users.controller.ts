@@ -122,7 +122,7 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<Re
 
 /**
  * GET /users/me — perfil completo do próprio usuário
- * (dados básicos + bloco requester + bloco professional [analista] + avatar).
+ * (dados básicos + bloco requester + bloco professional [Perfil atribuível] + avatar).
  */
 export const getMyProfile = async (req: Request, res: Response): Promise<Response> => {
   const profile = await service.getMyProfile(actorIdFromRequest(req));

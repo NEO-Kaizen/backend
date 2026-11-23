@@ -1,4 +1,3 @@
-import type { Role } from "../../../shared/types/role.ts";
 import type {
   TimelineChangeOrigin,
   TimelineEventAction,
@@ -9,7 +8,7 @@ import type { MappingResponseDTO } from "../queue/mapping.dto.ts";
 export interface TimelineActorDTO {
   id: string;
   name: string;
-  role: Role;
+  role: string;
 }
 
 export interface TimelineNote {
