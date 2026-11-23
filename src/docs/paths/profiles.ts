@@ -16,6 +16,37 @@ const validationErrorResponse = (description: string) => ({
   },
 });
 
+/** Códigos estáveis lançados nas recusas, no formato do envelope `ErrorResponse`. */
+const errorCodes = (...codes: readonly string[]) => codes.map((code) => `\`${code}\``).join(", ");
+
+/** Recusas de composição comuns à criação e à duplicação. */
+const COMPOSITION_ERROR_CODES = [
+  "profile_permission_unknown_key",
+  "profile_permission_invalid_custody",
+  "profile_permission_fixed_custody",
+  "profile_permission_duplicate_key",
+  "profile_permission_missing_dependency",
+  "profile_flag_predicate_missing",
+  "profile_permission_key_escalation",
+  "profile_permission_custody_escalation",
+] as const;
+
+const CREATE_ERROR_CODES = [...COMPOSITION_ERROR_CODES, "profile_name_taken"] as const;
+
+const UPDATE_ERROR_CODES = [
+  ...CREATE_ERROR_CODES,
+  "profile_work_key_flag_on",
+  "profile_work_key_open_requests",
+  "profile_root_requires_manage",
+  "profile_root_not_assignable",
+] as const;
+
+const STATUS_ERROR_CODES = [
+  "profile_has_users",
+  "profile_root_not_deactivatable",
+  "profile_name_taken",
+] as const;
+
 export default {
   "/profiles": {
     get: {
@@ -61,7 +92,8 @@ export default {
           },
         },
         "400": errorResponse(
-          "Composição inválida (chave/vínculo/ dependência/escalação) ou nome já usado por perfil ativo.",
+          "Composição inválida (chave, vínculo, dependência ou escalação) ou nome já usado por " +
+            `perfil ativo. Códigos: ${errorCodes(...CREATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),
@@ -120,7 +152,7 @@ export default {
       tags: ["Perfis"],
       summary: "Editar perfil (parcial e atômico)",
       description:
-        "Edita nome, descrição, flags e/ou composição. Campo ausente é intocado; `permissions` presente substitui integralmente. Inclui a guarda 6 (edição atômica da chave de trabalho) e a proteção do Perfil Admin Root.",
+        "Edita nome, descrição, flags e/ou composição. Campo ausente é intocado; `permissions` presente substitui integralmente. Remover chave de trabalho exige desligar a flag de Atribuibilidade correspondente na mesma chamada; com solicitações abertas atribuídas a usuários do perfil, a recusa lista os protocolos. O Perfil Admin Root só é editado pelo Admin Root, mantém `profile:manage` e não recebe flags.",
       operationId: "updateProfile",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -147,11 +179,15 @@ export default {
           },
         },
         "400": errorResponse(
-          "Composição inválida, nome já usado por perfil ativo, guarda 6 (chave de trabalho) ou proteção do Perfil Admin Root.",
+          "Composição inválida, nome já usado por perfil ativo, remoção de chave de trabalho com " +
+            "a flag de Atribuibilidade ligada, solicitações abertas atribuídas a usuários do " +
+            "perfil, retirada de `profile:manage` do Perfil Admin Root ou flag no Perfil Admin " +
+            `Root. Códigos: ${errorCodes(...UPDATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse(
-          "Perfil sem a permissão profile:manage ou ator que não é o Admin Root tentando editar o Perfil Admin Root.",
+          "Perfil sem a permissão profile:manage ou ator que não é o Admin Root editando o " +
+            "Perfil Admin Root (`profile_root_protected`).",
         ),
         "404": errorResponse("Perfil não encontrado."),
         "422": validationErrorResponse("Payload inválido ou sem nenhum campo para atualização."),
@@ -192,11 +228,13 @@ export default {
           },
         },
         "400": errorResponse(
-          "Perfil com contas vinculadas, Perfil Admin Root ou nome em uso por outro perfil ativo.",
+          "Perfil com contas vinculadas, Perfil Admin Root ou nome em uso por outro perfil ativo. " +
+            `Códigos: ${errorCodes(...STATUS_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),
         "404": errorResponse("Perfil não encontrado."),
+        "422": validationErrorResponse("Payload inválido."),
       },
     },
   },
@@ -232,7 +270,8 @@ export default {
           },
         },
         "400": errorResponse(
-          "Escalação de chave/vínculo, dependência, predicado de flag ou nome já usado por perfil ativo.",
+          "Escalação de chave/vínculo, dependência, predicado de flag ou nome já usado por " +
+            `perfil ativo. Códigos: ${errorCodes(...CREATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),
