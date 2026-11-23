@@ -17,7 +17,7 @@ import {
 
 const usersRoutes = express.Router();
 
-// Lista profissionais atribuíveis à etapa para o modal de atribuição.
+// Diretório de Responsáveis por etapa: flag + predicado, conta ativa e extensão.
 usersRoutes.get(
   "/analysts",
   authMiddleware,

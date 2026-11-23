@@ -1,12 +1,42 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import { ASSIGNABILITY_PREDICATES, type PermissionKey } from "../catalog/permissionCatalog.ts";
+import { AppError } from "../errors/AppError.ts";
 
 /**
  * Atribuibilidade (§ 1.4 do contrato RBAC): a flag do Perfil **e** o predicado
  * de chaves de trabalho. A flag sozinha não basta, e ter as chaves também não.
  */
 export type AssignabilityStage = "triage" | "mapping";
+
+export const CODE_ASSIGNEE_NOT_ASSIGNABLE = "assignee_not_assignable";
+
+export interface AssigneeEligibilityRow {
+  readonly professional_status: string;
+  readonly user_is_active: boolean;
+  readonly profile_is_active: boolean;
+}
+
+export function assertAssigneeTargetEligible<T extends AssigneeEligibilityRow>(
+  candidate: T | null | undefined,
+): asserts candidate is T {
+  if (
+    !candidate ||
+    candidate.professional_status !== "active" ||
+    !candidate.user_is_active ||
+    !candidate.profile_is_active
+  ) {
+    throw assigneeNotAssignableError();
+  }
+}
+
+export function assigneeNotAssignableError(): AppError {
+  return new AppError(
+    "O alvo não pode ser escolhido como Responsável.",
+    400,
+    CODE_ASSIGNEE_NOT_ASSIGNABLE,
+  );
+}
 
 export const ASSIGNABILITY_FLAGS = {
   triage: "is_assignable_triage",

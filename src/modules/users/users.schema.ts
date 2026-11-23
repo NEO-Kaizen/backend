@@ -8,7 +8,7 @@ import {
 } from "../../shared/validation/fieldSchemas.ts";
 
 /**
- * Dados profissionais de um usuário atribuível.
+ * Conteúdo da Extensão de profissional de um usuário atribuível.
  * `capacity` e `status` nascem dos defaults do schema (5 / "active").
  */
 export const professionalSchema = z.object({

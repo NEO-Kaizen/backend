@@ -290,7 +290,7 @@ export default {
           },
         },
         "400": {
-          description: "Payload malformado.",
+          description: "Payload malformado ou alvo não atribuível (`assignee_not_assignable`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

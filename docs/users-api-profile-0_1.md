@@ -25,7 +25,7 @@ export interface UserProfileResponseDTO {
   profile: { id: string; name: string }; // identidade estável + rótulo do Perfil
   avatarUrl: string | null; // URL da foto em /uploads/avatars/<arquivo> ou null
   requester: RequesterProfileBlock | null; // bloco de solicitante (nullable)
-  professional: ProfessionalProfileBlock | null; // bloco profissional (nullable; Perfil atribuível)
+  professional: ProfessionalProfileBlock | null; // presente para Perfil ativo com flag de Atribuibilidade
 }
 
 // Bloco de dados de solicitante editável no "Meus dados".
@@ -38,7 +38,7 @@ export interface RequesterProfileBlock {
   additionalContact: string | null; // máx. 100 caracteres (telefone, ramal ou e-mail secundário)
 }
 
-// Bloco de dados profissionais somente leitura no "Meus dados" (Perfil atribuível).
+// Bloco da Extensão de profissional, somente leitura no "Meus dados".
 export interface ProfessionalProfileBlock {
   jobTitle: string | null; // máx. 100 caracteres
   specialties: string[]; // array de especialidades (máx. 100 caracteres cada)
@@ -59,7 +59,7 @@ export interface UpdateProfilePayload {
   removeAvatar?: boolean; // true → remove foto atual
 }
 
-// Campos não declarados são recusados. E-mail, perfil e dados profissionais
+// Campos não declarados são recusados. E-mail, Perfil e Extensão de profissional
 // são administrados fora do self-service. Área, departamento e gestor só são
 // aceitos quando o próprio usuário autenticado tem a permissão `user:manage`.
 
@@ -174,7 +174,7 @@ HTTP/1.1 200 OK
 }
 ```
 
-**Exemplo real** — analista sem dados profissionais (legado, sem linha em `details_professional`):
+**Exemplo real** — usuário de Perfil atribuível sem conteúdo na Extensão de profissional (legado, sem linha em `details_professional`):
 
 ```json
 HTTP/1.1 200 OK
@@ -484,22 +484,25 @@ interface UpdateUserRequest {
     specialties: string[];
     attendedCategoryIds: number[];
     notes?: string;
-  }; // exclusivo de Perfis atribuíveis
+  }; // opcional; permitido para Perfis atribuíveis
 }
 ```
 
 O modal também expõe `fullName`. O endpoint mantém compatibilidade com os
 demais campos administrativos já existentes (`email` e `profileId`), que não
 são expostos pelo modal desta versão. `professional` pode ser atualizado sem
-reenviar `profileId`; o service valida o Perfil atual do usuário no banco.
+reenviar `profileId`; o service valida as flags do Perfil atual no banco.
 
 **Response 200:** `UserProfileResponseDTO` atualizado.
 
-**Erros:** `400` para payload inválido, `401` sem sessão, `403` sem
-`user:manage`, fora da matriz de contas (`account_out_of_authority`), conta
-Admin Root (`root_account_protected`) ou própria conta
-(`self_management_forbidden`), `409` para Perfil inativo (`profile_inactive`) e
-`404` para usuário inexistente.
+**Erros:** `400` para Perfil inválido ou conteúdo da Extensão de profissional
+enviado a Perfil não atribuível (`professional_profile_not_assignable`), `401`
+sem sessão, `403` sem `user:manage`, fora da matriz de contas
+(`account_out_of_authority`), conta Admin Root (`root_account_protected`) ou
+própria conta (`self_management_forbidden`), `409` para Perfil inativo
+(`profile_inactive`) ou conta Responsável por solicitações abertas
+(`user_has_open_assignments`) ao mover para Perfil não atribuível, `422` para
+erros de validação por campo e `404` para usuário inexistente.
 
 ---
 
@@ -508,7 +511,8 @@ Admin Root (`root_account_protected`) ou própria conta
 - `fullName`, `requester.additionalContact` e avatar são autoeditáveis por qualquer perfil. Quem tem `user:manage` também pode editar `requester.area`, `requester.department` e `requester.manager`; para os demais perfis, esses campos continuam exclusivos do fluxo administrativo em `PUT /users/:id`.
 - O campo `profile` na resposta é `{ id, name }`: `id` é `String(profiles.profile_id)`, a identidade estável, e `name` é o nome real do Perfil. Perfis customizados aparecem pelo nome configurado. Nome e ID não participam da autorização.
 - `avatarUrl` é `null` quando o usuário não tem foto. A URL é relativa ao host: `/uploads/avatars/<storageKey>`. O servidor serve `/uploads/*` via `express.static` (conforme `app.ts`).
-- O bloco `professional` só está presente (não `null`) quando o Perfil é atribuível e a extensão `details_professional` existe. Usuários atribuíveis legados (sem linha) recebem `professional` com defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`).
+- A Extensão de profissional (`details_professional`) nasce na mesma transação da conta quando o Perfil está ativo e tem uma flag de Atribuibilidade; recebe backfill transacional ao ligar uma flag em Perfil com usuários ativos ou ao mover uma conta para Perfil ativo com flag. Seu conteúdo é opcional. Para uma conta legada sem linha, `GET /users/me` devolve o bloco `professional` com defaults (`jobTitle: null`, `specialties: []`, `attendedCategoryIds: []`, `notes: null`) sem inserir a extensão; essa conta permanece fora do diretório até o backfill.
+- A API recusa com `409 user_has_open_assignments` tanto a desativação quanto a mudança para Perfil não atribuível enquanto a conta for Responsável por solicitações abertas. Reatribua essas solicitações antes da operação; após isso, ao mover para Perfil não atribuível, a Extensão é removida na mesma transação.
 - A atualização do bloco `requester` faz UPSERT na extensão por `user_id` (1:1): se o usuário não tem linha, uma é criada; se tem, é atualizada. Isto garante que usuários legados sem extensão de requester recebem a linha ao primeiro `PUT`.
 - `removeAvatar: true` no JSON remove a foto do disco (`fs.unlink`) e define `users.avatar_url = null` na mesma transação da auditoria. Se o arquivo já não existe, a operação não falha (best-effort de remoção).
 - Atualização de nome, dados permitidos de requester, referência do avatar e auditoria ocorre na **mesma transação** de banco.

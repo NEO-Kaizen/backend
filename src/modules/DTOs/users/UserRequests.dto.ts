@@ -1,5 +1,5 @@
 export interface CreateProfessionalInput {
-  /** Cargo profissional do usuário atribuível (vira `job_title` → `specialty` no card). */
+  /** Cargo da Extensão de profissional (`job_title` → `specialty` no diretório). */
   jobTitle: string;
   /** Especialidades (vira `specialties`, texto separado por vírgula). */
   specialties: string[];
@@ -20,7 +20,7 @@ export interface CreateUserRequest {
   email: string;
   /** Identidade estável do Perfil. */
   profileId: string;
-  /** Obrigatório para Perfil atribuível; proibido para os demais Perfis. */
+  /** Opcional; permitido somente para Perfil ativo com flag de Atribuibilidade. */
   professional?: CreateProfessionalInput;
   requester: RequesterInput;
 }

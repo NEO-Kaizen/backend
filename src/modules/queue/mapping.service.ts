@@ -14,6 +14,10 @@
 // 6. resolve participantes, persiste, audita e (se concluir) avança o status
 //    para `Mapeamento agendado`.
 import db from "../../database/conection.ts";
+import {
+  assertAssigneeTargetEligible,
+  assigneeNotAssignableError,
+} from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
@@ -282,17 +286,11 @@ async function resolveParticipants(
 /** Valida Atribuibilidade do candidato conforme flag e predicado RBAC. */
 async function assertCandidateEligible(
   queryable: Knex,
-  candidate: repository.MappingAssigneeCandidate,
+  candidate: repository.MappingAssigneeCandidate | null,
 ): Promise<void> {
-  if (
-    candidate.professional_status !== "active" ||
-    !candidate.user_is_active ||
-    !candidate.profile_is_active
-  ) {
-    throw new AppError("Designado inativo.", 422);
-  }
+  assertAssigneeTargetEligible(candidate);
   if (!(await repository.isMappingAssigneeProfileAssignable(queryable, candidate.profile_id))) {
-    throw new AppError("O perfil do designado não permite executar o mapeamento.", 422);
+    throw assigneeNotAssignableError();
   }
 }
 
@@ -443,10 +441,7 @@ export const upsertMappingService = async (
         trx,
         payload.mappingAssigneeId,
       );
-      if (payload.mappingAssigneeId !== null && !candidate) {
-        throw new AppError("Designado não encontrado.", 422);
-      }
-      if (candidate) {
+      if (payload.mappingAssigneeId !== null) {
         await assertCandidateEligible(trx, candidate);
       }
 

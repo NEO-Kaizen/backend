@@ -79,7 +79,7 @@ export const AssignableProfessional = {
       items: { type: "string" },
       example: ["Sistemas", "Automação"],
     },
-    notes: { type: "string", nullable: true, example: "Disponível à tarde." },
+    notes: { type: "string", nullable: true, example: "Atende à tarde." },
     requestLoad: { type: "integer", example: 3 },
   },
 };

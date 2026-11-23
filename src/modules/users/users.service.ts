@@ -1,7 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import { isProfileAssignable, type AssignabilityStage } from "../../shared/access/assignability.ts";
+import type { AssignabilityStage } from "../../shared/access/assignability.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
@@ -20,6 +20,7 @@ import type { Knex } from "knex";
 import type {
   ChangeUserStatusRequest,
   CreateUserRequest,
+  CreateProfessionalInput,
   ListUsersQuery,
   UpdateUserRequest,
 } from "../DTOs/users/UserRequests.dto.ts";
@@ -49,6 +50,38 @@ const CODE_ROOT_ACCOUNT_PROTECTED = "root_account_protected";
 const CODE_SELF_MANAGEMENT_FORBIDDEN = "self_management_forbidden";
 const CODE_PROFILE_INACTIVE = "profile_inactive";
 const CODE_USER_MANAGE_REQUIRED = "user_manage_required";
+const CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE = "professional_profile_not_assignable";
+const CODE_USER_HAS_OPEN_ASSIGNMENTS = "user_has_open_assignments";
+
+function shouldHaveProfessionalExtension(
+  profile: Pick<
+    repository.ProfileLookupRow,
+    "is_active" | "is_assignable_triage" | "is_assignable_mapping"
+  >,
+): boolean {
+  return profile.is_active && (profile.is_assignable_triage || profile.is_assignable_mapping);
+}
+
+/** Verifica o conteúdo opcional e informa se a conta precisa da extensão. */
+function resolveProfessionalExtensionRequirement(
+  profile: Pick<
+    repository.ProfileLookupRow,
+    "is_active" | "is_assignable_triage" | "is_assignable_mapping"
+  >,
+  professional?: CreateProfessionalInput,
+): boolean {
+  const shouldHaveExtension = shouldHaveProfessionalExtension(profile);
+
+  if (professional !== undefined && !shouldHaveExtension) {
+    throw new AppError(
+      "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
+      400,
+      CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE,
+    );
+  }
+
+  return shouldHaveExtension;
+}
 
 /**
  * Ator da matriz de contas — as Permissões vêm do gate (`req.permissions`).
@@ -122,6 +155,25 @@ function throwRootAccountProtected(): never {
   );
 }
 
+function throwProfileInactive(): never {
+  throw new AppError(
+    "Não é possível criar ou atualizar contas para um Perfil inativo.",
+    409,
+    CODE_PROFILE_INACTIVE,
+  );
+}
+
+async function assertUserHasNoOpenAssignments(queryable: Knex, userId: number): Promise<void> {
+  const assignedProtocols = await repository.listOpenAssignedProtocolsForUser(queryable, userId);
+  if (assignedProtocols.length > 0) {
+    throw new AppError(
+      `Reatribua as solicitações abertas ${assignedProtocols.join(", ")} antes de alterar o Perfil ou desativar a conta.`,
+      409,
+      CODE_USER_HAS_OPEN_ASSIGNMENTS,
+    );
+  }
+}
+
 function throwOutOfAuthority(): never {
   throw new AppError(
     "O Perfil-alvo tem autoridade igual ou maior que a sua; só é possível gerenciar Perfis estritamente abaixo.",
@@ -167,11 +219,7 @@ async function assertProfileIsManageable(
   }
 
   if (!profile.is_active) {
-    throw new AppError(
-      "Perfil inativo não recebe conta nova nem designação.",
-      409,
-      CODE_PROFILE_INACTIVE,
-    );
+    throwProfileInactive();
   }
 
   if (actorAuthority.isRoot) {
@@ -236,14 +284,6 @@ export async function createUser(
   await assertProfileIsManageable(profile, actorAuthority);
 
   const profileId = profile.profile_id;
-  const isAssignable = await isProfileAssignable(profileId);
-  const professional = payload.professional;
-  if (isAssignable && !professional) {
-    throw new AppError("Dados profissionais são obrigatórios para Perfis atribuíveis.", 400);
-  }
-  if (!isAssignable && professional) {
-    throw new AppError("Dados profissionais só podem ser informados para Perfis atribuíveis.", 400);
-  }
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -254,6 +294,25 @@ export async function createUser(
     // evento falhar, a criação é desfeita (rollback) — nunca fica um usuário
     // sem histórico.
     user = await db.transaction(async (trx) => {
+      const currentProfile = await repository.findProfileById(profileId, {
+        queryable: trx,
+        shouldLockForShare: true,
+      });
+      if (!currentProfile) {
+        throw new AppError("Perfil inválido.", 400);
+      }
+      if (!currentProfile.is_active) {
+        throwProfileInactive();
+      }
+      if (currentProfile.is_root) {
+        throwRootAccountProtected();
+      }
+
+      const needsProfessionalExtension = resolveProfessionalExtensionRequirement(
+        currentProfile,
+        payload.professional,
+      );
+
       const created = await repository.createUser(
         trx,
         { fullName: payload.fullName, email: payload.email },
@@ -261,11 +320,10 @@ export async function createUser(
         profileId,
       );
 
-      // Perfil atribuível nasce com a extensão details_professional (1:1 com
-      // users) usando os dados profissionais enviados no payload. Atômico com a criação:
-      // se a extensão falhar, o usuário não é criado (rollback junto com a auditoria).
-      if (professional) {
-        await repository.createProfessionalData(trx, created.user_id, professional);
+      // A extensão é definida pelas flags do Perfil, nunca pelo nome. A linha
+      // nasce na mesma transação da conta.
+      if (needsProfessionalExtension) {
+        await repository.createProfessionalData(trx, created.user_id, payload.professional);
       }
 
       await recordAudit(trx, {
@@ -328,6 +386,10 @@ export async function changeUserStatus(
   // Update e evento de auditoria na MESMA transação: se o evento falhar,
   // a mudança de status é desfeita (rollback).
   await db.transaction(async (trx) => {
+    if (!payload.isActive && user.is_active) {
+      await assertUserHasNoOpenAssignments(trx, id);
+    }
+
     await repository.updateStatus(trx, id, payload.isActive);
 
     await recordAudit(trx, {
@@ -411,9 +473,13 @@ function toProfessionalBlock(
   };
 }
 
+function emptyProfessionalBlock(): ProfessionalProfileBlock {
+  return { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null };
+}
+
 /**
  * `GET /users/me` — perfil completo do próprio usuário
- * (dados básicos + bloco requester + bloco professional [Perfil atribuível] + avatar).
+ * (dados básicos + bloco requester + Extensão de profissional atribuível + avatar).
  */
 export async function getMyProfile(userId: number): Promise<UserProfileResponseDTO> {
   const row = await repository.findUserProfile(userId);
@@ -421,12 +487,12 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  const isAssignable = await isProfileAssignable(row.profile_id);
-  // Usuário atribuível legado sem details_professional recebe o bloco com
+  const isAssignable = shouldHaveProfessionalExtension(row);
+  // Usuário atribuível legado sem extensão recebe o bloco com
   // defaults em vez de null, sem exigir migração de dados.
   const professional: ProfessionalProfileBlock | null =
     isAssignable && !row.professional
-      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
+      ? emptyProfessionalBlock()
       : toProfessionalBlock(row.professional);
 
   return {
@@ -448,7 +514,7 @@ export async function getUser(rawId: string): Promise<UserProfileResponseDTO> {
 /**
  * `PUT /users/me` — `fullName`, `additionalContact` e avatar são
  * autoeditáveis. Quem tem `user:manage` também pode editar os próprios dados
- * administrativos de requester. Dados profissionais continuam pertencendo ao
+ * administrativos de requester. A Extensão de profissional continua pertencendo ao
  * fluxo administrativo em `PUT /users/:id`.
  */
 export async function updateMyProfile(
@@ -617,22 +683,37 @@ export async function updateUser(
     }
   }
 
-  const wasAssignable = await isProfileAssignable(target.profile_id);
-  const isFinalAssignable =
-    newProfileId === undefined ? wasAssignable : await isProfileAssignable(newProfileId);
-
-  if (payload.professional !== undefined && !isFinalAssignable) {
-    throw new AppError("Dados profissionais só podem ser informados para Perfis atribuíveis.", 400);
-  }
-  if (isFinalAssignable && !wasAssignable && payload.professional === undefined) {
-    throw new AppError("Dados profissionais são obrigatórios para Perfis atribuíveis.", 400);
-  }
-
   // Snapshot para auditoria
   const before = await repository.findUserProfile(id);
 
   try {
     await db.transaction(async (trx) => {
+      const sourceProfile = await repository.findProfileById(target.profile_id, {
+        queryable: trx,
+        shouldLockForShare: true,
+      });
+      if (!sourceProfile) {
+        throw new AppError("Perfil inválido.", 400);
+      }
+      const destinationProfileId = newProfileId ?? target.profile_id;
+      const destinationProfile =
+        destinationProfileId === sourceProfile.profile_id
+          ? sourceProfile
+          : await repository.findProfileById(destinationProfileId, {
+              queryable: trx,
+              shouldLockForShare: true,
+            });
+      if (!destinationProfile) {
+        throw new AppError("Perfil inválido.", 400);
+      }
+      if (!destinationProfile.is_active) {
+        throwProfileInactive();
+      }
+      const needsProfessionalExtension = resolveProfessionalExtensionRequirement(
+        destinationProfile,
+        payload.professional,
+      );
+
       // 1. Campos básicos users (merge)
       await repository.updateUserFields(trx, id, {
         fullName: payload.fullName,
@@ -647,11 +728,14 @@ export async function updateUser(
         await repository.syncRequesterIdentity(trx, id, { fullName, corporateEmail });
       }
 
-      // 3. Professional (1:1) — merge
+      // 3. A extensão acompanha as flags do Perfil; dados enviados são merge.
       if (payload.professional !== undefined) {
         await repository.upsertProfessionalData(trx, id, payload.professional);
-      } else if (wasAssignable && !isFinalAssignable) {
+      } else if (newProfileId !== undefined && !needsProfessionalExtension) {
+        await assertUserHasNoOpenAssignments(trx, id);
         await repository.deleteProfessionalData(trx, id);
+      } else if (needsProfessionalExtension) {
+        await repository.createProfessionalData(trx, id);
       }
 
       // 4. Requester (1:1) — merge parcial
@@ -688,6 +772,12 @@ export async function updateUser(
   if (!updated) {
     throw new AppError("Usuário não encontrado", 404);
   }
+  const isUpdatedProfileAssignable = shouldHaveProfessionalExtension(updated);
+  const professional =
+    isUpdatedProfileAssignable && !updated.professional
+      ? emptyProfessionalBlock()
+      : toProfessionalBlock(updated.professional);
+
   return {
     id: String(updated.user_id),
     fullName: updated.full_name,
@@ -695,11 +785,6 @@ export async function updateUser(
     profile: toProfileReference(updated.profile_id, updated.profile_name),
     avatarUrl: updated.avatar_url,
     requester: toRequesterBlock(updated.requester),
-    professional: (() => {
-      if (isFinalAssignable && !updated.professional) {
-        return { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null };
-      }
-      return toProfessionalBlock(updated.professional);
-    })(),
+    professional,
   } satisfies UserProfileResponseDTO;
 }

@@ -33,13 +33,42 @@ export interface ProfileLookupRow {
   name: string;
   is_root: boolean;
   is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
 }
 
-/** Perfil pela identidade estável — usada nas escritas e na matriz de contas. */
-export async function findProfileById(id: number): Promise<ProfileLookupRow | undefined> {
+const PROFILE_LOOKUP_COLUMNS = [
+  "profile_id",
+  "name",
+  "is_root",
+  "is_active",
+  "is_assignable_triage",
+  "is_assignable_mapping",
+] as const;
+
+/** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
+export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
   return db("profiles")
-    .where({ profile_id: id })
-    .first("profile_id", "name", "is_root", "is_active");
+    .whereRaw("lower(name) = lower(?)", [name])
+    .first(...PROFILE_LOOKUP_COLUMNS);
+}
+
+export interface FindProfileByIdOptions {
+  readonly queryable?: Knex;
+  readonly shouldLockForShare?: boolean;
+}
+
+/** Perfil atual por ID; o lock compartilhado impede mudança concorrente das flags. */
+export async function findProfileById(
+  id: number,
+  options: FindProfileByIdOptions = {},
+): Promise<ProfileLookupRow | undefined> {
+  const { queryable = db, shouldLockForShare = false } = options;
+  const query = queryable("profiles").where({ profile_id: id }).select(PROFILE_LOOKUP_COLUMNS);
+
+  if (shouldLockForShare) query.forShare();
+
+  return query.first();
 }
 
 export async function findUserById(id: number): Promise<AuthUserRow | undefined> {
@@ -74,24 +103,31 @@ export async function listProfilePermissions(
 }
 
 /**
- * Cria a extensão de profissional dentro da transação fornecida (atômica com a
- * criação do usuário). `professional_id` nasce do default da coluna
- * (gen_random_uuid()); `capacity` e `status` dos defaults do schema (5/"active").
- * `specialties` e `attended_category_ids` são textos separados por vírgula —
- * mesmo formato lido pelo card de profissionais atribuíveis.
+ * Garante a Extensão de profissional dentro da transação. Se ausente, cria a
+ * linha com o conteúdo opcional; se já existe, mantém o registro sem sobrescrever.
+ * `professional_id`, `capacity` e `status` usam os defaults do schema.
+ * `specialties` e `attended_category_ids` são serializados como texto separado
+ * por vírgulas, no formato lido pelo diretório de profissionais atribuíveis.
  */
 export async function createProfessionalData(
   trx: Knex.Transaction,
   userId: number,
-  professional: CreateProfessionalInput,
+  professional?: CreateProfessionalInput,
 ): Promise<void> {
-  await trx("details_professional").insert({
-    user_id: userId,
-    job_title: professional.jobTitle,
-    specialties: professional.specialties.join(", "),
-    attended_category_ids: professional.attendedCategoryIds.join(","),
-    notes: professional.notes ?? null,
-  });
+  await trx("details_professional")
+    .insert(
+      professional
+        ? {
+            user_id: userId,
+            job_title: professional.jobTitle,
+            specialties: professional.specialties.join(", "),
+            attended_category_ids: professional.attendedCategoryIds.join(","),
+            notes: professional.notes ?? null,
+          }
+        : { user_id: userId },
+    )
+    .onConflict("user_id")
+    .ignore();
 }
 
 /** Insere o usuário dentro da transação fornecida (atômico com a auditoria). */
@@ -196,6 +232,9 @@ export interface UserProfileRow {
   email: string;
   avatar_url: string | null;
   profile_name: string;
+  is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
   requester: {
     area: string | null;
     department: string | null;
@@ -221,6 +260,9 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
       "u.email",
       "u.avatar_url",
       "p.name as profile_name",
+      "p.is_active",
+      "p.is_assignable_triage",
+      "p.is_assignable_mapping",
     );
 
   if (!user) return undefined;
@@ -241,6 +283,9 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
     email: user.email,
     avatar_url: user.avatar_url ?? null,
     profile_name: user.profile_name,
+    is_active: user.is_active,
+    is_assignable_triage: user.is_assignable_triage,
+    is_assignable_mapping: user.is_assignable_mapping,
     requester: requester
       ? {
           area: requester.area ?? null,
@@ -472,6 +517,28 @@ export async function updateUserFields(
 /** Remove a extensão profissional quando o Perfil deixa de ser atribuível. */
 export async function deleteProfessionalData(trx: Knex.Transaction, userId: number): Promise<void> {
   await trx("details_professional").where({ user_id: userId }).del();
+}
+
+/** Solicitações abertas em que a conta ainda é Responsável de triagem ou mapeamento. */
+export async function listOpenAssignedProtocolsForUser(
+  queryable: Knex,
+  userId: number,
+): Promise<string[]> {
+  const rows = (await queryable("requests as r")
+    .join("statuses as s", "s.status_id", "r.status_id")
+    .join("details_professional as dp", function () {
+      this.on("dp.professional_id", "=", "r.professional_id").orOn(
+        "dp.professional_id",
+        "=",
+        "r.mapping_professional_id",
+      );
+    })
+    .where("dp.user_id", userId)
+    .where("s.is_terminal", false)
+    .distinct("r.protocol")
+    .orderBy("r.protocol", "asc")) as Array<{ protocol: string }>;
+
+  return rows.map((row) => row.protocol);
 }
 
 /** Sincroniza `requesters.full_name/corporate_email` após troca de nome/e-mail do usuário. */

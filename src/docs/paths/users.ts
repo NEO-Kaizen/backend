@@ -116,9 +116,9 @@ export default {
   "/users/analysts": {
     get: {
       tags: ["Usuários"],
-      summary: "Listar profissionais atribuíveis",
+      summary: "Listar Responsáveis atribuíveis",
       description:
-        "Lista usuários de Perfis ativos atribuíveis à etapa conforme flags e chaves de trabalho. Exige `assignee_directory:read`. Use `stage=triage` (padrão) para Triagem ou `stage=mapping` para Mapeamento.",
+        "Exige `assignee_directory:read`. Lista contas ativas com extensão profissional ativa cujo Perfil tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. Não depende do nome do Perfil. Use `stage=triage` (padrão) ou `stage=mapping`.",
       operationId: "listAssignableProfessionals",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -330,7 +330,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Dados profissionais — obrigatórios quando o Perfil é atribuível pela composição e flags.",
+                    "Conteúdo opcional da Extensão de profissional. Só pode ser enviado para Perfil ativo com flag de Atribuibilidade; a extensão é criada automaticamente.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {
@@ -398,7 +398,7 @@ export default {
         },
         "400": {
           description:
-            "Perfil inválido ou dados profissionais obrigatórios/exclusivos de Perfis atribuíveis.",
+            "Perfil inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível (`professional_profile_not_assignable`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -536,7 +536,8 @@ export default {
                 },
                 professional: {
                   type: "object",
-                  description: "Dados profissionais — somente para Perfis atribuíveis.",
+                  description:
+                    "Conteúdo da Extensão de profissional — permitido apenas para Perfis atribuíveis.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {
@@ -567,10 +568,11 @@ export default {
           },
         },
         "400": {
-          description: "Payload inválido.",
+          description:
+            "Payload inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível (`professional_profile_not_assignable`).",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
             },
           },
         },
@@ -600,10 +602,19 @@ export default {
           },
         },
         "409": {
-          description: "E-mail já cadastrado ou Perfil de destino inativo (`profile_inactive`).",
+          description:
+            "E-mail já cadastrado, Perfil de destino inativo (`profile_inactive`) ou conta Responsável por solicitações abertas (`user_has_open_assignments`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "422": {
+          description: "Erros de validação do corpo com detalhes por campo.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
             },
           },
         },
@@ -615,7 +626,7 @@ export default {
       tags: ["Usuários"],
       summary: "Alterar status do usuário",
       description:
-        "Ativa ou desativa um usuário. Exige a permissão `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`) e conta de autoridade igual ou maior (403 `account_out_of_authority`).",
+        "Ativa ou desativa um usuário. Exige `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`), conta de autoridade igual ou maior (403 `account_out_of_authority`) e desativação de Responsável por solicitações abertas (409 `user_has_open_assignments`).",
       operationId: "changeUserStatus",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -668,6 +679,15 @@ export default {
         },
         "404": {
           description: "Usuário não encontrado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description:
+            "Desativação recusada: a conta ainda é Responsável por solicitações abertas (`user_has_open_assignments`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

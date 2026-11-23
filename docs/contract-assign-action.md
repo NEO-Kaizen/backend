@@ -1,4 +1,4 @@
-# Contrato Backend — Atribuição de Analista
+# Contrato Backend — Diretório de Responsáveis
 
 Frontend `feat/82-2-assign-analyst` (QuickActions → Atribuir analista). O que o backend precisa entregar.
 
@@ -8,16 +8,16 @@ Frontend `feat/82-2-assign-analyst` (QuickActions → Atribuir analista). O que 
 
 ## Endpoints
 
-### GET /users/analysts
+### GET /users/analysts (rota legada)
 
-Lista profissionais atribuíveis para o modal. Sem paginação; filtra pela etapa informada.
+Lista Responsáveis atribuíveis para o modal. Sem paginação; filtra pela etapa informada.
 
 ```http
 GET /users/analysts?stage=triage -> 200 AssignableProfessional[]
 GET /users/analysts?stage=mapping -> 200 AssignableProfessional[]
 ```
 
-Exige sessão e `assignee_directory:read`.
+Exige sessão e `assignee_directory:read`. Retorna apenas contas ativas, com extensão profissional ativa, cujo Perfil ativo tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. A regra não depende do nome do Perfil.
 
 **Query:** `stage` aceita `triage` ou `mapping`; ausente equivale a `triage` para compatibilidade. O backend filtra pelos perfis ativos cuja flag e chaves de Atribuibilidade atendem à etapa solicitada. `search` (nome/especialidade) e `category` continuam filtrados 100% no frontend (`AssignAction.svelte` com `normalize`).
 
@@ -64,7 +64,7 @@ type RequestCategory =
     "email": "rafael.alves@maat.com.br",
     "specialty": "Eletricista residencial",
     "categories": ["Apoio técnico", "Automação"],
-    "notes": "Disponível à tarde; já atuou nesta região.",
+    "notes": "Atende à tarde; já atuou nesta região.",
     "requestLoad": 6
   }
 ]
@@ -89,9 +89,9 @@ Body (mapeamento):  { "mappingAssigneeId": "22" }
 
 **Regras backend:**
 
-- Se `assigneeId` → `detail.assignee = {id, name, email}` do usuário com Perfil atribuível à Triagem, `detail.lastUpdate = now`, refletir em `GET /queue` (`assigneeId`/`assignee`)
+- Se `assigneeId` → `detail.assignee = {id, name, email}` do Responsável atribuível encontrado, `detail.lastUpdate = now`, refletir em `GET /queue` (`assigneeId`/`assignee`)
 - Se `mappingAssigneeId` → `detail.mappingAssignee = {id, name, email}`, `detail.lastUpdate = now` (não altera `GET /queue` triagem)
-- Validar o usuário existe, o Perfil está ativo e é atribuível à etapa da operação conforme flag e chaves de trabalho
+- Revalidar extensão ativa, conta e Perfil ativos, flag da etapa e predicado de chaves de trabalho a cada designação e reatribuição
 - `protocol` é `encodeURIComponent(protocol)` (ex.: `MAAT-8K3P-9X2M`)
 
 **Resposta 200:** `InternalRequestDetail` com campo atualizado:
@@ -112,9 +112,10 @@ interface InternalRequestDetail {
 
 **Erros:**
 
-- `400` — `analystId` vazio
-- `403` — sem permissão: só `Administrador` ou `ANALYST_ASSIGNEE` da solicitação (responsável da triagem **ou** designado do mapeamento). Com `code: "INSUFFICIENT_ROLE_PERMISSIONS"`. Gestor **não** atribui (issue #124)
-- `404` — `protocol` ou `analystId` não encontrado
+- `400` — body inválido ou alvo inválido (`assignee_not_assignable`)
+- `401` — sem sessão ou sessão inválida
+- `403` — ator sem `request:assign`
+- `404` — `protocol` não encontrado ou fora da Custódia
 - `500` — genérico
 - Formato erro: `{status:'error', statusCode, message}` (e `code` quando presente)
 
@@ -161,7 +162,7 @@ Frontend envia `assigneeId` quando `responsibility === "triagem"`, `mappingAssig
 
 ## Auth
 
-Cookie obrigatório. `GET /users/analysts` e `PATCH .../assignee` exigem sessão válida. A atribuição exige `request:assign`, Custódia válida e um Perfil de destino atribuível à etapa conforme flag e chaves de trabalho.
+Cookie obrigatório. `GET /users/analysts` exige `assignee_directory:read`; `PATCH .../assignee` exige `request:assign` e Custódia da solicitação. O nome do Perfil não participa da autorização.
 
 ---
 
