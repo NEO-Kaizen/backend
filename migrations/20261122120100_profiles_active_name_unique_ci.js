@@ -22,6 +22,24 @@ export async function up(knex) {
  * @param {import("knex").Knex} knex
  */
 export async function down(knex) {
+  // O `UNIQUE` global restaurado não representa um estado em que dois Perfis
+  // compartilham o nome: o `up` permite homônimos entre inativos, o `down` não.
+  // Falhar antes de mexer no schema evita perder nome de Perfil e deixa claro
+  // o que resolver; renomear as linhas aqui seria perda silenciosa de dado.
+  const homonym = await knex("profiles")
+    .select("name")
+    .count("* as total")
+    .groupBy("name")
+    .havingRaw("count(*) > 1")
+    .first();
+
+  if (homonym) {
+    throw new Error(
+      `Rollback bloqueado: o nome de Perfil "${homonym.name}" pertence a ${homonym.total} linhas. ` +
+        "Renomeie os homônimos (inativos inclusive) antes de restaurar a unicidade global.",
+    );
+  }
+
   await knex.raw('DROP INDEX IF EXISTS "uk_profiles_active_name_lower"');
   await knex.raw('ALTER TABLE "profiles" ADD CONSTRAINT "profiles_name_unique" UNIQUE ("name")');
 }
