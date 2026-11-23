@@ -18,7 +18,8 @@ export interface RequesterInput {
 export interface CreateUserRequest {
   fullName: string;
   email: string;
-  role: string;
+  /** Identidade estável do Perfil. */
+  profileId: string;
   /** Obrigatório para Perfil atribuível; proibido para os demais Perfis. */
   professional?: CreateProfessionalInput;
   requester: RequesterInput;
@@ -27,7 +28,8 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   fullName?: string;
   email?: string;
-  role?: string;
+  /** Identidade estável do Perfil de destino. */
+  profileId?: string;
   professional?: CreateProfessionalInput;
   requester?: {
     area?: string;
@@ -38,7 +40,7 @@ export interface UpdateUserRequest {
 }
 
 export interface ListUsersQuery {
-  profile?: string;
+  profileId?: string;
   search?: string;
   page: number;
   pageSize: number;

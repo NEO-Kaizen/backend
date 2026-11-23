@@ -29,3 +29,20 @@ export interface ProfilePermissionRow {
   permission_key: string;
   custody: string;
 }
+
+/**
+ * Referência pública a um Perfil: identidade estável + rótulo.
+ *
+ * `id` é `String(profiles.profile_id)` — a identidade estável, a mesma exposta
+ * em `/profiles/:id` e aceita como `profileId` nas escritas de conta. `null`
+ * aparece **somente** em snapshot histórico que guardou o nome mas não o ID
+ * (nenhum ID é inferido a partir de um nome mutável).
+ *
+ * `name` é rótulo de exibição. Em snapshot histórico, é o nome congelado no
+ * momento do registro; nas referências atuais, é o nome vigente. Nome e ID
+ * nunca participam da autorização — ela segue por Permissões e Custódia.
+ */
+export interface ProfileReference {
+  id: string | null;
+  name: string;
+}

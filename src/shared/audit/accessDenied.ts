@@ -1,4 +1,5 @@
 import db from "../../database/conection.ts";
+import type { PermissionKey } from "../catalog/permissionCatalog.ts";
 import { recordAudit } from "./auditLogger.ts";
 
 export type AccessDeniedEntity = "request" | "queue" | "reports" | "prioritization";
@@ -9,6 +10,8 @@ export interface AccessDeniedAttempt {
   readonly userId: number;
   readonly note: string;
   readonly ipAddress?: string;
+  /** Chaves exigidas e ausentes na recusa — vazio quando a recusa não é de Permissão. */
+  readonly deniedPermissionKeys?: readonly PermissionKey[];
 }
 
 export async function recordAccessDeniedAttempt(entry: AccessDeniedAttempt): Promise<void> {
@@ -25,6 +28,7 @@ export async function recordAccessDeniedAttempt(entry: AccessDeniedAttempt): Pro
           note: entry.note,
           ipAddress: entry.ipAddress,
           changeOrigin: "system",
+          deniedPermissionKeys: entry.deniedPermissionKeys,
         });
         return;
       case "queue":
@@ -38,6 +42,7 @@ export async function recordAccessDeniedAttempt(entry: AccessDeniedAttempt): Pro
           note: entry.note,
           ipAddress: entry.ipAddress,
           changeOrigin: "system",
+          deniedPermissionKeys: entry.deniedPermissionKeys,
         });
         return;
       case "reports":
@@ -51,6 +56,7 @@ export async function recordAccessDeniedAttempt(entry: AccessDeniedAttempt): Pro
           note: entry.note,
           ipAddress: entry.ipAddress,
           changeOrigin: "system",
+          deniedPermissionKeys: entry.deniedPermissionKeys,
         });
         return;
       case "prioritization":
@@ -64,6 +70,7 @@ export async function recordAccessDeniedAttempt(entry: AccessDeniedAttempt): Pro
           note: entry.note,
           ipAddress: entry.ipAddress,
           changeOrigin: "system",
+          deniedPermissionKeys: entry.deniedPermissionKeys,
         });
         return;
     }

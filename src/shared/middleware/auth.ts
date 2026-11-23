@@ -70,12 +70,13 @@ export async function authMiddleware(
       return;
     }
 
-    // O nome do Perfil vem do banco a cada request — nunca do JWT.
+    // Identidade e nome do Perfil vêm do banco a cada request — nunca do JWT.
     req.user = {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      role: userState.profile_name,
+      profileId: String(userState.profile_id),
+      profileName: userState.profile_name,
     };
 
     req.authScope = scope;

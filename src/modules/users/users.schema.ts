@@ -27,35 +27,41 @@ export const requesterSchema = z.object({
   additionalContact: nullableOptionalString(100),
 });
 
+/** Identidade estável do Perfil — o nome mutável não identifica nem autoriza. */
+const profileIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[1-9]\d*$/, "Perfil inválido.")
+  .max(10, "Perfil inválido.");
+
 export const createUserSchema = z.object({
   fullName: requiredString(150),
   email: emailSchema,
-  role: z.string().trim().min(1, "Campo obrigatório.").max(60, "Máximo de 60 caracteres."),
+  profileId: profileIdSchema,
   professional: professionalSchema.optional(),
   requester: requesterSchema,
 });
 
-export const listUsersQuerySchema = z.object({
-  profile: z
-    .string()
-    .trim()
-    .min(1, "Perfil inválido.")
-    .max(60, "Máximo de 60 caracteres.")
-    .optional(),
-  search: z.string().trim().max(150, "Máximo de 150 caracteres.").optional(),
-  page: z.coerce
-    .number()
-    .int("Deve ser um número inteiro.")
-    .positive("Deve ser maior que zero.")
-    .max(10000, "Máximo de 10000.")
-    .default(1),
-  pageSize: z.coerce
-    .number()
-    .int("Deve ser um número inteiro.")
-    .positive("Deve ser maior que zero.")
-    .max(50, "Máximo de 50 itens por página.")
-    .default(10),
-});
+export const listUsersQuerySchema = z
+  .object({
+    profileId: profileIdSchema.optional(),
+    search: z.string().trim().max(150, "Máximo de 150 caracteres.").optional(),
+    page: z.coerce
+      .number()
+      .int("Deve ser um número inteiro.")
+      .positive("Deve ser maior que zero.")
+      .max(10000, "Máximo de 10000.")
+      .default(1),
+    pageSize: z.coerce
+      .number()
+      .int("Deve ser um número inteiro.")
+      .positive("Deve ser maior que zero.")
+      .max(50, "Máximo de 50 itens por página.")
+      .default(10),
+  })
+  // Filtro por nome (`?profile=`) foi removido na contração da issue #199:
+  // ignorar o parâmetro devolveria a lista inteira sem o filtro esperado.
+  .strict();
 
 export const listAssignableProfessionalsQuerySchema = z.object({
   stage: z.enum(["triage", "mapping"]).default("triage"),
@@ -76,12 +82,7 @@ export const updateUserSchema = z
   .object({
     fullName: requiredText(150).optional(),
     email: emailSchema.optional(),
-    role: z
-      .string()
-      .trim()
-      .min(1, "Campo obrigatório.")
-      .max(60, "Máximo de 60 caracteres.")
-      .optional(),
+    profileId: profileIdSchema.optional(),
     professional: professionalSchema.optional(),
     requester: requesterPatchSchema.optional(),
   })

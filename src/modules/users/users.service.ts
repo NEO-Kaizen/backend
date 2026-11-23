@@ -69,6 +69,15 @@ function parseUserId(rawId: string): number {
   return id;
 }
 
+/** Identidade estável do Perfil — inválida ou inexistente é `400`. */
+function parseProfileId(rawId: string): number {
+  const id = Number(rawId);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new AppError("Perfil inválido.", 400);
+  }
+  return id;
+}
+
 /** Autoridade do ator: Permissões do gate + marca `is_root` do Perfil vigente. */
 async function resolveActorAuthority(actor: AccountActor): Promise<ActorAuthority> {
   const actorUser = await repository.findUserById(actor.id);
@@ -187,9 +196,9 @@ function assertNotSelfManagement(targetId: number, actorId: number): void {
 }
 
 export async function listUsers(query: ListUsersQuery): Promise<PaginatedResponse<UserSummary>> {
-  if (query.profile) {
-    const profileId = await repository.findProfileIdByName(query.profile);
-    if (profileId === null) {
+  if (query.profileId !== undefined) {
+    const profile = await repository.findProfileById(parseProfileId(query.profileId));
+    if (!profile) {
       throw new AppError("Perfil inválido.", 400);
     }
   }
@@ -213,9 +222,9 @@ export async function createUser(
   ipAddress: string | undefined,
 ): Promise<CreateUserResponse> {
   // Perfil é algo do banco (fonte de verdade), não um enum do código: perfis
-  // futuros entram via `profiles` sem mudança de rota/schema — a validação
-  // fica em aberto até cruzar a tabela (mesma regra do filtro da listagem).
-  const profile = await repository.findProfileByName(payload.role);
+  // futuros entram via `profiles` sem mudança de rota/schema. A identidade é o
+  // `profile_id` estável; o nome nunca identifica nem autoriza.
+  const profile = await repository.findProfileById(parseProfileId(payload.profileId));
   if (!profile) {
     throw new AppError("Perfil inválido.", 400);
   }
@@ -289,7 +298,7 @@ export async function createUser(
     id: String(user.user_id),
     fullName: user.full_name,
     email: user.email,
-    role: profile.name,
+    profile: { id: String(profile.profile_id), name: profile.name },
     isActive: user.is_active,
     mustChangePassword: user.must_change_password,
     createdAt: user.created_at.toISOString(),
@@ -423,7 +432,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     id: String(row.user_id),
     fullName: row.full_name,
     email: row.email,
-    role: row.profile_name,
+    profile: { id: String(row.profile_id), name: row.profile_name },
     avatarUrl: row.avatar_url,
     requester: toRequesterBlock(row.requester),
     professional,
@@ -571,7 +580,7 @@ function removeAvatarFile(currentUrl: string): void {
 
 /**
  * `PUT /users/:id` — edição completa por `user:manage` (merge). Atualiza
- * `fullName`, `email`, `role`, `professional` e `requester` de forma parcial
+ * `fullName`, `email`, `profileId`, `professional` e `requester` de forma parcial
  * (ausente mantém). Auditoria `user.update`, transação atômica. A matriz de
  * contas (§ 4.2) governa a conta-alvo e o Perfil de destino da designação.
  */
@@ -596,8 +605,8 @@ export async function updateUser(
   // A designação só é validada quando o Perfil realmente muda: reenviar o
   // Perfil atual não é designação nova (e não deve esbarrar em Perfil inativo).
   let newProfileId: number | undefined;
-  if (payload.role !== undefined) {
-    const profile = await repository.findProfileByName(payload.role);
+  if (payload.profileId !== undefined) {
+    const profile = await repository.findProfileById(parseProfileId(payload.profileId));
     if (!profile) {
       throw new AppError("Perfil inválido.", 400);
     }
@@ -682,7 +691,7 @@ export async function updateUser(
     id: String(updated.user_id),
     fullName: updated.full_name,
     email: updated.email,
-    role: updated.profile_name,
+    profile: { id: String(updated.profile_id), name: updated.profile_name },
     avatarUrl: updated.avatar_url,
     requester: toRequesterBlock(updated.requester),
     professional: (() => {

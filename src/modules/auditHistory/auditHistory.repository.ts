@@ -13,6 +13,8 @@ interface AuditSummaryRow {
   action_type: string;
   user_id: number | null;
   actor_name: string | null;
+  actor_profile_id: number | null;
+  actor_profile_name: string | null;
   occurred_at: Date;
 }
 
@@ -27,12 +29,15 @@ interface AuditHistoryDetailRow {
   action_type: string;
   user_id: number | string | null;
   actor_name: string | null;
+  actor_profile_id: number | string | null;
+  actor_profile_name: string | null;
   previous_value: string | null;
   new_value: string | null;
   note: string | null;
   last_technical_message: string | null;
   ip_address: string | null;
   change_origin: string | null;
+  denied_permission_keys: string[] | null;
   occurred_at: Date | string;
 }
 
@@ -107,6 +112,8 @@ export async function listAuditHistory(
       "a.action_type",
       "a.user_id",
       "u.full_name as actor_name",
+      "a.actor_profile_id",
+      "a.actor_profile_name",
       "a.occurred_at",
     )
     .orderBy("a.occurred_at", "desc");
@@ -145,12 +152,15 @@ export async function findAuditHistoryById(
       "a.action_type",
       "a.user_id",
       "u.full_name as actor_name",
+      "a.actor_profile_id",
+      "a.actor_profile_name",
       "a.previous_value",
       "a.new_value",
       "a.note",
       "a.last_technical_message",
       "a.ip_address",
       "a.change_origin",
+      "a.denied_permission_keys",
       "a.occurred_at",
     )
     .where("a.audit_id", auditId)
@@ -213,12 +223,15 @@ export async function listAuditHistoryByProtocol(
       "a.action_type",
       "a.user_id",
       "u.full_name as actor_name",
+      "a.actor_profile_id",
+      "a.actor_profile_name",
       "a.previous_value",
       "a.new_value",
       "a.note",
       "a.last_technical_message",
       "a.ip_address",
       "a.change_origin",
+      "a.denied_permission_keys",
       "a.occurred_at",
     )
     .where("a.entity_type", "request")

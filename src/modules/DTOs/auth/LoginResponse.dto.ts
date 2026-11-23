@@ -1,8 +1,10 @@
+import type { ProfileReference } from "../../../shared/types/profile.ts";
+
 export interface LoginResponseDTO {
   id: string;
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: string;
+  profile: ProfileReference;
   mustChangePassword: boolean;
 }

@@ -41,13 +41,20 @@ function toNoteDTO(row: InternalNoteRow): TimelineNote {
     author: {
       id: String(row.author_user_id),
       name: row.author_name,
-      role: row.author_role_at_creation,
+      profile: {
+        id:
+          row.author_profile_id_at_creation === null
+            ? null
+            : String(row.author_profile_id_at_creation),
+        name: row.author_profile_name_at_creation,
+      },
     },
   };
 }
 
 export interface InternalNotesActor extends PermissionActor {
-  readonly role: string;
+  readonly profileId: string;
+  readonly profileName: string;
 }
 
 async function requireRequestAccess(
@@ -59,7 +66,7 @@ async function requireRequestAccess(
   const request = await repository.findRequestIdByProtocol(protocol);
 
   if (!request || !hasResponsibleCustody(actor, key, request.responsible_user_id)) {
-    return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`);
+    return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`, [key]);
   }
 
   return String(request.request_id);
@@ -188,18 +195,22 @@ function composeEventText(
 interface ActorSource {
   actor_user_id: number | null;
   actor_name: string | null;
+  actor_profile_id: number | null;
   actor_profile_name: string | null;
 }
 
 function toActorDTO(row: ActorSource): TimelineActorDTO | null {
-  if (row.actor_user_id === null || row.actor_name === null || row.actor_profile_name === null) {
+  if (row.actor_user_id === null || row.actor_name === null) {
     return null;
   }
 
   return {
     id: String(row.actor_user_id),
     name: row.actor_name,
-    role: row.actor_profile_name,
+    profile:
+      row.actor_profile_id === null || row.actor_profile_name === null
+        ? null
+        : { id: String(row.actor_profile_id), name: row.actor_profile_name },
   };
 }
 
@@ -360,7 +371,7 @@ export async function createInternalNote(
   const requestId = await requireRequestAccess(protocol, actor, "internal_note:write", ipAddress);
   const internalNoteId = await repository.insert(
     requestId,
-    { userId: actor.id, role: actor.role },
+    { userId: actor.id, profileId: actor.profileId, profileName: actor.profileName },
     payload.content,
   );
   const note = await repository.findById(internalNoteId);

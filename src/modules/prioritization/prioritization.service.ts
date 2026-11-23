@@ -63,6 +63,7 @@ export async function evaluateScore(
       userId: actor.id,
       note: "Priorização negada: sem Custódia da solicitação.",
       ipAddress,
+      deniedPermissionKeys: ["prioritization:write"],
     });
     throw new AppError("Acesso negado a esta solicitação", 403);
   }

@@ -64,6 +64,7 @@ import {
   type PermissionActor,
 } from "../../shared/access/requestAccess.ts";
 import type { UpdateStatusResponse } from "../DTOs/requests/RequestRequests.dto.ts";
+import type { PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
 
 interface AuthenticatedIdentity {
   fullName: string;
@@ -84,9 +85,10 @@ async function requireRequestCustody<T>(
   ipAddress: string | undefined,
   detail: string,
   canAccess: (request: T) => boolean,
+  deniedPermissionKeys: readonly PermissionKey[],
 ): Promise<T> {
   if (request === null || request === undefined || !canAccess(request)) {
-    return denyRequestAccess(protocol, actor.id, ipAddress, detail);
+    return denyRequestAccess(protocol, actor.id, ipAddress, detail, deniedPermissionKeys);
   }
 
   return request;
@@ -244,6 +246,7 @@ export async function findInternalByProtocol(
     ipAddress,
     "request:read sem custódia",
     (row) => hasResponsibleCustody(actor, "request:read", row["assignee_user_id"]),
+    ["request:read"],
   );
 
   const requestId = request["request_id"] as string;
@@ -806,6 +809,7 @@ export async function updateInternalRequest(
     ipAddress,
     "request:write sem custódia",
     (row) => hasResponsibleCustody(actor, "request:write", row.assignee_user_id),
+    ["request:write"],
   );
 
   await db.transaction(async (trx) => {
@@ -932,6 +936,7 @@ export async function assignResponsible(
     ipAddress,
     "request:assign sem custódia",
     (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
+    ["request:assign"],
   );
 
   // A atribuição é autorizada por request:assign e Custódia, sem decisão por
@@ -1007,6 +1012,7 @@ export async function assignAnalyst(
     ipAddress,
     "request:assign sem custódia",
     (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
+    ["request:assign"],
   );
 
   // A atribuição é autorizada por request:assign e Custódia, sem decisão por
@@ -1203,6 +1209,7 @@ export async function updateRequestStatus(
     ipAddress,
     "request:status_change sem custódia",
     (row) => hasResponsibleCustody(actor, "request:status_change", row.assignee_user_id),
+    ["request:status_change"],
   );
 
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
@@ -1233,6 +1240,7 @@ export async function updateRequestStatus(
       actor.id,
       ipAddress,
       "alvo de status exige request:status_override",
+      ["request:status_override"],
     );
     throw new AppError(
       "O status de destino exige permissão de override.",

@@ -108,6 +108,7 @@ export async function recordAccessDeniedAttempt(
   actorId: number,
   ipAddress: string | undefined,
   detail: string,
+  deniedPermissionKeys: readonly PermissionKey[] = [],
 ): Promise<void> {
   await db.transaction(async (trx) => {
     await recordAudit(trx, {
@@ -120,6 +121,7 @@ export async function recordAccessDeniedAttempt(
       note: `Access denied: ${detail}`,
       ipAddress,
       changeOrigin: "system",
+      deniedPermissionKeys,
     });
   });
 }
@@ -130,8 +132,9 @@ export async function denyRequestAccess(
   actorId: number,
   ipAddress: string | undefined,
   detail: string,
+  deniedPermissionKeys: readonly PermissionKey[] = [],
 ): Promise<never> {
-  await recordAccessDeniedAttempt(protocol, actorId, ipAddress, detail);
+  await recordAccessDeniedAttempt(protocol, actorId, ipAddress, detail, deniedPermissionKeys);
   throw inaccessibleRequestError();
 }
 
@@ -153,7 +156,7 @@ export async function requireResponsibleCustody<T>(
     request === undefined ||
     !hasResponsibleCustody(actor, key, responsibleId(request))
   ) {
-    return denyRequestAccess(protocol, actor.id, ipAddress, detail);
+    return denyRequestAccess(protocol, actor.id, ipAddress, detail, [key]);
   }
 
   return request;

@@ -20,6 +20,7 @@ interface UserSummaryRow {
   full_name: string;
   email: string;
   avatar_url: string | null;
+  profile_id: number;
   profile_name: string;
   is_active: boolean;
   must_change_password: boolean;
@@ -33,17 +34,11 @@ export interface ProfileLookupRow {
   is_active: boolean;
 }
 
-/** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
-export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
+/** Perfil pela identidade estável — usada nas escritas e na matriz de contas. */
+export async function findProfileById(id: number): Promise<ProfileLookupRow | undefined> {
   return db("profiles")
-    .whereRaw("lower(name) = lower(?)", [name])
+    .where({ profile_id: id })
     .first("profile_id", "name", "is_root", "is_active");
-}
-
-export async function findProfileIdByName(name: string): Promise<number | null> {
-  const profile = await findProfileByName(name);
-
-  return profile?.profile_id ?? null;
 }
 
 export async function findUserById(id: number): Promise<AuthUserRow | undefined> {
@@ -385,8 +380,8 @@ function baseQuery(query: ListUsersQuery) {
   return db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where((builder) => {
-      if (query.profile) {
-        builder.whereRaw("lower(p.name) = lower(?)", [query.profile]);
+      if (query.profileId) {
+        builder.where("p.profile_id", Number(query.profileId));
       }
       if (query.search) {
         const escapedSearch = query.search.replace(/[\\%_]/g, "\\$&");
@@ -411,6 +406,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       full_name: "u.full_name",
       email: "u.email",
       avatar_url: "u.avatar_url",
+      profile_id: "p.profile_id",
       profile_name: "p.name",
       is_active: "u.is_active",
       must_change_password: "u.must_change_password",
@@ -427,7 +423,7 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
       fullName: row.full_name,
       email: row.email,
       avatarUrl: row.avatar_url,
-      profile: row.profile_name,
+      profile: { id: String(row.profile_id), name: row.profile_name },
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,
       createdAt: row.created_at.toISOString(),

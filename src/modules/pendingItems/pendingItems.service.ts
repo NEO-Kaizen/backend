@@ -94,10 +94,14 @@ export async function createPendingItems(
 ): Promise<{ batchId: string; requestAttachment: boolean; items: PendingItem[] }> {
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) {
-    return denyRequestAccess(protocol, actor.id, ip, "pending_item:write sem solicitação");
+    return denyRequestAccess(protocol, actor.id, ip, "pending_item:write sem solicitação", [
+      "pending_item:write",
+    ]);
   }
   if (!hasResponsibleCustody(actor, "pending_item:write", request.responsible_user_id)) {
-    return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:write sem custódia");
+    return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:write sem custódia", [
+      "pending_item:write",
+    ]);
   }
   if (TERMINAL_STATUSES.has(request.status)) {
     throw new AppError("Solicitação já concluída ou cancelada", 409);
@@ -244,7 +248,9 @@ async function requireReadableRequest(
   if (caller.user) {
     const actor = permissionActorFromRequest(caller);
     if (!request) {
-      return denyRequestAccess(protocol, actor.id, ip, "pending_item:read sem solicitação");
+      return denyRequestAccess(protocol, actor.id, ip, "pending_item:read sem solicitação", [
+        "pending_item:read",
+      ]);
     }
 
     const canReadAssigned = hasResponsibleCustody(
@@ -256,7 +262,9 @@ async function requireReadableRequest(
       custodyFor(actor, "pending_item:respond") === "own" && isRequesterOf(request, actor);
 
     if (!canReadAssigned && !canRespondOwn) {
-      return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:read sem custódia");
+      return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:read sem custódia", [
+        "pending_item:read",
+      ]);
     }
 
     return request;
@@ -284,10 +292,12 @@ async function requireOwnedRequest(
   if (caller.user) {
     const actor = permissionActorFromRequest(caller);
     if (!request) {
-      return denyRequestAccess(protocol, actor.id, ip, `${detail} sem solicitação`);
+      return denyRequestAccess(protocol, actor.id, ip, `${detail} sem solicitação`, [
+        "pending_item:respond",
+      ]);
     }
     if (!isRequesterOf(request, actor)) {
-      return denyRequestAccess(request.protocol, actor.id, ip, detail);
+      return denyRequestAccess(request.protocol, actor.id, ip, detail, ["pending_item:respond"]);
     }
     return { request, actorEmail: actor.email };
   }
@@ -539,10 +549,14 @@ export async function reviewPendingItems(
 ): Promise<{ batchId: string; items: PendingItem[] }> {
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) {
-    return denyRequestAccess(protocol, actor.id, ip, "pending_item:review sem solicitação");
+    return denyRequestAccess(protocol, actor.id, ip, "pending_item:review sem solicitação", [
+      "pending_item:review",
+    ]);
   }
   if (!hasResponsibleCustody(actor, "pending_item:review", request.responsible_user_id)) {
-    return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:review sem custódia");
+    return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:review sem custódia", [
+      "pending_item:review",
+    ]);
   }
 
   const batchId = body.batchId.trim();

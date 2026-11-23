@@ -9,6 +9,33 @@ const profilePermission = {
 
 export const ProfilePermission = profilePermission;
 
+/**
+ * Referência pública a um Perfil: identidade estável + rótulo.
+ *
+ * `id` é `String(profiles.profile_id)`, a mesma identidade de `/profiles/{id}` e
+ * das escritas (`profileId`). `null` aparece só em snapshot histórico que
+ * preservou o nome sem registrar o ID — nenhum ID é inferido do nome.
+ * `name` é rótulo de exibição e nunca participa da autorização.
+ */
+export const ProfileReference = {
+  type: "object",
+  required: ["id", "name"],
+  properties: {
+    id: {
+      type: ["string", "null"],
+      example: "6",
+      description:
+        "Identidade estável do Perfil. `null` apenas em snapshot histórico sem ID registrado.",
+    },
+    name: {
+      type: "string",
+      example: "Analista",
+      description:
+        "Rótulo do Perfil — histórico quando vem de snapshot; nunca autoriza nem identifica.",
+    },
+  },
+};
+
 export const Profile = {
   type: "object",
   required: [

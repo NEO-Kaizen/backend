@@ -3,7 +3,10 @@ export interface User {
   email: string;
   name: string;
   password: string;
-  role: string;
+  /** `String(profiles.profile_id)` — identidade estável do Perfil. */
+  profileId: string;
+  /** Nome vigente do Perfil — rótulo, nunca autorização. */
+  profileName: string;
 }
 
 export type AuthenticatedUser = Omit<User, "password">;

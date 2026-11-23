@@ -21,7 +21,7 @@ export default {
           description: "Lista de notas internas.",
           content: {
             "application/json": {
-              schema: { type: "array", items: { type: "object" } },
+              schema: { $ref: "#/components/schemas/InternalNotesResponse" },
             },
           },
         },
@@ -86,7 +86,7 @@ export default {
           description: "Nota interna criada com sucesso.",
           content: {
             "application/json": {
-              schema: { type: "object" },
+              schema: { $ref: "#/components/schemas/TimelineNote" },
             },
           },
         },

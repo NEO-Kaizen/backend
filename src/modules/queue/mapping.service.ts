@@ -46,6 +46,7 @@ async function recordMappingAccessDenied(
     userId: actorId,
     note: `Mapeamento negado: ${detail}`,
     ipAddress,
+    deniedPermissionKeys: ["mapping:write"],
   });
 }
 
