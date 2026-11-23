@@ -24,7 +24,7 @@ O conteúdo original permanece no histórico do Git.
 | `portal-config-statuses-amend.md`     | OpenAPI + [`ADR-0002`](adr/0002-motor-de-status-v4.md) + [`rules/requests-lifecycle.md`](rules/requests-lifecycle.md)                                  |
 | `queue-csv-export-contract.md`        | OpenAPI (`/reports/requests.csv`) + [`rules/reports.md`](rules/reports.md)                                                                             |
 | `requests-assignment-contract.md`     | OpenAPI (responsáveis) + [`rules/assignment.md`](rules/assignment.md)                                                                                  |
-| `requests-internal-query-contract.md` | OpenAPI (`/requests/{protocol}/internal`) + [`rules/pending-items.md`](rules/pending-items.md)                                                         |
+| `requests-internal-query-contract.md` | OpenAPI (`/requests/{protocol}/internal`) + [`rules/pending-items.md`](rules/pending-items.md) + [`rbac.md`](rbac.md)                                  |
 | `solicitations-api-requests-0_4.md`   | OpenAPI (fluxo do solicitante) + [`rules/requests-lifecycle.md`](rules/requests-lifecycle.md) + [`rules/public-tracking.md`](rules/public-tracking.md) |
 | `users-api-metrics-0_1.md`            | OpenAPI (`/users/metrics`) + [`rules/users-and-profiles.md`](rules/users-and-profiles.md)                                                              |
 | `users-api-profile-0_1.md`            | OpenAPI (`/users/me`, `/users/{id}`) + [`rules/users-and-profiles.md`](rules/users-and-profiles.md)                                                    |
