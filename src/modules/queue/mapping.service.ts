@@ -14,6 +14,10 @@
 // 6. resolve participantes, persiste, audita e (se concluir) avança o status
 //    para `Mapeamento agendado`.
 import db from "../../database/conection.ts";
+import {
+  assertAssigneeTargetEligible,
+  assigneeNotAssignable,
+} from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
@@ -283,19 +287,9 @@ async function assertCandidateEligible(
   queryable: Knex,
   candidate: repository.MappingAssigneeCandidate | null,
 ): Promise<void> {
-  const invalidTarget = () =>
-    new AppError("O alvo não pode ser escolhido como Responsável.", 400, "assignee_not_assignable");
-
-  if (
-    !candidate ||
-    candidate.professional_status !== "active" ||
-    !candidate.user_is_active ||
-    !candidate.profile_is_active
-  ) {
-    throw invalidTarget();
-  }
+  assertAssigneeTargetEligible(candidate);
   if (!(await repository.isMappingAssigneeProfileAssignable(queryable, candidate.profile_id))) {
-    throw invalidTarget();
+    throw assigneeNotAssignable();
   }
 }
 

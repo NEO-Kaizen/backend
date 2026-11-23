@@ -1,5 +1,10 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import {
+  assertAssigneeTargetEligible,
+  assigneeNotAssignable,
+  CODE_ASSIGNEE_NOT_ASSIGNABLE,
+} from "../../shared/access/assignability.ts";
 import db from "../../database/conection.ts";
 import type {
   RequestStatus,
@@ -852,17 +857,7 @@ async function validateAssigneeCandidate(
   candidate: AssignmentCandidateRow | undefined,
   stage: "triage" | "mapping",
 ): Promise<AssignmentCandidateRow> {
-  const invalidTarget = () =>
-    new AppError("O alvo não pode ser escolhido como Responsável.", 400, "assignee_not_assignable");
-
-  if (
-    !candidate ||
-    !candidate.profile_is_active ||
-    !candidate.user_is_active ||
-    candidate.professional_status !== "active"
-  ) {
-    throw invalidTarget();
-  }
+  assertAssigneeTargetEligible(candidate);
   const flagEnabled =
     stage === "triage" ? candidate.is_assignable_triage : candidate.is_assignable_mapping;
   if (
@@ -872,7 +867,7 @@ async function validateAssigneeCandidate(
       requireActive: true,
     }))
   ) {
-    throw invalidTarget();
+    throw assigneeNotAssignable();
   }
 
   return candidate;
@@ -915,7 +910,7 @@ async function validateAssignmentTarget<T>(
   try {
     return await resolve();
   } catch (error) {
-    if (error instanceof AppError && error.code === "assignee_not_assignable") {
+    if (error instanceof AppError && error.code === CODE_ASSIGNEE_NOT_ASSIGNABLE) {
       await recordAccessDeniedAttempt(protocol, actor.id, ipAddress, "alvo de atribuição inválido");
     }
     throw error;
