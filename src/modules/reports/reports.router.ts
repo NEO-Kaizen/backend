@@ -5,6 +5,7 @@ import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import {
   exportQueueCsvController,
   getDashboardController,
+  getReportPdfController,
   getRequesterRequestPdfController,
 } from "./reports.controller.ts";
 const reportsRoutes = express.Router();
@@ -13,6 +14,13 @@ reportsRoutes.get(
   "/request/protocol/:protocol/pdf",
   requesterDualAuth,
   getRequesterRequestPdfController,
+);
+
+reportsRoutes.get(
+  "/request/internal/:protocol/pdf",
+  authMiddleware,
+  requireRole("Gestor", "Administrador"),
+  getReportPdfController,
 );
 
 reportsRoutes.get(

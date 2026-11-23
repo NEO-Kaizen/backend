@@ -71,13 +71,14 @@ export default {
       },
     },
   },
-  "/reports/request/:request_id/pdf": {
+  "/reports/request/internal/{protocol}/pdf": {
     get: {
       tags: ["Relatórios"],
       summary: "Exportar solicitação em PDF (interno)",
       description:
-        "Exporta os dados completos de uma solicitação em PDF. Exige autenticação e perfil Gestor ou Administrador. O PDF inclui identificação, solicitante, demanda, operação, complementar, responsáveis, anexos, pendências e histórico de logs. A triagem não é incluída.",
+        "Exporta os dados completos de uma solicitação em PDF. Exige autenticação e perfil Gestor ou Administrador. O PDF inclui identificação, solicitante, demanda, operação, complementar, responsáveis, anexos e observações internas. A triagem não é incluída.",
       operationId: "getReportPdf",
+      parameters: [{ name: "protocol", in: "path", required: true, schema: { type: "string" } }],
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
@@ -89,7 +90,7 @@ export default {
           },
         },
         "400": {
-          description: "Campos inválidos: request_id — ID inválido.",
+          description: "Protocolo inválido.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -105,7 +106,7 @@ export default {
           },
         },
         "403": {
-          description: "Perfis internos devem acompanhar pela consulta interna.",
+          description: "Acesso restrito ao perfil Gestor ou Administrador.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

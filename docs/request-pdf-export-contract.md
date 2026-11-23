@@ -9,22 +9,22 @@ O endpoint disponibiliza a exportação de solicitações em formato PDF, com do
 ### Requisição
 
 ```http
-GET /reports/request/:request_id/pdf
+GET /reports/request/internal/:protocol/pdf
 Cookie: session_id=<jwt>  (perfil Interno)
 ```
 
 ### Autorização
 
 - `authMiddleware` + `requireRole("Gestor", "Administrador")`
-- Perfis internos acessam dados completos incluindo histórico, anexos e observações.
+- Perfis internos acessam dados completos incluindo anexos e observações.
 
 ### Resposta de Sucesso
 
-| Código                | Tipo                                                    | Descrição                           |
-| --------------------- | ------------------------------------------------------- | ----------------------------------- |
-| `200`                 | `application/pdf`                                       | Arquivo gerado                      |
-| `Content-Disposition` | `attachment; filename="relatorio-solicitacao-{id}.pdf"` | Sugestão de nome para download      |
-| Corpo                 | `Buffer` (≈6811 bytes)                                  | PDF de 2 páginas com todos os dados |
+| Código                | Tipo                                                          | Descrição                           |
+| --------------------- | ------------------------------------------------------------- | ----------------------------------- |
+| `200`                 | `application/pdf`                                             | Arquivo gerado                      |
+| `Content-Disposition` | `attachment; filename="relatorio-solicitacao-{protocol}.pdf"` | Sugestão de nome para download      |
+| Corpo                 | `Buffer` (≈6811 bytes)                                        | PDF de 2 páginas com todos os dados |
 
 ### Seções do PDF (internas)
 
@@ -34,18 +34,16 @@ Cookie: session_id=<jwt>  (perfil Interno)
 4. **Operação** — descrição, etapas, sistemas, frequência, volumetria, pessoas, tempo médio, esforço mensal, controles manuais, riscos, impactos, criticidade.
 5. **Complementar** — documentação, solução semelhante, dependências, informações restritas, observações.
 6. **Responsáveis** — triagem e mapeamento.
-7. **Anexos** — nome, MIME type, tamanho.
-8. **Histórico de logs** — data, ator, ação, valor anterior → novo, observação.
-9. **Pendências** — total, aguardando resposta,respondidas, validadas.
+7. **Anexos** — nomes dos arquivos vinculados à solicitação.
 
 ### Respostas de Erro
 
-| Código | Mensagem                                                  | Quando                                   |
-| ------ | --------------------------------------------------------- | ---------------------------------------- |
-| `400`  | `Campos inválidos: request_id — ID inválido.`             | `request_id` não numérico ou inexistente |
-| `401`  | `Token não fornecido` ou `Token inválido ou expirado`     | Sem cookie/sessão expirada               |
-| `403`  | `Perfis internos devem acompanhar pela consulta interna.` | Usuário não é Gestor/Admin               |
-| `404`  | `Solicitação não encontrada`                              | ID inexistente                           |
+| Código | Mensagem                                              | Quando                        |
+| ------ | ----------------------------------------------------- | ----------------------------- |
+| `400`  | `Campos inválidos: protocol — Protocolo inválido.`    | Formato de protocolo inválido |
+| `401`  | `Token não fornecido` ou `Token inválido ou expirado` | Sem cookie/sessão expirada    |
+| `403`  | `Acesso restrito ao perfil Gestor ou Administrador.`  | Usuário não é Gestor/Admin    |
+| `404`  | `Solicitação não encontrada`                          | Protocolo inexistente         |
 
 ---
 
@@ -117,7 +115,7 @@ X-Requester-Identity: {"name":"Fabio Solicitante","email":"fabio.solicitante@ema
 {
   "status": "error",
   "statusCode": 400,
-  "message": "Campos inválidos: request_id — ID inválido."
+  "message": "Campos inválidos: protocol — Protocolo inválido."
 }
 ```
 
@@ -202,10 +200,9 @@ try {
 
 | Arquivo                                            | O que mudou                                                                                                                          |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/modules/reports/reports.service.ts`           | Implementado `getGenerateRequestPDF` (dados completos + histórico) e `getRequesterRequestPDF` (recorte por perfil via `getTracking`) |
-| `src/modules/reports/reports.repository.ts`        | Substituído stub por `findRequestProtocolById`                                                                                       |
+| `src/modules/reports/reports.service.ts`           | Implementado `getGenerateRequestPDF` (resumo interno) e `getRequesterRequestPDF` (recorte por perfil via `getTracking`) |
 | `src/modules/DTOs/reports/RequestPdfExport.dto.ts` | Adicionado `RequestPdfSource`                                                                                                        |
-| `src/modules/reports/reports.router.ts`            | Duas rotas: `/request/:request_id/pdf` (interno) e `/request/protocol/:protocol/pdf` (solicitante)                                   |
+| `src/modules/reports/reports.router.ts`            | Duas rotas: `/request/internal/:protocol/pdf` (interno) e `/request/protocol/:protocol/pdf` (solicitante)                            |
 | `src/modules/reports/reports.controller.ts`        | Controller do PDF interno + novo controller do solicitante                                                                           |
 
 ---

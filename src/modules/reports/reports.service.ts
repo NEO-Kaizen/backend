@@ -4,7 +4,6 @@ import type {
   DashboardResponse,
 } from "../DTOs/reports/Dashboard.dto.ts";
 import PDFDocument from "pdfkit";
-import { AppError } from "../../shared/errors/AppError.ts";
 import type { RequestPdfExport } from "../DTOs/reports/RequestPdfExport.dto.ts";
 import type { QueueCsvExport, QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
 import type { RequestInternalDetailDTO } from "../DTOs/requests/RequestInternalDetail.dto.ts";
@@ -17,7 +16,6 @@ import type {
 import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { RequestPriority, YesNoDetail } from "../../shared/types/requests.ts";
 import type { StatusTone } from "../../shared/types/systemTheme.ts";
-import { listAuditHistoryByProtocol } from "../auditHistory/auditHistory.repository.ts";
 import { findInternalByProtocol, getTracking } from "../requests/requests.service.ts";
 import type { TrackingCaller } from "../requests/requests.service.ts";
 import * as repository from "./reports.repository.ts";
@@ -55,8 +53,6 @@ const filenameDateFormatter = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-type AuditHistoryEntry = Awaited<ReturnType<typeof listAuditHistoryByProtocol>>[number];
-
 const PDF_MARGIN = 48;
 const PDF_BOTTOM_MARGIN = 60;
 const PDF_HEADING_COLOR = "#1f3a5f";
@@ -64,22 +60,8 @@ const PDF_LABEL_COLOR = "#44546a";
 const PDF_RULE_COLOR = "#c9d4e3";
 const PDF_TEXT_COLOR = "#111111";
 
-const AUDIT_ACTION_LABELS: Record<string, string> = {
-  "request.assign": "Atribuição de responsável",
-  "request.reassign": "Reatribuição de responsável",
-  "request.unassign": "Remoção de responsável",
-  "request.status_change": "Mudança de status",
-  "request.update": "Atualização da solicitação",
-  "request.internal_observations": "Atualização de observações internas",
-  "request.triage": "Triagem",
-  "request.override_status_admin": "Alteração de status pelo administrador",
-  "request.access_denied": "Tentativa de acesso negado",
-};
-
 interface PdfAttachment {
   fileName: string;
-  mimeType: string;
-  sizeBytes: number;
 }
 
 function formatDateOnly(value: string | null | undefined): string {
@@ -87,12 +69,6 @@ function formatDateOnly(value: string | null | undefined): string {
 
   const [year, month, day] = value.slice(0, 10).split("-");
   return year && month && day ? `${day}/${month}/${year}` : value;
-}
-
-function formatBytes(sizeBytes: number): string {
-  if (sizeBytes < 1024) return `${sizeBytes} B`;
-  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
-  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatYesNoDetail(value: YesNoDetail | undefined): string {
@@ -108,7 +84,8 @@ function formatScore(detail: RequestInternalDetailDTO): string {
 }
 
 function addSectionTitle(doc: PDFKit.PDFDocument, title: string): void {
-  doc.moveDown(0.7);
+  if (doc.y + 48 > doc.page.height - doc.page.margins.bottom) doc.addPage();
+  doc.moveDown(0.45);
   doc.font("Helvetica-Bold").fontSize(11).fillColor(PDF_HEADING_COLOR).text(title.toUpperCase());
 
   const lineY = doc.y + 2;
@@ -130,19 +107,25 @@ function addField(doc: PDFKit.PDFDocument, label: string, value: string): void {
     .fillColor(PDF_LABEL_COLOR)
     .text(`${label}: `, { continued: true });
   doc.font("Helvetica").fontSize(9.5).fillColor(PDF_TEXT_COLOR).text(value);
-  doc.moveDown(0.2);
+  doc.moveDown(0.12);
 }
 
 function addBullet(doc: PDFKit.PDFDocument, value: string): void {
   doc.font("Helvetica").fontSize(9.5).fillColor(PDF_TEXT_COLOR).text(`• ${value}`, { indent: 8 });
 }
 
-function renderHeader(doc: PDFKit.PDFDocument, protocol: string): void {
+function renderHeader(doc: PDFKit.PDFDocument, protocol: string, title: string): void {
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor(PDF_LABEL_COLOR)
+    .text("Portal MAAT | Relatório de solicitação");
+  doc.moveDown(0.3);
   doc
     .font("Helvetica-Bold")
     .fontSize(16)
     .fillColor(PDF_HEADING_COLOR)
-    .text("Relatório de solicitação");
+    .text(title || "Relatório de solicitação");
   doc
     .font("Helvetica")
     .fontSize(9)
@@ -151,26 +134,35 @@ function renderHeader(doc: PDFKit.PDFDocument, protocol: string): void {
     .text(`Gerado em ${formatDateTime(new Date())}`);
 }
 
-function renderFooter(doc: PDFKit.PDFDocument): void {
+function renderPageMargins(doc: PDFKit.PDFDocument, protocol: string): void {
   const range = doc.bufferedPageRange();
   const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
   for (let pageIndex = range.start; pageIndex < range.start + range.count; pageIndex++) {
     doc.switchToPage(pageIndex);
-    doc
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor(PDF_LABEL_COLOR)
-      .text(
-        `Portal MAAT — página ${pageIndex + 1} de ${range.count}`,
-        doc.page.margins.left,
-        doc.page.height - 32,
-        { width: contentWidth, align: "center", lineBreak: false },
-      );
+    if (pageIndex > range.start) {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .fillColor(PDF_HEADING_COLOR)
+        .text(`Relatório de solicitação — ${protocol}`, doc.page.margins.left, 24, {
+          lineBreak: false,
+        });
+    }
+
+    const footer = `Portal MAAT — página ${pageIndex + 1} de ${range.count}`;
+    doc.font("Helvetica").fontSize(8).fillColor(PDF_LABEL_COLOR);
+    // Uma largura explícita ativa a paginação automática do PDFKit no rodapé.
+    const footerX = doc.page.margins.left + (contentWidth - doc.widthOfString(footer)) / 2;
+    doc.text(footer, footerX, doc.page.height - 32, { lineBreak: false });
   }
 }
 
-function buildPdf(title: string, render: (doc: PDFKit.PDFDocument) => void): Promise<Buffer> {
+function buildPdf(
+  protocol: string,
+  title: string,
+  render: (doc: PDFKit.PDFDocument) => void,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
@@ -182,7 +174,7 @@ function buildPdf(title: string, render: (doc: PDFKit.PDFDocument) => void): Pro
       },
       bufferPages: true,
       info: {
-        Title: title,
+        Title: `Solicitação ${protocol}`,
         Author: "Portal MAAT",
         Subject: "Relatório de solicitação",
       },
@@ -194,8 +186,9 @@ function buildPdf(title: string, render: (doc: PDFKit.PDFDocument) => void): Pro
     doc.on("error", reject);
 
     try {
+      renderHeader(doc, protocol, title);
       render(doc);
-      renderFooter(doc);
+      renderPageMargins(doc, protocol);
       doc.end();
     } catch (error) {
       reject(error);
@@ -208,7 +201,6 @@ function renderInternalIdentification(
   detail: RequestInternalDetailDTO,
 ): void {
   addSectionTitle(doc, "Identificação");
-  addField(doc, "Protocolo", detail.protocol);
   addField(doc, "Status", detail.status);
   addField(doc, "Prioridade", detail.priority ?? "Não priorizada");
   addField(doc, "Score", formatScore(detail));
@@ -239,7 +231,6 @@ function renderInternalRequester(doc: PDFKit.PDFDocument, detail: RequestInterna
 
 function renderInternalDemand(doc: PDFKit.PDFDocument, detail: RequestInternalDetailDTO): void {
   addSectionTitle(doc, "Demanda");
-  addField(doc, "Título", detail.demand.title);
   addField(doc, "Processo", detail.demand.processName);
   addField(doc, "Descrição da necessidade", detail.demand.description);
   addField(doc, "Problema ou oportunidade", detail.demand.problem);
@@ -328,22 +319,8 @@ function renderAttachments(doc: PDFKit.PDFDocument, attachments: readonly PdfAtt
   }
 
   for (const attachment of attachments) {
-    addBullet(
-      doc,
-      `${attachment.fileName} (${attachment.mimeType}, ${formatBytes(attachment.sizeBytes)})`,
-    );
+    addBullet(doc, attachment.fileName);
   }
-}
-
-function renderPendingSummary(doc: PDFKit.PDFDocument, detail: RequestInternalDetailDTO): void {
-  const { total, requested, responded, validated } = detail.pendingSummary;
-  if (total === 0) return;
-
-  addSectionTitle(doc, "Pendências");
-  addField(doc, "Total", String(total));
-  addField(doc, "Aguardando resposta", String(requested));
-  addField(doc, "Respondidas", String(responded));
-  addField(doc, "Validadas", String(validated));
 }
 
 function renderInternalObservations(
@@ -356,53 +333,8 @@ function renderInternalObservations(
   doc.font("Helvetica").fontSize(9.5).fillColor(PDF_TEXT_COLOR).text(detail.internalObservations);
 }
 
-function renderAuditHistory(doc: PDFKit.PDFDocument, history: readonly AuditHistoryEntry[]): void {
-  addSectionTitle(doc, "Histórico de logs");
-
-  if (history.length === 0) {
-    doc
-      .font("Helvetica")
-      .fontSize(9.5)
-      .fillColor(PDF_TEXT_COLOR)
-      .text("Nenhum registro de histórico.");
-    return;
-  }
-
-  for (const entry of history) {
-    const actor = entry.actor_name ?? "Sistema";
-    const action = AUDIT_ACTION_LABELS[entry.action_type] ?? entry.action_type;
-    const transition =
-      entry.previous_value && entry.new_value
-        ? `${entry.previous_value} → ${entry.new_value}`
-        : (entry.new_value ?? entry.previous_value ?? "");
-
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(9)
-      .fillColor(PDF_HEADING_COLOR)
-      .text(formatDateTime(entry.occurred_at), { continued: true });
-    doc.font("Helvetica").fontSize(9).fillColor(PDF_TEXT_COLOR).text(` — ${action} por ${actor}`);
-
-    if (transition) {
-      doc.font("Helvetica").fontSize(9).fillColor(PDF_LABEL_COLOR).text(transition, { indent: 10 });
-    }
-    if (entry.note) {
-      doc
-        .font("Helvetica-Oblique")
-        .fontSize(9)
-        .fillColor(PDF_LABEL_COLOR)
-        .text(entry.note, { indent: 10 });
-    }
-    doc.moveDown(0.35);
-  }
-}
-
-function renderInternalRequestPdf(
-  detail: RequestInternalDetailDTO,
-  history: readonly AuditHistoryEntry[],
-): Promise<Buffer> {
-  return buildPdf(`Solicitação ${detail.protocol}`, (doc) => {
-    renderHeader(doc, detail.protocol);
+function renderInternalRequestPdf(detail: RequestInternalDetailDTO): Promise<Buffer> {
+  return buildPdf(detail.protocol, detail.demand.title, (doc) => {
     renderInternalIdentification(doc, detail);
     renderInternalRequester(doc, detail);
     renderInternalDemand(doc, detail);
@@ -411,9 +343,7 @@ function renderInternalRequestPdf(
     renderInternalAssignees(doc, detail);
     renderSchedulePreferences(doc, detail.schedulePreferences);
     renderAttachments(doc, detail.attachments);
-    renderPendingSummary(doc, detail);
     renderInternalObservations(doc, detail);
-    renderAuditHistory(doc, history);
   });
 }
 
@@ -422,7 +352,6 @@ function renderTrackingCommonSections(
   details: PublicRequestDetails | RequesterRequestDetails,
 ): void {
   addSectionTitle(doc, "Identificação");
-  addField(doc, "Protocolo", details.protocol);
   addField(doc, "Status", details.status);
   addField(doc, "Aberta em", formatDateTime(details.openedAt));
   addField(doc, "Última atualização", formatDateTime(details.lastUpdate));
@@ -444,7 +373,6 @@ function renderTrackingCommonSections(
   addField(doc, "Contato adicional", details.requester.additionalContact ?? "");
 
   addSectionTitle(doc, "Demanda");
-  addField(doc, "Título", details.demand.title);
   addField(doc, "Tipo de solicitação", details.demand.requestType);
   addField(doc, "Categoria", details.demand.category);
   addField(doc, "Processo", details.demand.processName);
@@ -514,9 +442,7 @@ function renderTrackingAuthenticatedSections(
 }
 
 function renderRequesterRequestPdf(tracking: TrackingDetailsResponse): Promise<Buffer> {
-  return buildPdf(`Solicitação ${tracking.details.protocol}`, (doc) => {
-    renderHeader(doc, tracking.details.protocol);
-
+  return buildPdf(tracking.details.protocol, tracking.details.demand.title, (doc) => {
     if (tracking.mode === "authenticated") {
       renderTrackingAuthenticatedSections(doc, tracking.details);
     } else {
@@ -525,23 +451,9 @@ function renderRequesterRequestPdf(tracking: TrackingDetailsResponse): Promise<B
   });
 }
 
-/**
- * PDF interno da solicitação: dados completos, anexos, pendências e histórico
- * de logs. A triagem não é incluída (decisão de produto).
- */
 export async function getGenerateRequestPDF(request: RequestPdfExport): Promise<Buffer> {
-  const source = await repository.findRequestProtocolById(request.protocol);
-
-  if (!source) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
-
-  const [detail, history] = await Promise.all([
-    findInternalByProtocol(source.protocol),
-    listAuditHistoryByProtocol(source.protocol),
-  ]);
-
-  return renderInternalRequestPdf(detail, [...history].reverse());
+  const detail = await findInternalByProtocol(request.protocol);
+  return renderInternalRequestPdf(detail);
 }
 
 /**

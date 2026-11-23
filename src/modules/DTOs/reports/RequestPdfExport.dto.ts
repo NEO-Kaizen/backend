@@ -5,7 +5,3 @@ export interface RequestExportRow {
 export interface RequestPdfExport {
   protocol: string;
 }
-
-export interface RequestPdfSource {
-  protocol: string;
-}

@@ -2,7 +2,6 @@ import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { DashboardQuery } from "../DTOs/reports/Dashboard.dto.ts";
-import type { RequestPdfSource } from "../DTOs/reports/RequestPdfExport.dto.ts";
 import type { QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
 import { applyQueueFilters } from "../queue/queue.filters.ts";
 
@@ -215,15 +214,6 @@ export async function fetchDashboardFilterOptions(): Promise<DashboardFilterOpti
   ]);
 
   return { statuses, categories, priorities };
-}
-
-/** Resolve o protocolo a partir do ID interno usado pela exportação em PDF. */
-export async function findRequestProtocolById(
-  requestId: string,
-): Promise<RequestPdfSource | undefined> {
-  return db("requests").where({ request_id: requestId }).first("protocol") as Promise<
-    RequestPdfSource | undefined
-  >;
 }
 
 /** Retorna todas as solicitações dos filtros ativos, sem paginação. */
