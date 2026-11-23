@@ -201,7 +201,8 @@ renomeada/ajustada pela migration
 - índice em `status` (`idx_details_professional_status`).
 
 Elegibilidade para atribuição (ver `docs/requests-assignment-contract.md`):
-`status = 'active'` **e** `users.is_active` **e** perfil `analista`/`gestor`.
+`details_professional.status = 'active'`, `users.is_active`, Perfil ativo e
+flag de Atribuibilidade mais as chaves de trabalho exigidas para a etapa.
 
 ## Tabela `requests`
 
@@ -406,8 +407,8 @@ observações).
 - **Vínculo com a conta autenticada (`requester_user_id`):** a solicitação criada
   por usuário autenticado referencia `users.user_id` (coluna anulável, issue #53).
   O snapshot público dos dados continua em `requesters`; a conta é a propriedade
-  verificável. Qualquer perfil pode solicitar (`solicitante`, `analista`,
-  `gestor`, `administrador`) — não há restrição de perfil no banco. A
+  verificável. Qualquer Perfil autenticado pode solicitar (`Solicitante`,
+  `Analista`, `Gestor`, `Administrador`) — não há restrição de Perfil no banco. A
   coincidência de e-mail entre conta e snapshot é invariante da aplicação, não do
   banco. Não há `UNIQUE`: um usuário pode possuir múltiplas solicitações.
 - **Exclusão de usuário:** `requester_user_id` usa `ON DELETE SET NULL` — apagar

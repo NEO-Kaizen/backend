@@ -191,7 +191,7 @@ Exemplo:
 profiles
 profile_id | name
 -----------|---------------
-1          | administrador
+1          | Administrador
 
 users
 user_id | full_name    | profile_id
@@ -199,7 +199,7 @@ user_id | full_name    | profile_id
 1       | Example User | 1
 ```
 
-Neste exemplo, o usuário está associado ao perfil `administrador` por meio de `profile_id = 1`.
+Neste exemplo, o usuário está associado ao perfil `Administrador` por meio de `profile_id = 1`.
 
 ### Regra de senha
 
@@ -277,9 +277,9 @@ A atualização posterior de `updated_at` será responsabilidade da aplicação.
 
 ### Perfis como dados de referência
 
-Os perfis `solicitante`, `analista`, `gestor`, `administrador` e `admin_root` fazem parte do domínio inicial da aplicação e são necessários para o relacionamento com os usuários.
+Os perfis base são `Solicitante`, `Analista`, `Gestor`, `Administrador` e `Admin Root`; seus nomes em `profiles.name` são os rótulos de exibição retornados pela API.
 
-As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura os perfis base por `lower(name)` e o Admin Root pela marca `is_root` — nunca pelo nome — e nunca cria uma segunda linha: não reativa nem altera `is_active`/nome de perfil existente e não remove concessões fora da matriz.
+As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura os perfis base por `lower(name)` e o Admin Root pela marca `is_root` — nunca pelo nome — e nunca cria uma segunda linha: não reativa nem altera `is_active`/nome de perfil existente e não remove concessões fora da matriz. A migration `20261123140000_rename_base_profile_names_to_display_labels.js` atualiza os nomes canônicos antigos para os rótulos de exibição.
 
 A conta Admin Root é única e nasce apenas da seed `014_admin_root_account.js`, a partir das variáveis de ambiente `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME`; nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta.
 
@@ -345,6 +345,12 @@ A migration cadastra os seguintes valores na tabela `profiles`:
 Os identificadores `profile_id` não são definidos manualmente e são gerados automaticamente pelo banco de dados.
 
 Antes da inserção, a migration consulta quais perfis já existem e insere somente os registros ausentes.
+
+Esses são os valores históricos da migration. A migration
+`20261123140000_rename_base_profile_names_to_display_labels` renomeia os
+registros existentes para `Solicitante`, `Analista`, `Administrador` e `Gestor`;
+o seed cria esses mesmos rótulos em instalações novas. O Perfil Admin Root é
+criado pelo seed e identificado por `is_root`.
 
 Essa estratégia reduz o risco de duplicidades sem utilizar `ON CONFLICT`, mantendo compatibilidade com o PostgreSQL 18 utilizado atualmente no ambiente de desenvolvimento (`postgres:18-alpine`, conforme o `README.md`).
 

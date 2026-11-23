@@ -36,7 +36,9 @@ export interface ProfileLookupRow {
 
 /** Perfil por nome — usado para validar a designação de conta e a marca de Root. */
 export async function findProfileByName(name: string): Promise<ProfileLookupRow | undefined> {
-  return db("profiles").where({ name }).first("profile_id", "name", "is_root", "is_active");
+  return db("profiles")
+    .whereRaw("lower(name) = lower(?)", [name])
+    .first("profile_id", "name", "is_root", "is_active");
 }
 
 export async function findProfileIdByName(name: string): Promise<number | null> {
@@ -401,7 +403,7 @@ function baseQuery(query: ListUsersQuery) {
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where((builder) => {
       if (query.profile) {
-        builder.where("p.name", query.profile);
+        builder.whereRaw("lower(p.name) = lower(?)", [query.profile]);
       }
       if (query.search) {
         const escapedSearch = query.search.replace(/[\\%_]/g, "\\$&");
@@ -613,7 +615,7 @@ export const fetchUserMetrics = async (): Promise<UserMetricsResponse> => {
       db.raw('COUNT(u.*)::int as "total"'),
       db.raw('COUNT(CASE WHEN u.is_active THEN 1 END)::int as "active"'),
       db.raw('COUNT(CASE WHEN u.must_change_password THEN 1 END)::int as "pending"'),
-      db.raw("COUNT(CASE WHEN p.name = 'administrador' THEN 1 END)::int as \"admins\""),
+      db.raw("COUNT(CASE WHEN lower(p.name) = 'administrador' THEN 1 END)::int as \"admins\""),
     )
     .first();
 

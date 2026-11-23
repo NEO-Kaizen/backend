@@ -17,7 +17,7 @@ export interface BaseProfilePermission {
 }
 
 export interface BaseProfile {
-  /** Nome atual em `profiles.name` (minúsculo no banco). */
+  /** Rótulo de exibição atual em `profiles.name`. */
   readonly profileName: string;
   /** Marca de Perfil Admin Root — escrita exclusiva do seed (§ 4.2). */
   readonly isRoot: boolean;
@@ -58,7 +58,7 @@ function grantEveryPermission(): BaseProfilePermission[] {
 export const BASE_PROFILES: readonly BaseProfile[] = [
   {
     // Coluna "Solicitante": as três chaves de autoatendimento, sem chave interna.
-    profileName: "solicitante",
+    profileName: "Solicitante",
     isRoot: false,
     isAssignableTriage: false,
     isAssignableMapping: false,
@@ -69,7 +69,7 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
   },
   {
     // Coluna "Analista": chaves internas sob custódia; atribuível nas duas etapas.
-    profileName: "analista",
+    profileName: "Analista",
     isRoot: false,
     isAssignableTriage: true,
     isAssignableMapping: true,
@@ -101,9 +101,8 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
   },
   {
     // Coluna "Visualizador" da matriz: leitura de todas as linhas e escrita de
-    // Nota interna. A linha ainda se chama `gestor` no banco até o ticket 12
-    // (renome Visualizador); a composição já é a de referência.
-    profileName: "gestor",
+    // Nota interna. A renomeação para Visualizador continua no ticket 12.
+    profileName: "Gestor",
     isRoot: false,
     isAssignableTriage: false,
     isAssignableMapping: false,
@@ -129,7 +128,7 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
   },
   {
     // Coluna "Administrador": as 39 chaves; não atribuível (§ 1.4).
-    profileName: "administrador",
+    profileName: "Administrador",
     isRoot: false,
     isAssignableTriage: false,
     isAssignableMapping: false,
@@ -138,7 +137,7 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
   {
     // Coluna "Admin Root": mesmas chaves do Administrador; a diferença está nas
     // guardas de conta e de perfil (`is_root`), não na composição (§ 4.2).
-    profileName: "admin_root",
+    profileName: "Admin Root",
     isRoot: true,
     isAssignableTriage: false,
     isAssignableMapping: false,

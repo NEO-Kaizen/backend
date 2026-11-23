@@ -129,7 +129,7 @@ HTTP/1.1 200 OK
   "id": "42",
   "fullName": "Fernando Alves",
   "email": "fernando.alves@neo.com.br",
-  "role": "analista",
+  "role": "Analista",
   "avatarUrl": "/uploads/avatars/abc123-def456.jpg",
   "requester": {
     "area": "Tecnologia",
@@ -162,7 +162,7 @@ HTTP/1.1 200 OK
   "id": "17",
   "fullName": "Maria Oliveira",
   "email": "maria.oliveira@neo.com.br",
-  "role": "solicitante",
+  "role": "Solicitante",
   "avatarUrl": null,
   "requester": {
     "area": "Recursos Humanos",
@@ -183,7 +183,7 @@ HTTP/1.1 200 OK
   "id": "8",
   "fullName": "Ana Costa",
   "email": "ana.costa@neo.com.br",
-  "role": "analista",
+  "role": "Analista",
   "avatarUrl": null,
   "requester": null,
   "professional": {
@@ -276,7 +276,7 @@ HTTP/1.1 200 OK
   "id": "17",
   "fullName": "Maria Oliveira Santos",
   "email": "maria.oliveira@neo.com.br",
-  "role": "solicitante",
+  "role": "Solicitante",
   "avatarUrl": null,
   "requester": {
     "area": "Recursos Humanos",
@@ -317,7 +317,7 @@ HTTP/1.1 200 OK
   "id": "42",
   "fullName": "Fernando Alves",
   "email": "fernando.alves@neo.com.br",
-  "role": "analista",
+  "role": "Analista",
   "avatarUrl": "/uploads/avatars/xyz789-abc123.jpg",
   "requester": {
     "area": "Tecnologia",

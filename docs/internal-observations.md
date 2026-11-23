@@ -442,7 +442,7 @@ página** (D-N9).
       "action": "mapping.assign",
       "text": "Responsável pelo mapeamento alterado: Júlia Reis",
       "occurredAt": "2026-09-19T14:11:02.000Z",
-      "actor": { "id": "9", "name": "Júlia Reis", "role": "analista" },
+      "actor": { "id": "9", "name": "Júlia Reis", "role": "Analista" },
       "changeOrigin": "internal"
     },
     {
@@ -451,7 +451,7 @@ página** (D-N9).
       "action": "request.assign",
       "text": "Responsável atribuído: Marcos Lima",
       "occurredAt": "2026-09-18T15:05:44.000Z",
-      "actor": { "id": "2", "name": "Carla Dias", "role": "administrador" },
+      "actor": { "id": "2", "name": "Carla Dias", "role": "Administrador" },
       "changeOrigin": "admin"
     }
   ],
@@ -524,7 +524,7 @@ página** (D-N9).
       "id": "2",
       "content": "A área responsável foi acionada e deve retornar até o fim do dia.",
       "createdAt": "2026-09-18T16:20:00.000Z",
-      "author": { "id": "2", "name": "Marcos Lima", "role": "gestor" }
+      "author": { "id": "2", "name": "Marcos Lima", "role": "Gestor" }
     },
     {
       "type": "event",
@@ -532,7 +532,7 @@ página** (D-N9).
       "action": "request.status_change",
       "text": "Status alterado: Em triagem",
       "occurredAt": "2026-09-18T15:02:10.000Z",
-      "actor": { "id": "7", "name": "Ana Souza", "role": "analista" },
+      "actor": { "id": "7", "name": "Ana Souza", "role": "Analista" },
       "changeOrigin": "admin"
     },
     {
@@ -540,7 +540,7 @@ página** (D-N9).
       "id": "1",
       "content": "Os critérios iniciais foram revisados. Precisamos confirmar a alçada de aprovação antes do mapeamento.",
       "createdAt": "2026-09-18T13:45:00.000Z",
-      "author": { "id": "7", "name": "Ana Souza", "role": "analista" }
+      "author": { "id": "7", "name": "Ana Souza", "role": "Analista" }
     }
   ],
   "nextCursor": null,
@@ -580,7 +580,7 @@ página** (D-N9).
   "id": "3",
   "content": "Confirmar alçada com o financeiro na sexta.",
   "createdAt": "2026-09-22T17:12:00.000Z",
-  "author": { "id": "7", "name": "Ana Souza", "role": "analista" }
+  "author": { "id": "7", "name": "Ana Souza", "role": "Analista" }
 }
 ```
 

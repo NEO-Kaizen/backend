@@ -57,7 +57,7 @@ o ID da observação define a ordem.
       "author": {
         "id": "7",
         "name": "Rogério da Silva",
-        "role": "analista"
+        "role": "Analista"
       }
     }
   ],
@@ -109,7 +109,7 @@ máximo 4.000 caracteres.
   "author": {
     "id": "7",
     "name": "Rogério da Silva",
-    "role": "analista"
+    "role": "Analista"
   }
 }
 ```
