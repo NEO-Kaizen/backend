@@ -88,6 +88,7 @@ export const NotificationMappingScheduledPayload = {
 
 export const NotificationPendingItemLifecyclePayload = {
   type: "object",
+  additionalProperties: false,
   description:
     "Payload dos Eventos de criação, reabertura e validação de Pendência: tipo, protocolo e título.",
   required: ["type", "protocol", "title"],

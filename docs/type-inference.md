@@ -6,9 +6,9 @@
 
 - Arquivos-fonte analisados: **177**.
 - Tipos nomeados: **329** â€” 219 interfaces, 108 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1919** â€” 1440 variÃ¡veis, 243 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1922** â€” 1443 variÃ¡veis, 243 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **130**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
+- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **132**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -3828,6 +3828,15 @@ interface GroupedIssues {
 
 - L13 â€” variÃ¡vel: `paths`
 
+### [src/docs/paths/pendingItems.ts](../src/docs/paths/pendingItems.ts)
+
+- L4 â€” variÃ¡vel: `dualAuth`
+- L6 â€” variÃ¡vel: `pendingItemParam`
+
+### [src/docs/paths/users.ts](../src/docs/paths/users.ts)
+
+- L3 â€” variÃ¡vel: `idParam`
+
 ### [src/docs/schemas/auditHistory.ts](../src/docs/schemas/auditHistory.ts)
 
 - L1 â€” variÃ¡vel: `AuditActor`
@@ -3873,12 +3882,12 @@ interface GroupedIssues {
 - L54 â€” variÃ¡vel: `NotificationResponsibleAssignedPayload`
 - L72 â€” variÃ¡vel: `NotificationMappingScheduledPayload`
 - L89 â€” variÃ¡vel: `NotificationPendingItemLifecyclePayload`
-- L105 â€” variÃ¡vel: `NotificationPayload`
-- L119 â€” variÃ¡vel: `NotificationItem`
-- L144 â€” variÃ¡vel: `NotificationListResponse`
-- L161 â€” variÃ¡vel: `NotificationUnreadCountResponse`
-- L169 â€” variÃ¡vel: `NotificationMarkReadResponse`
-- L182 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
+- L106 â€” variÃ¡vel: `NotificationPayload`
+- L120 â€” variÃ¡vel: `NotificationItem`
+- L145 â€” variÃ¡vel: `NotificationListResponse`
+- L162 â€” variÃ¡vel: `NotificationUnreadCountResponse`
+- L170 â€” variÃ¡vel: `NotificationMarkReadResponse`
+- L183 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
 
 ### [src/docs/schemas/pendingItems.ts](../src/docs/schemas/pendingItems.ts)
 
