@@ -447,6 +447,10 @@ function toProfessionalBlock(
   };
 }
 
+function emptyProfessionalBlock(): ProfessionalProfileBlock {
+  return { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null };
+}
+
 /**
  * `GET /users/me` — perfil completo do próprio usuário
  * (dados básicos + bloco requester + Extensão de profissional atribuível + avatar).
@@ -462,7 +466,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
   // defaults em vez de null, sem exigir migração de dados.
   const professional: ProfessionalProfileBlock | null =
     isAssignable && !row.professional
-      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
+      ? emptyProfessionalBlock()
       : toProfessionalBlock(row.professional);
 
   return {
@@ -746,7 +750,7 @@ export async function updateUser(
   const isUpdatedProfileAssignable = shouldHaveProfessionalExtension(updated);
   const professional =
     isUpdatedProfileAssignable && !updated.professional
-      ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
+      ? emptyProfessionalBlock()
       : toProfessionalBlock(updated.professional);
 
   return {
