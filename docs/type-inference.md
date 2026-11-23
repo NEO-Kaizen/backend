@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **177**.
 - Tipos nomeados: **329** â€” 219 interfaces, 108 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1922** â€” 1443 variÃ¡veis, 243 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1923** â€” 1444 variÃ¡veis, 243 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **132**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -1612,7 +1612,7 @@ export type PendingCaller = {
 export type PendingResponseActor = { id: number; email: string; role: string } | null;
 ```
 
-#### L361 â€” interface PendingItemResponseCommitInput
+#### L373 â€” interface PendingItemResponseCommitInput
 
 ```ts
 interface PendingItemResponseCommitInput {
@@ -1625,7 +1625,7 @@ interface PendingItemResponseCommitInput {
 }
 ```
 
-#### L370 â€” interface PendingItemResponseCommitResult
+#### L382 â€” interface PendingItemResponseCommitResult
 
 ```ts
 interface PendingItemResponseCommitResult {
@@ -4573,73 +4573,74 @@ interface GroupedIssues {
 - L263 â€” variÃ¡vel: `professionalId`
 - L264 â€” variÃ¡vel: `requestProfessionalId`
 - L271 â€” variÃ¡vel: `request`
-- L275 â€” variÃ¡vel: `nameOk`
-- L276 â€” variÃ¡vel: `emailOk`
-- L286 â€” variÃ¡vel: `identity`
-- L288 â€” variÃ¡vel: `nameOk`
-- L289 â€” variÃ¡vel: `emailOk`
-- L300 â€” variÃ¡vel: `request`
-- L302 â€” variÃ¡vel: `rows`
-- L303 â€” variÃ¡vel: `items`
-- L312 â€” parÃ¢metro: `row`
-- L312 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L312 â€” variÃ¡vel: `openRow`
-- L313 â€” variÃ¡vel: `targetRow`
-- L314 â€” variÃ¡vel: `batchId`
-- L315 â€” variÃ¡vel: `requestAttachment`
-- L317 â€” parÃ¢metro: `row`
-- L317 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L343 â€” parÃ¢metro: `userId`
-- L343 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L351 â€” variÃ¡vel: `assigneeUserId`
-- L382 â€” parÃ¢metro: `trx`
-- L382 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L383 â€” variÃ¡vel: `result`
-- L392 â€” parÃ¢metro: `facts`
-- L392 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L400 â€” variÃ¡vel: `actorUserId`
-- L401 â€” variÃ¡vel: `audience`
-- L407 â€” variÃ¡vel: `committedNotifications`
-- L431 â€” variÃ¡vel: `request`
-- L433 â€” variÃ¡vel: `row`
-- L441 â€” variÃ¡vel: `type`
-- L451 â€” variÃ¡vel: `serialized`
-- L460 â€” variÃ¡vel: `response`
-- L473 â€” variÃ¡vel: `{ row: updated, committedNotifications }`
-- L486 â€” variÃ¡vel: `list`
-- L504 â€” variÃ¡vel: `request`
-- L506 â€” variÃ¡vel: `row`
-- L522 â€” variÃ¡vel: `[saved]`
-- L532 â€” variÃ¡vel: `err`
-- L572 â€” variÃ¡vel: `date`
-- L594 â€” variÃ¡vel: `nullableComplement`
-- L625 â€” variÃ¡vel: `request`
-- L630 â€” variÃ¡vel: `batchId`
-- L631 â€” variÃ¡vel: `batchRows`
-- L634 â€” parÃ¢metro: `row`
-- L634 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L634 â€” variÃ¡vel: `byId`
-- L636 â€” variÃ¡vel: `decision`
-- L637 â€” variÃ¡vel: `row`
-- L639 â€” variÃ¡vel: `status`
-- L651 â€” parÃ¢metro: `decision`
-- L651 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L655 â€” variÃ¡vel: `row`
-- L657 â€” variÃ¡vel: `fieldKey`
-- L666 â€” parÃ¢metro: `trx`
-- L666 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L666 â€” variÃ¡vel: `{ rows: decidedRows }`
-- L667 â€” variÃ¡vel: `{ rows: reviewedRows, actionAuditIds }`
-- L678 â€” parÃ¢metro: `facts`
+- L275 â€” variÃ¡vel: `requesterUserId`
+- L287 â€” variÃ¡vel: `nameOk`
+- L288 â€” variÃ¡vel: `emailOk`
+- L298 â€” variÃ¡vel: `identity`
+- L300 â€” variÃ¡vel: `nameOk`
+- L301 â€” variÃ¡vel: `emailOk`
+- L312 â€” variÃ¡vel: `request`
+- L314 â€” variÃ¡vel: `rows`
+- L315 â€” variÃ¡vel: `items`
+- L324 â€” parÃ¢metro: `row`
+- L324 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L324 â€” variÃ¡vel: `openRow`
+- L325 â€” variÃ¡vel: `targetRow`
+- L326 â€” variÃ¡vel: `batchId`
+- L327 â€” variÃ¡vel: `requestAttachment`
+- L329 â€” parÃ¢metro: `row`
+- L329 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L355 â€” parÃ¢metro: `userId`
+- L355 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L363 â€” variÃ¡vel: `assigneeUserId`
+- L394 â€” parÃ¢metro: `trx`
+- L394 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L395 â€” variÃ¡vel: `result`
+- L404 â€” parÃ¢metro: `facts`
+- L404 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L412 â€” variÃ¡vel: `actorUserId`
+- L413 â€” variÃ¡vel: `audience`
+- L419 â€” variÃ¡vel: `committedNotifications`
+- L443 â€” variÃ¡vel: `request`
+- L445 â€” variÃ¡vel: `row`
+- L453 â€” variÃ¡vel: `type`
+- L463 â€” variÃ¡vel: `serialized`
+- L472 â€” variÃ¡vel: `response`
+- L485 â€” variÃ¡vel: `{ row: updated, committedNotifications }`
+- L498 â€” variÃ¡vel: `list`
+- L516 â€” variÃ¡vel: `request`
+- L518 â€” variÃ¡vel: `row`
+- L534 â€” variÃ¡vel: `[saved]`
+- L544 â€” variÃ¡vel: `err`
+- L584 â€” variÃ¡vel: `date`
+- L606 â€” variÃ¡vel: `nullableComplement`
+- L637 â€” variÃ¡vel: `request`
+- L642 â€” variÃ¡vel: `batchId`
+- L643 â€” variÃ¡vel: `batchRows`
+- L646 â€” parÃ¢metro: `row`
+- L646 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L646 â€” variÃ¡vel: `byId`
+- L648 â€” variÃ¡vel: `decision`
+- L649 â€” variÃ¡vel: `row`
+- L651 â€” variÃ¡vel: `status`
+- L663 â€” parÃ¢metro: `decision`
+- L663 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L667 â€” variÃ¡vel: `row`
+- L669 â€” variÃ¡vel: `fieldKey`
+- L678 â€” parÃ¢metro: `trx`
 - L678 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L682 â€” variÃ¡vel: `notifications`
-- L685 â€” parÃ¢metro: `[action, auditId]`
-- L685 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L691 â€” variÃ¡vel: `mapped`
-- L701 â€” variÃ¡vel: `mode`
-- L706 â€” variÃ¡vel: `found`
-- L708 â€” variÃ¡vel: `nameOk`
-- L709 â€” variÃ¡vel: `emailOk`
+- L678 â€” variÃ¡vel: `{ rows: decidedRows }`
+- L679 â€” variÃ¡vel: `{ rows: reviewedRows, actionAuditIds }`
+- L690 â€” parÃ¢metro: `facts`
+- L690 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L694 â€” variÃ¡vel: `notifications`
+- L697 â€” parÃ¢metro: `[action, auditId]`
+- L697 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L703 â€” variÃ¡vel: `mapped`
+- L713 â€” variÃ¡vel: `mode`
+- L718 â€” variÃ¡vel: `found`
+- L720 â€” variÃ¡vel: `nameOk`
+- L721 â€” variÃ¡vel: `emailOk`
 
 ### [src/modules/portalConfig/portalConfig.controller.ts](../src/modules/portalConfig/portalConfig.controller.ts)
 
