@@ -579,7 +579,7 @@ export default {
       tags: ["Usuários"],
       summary: "Alterar status do usuário",
       description:
-        "Ativa ou desativa um usuário. Exige a permissão `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`) e conta de autoridade igual ou maior (403 `account_out_of_authority`).",
+        "Ativa ou desativa um usuário. Exige `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`), conta de autoridade igual ou maior (403 `account_out_of_authority`) e desativação de Responsável por solicitações abertas (409 `user_has_open_assignments`).",
       operationId: "changeUserStatus",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -632,6 +632,15 @@ export default {
         },
         "404": {
           description: "Usuário não encontrado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description:
+            "Desativação recusada: a conta ainda é Responsável por solicitações abertas (`user_has_open_assignments`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

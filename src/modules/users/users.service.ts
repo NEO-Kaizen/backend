@@ -153,6 +153,17 @@ function throwProfileInactive(): never {
   );
 }
 
+async function assertUserHasNoOpenAssignments(queryable: Knex, userId: number): Promise<void> {
+  const assignedProtocols = await repository.listOpenAssignedProtocolsForUser(queryable, userId);
+  if (assignedProtocols.length > 0) {
+    throw new AppError(
+      `Reatribua as solicitações abertas ${assignedProtocols.join(", ")} antes de alterar o Perfil ou desativar a conta.`,
+      409,
+      CODE_USER_HAS_OPEN_ASSIGNMENTS,
+    );
+  }
+}
+
 function throwOutOfAuthority(): never {
   throw new AppError(
     "O Perfil-alvo tem autoridade igual ou maior que a sua; só é possível gerenciar Perfis estritamente abaixo.",
@@ -365,6 +376,10 @@ export async function changeUserStatus(
   // Update e evento de auditoria na MESMA transação: se o evento falhar,
   // a mudança de status é desfeita (rollback).
   await db.transaction(async (trx) => {
+    if (!payload.isActive && user.is_active) {
+      await assertUserHasNoOpenAssignments(trx, id);
+    }
+
     await repository.updateStatus(trx, id, payload.isActive);
 
     await recordAudit(trx, {
@@ -709,14 +724,7 @@ export async function updateUser(
       if (payload.professional !== undefined) {
         await repository.upsertProfessionalData(trx, id, payload.professional);
       } else if (wasAssignable && !isFinalAssignable) {
-        const assignedProtocols = await repository.listOpenAssignedProtocolsForUser(trx, id);
-        if (assignedProtocols.length > 0) {
-          throw new AppError(
-            `Reatribua as solicitações abertas ${assignedProtocols.join(", ")} antes de mover a conta para um Perfil não atribuível.`,
-            409,
-            CODE_USER_HAS_OPEN_ASSIGNMENTS,
-          );
-        }
+        await assertUserHasNoOpenAssignments(trx, id);
         await repository.deleteProfessionalData(trx, id);
       } else if (shouldCreateExtension) {
         await repository.createProfessionalData(trx, id);
