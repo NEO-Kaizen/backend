@@ -129,9 +129,9 @@ export interface UpdateStatusesRequest {
 
 Não idempotente — cada chamada gera `id` uuid novo; última triagem é vigente (`contract-triage.md §1`). A validação de `exitStatus` usa o Status v4 e `triageMode`.
 
-| Endpoint                          | Autenticação            | Permissão                                                                                                              |
-| --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `POST /requests/:protocol/triage` | `session_id` (HttpOnly) | `triage:write` + Custódia; `isRestricted==true` bloqueia a Triagem, que deve aguardar a transição de Status apropriada |
+| Endpoint                          | Autenticação            | Permissão                                                                                      |
+| --------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| `POST /requests/:protocol/triage` | `session_id` (HttpOnly) | `triage:write` + Custódia; Status `isRestricted` exige também `request:status_override` global |
 
 **Request:**
 
@@ -296,13 +296,13 @@ HTTP/1.1 403 Forbidden
 
 **Erros:**
 
-| Status | Quando                                                                                     |
-| ------ | ------------------------------------------------------------------------------------------ |
-| 401    | Sem `session_id` / sessão inválida/expirada                                                |
-| 403    | Sem `triage:write` ou Custódia; ou solicitação com Status restrito (`isRestricted===true`) |
-| 404    | Protocolo inexistente                                                                      |
-| 422    | Body fora das validações acima (`fields` por campo)                                        |
-| 500    | Erro genérico                                                                              |
+| Status | Quando                                                                                        |
+| ------ | --------------------------------------------------------------------------------------------- |
+| 401    | Sem `session_id` / sessão inválida/expirada                                                   |
+| 403    | Sem `triage:write` ou Custódia; ou Status `isRestricted` sem `request:status_override` global |
+| 404    | Protocolo inexistente                                                                         |
+| 422    | Body fora das validações acima (`fields` por campo)                                           |
+| 500    | Erro genérico                                                                                 |
 
 **curl:**
 

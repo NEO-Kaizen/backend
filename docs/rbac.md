@@ -132,15 +132,15 @@ A coluna **Custódia** diz se a chave depende da linha. A coluna **O que permite
 
 ### 3.1 Solicitação
 
-| Chave                     | Recurso | Ação            | Custódia    | O que permite                                                                                                  |
-| ------------------------- | ------- | --------------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
-| `request:create`          | request | create          | `global`    | Abrir uma solicitação; o autor passa a ser o Solicitante dela e a posse nasce com a linha                      |
-| `request:track`           | request | track           | `custodial` | Acompanhar as próprias solicitações na projeção do Solicitante — nunca a visão interna; custódia fixa em `own` |
-| `request:read`            | request | read            | `custodial` | Ler a solicitação na visão interna                                                                             |
-| `request:write`           | request | write           | `custodial` | Editar o conteúdo interno da solicitação; exige também `request:read`                                          |
-| `request:assign`          | request | assign          | `custodial` | Atribuir e reatribuir o Responsável                                                                            |
-| `request:status_change`   | request | status_change   | `custodial` | Mudar o status para um alvo permitido pelo fluxo                                                               |
-| `request:status_override` | request | status_override | `global`    | Mudar o status para alvo restrito ou fora do modo da etapa; não torna o alvo elegível na triagem/mapeamento    |
+| Chave                     | Recurso | Ação            | Custódia    | O que permite                                                                                                                                                                     |
+| ------------------------- | ------- | --------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request:create`          | request | create          | `global`    | Abrir uma solicitação; o autor passa a ser o Solicitante dela e a posse nasce com a linha                                                                                         |
+| `request:track`           | request | track           | `custodial` | Acompanhar as próprias solicitações na projeção do Solicitante — nunca a visão interna; custódia fixa em `own`                                                                    |
+| `request:read`            | request | read            | `custodial` | Ler a solicitação na visão interna                                                                                                                                                |
+| `request:write`           | request | write           | `custodial` | Editar o conteúdo interno da solicitação; exige também `request:read`                                                                                                             |
+| `request:assign`          | request | assign          | `custodial` | Atribuir e reatribuir o Responsável                                                                                                                                               |
+| `request:status_change`   | request | status_change   | `custodial` | Mudar o status para um alvo permitido pelo fluxo                                                                                                                                  |
+| `request:status_override` | request | status_override | `global`    | Mudar o status para alvo restrito ou fora do modo da etapa; também libera a Triagem em Status restrito quando há `triage:write` + Custódia, sem tornar o alvo da Triagem elegível |
 
 ### 3.2 Fila e relatórios
 
@@ -476,7 +476,7 @@ Estas regras não são expressáveis como chave e continuam no código:
 - A atribuibilidade exige a flag explícita e o predicado de chaves; ter as chaves não torna o perfil atribuível.
 - Autoria estabelece posse; as chaves de posse operam sobre ela e não aceitam outro vínculo (§ 1.3). Autoria não concede `request:read` nem custódia interna.
 - A custódia é por linha e é lida a cada operação. Snapshots e token não concedem acesso.
-- `request:status_override` libera o alvo protegido; não substitui `request:status_change` para decidir sobre qual solicitação o status muda.
+- `request:status_override` libera o alvo protegido em `PATCH /status`; não substitui `request:status_change` nem sua Custódia. Na Triagem, a mesma chave global permite atuar sobre uma solicitação cujo Status atual é restrito, mas não substitui `triage:write` + Custódia nem torna o Status de saída restrito elegível.
 - `queue:read` e `queue:export` são a própria Fila do ator; o responsável do mapeamento não a amplia.
 - Sem escalação cobre chave e vínculo: o concedente não amplia o que possui (`all` > `assigned`; `own` fixo nas chaves de posse; `profile:manage` incluída).
 - Contas, por autoridade (§ 4.2): quem tem `user:manage` gerencia perfis estritamente abaixo; o Admin Root gerencia qualquer conta, inclusive de autoridade igual; contas com o perfil Admin Root ficam fora de rota; ninguém gerencia a própria conta pelas rotas administrativas.

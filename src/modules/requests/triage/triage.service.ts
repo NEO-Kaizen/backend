@@ -67,14 +67,14 @@ export async function createTriage(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  // Status restrito bloqueia a Triagem; Status terminal não reabre o fluxo.
+  // Status terminal não reabre o fluxo.
   if (request.status_is_terminal) {
     throw new AppError("Solicitação encerrada.", 422);
   }
 
-  // `request:status_override` libera alvos de transição; não libera a Triagem
-  // de uma solicitação que já está em Status restrito.
-  if (request.status_is_restricted) {
+  // O bypass administrativo vigente exige `request:status_override` global;
+  // a Custódia de `triage:write` ainda é checada separadamente.
+  if (request.status_is_restricted && !hasAdministrativeAuditOrigin(actor.permissions)) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação em Status restrito");
     throw new AppError(
       "A Triagem não pode ser registrada enquanto a solicitação estiver em status restrito.",
