@@ -287,7 +287,7 @@ export default {
                 professional: {
                   type: "object",
                   description:
-                    "Conteúdo opcional da Extensão de profissional. Só pode ser enviado para Perfil atribuível; a extensão é criada automaticamente quando a conta recebe a flag.",
+                    "Conteúdo opcional da Extensão de profissional. Só pode ser enviado para Perfil ativo com flag de Atribuibilidade; a extensão é criada automaticamente.",
                   properties: {
                     jobTitle: { type: "string", example: "Analista de Sistemas" },
                     specialties: {

@@ -19,7 +19,7 @@ export interface CreateUserRequest {
   fullName: string;
   email: string;
   role: string;
-  /** Opcional; permitido somente para Perfil com flag de Atribuibilidade. */
+  /** Opcional; permitido somente para Perfil ativo com flag de Atribuibilidade. */
   professional?: CreateProfessionalInput;
   requester: RequesterInput;
 }

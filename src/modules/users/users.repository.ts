@@ -246,6 +246,9 @@ export interface UserProfileRow {
   email: string;
   avatar_url: string | null;
   profile_name: string;
+  is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
   requester: {
     area: string | null;
     department: string | null;
@@ -271,6 +274,9 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
       "u.email",
       "u.avatar_url",
       "p.name as profile_name",
+      "p.is_active",
+      "p.is_assignable_triage",
+      "p.is_assignable_mapping",
     );
 
   if (!user) return undefined;
@@ -291,6 +297,9 @@ export async function findUserProfile(userId: number): Promise<UserProfileRow | 
     email: user.email,
     avatar_url: user.avatar_url ?? null,
     profile_name: user.profile_name,
+    is_active: user.is_active,
+    is_assignable_triage: user.is_assignable_triage,
+    is_assignable_mapping: user.is_assignable_mapping,
     requester: requester
       ? {
           area: requester.area ?? null,

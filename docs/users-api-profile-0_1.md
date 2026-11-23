@@ -25,7 +25,7 @@ export interface UserProfileResponseDTO {
   role: string; // nome real do Perfil em `profiles.name`
   avatarUrl: string | null; // URL da foto em /uploads/avatars/<arquivo> ou null
   requester: RequesterProfileBlock | null; // bloco de solicitante (nullable)
-  professional: ProfessionalProfileBlock | null; // presente para Perfil com flag de Atribuibilidade
+  professional: ProfessionalProfileBlock | null; // presente para Perfil ativo com flag de Atribuibilidade
 }
 
 // Bloco de dados de solicitante editável no "Meus dados".

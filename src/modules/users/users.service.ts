@@ -1,7 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { isUniqueViolation } from "../../shared/errors/databaseErrors.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
-import { isProfileAssignable, type AssignabilityStage } from "../../shared/access/assignability.ts";
+import type { AssignabilityStage } from "../../shared/access/assignability.ts";
 import { isAuthorityStrictlyBelow } from "../../shared/access/accountAuthority.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
@@ -51,20 +51,26 @@ const CODE_PROFILE_INACTIVE = "profile_inactive";
 const CODE_USER_MANAGE_REQUIRED = "user_manage_required";
 const CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE = "professional_profile_not_assignable";
 
-function shouldCreateProfessionalExtension(
-  profile: Pick<repository.ProfileLookupRow, "is_assignable_triage" | "is_assignable_mapping">,
+function shouldHaveProfessionalExtension(
+  profile: Pick<
+    repository.ProfileLookupRow,
+    "is_active" | "is_assignable_triage" | "is_assignable_mapping"
+  >,
 ): boolean {
-  return profile.is_assignable_triage || profile.is_assignable_mapping;
+  return profile.is_active && (profile.is_assignable_triage || profile.is_assignable_mapping);
 }
 
 /** Verifica o conteúdo opcional e informa se a conta precisa da extensão. */
 function resolveProfessionalExtensionRequirement(
-  profile: Pick<repository.ProfileLookupRow, "is_assignable_triage" | "is_assignable_mapping">,
+  profile: Pick<
+    repository.ProfileLookupRow,
+    "is_active" | "is_assignable_triage" | "is_assignable_mapping"
+  >,
   professional?: CreateProfessionalInput,
 ): boolean {
-  const shouldCreateExtension = shouldCreateProfessionalExtension(profile);
+  const shouldHaveExtension = shouldHaveProfessionalExtension(profile);
 
-  if (professional !== undefined && !shouldCreateExtension) {
+  if (professional !== undefined && !shouldHaveExtension) {
     throw new AppError(
       "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
       400,
@@ -72,7 +78,7 @@ function resolveProfessionalExtensionRequirement(
     );
   }
 
-  return shouldCreateExtension;
+  return shouldHaveExtension;
 }
 
 /**
@@ -256,15 +262,6 @@ export async function createUser(
   await assertProfileIsManageable(profile, actorAuthority);
 
   const profileId = profile.profile_id;
-  const isAssignable = await isProfileAssignable(profileId);
-  const professional = payload.professional;
-  if (!isAssignable && professional) {
-    throw new AppError(
-      "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
-      400,
-      CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE,
-    );
-  }
 
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
@@ -457,7 +454,7 @@ export async function getMyProfile(userId: number): Promise<UserProfileResponseD
     throw new AppError("Usuário não encontrado", 404);
   }
 
-  const isAssignable = await isProfileAssignable(row.profile_id);
+  const isAssignable = shouldHaveProfessionalExtension(row);
   // Usuário atribuível legado sem extensão recebe o bloco com
   // defaults em vez de null, sem exigir migração de dados.
   const professional: ProfessionalProfileBlock | null =
@@ -653,34 +650,35 @@ export async function updateUser(
     }
   }
 
-  const wasAssignable = await isProfileAssignable(target.profile_id);
-  const isFinalAssignable =
-    newProfileId === undefined ? wasAssignable : await isProfileAssignable(newProfileId);
-
-  if (payload.professional !== undefined && !isFinalAssignable) {
-    throw new AppError(
-      "O conteúdo da Extensão de profissional só pode ser informado para Perfis atribuíveis.",
-      400,
-      CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE,
-    );
-  }
   // Snapshot para auditoria
   const before = await repository.findUserProfile(id);
 
   try {
     await db.transaction(async (trx) => {
-      const destinationProfileId = newProfileId ?? target.profile_id;
-      const destinationProfile = await repository.findProfileById(destinationProfileId, {
+      const sourceProfile = await repository.findProfileById(target.profile_id, {
         queryable: trx,
         shouldLockForShare: true,
       });
+      if (!sourceProfile) {
+        throw new AppError("Perfil inválido.", 400);
+      }
+      const destinationProfileId = newProfileId ?? target.profile_id;
+      const destinationProfile =
+        destinationProfileId === sourceProfile.profile_id
+          ? sourceProfile
+          : await repository.findProfileById(destinationProfileId, {
+              queryable: trx,
+              shouldLockForShare: true,
+            });
       if (!destinationProfile) {
         throw new AppError("Perfil inválido.", 400);
       }
       if (newProfileId !== undefined && !destinationProfile.is_active) {
         throwProfileInactive();
       }
-      const shouldHaveProfessionalExtension = resolveProfessionalExtensionRequirement(
+      const wasAssignable = shouldHaveProfessionalExtension(sourceProfile);
+      const isFinalAssignable = shouldHaveProfessionalExtension(destinationProfile);
+      const shouldCreateExtension = resolveProfessionalExtensionRequirement(
         destinationProfile,
         payload.professional,
       );
@@ -704,7 +702,7 @@ export async function updateUser(
         await repository.upsertProfessionalData(trx, id, payload.professional);
       } else if (wasAssignable && !isFinalAssignable) {
         await repository.deleteProfessionalData(trx, id);
-      } else if (shouldHaveProfessionalExtension) {
+      } else if (shouldCreateExtension) {
         await repository.ensureProfessionalData(trx, id);
       }
 
@@ -742,7 +740,7 @@ export async function updateUser(
   if (!updated) {
     throw new AppError("Usuário não encontrado", 404);
   }
-  const isUpdatedProfileAssignable = await isProfileAssignable(updated.profile_id);
+  const isUpdatedProfileAssignable = shouldHaveProfessionalExtension(updated);
   const professional =
     isUpdatedProfileAssignable && !updated.professional
       ? { jobTitle: null, specialties: [], attendedCategoryIds: [], notes: null }
