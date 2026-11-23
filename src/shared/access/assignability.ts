@@ -8,6 +8,11 @@ import { ASSIGNABILITY_PREDICATES, type PermissionKey } from "../catalog/permiss
  */
 export type AssignabilityStage = "triage" | "mapping";
 
+export const ASSIGNABILITY_FLAGS = {
+  triage: "is_assignable_triage",
+  mapping: "is_assignable_mapping",
+} as const satisfies Record<AssignabilityStage, string>;
+
 export interface FindAssignableProfilesOptions {
   readonly queryable?: Knex;
   /** Omit to return profiles assignable to either stage. */
@@ -53,9 +58,7 @@ export async function findAssignableProfileIds(
   }));
   const sql = predicates
     .map(({ stage: assignabilityStage, predicate }) => {
-      const flag =
-        assignabilityStage === "triage" ? "is_assignable_triage" : "is_assignable_mapping";
-      return `(p.${flag} = TRUE AND ${predicate.sql})`;
+      return `(p.${ASSIGNABILITY_FLAGS[assignabilityStage]} = TRUE AND ${predicate.sql})`;
     })
     .join(" OR ");
   const bindings = predicates.flatMap(({ predicate }) => predicate.bindings);
@@ -68,7 +71,11 @@ export async function findAssignableProfileIds(
   return rows.map((row) => Number(row.profile_id));
 }
 
-/** Verifica no banco se o Perfil cumpre o predicado de chaves da etapa. */
+/**
+ * Verifica as chaves de trabalho da etapa. Por padrão não exige a flag de
+ * Atribuibilidade nem que o Perfil esteja ativo; passe `requireFlag` e
+ * `requireActive` para validar o Perfil como designável naquela etapa.
+ */
 export async function profileHasAssignablePermissions(
   profileId: number,
   stage: AssignabilityStage,
@@ -84,8 +91,7 @@ export async function profileHasAssignablePermissions(
     .whereRaw(predicate.sql, predicate.bindings);
 
   if (requireFlag) {
-    const flag = stage === "triage" ? "is_assignable_triage" : "is_assignable_mapping";
-    query.andWhere(`p.${flag}`, true);
+    query.andWhere(`p.${ASSIGNABILITY_FLAGS[stage]}`, true);
   }
   if (requireActive) {
     query.andWhere("p.is_active", true);
