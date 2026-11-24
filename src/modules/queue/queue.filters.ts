@@ -9,16 +9,31 @@ export interface QueueRepositoryFilters extends QueueFilterQuery {
  * Aplica a mesma semântica de filtros à listagem paginada e à exportação.
  * As queries consumidoras usam os aliases `requests`, `requester`, `status`,
  * `priority_tbl`, `assignee_user` e, quando há escopo, `mapping_assignee`.
+ *
+ * A busca inclui notas internas, então este helper só pode ser usado por
+ * consultas internas (`GET /queue` e exportação CSV de Gestor/Administrador).
+ * O escopo do Analista já restringe `requests` na mesma consulta.
  */
 export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueRepositoryFilters): void {
   const { search, status, priority, assigneeId, unassigned, scopedUserId } = filters;
 
   if (search) {
+    const searchPattern = `%${search}%`;
+
     query.andWhere((builder) => {
       builder
-        .where("requests.protocol", "ilike", `%${search}%`)
-        .orWhere("requester.corporate_email", "ilike", `%${search}%`)
-        .orWhere("requester.full_name", "ilike", `%${search}%`);
+        .where("requests.protocol", "ilike", searchPattern)
+        .orWhere("requester.corporate_email", "ilike", searchPattern)
+        .orWhere("requester.full_name", "ilike", searchPattern)
+        .orWhere("requests.need_description", "ilike", searchPattern)
+        .orWhere("requests.problem_opportunity", "ilike", searchPattern)
+        .orWhereExists((notesQuery) => {
+          notesQuery
+            .select(1)
+            .from("request_internal_notes as note")
+            .whereRaw("note.request_id = requests.request_id")
+            .andWhere("note.content", "ilike", searchPattern);
+        });
     });
   }
 

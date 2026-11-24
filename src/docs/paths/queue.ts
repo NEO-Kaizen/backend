@@ -43,7 +43,10 @@ export default {
           name: "search",
           in: "query",
           required: false,
-          description: "Busca por protocolo, e-mail corporativo ou nome do solicitante.",
+          description:
+            "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, " +
+            "descrição, problema e conteúdo das notas internas. A busca em notas internas respeita o " +
+            "escopo de visibilidade do usuário.",
           schema: { type: "string", maxLength: 254 },
         },
         {

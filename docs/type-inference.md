@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **172**.
 - Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1817** â€” 1360 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1820** â€” 1361 variÃ¡veis, 232 parÃ¢metros e 227 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -4660,11 +4660,14 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-- L14 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId }`
-- L17 â€” parÃ¢metro: `builder`
-- L17 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” parÃ¢metro: `builder`
-- L45 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L18 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId }`
+- L21 â€” variÃ¡vel: `searchPattern`
+- L23 â€” parÃ¢metro: `builder`
+- L23 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L30 â€” parÃ¢metro: `notesQuery`
+- L30 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L60 â€” parÃ¢metro: `builder`
+- L60 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
