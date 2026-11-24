@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **172**.
 - Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1817** â€” 1360 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1818** â€” 1361 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -4187,57 +4187,58 @@ interface GroupedIssues {
 - L202 â€” variÃ¡vel: `professionalId`
 - L203 â€” variÃ¡vel: `requestProfessionalId`
 - L210 â€” variÃ¡vel: `request`
-- L214 â€” variÃ¡vel: `nameOk`
-- L215 â€” variÃ¡vel: `emailOk`
-- L225 â€” variÃ¡vel: `identity`
-- L227 â€” variÃ¡vel: `nameOk`
-- L228 â€” variÃ¡vel: `emailOk`
-- L239 â€” variÃ¡vel: `request`
-- L241 â€” variÃ¡vel: `rows`
-- L242 â€” variÃ¡vel: `items`
-- L251 â€” variÃ¡vel: `openRow`
-- L252 â€” parÃ¢metro: `row`
-- L252 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L254 â€” variÃ¡vel: `targetRow`
-- L255 â€” variÃ¡vel: `batchId`
-- L256 â€” variÃ¡vel: `requestAttachment`
-- L258 â€” parÃ¢metro: `row`
-- L258 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L273 â€” variÃ¡vel: `request`
-- L275 â€” variÃ¡vel: `row`
-- L283 â€” variÃ¡vel: `type`
-- L301 â€” variÃ¡vel: `response`
-- L314 â€” variÃ¡vel: `updated`
-- L323 â€” parÃ¢metro: `facts`
-- L323 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L331 â€” variÃ¡vel: `list`
-- L349 â€” variÃ¡vel: `request`
-- L351 â€” variÃ¡vel: `row`
-- L367 â€” variÃ¡vel: `[saved]`
-- L377 â€” variÃ¡vel: `err`
-- L417 â€” variÃ¡vel: `date`
-- L439 â€” variÃ¡vel: `nullableComplement`
-- L469 â€” variÃ¡vel: `request`
-- L474 â€” variÃ¡vel: `batchId`
-- L475 â€” variÃ¡vel: `batchRows`
-- L478 â€” parÃ¢metro: `row`
-- L478 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L478 â€” variÃ¡vel: `byId`
-- L480 â€” variÃ¡vel: `decision`
-- L481 â€” variÃ¡vel: `row`
-- L483 â€” variÃ¡vel: `status`
-- L495 â€” parÃ¢metro: `decision`
-- L495 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L499 â€” variÃ¡vel: `row`
-- L500 â€” variÃ¡vel: `fieldKey`
-- L509 â€” variÃ¡vel: `decidedRows`
-- L518 â€” parÃ¢metro: `facts`
-- L518 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L521 â€” variÃ¡vel: `mapped`
-- L531 â€” variÃ¡vel: `mode`
-- L536 â€” variÃ¡vel: `found`
-- L538 â€” variÃ¡vel: `nameOk`
-- L539 â€” variÃ¡vel: `emailOk`
+- L214 â€” variÃ¡vel: `requesterUserId`
+- L226 â€” variÃ¡vel: `nameOk`
+- L227 â€” variÃ¡vel: `emailOk`
+- L237 â€” variÃ¡vel: `identity`
+- L239 â€” variÃ¡vel: `nameOk`
+- L240 â€” variÃ¡vel: `emailOk`
+- L251 â€” variÃ¡vel: `request`
+- L253 â€” variÃ¡vel: `rows`
+- L254 â€” variÃ¡vel: `items`
+- L263 â€” variÃ¡vel: `openRow`
+- L264 â€” parÃ¢metro: `row`
+- L264 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L266 â€” variÃ¡vel: `targetRow`
+- L267 â€” variÃ¡vel: `batchId`
+- L268 â€” variÃ¡vel: `requestAttachment`
+- L270 â€” parÃ¢metro: `row`
+- L270 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L285 â€” variÃ¡vel: `request`
+- L287 â€” variÃ¡vel: `row`
+- L295 â€” variÃ¡vel: `type`
+- L313 â€” variÃ¡vel: `response`
+- L326 â€” variÃ¡vel: `updated`
+- L335 â€” parÃ¢metro: `facts`
+- L335 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L343 â€” variÃ¡vel: `list`
+- L361 â€” variÃ¡vel: `request`
+- L363 â€” variÃ¡vel: `row`
+- L379 â€” variÃ¡vel: `[saved]`
+- L389 â€” variÃ¡vel: `err`
+- L429 â€” variÃ¡vel: `date`
+- L451 â€” variÃ¡vel: `nullableComplement`
+- L481 â€” variÃ¡vel: `request`
+- L486 â€” variÃ¡vel: `batchId`
+- L487 â€” variÃ¡vel: `batchRows`
+- L490 â€” parÃ¢metro: `row`
+- L490 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L490 â€” variÃ¡vel: `byId`
+- L492 â€” variÃ¡vel: `decision`
+- L493 â€” variÃ¡vel: `row`
+- L495 â€” variÃ¡vel: `status`
+- L507 â€” parÃ¢metro: `decision`
+- L507 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L511 â€” variÃ¡vel: `row`
+- L512 â€” variÃ¡vel: `fieldKey`
+- L521 â€” variÃ¡vel: `decidedRows`
+- L530 â€” parÃ¢metro: `facts`
+- L530 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L533 â€” variÃ¡vel: `mapped`
+- L543 â€” variÃ¡vel: `mode`
+- L548 â€” variÃ¡vel: `found`
+- L550 â€” variÃ¡vel: `nameOk`
+- L551 â€” variÃ¡vel: `emailOk`
 
 ### [src/modules/portalConfig/portalConfig.controller.ts](../src/modules/portalConfig/portalConfig.controller.ts)
 
