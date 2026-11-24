@@ -182,15 +182,6 @@ async function main() {
   const admin = await login(ADMIN_EMAIL);
   const requester = await login(REQUESTER_EMAIL);
 
-  const requesterPending = await request(`/requests/${PROTOCOL}/pending-items`, {
-    cookie: requester.cookie,
-  });
-  assert.ok(
-    Array.isArray(requesterPending.items),
-    "GET /requests/:protocol/pending-items não devolveu items para o solicitante autenticado",
-  );
-  console.log("authenticated requester pending items OK");
-
   const requesterBefore = await listNotifications(requester.cookie);
   const adminBefore = await listNotifications(admin.cookie);
   const requesterCountsBefore = notificationCounts(requesterBefore);

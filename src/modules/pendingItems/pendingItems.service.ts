@@ -272,18 +272,6 @@ async function assertRequesterAccess(protocol: string, caller: PendingCaller): P
   if (!request) throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
 
   if (caller.user?.role === "Solicitante") {
-    const requesterUserId = request.requester_user_id;
-
-    // A fonte primária é o vínculo direto `requests.requester_user_id`; o
-    // snapshot de nome/e-mail pode divergir do cadastro (ex.: seed e
-    // solicitações antigas) e não deve negar acesso ao dono autenticado.
-    if (requesterUserId !== null) {
-      if (requesterUserId === Number(caller.user.id)) return;
-      throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
-    }
-
-    // Fallback apenas para solicitações sem vínculo (`requester_user_id` NULL),
-    // criadas antes da curadoria do 1:1.
     const nameOk = normalizeName(request.requester_name) === normalizeName(caller.user.name);
     const emailOk = normalizeEmail(request.requester_email) === normalizeEmail(caller.user.email);
     if (!nameOk || !emailOk) {
