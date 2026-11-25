@@ -53,6 +53,31 @@ test("status time separates active and paused periods", () => {
   );
 });
 
+test("status time classifies pauses by status ID rather than label", () => {
+  const result = calculateStatusTime({
+    openedAt: new Date("2026-11-20T10:00:00Z"),
+    initialStatus: "Em triagem",
+    initialStatusId: 4,
+    currentStatus: "Pendente de informações",
+    currentStatusId: 3,
+    currentIsTerminal: false,
+    pausedStatusIds: [4],
+    transitions: [
+      {
+        status: "Pendente de informações",
+        statusId: 3,
+        occurredAt: new Date("2026-11-20T11:00:00Z"),
+      },
+    ],
+    now: new Date("2026-11-20T12:00:00Z"),
+  });
+
+  assert.equal(result.intervals[0]?.isPaused, true);
+  assert.equal(result.intervals[0]?.pausedMilliseconds, 60 * 60 * 1000);
+  assert.equal(result.intervals[1]?.isPaused, false);
+  assert.equal(result.intervals[1]?.activeMilliseconds, 60 * 60 * 1000);
+});
+
 test("completed request closes each audited interval and the final status", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T09:00:00Z"),

@@ -10,6 +10,7 @@ import type {
   PortalAssetsPatch,
   PortalCategory,
   PortalStatus,
+  PortalStatusPatch,
   PrioritizationWeights,
   PrioritizationWeightsSection,
   SolicitationMode,
@@ -51,7 +52,7 @@ function statusToPortal(st: StatusRow): PortalStatus {
     isCore: st.is_core ?? false,
     isPublic: st.is_public ?? false,
     isTerminal: st.is_terminal ?? false,
-    isPaused: st.is_paused ?? false,
+    isPaused: st.is_paused,
     triageMode: st.triage_mode ?? "none",
     mappingMode: st.mapping_mode ?? "none",
     isRestricted: st.is_restricted ?? false,
@@ -266,7 +267,7 @@ export async function updateCategories(
 // ---------------------------------------------------------------------------
 
 export async function updateStatuses(
-  statuses: PortalStatus[],
+  statuses: PortalStatusPatch[],
   userId: number,
 ): Promise<StatusesSection> {
   return db.transaction(async (trx) => {
@@ -323,8 +324,7 @@ export async function updateStatuses(
         incoming.isTerminal !== existing.is_terminal ||
         incoming.isRestricted !== existing.is_restricted ||
         incoming.triageMode !== existing.triage_mode ||
-        incoming.mappingMode !== existing.mapping_mode ||
-        (incoming.isPaused !== undefined && incoming.isPaused !== (existing.is_paused ?? false))
+        incoming.mappingMode !== existing.mapping_mode
       ) {
         throw new AppError(
           `Flags/modos do status de núcleo "${existing.name}" (id ${coreId}) são imutáveis.`,
@@ -345,7 +345,12 @@ export async function updateStatuses(
       newValue: canonicalJson(statuses),
     });
 
-    return { statuses };
+    return {
+      statuses: statuses.map((status) => ({
+        ...status,
+        isPaused: prevById.get(status.id)?.is_paused ?? false,
+      })),
+    };
   });
 }
 

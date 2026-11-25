@@ -151,42 +151,56 @@ export const PortalCategory = {
 // Portal status
 // ---------------------------------------------------------------------------
 
+const portalStatusPatchRequired = [
+  "id",
+  "name",
+  "isCore",
+  "isPublic",
+  "isTerminal",
+  "triageMode",
+  "mappingMode",
+  "isRestricted",
+  "tone",
+  "isActive",
+];
+
+const portalStatusPatchProperties = {
+  id: { type: "integer", minimum: 1, maximum: 50, example: 1 },
+  name: { type: "string", maxLength: 40, example: "Solicitação enviada" },
+  isCore: { type: "boolean", example: true },
+  isPublic: { type: "boolean", example: true },
+  isTerminal: { type: "boolean", example: false },
+  triageMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
+  mappingMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
+  isRestricted: { type: "boolean", example: false },
+  tone: {
+    type: "string",
+    enum: ["error", "success", "info", "warning", "neutral"],
+    example: "neutral",
+  },
+  isActive: { type: "boolean", example: true },
+};
+
 export const PortalStatus = {
   type: "object",
-  required: [
-    "id",
-    "name",
-    "isCore",
-    "isPublic",
-    "isTerminal",
-    "triageMode",
-    "mappingMode",
-    "isRestricted",
-    "tone",
-    "isActive",
-  ],
+  required: [...portalStatusPatchRequired, "isPaused"],
   properties: {
-    id: { type: "integer", minimum: 1, maximum: 50, example: 1 },
-    name: { type: "string", maxLength: 40, example: "Solicitação enviada" },
-    isCore: { type: "boolean", example: true },
-    isPublic: { type: "boolean", example: true },
-    isTerminal: { type: "boolean", example: false },
+    ...portalStatusPatchProperties,
     isPaused: {
       type: "boolean",
+      readOnly: true,
       description:
-        "Indica que o Status é período de pausa: o tempo nesse Status não conta como tempo ativo.",
+        "Indica que o Status é período de pausa: o tempo nesse Status não conta como tempo ativo. Configurado somente por migration/seed.",
       example: false,
     },
-    triageMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
-    mappingMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
-    isRestricted: { type: "boolean", example: false },
-    tone: {
-      type: "string",
-      enum: ["error", "success", "info", "warning", "neutral"],
-      example: "neutral",
-    },
-    isActive: { type: "boolean", example: true },
   },
+};
+
+export const PortalStatusPatch = {
+  type: "object",
+  additionalProperties: false,
+  required: portalStatusPatchRequired,
+  properties: portalStatusPatchProperties,
 };
 
 // ---------------------------------------------------------------------------
@@ -307,13 +321,14 @@ export const PortalCategoriesPatchBody = {
 
 export const PortalStatusesPatchBody = {
   type: "object",
+  additionalProperties: false,
   required: ["statuses"],
   properties: {
     statuses: {
       type: "array",
       minItems: 1,
       maxItems: 50,
-      items: { $ref: "#/components/schemas/PortalStatus" },
+      items: { $ref: "#/components/schemas/PortalStatusPatch" },
     },
   },
 };

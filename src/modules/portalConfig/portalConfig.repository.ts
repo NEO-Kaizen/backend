@@ -9,7 +9,7 @@ import type {
   CategoryRow,
   PortalAssetsPatch,
   PortalCategory,
-  PortalStatus,
+  PortalStatusPatch,
   StatusRow,
 } from "../../shared/types/portalConfig.ts";
 import { CRITERION_KEY_TO_ID } from "../../shared/types/criteria.ts";
@@ -209,7 +209,7 @@ export async function upsertCategories(
 
 export async function upsertStatuses(
   trx: Knex.Transaction,
-  statuses: PortalStatus[],
+  statuses: PortalStatusPatch[],
 ): Promise<void> {
   // Ordem final = posição no array enviado (o array é a ordem de exibição).
   const orderById = new Map(statuses.map((status, index) => [status.id, index]));
@@ -227,7 +227,6 @@ export async function upsertStatuses(
       is_core: status.isCore ?? false,
       is_restricted: status.isRestricted ?? false,
       is_terminal: isTerminal,
-      ...(status.isPaused !== undefined ? { is_paused: status.isPaused } : {}),
       triage_mode: triageMode,
       mapping_mode: mappingMode,
       tone: status.tone,

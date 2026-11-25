@@ -140,13 +140,15 @@ export interface PortalStatus {
   isCore: boolean;
   isPublic: boolean;
   isTerminal: boolean;
-  isPaused?: boolean;
+  readonly isPaused: boolean;
   triageMode: StatusMode;
   mappingMode: StatusMode;
   isRestricted: boolean;
   tone: StatusTone;
   isActive: boolean;
 }
+
+export type PortalStatusPatch = Omit<PortalStatus, "isPaused">;
 
 // Critérios fixos de priorização (allowlist das chaves aceitas).
 export const PRIORITIZATION_CRITERIA = [
