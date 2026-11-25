@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hashPassword } from "../../src/shared/utils/passwordHandler.ts";
 import { makeAuthUser } from "../helpers/factories.ts";
+import { fakeDbState, resetFakeDb } from "../helpers/fakeDb.ts";
 
 vi.mock("../../src/database/conection.ts", async () => {
   const { createFakeDb } = await import("../helpers/fakeDb.ts");
@@ -20,7 +21,8 @@ const authService = await import("../../src/modules/auth/auth.service.ts");
 const OLD_PASSWORD = "SenhaAtual@123";
 
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  resetFakeDb();
 });
 
 describe("auth.service.authenticate", () => {
@@ -112,6 +114,19 @@ describe("auth.service.changePassword", () => {
     expect(result.mustChangePassword).toBe(false);
     expect(result.passwordChangedAt).toBe(changedAt.getTime());
     expect(authRepository.changePassword).toHaveBeenCalledOnce();
+
+    // A troca de senha e a auditoria rodam na mesma transação.
+    expect(fakeDbState.transactions).toBe(1);
+    expect(fakeDbState.commits).toBe(1);
+    expect(fakeDbState.auditRows).toHaveLength(1);
+    expect(fakeDbState.auditRows[0]).toMatchObject({
+      entity_type: "user",
+      entity_id: "1",
+      action_type: "user.change_password",
+      user_id: 1,
+      ip_address: "127.0.0.1",
+      change_origin: "user",
+    });
   });
 
   it("rejeita senha atual incorreta", async () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AuthUserRow, UserRow } from "../../src/shared/types/user.ts";
-import { makeAuthUser } from "../helpers/factories.ts";
+import { makeAuthUser, makeUserRow } from "../helpers/factories.ts";
+import { fakeDbState, resetFakeDb } from "../helpers/fakeDb.ts";
 
 vi.mock("../../src/database/conection.ts", async () => {
   const { createFakeDb } = await import("../helpers/fakeDb.ts");
@@ -32,24 +32,6 @@ vi.mock("../../src/modules/users/users.repository.ts", () => ({
 const repository = await import("../../src/modules/users/users.repository.ts");
 const usersService = await import("../../src/modules/users/users.service.ts");
 
-function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
-  const now = new Date("2026-01-01T00:00:00.000Z");
-  return {
-    user_id: 10,
-    full_name: "Novo Usuário",
-    email: "novo@neo.com",
-    avatar_url: null,
-    password_hash: "hash",
-    profile_id: 1,
-    is_active: true,
-    must_change_password: true,
-    password_changed_at: now,
-    created_at: now,
-    updated_at: now,
-    ...overrides,
-  };
-}
-
 const requesterBlock = {
   area: "Financeiro",
   department: "Contas",
@@ -58,14 +40,15 @@ const requesterBlock = {
 };
 
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  resetFakeDb();
 });
 
 describe("users.service.createUser", () => {
   const payload = {
     fullName: "Novo Usuário",
     email: "novo@neo.com",
-    role: "Solicitante",
+    role: "solicitante",
     requester: requesterBlock,
   };
 
@@ -79,17 +62,25 @@ describe("users.service.createUser", () => {
   });
 
   it("bloqueia criação de conta de Administrador (escalonamento vertical)", async () => {
-    vi.mocked(repository.findProfileIdByName).mockResolvedValue(4);
+    vi.mocked(repository.findProfileIdByName).mockResolvedValue(3);
 
     await expect(
-      usersService.createUser({ ...payload, role: "Administrador" }, 1, undefined),
+      usersService.createUser({ ...payload, role: "administrador" }, 1, undefined),
     ).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it("cria o usuário, vincula requester e devolve senha temporária", async () => {
     vi.mocked(repository.findProfileIdByName).mockResolvedValue(1);
     vi.mocked(repository.isProfessionalProfile).mockReturnValue(false);
-    vi.mocked(repository.createUser).mockResolvedValue(makeUserRow());
+    vi.mocked(repository.createUser).mockResolvedValue(
+      makeUserRow({
+        user_id: 10,
+        full_name: "Novo Usuário",
+        email: "novo@neo.com",
+        profile_id: 1,
+        must_change_password: true,
+      }),
+    );
     vi.mocked(repository.createRequesterData).mockResolvedValue(undefined);
 
     const result = await usersService.createUser(payload, 1, "127.0.0.1");
@@ -102,6 +93,19 @@ describe("users.service.createUser", () => {
     });
     expect(result.temporaryPassword.length).toBeGreaterThanOrEqual(8);
     expect(repository.createRequesterData).toHaveBeenCalledOnce();
+
+    expect(fakeDbState.transactions).toBe(1);
+    expect(fakeDbState.commits).toBe(1);
+    expect(fakeDbState.auditRows).toHaveLength(1);
+    expect(fakeDbState.auditRows[0]).toMatchObject({
+      entity_type: "user",
+      entity_id: "10",
+      action_type: "user.create",
+      user_id: 1,
+      new_value: "novo@neo.com",
+      ip_address: "127.0.0.1",
+      change_origin: "admin",
+    });
   });
 
   it("converte violação de unicidade em 409 (e-mail duplicado)", async () => {
@@ -132,7 +136,7 @@ describe("users.service.changeUserStatus", () => {
 
   it("bloqueia gestão de contas de Administrador", async () => {
     vi.mocked(repository.findUserById).mockResolvedValue(
-      makeAuthUser({ user_id: 9, profile_name: "administrador" }) as AuthUserRow,
+      makeAuthUser({ user_id: 9, profile_name: "administrador" }),
     );
     await expect(
       usersService.changeUserStatus("9", { isActive: false }, 1, undefined),
@@ -145,9 +149,20 @@ describe("users.service.changeUserStatus", () => {
     );
     vi.mocked(repository.updateStatus).mockResolvedValue(undefined);
 
-    const result = await usersService.changeUserStatus("9", { isActive: false }, 1, undefined);
+    const result = await usersService.changeUserStatus("9", { isActive: false }, 1, "203.0.113.40");
     expect(result).toEqual({ id: "9", isActive: false });
     expect(repository.updateStatus).toHaveBeenCalledWith(expect.anything(), 9, false);
+
+    expect(fakeDbState.auditRows).toHaveLength(1);
+    expect(fakeDbState.auditRows[0]).toMatchObject({
+      entity_type: "user",
+      entity_id: "9",
+      action_type: "user.deactivate",
+      user_id: 1,
+      previous_value: "true",
+      new_value: "false",
+      ip_address: "203.0.113.40",
+    });
   });
 });
 
@@ -162,10 +177,19 @@ describe("users.service.resetPassword", () => {
     vi.mocked(repository.findUserById).mockResolvedValue(makeAuthUser({ user_id: 9 }));
     vi.mocked(repository.setTemporaryPassword).mockResolvedValue(undefined);
 
-    const result = await usersService.resetPassword("9", 1, undefined);
+    const result = await usersService.resetPassword("9", 1, "203.0.113.50");
     expect(result.id).toBe("9");
     expect(result.temporaryPassword.length).toBeGreaterThanOrEqual(8);
     expect(repository.setTemporaryPassword).toHaveBeenCalledOnce();
+
+    expect(fakeDbState.auditRows).toHaveLength(1);
+    expect(fakeDbState.auditRows[0]).toMatchObject({
+      entity_type: "user",
+      entity_id: "9",
+      action_type: "user.reset_password",
+      user_id: 1,
+      ip_address: "203.0.113.50",
+    });
   });
 });
 

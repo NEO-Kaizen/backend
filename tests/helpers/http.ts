@@ -1,5 +1,6 @@
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { expect } from "vitest";
 import { app } from "../../src/app.ts";
 
 export interface TestServer {
@@ -18,13 +19,17 @@ export async function startTestServer(): Promise<TestServer> {
   });
 
   const address = server.address() as AddressInfo;
+  let closed = false;
 
   return {
     baseUrl: `http://127.0.0.1:${address.port}`,
-    close: () =>
-      new Promise((resolve, reject) => {
+    close: async () => {
+      if (closed) return;
+      closed = true;
+      await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
-      }),
+      });
+    },
   };
 }
 
@@ -35,12 +40,59 @@ export interface HttpResult<T = unknown> {
   text: string;
 }
 
+export interface CookieRecord {
+  value: string;
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: string | null;
+  path: string | null;
+  maxAge: number | null;
+  expires: Date | null;
+  raw: string;
+}
+
+function parseSetCookie(raw: string): { name: string; cookie: CookieRecord } | null {
+  const [pair, ...attributes] = raw.split(";");
+  const separator = pair?.indexOf("=") ?? -1;
+
+  if (!pair || separator <= 0) return null;
+
+  const name = pair.slice(0, separator).trim();
+  const value = pair.slice(separator + 1).trim();
+  const parsed: CookieRecord = {
+    value,
+    httpOnly: false,
+    secure: false,
+    sameSite: null,
+    path: null,
+    maxAge: null,
+    expires: null,
+    raw,
+  };
+
+  for (const attribute of attributes) {
+    const [rawKey, ...rest] = attribute.split("=");
+    const key = rawKey?.trim().toLowerCase();
+    const attributeValue = rest.join("=").trim();
+
+    if (key === "httponly") parsed.httpOnly = true;
+    if (key === "secure") parsed.secure = true;
+    if (key === "samesite") parsed.sameSite = attributeValue;
+    if (key === "path") parsed.path = attributeValue;
+    if (key === "max-age") parsed.maxAge = Number(attributeValue);
+    if (key === "expires") parsed.expires = new Date(attributeValue);
+  }
+
+  return { name, cookie: parsed };
+}
+
 /**
  * Cliente HTTP com cookie jar simples — preserva o `session_id` (HttpOnly)
- * entre as requisições, como um navegador faria.
+ * entre as requisições, como um navegador faria, e expõe os atributos dos
+ * `Set-Cookie` para que os testes validem Path/HttpOnly/SameSite/Secure.
  */
 export class TestClient {
-  private readonly cookies = new Map<string, string>();
+  private readonly cookies = new Map<string, CookieRecord>();
   private readonly baseUrl: string;
 
   constructor(baseUrl: string) {
@@ -48,13 +100,24 @@ export class TestClient {
   }
 
   get cookieHeader(): string {
-    return [...this.cookies.entries()].map(([name, value]) => `${name}=${value}`).join("; ");
+    return [...this.cookies.entries()]
+      .map(([name, cookie]) => `${name}=${cookie.value}`)
+      .join("; ");
+  }
+
+  getCookie(name: string): CookieRecord | undefined {
+    return this.cookies.get(name);
   }
 
   async request<T = unknown>(
     method: string,
     path: string,
-    options: { body?: unknown; headers?: Record<string, string>; rawBody?: string | FormData } = {},
+    options: {
+      body?: unknown;
+      headers?: Record<string, string>;
+      rawBody?: string | FormData | URLSearchParams;
+      timeoutMs?: number;
+    } = {},
   ): Promise<HttpResult<T>> {
     const headers: Record<string, string> = { ...options.headers };
 
@@ -62,7 +125,7 @@ export class TestClient {
       headers["cookie"] = this.cookieHeader;
     }
 
-    let body: string | FormData | undefined;
+    let body: string | FormData | URLSearchParams | undefined;
     if (options.rawBody !== undefined) {
       body = options.rawBody;
     } else if (options.body !== undefined) {
@@ -75,36 +138,39 @@ export class TestClient {
       headers,
       body,
       redirect: "manual",
+      signal: AbortSignal.timeout(options.timeoutMs ?? 5_000),
     });
 
-    for (const cookie of response.headers.getSetCookie()) {
-      const [pair] = cookie.split(";");
-      const separator = pair?.indexOf("=") ?? -1;
-      if (pair && separator > 0) {
-        const name = pair.slice(0, separator);
-        const value = pair.slice(separator + 1);
-        if (value === "") {
-          this.cookies.delete(name);
-        } else {
-          this.cookies.set(name, value);
-        }
+    for (const header of response.headers.getSetCookie()) {
+      const parsed = parseSetCookie(header);
+      if (!parsed) continue;
+
+      const removed =
+        parsed.cookie.value === "" &&
+        (parsed.cookie.maxAge === 0 ||
+          (parsed.cookie.expires !== null && parsed.cookie.expires.getTime() <= Date.now()));
+
+      if (removed) {
+        this.cookies.delete(parsed.name);
+      } else {
+        this.cookies.set(parsed.name, parsed.cookie);
       }
     }
 
     const text = await response.text();
-    let parsed: unknown = text;
+    let parsedBody: unknown = text;
     if (text.length > 0) {
       try {
-        parsed = JSON.parse(text);
+        parsedBody = JSON.parse(text);
       } catch {
-        parsed = text;
+        parsedBody = text;
       }
     }
 
     return {
       status: response.status,
       headers: response.headers,
-      body: parsed as T,
+      body: parsedBody as T,
       text,
     };
   }
@@ -127,5 +193,38 @@ export class TestClient {
 
   del<T = unknown>(path: string, headers?: Record<string, string>) {
     return this.request<T>("DELETE", path, { headers });
+  }
+}
+
+export interface ErrorEnvelope {
+  status: "error";
+  statusCode: number;
+  message: string;
+  fields?: Record<string, string>;
+}
+
+/** Valida o envelope padrão de erro (`errorHandler`) e o content-type JSON. */
+export function expectErrorEnvelope<T>(
+  result: HttpResult<T>,
+  expected: { statusCode: number; message?: string | RegExp; fields?: Record<string, string> },
+): void {
+  expect(result.headers.get("content-type")).toContain("application/json");
+  expect(result.body).toMatchObject({
+    status: "error",
+    statusCode: expected.statusCode,
+  });
+
+  const body = result.body as ErrorEnvelope;
+
+  if (expected.message !== undefined) {
+    if (typeof expected.message === "string") {
+      expect(body.message).toBe(expected.message);
+    } else {
+      expect(body.message).toMatch(expected.message);
+    }
+  }
+
+  if (expected.fields !== undefined) {
+    expect(body.fields).toMatchObject(expected.fields);
   }
 }

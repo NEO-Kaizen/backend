@@ -1,14 +1,18 @@
 import { defineConfig } from "vitest/config";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 /**
  * Configuração da suíte de testes (Vitest).
  *
- * Três camadas, cada uma em um "project" separado:
+ * Quatro camadas, cada uma em um "project" separado:
  * - `unit`: funções puras, schemas Zod e helpers (sem banco, sem HTTP).
  * - `integration`: services e middlewares exercitados com os repositories
  *   mockados (`vi.mock`), validando as regras de negócio em processo.
  * - `e2e`: o app Express real (rotas + middlewares + controllers) atendendo
  *   requisições HTTP de ponta a ponta, com a persistência isolada por mocks.
+ * - `db`: persistência real em PostgreSQL descartável (repositories, services
+ *   e fluxos HTTP), sem mocks de banco.
  *
  * As variáveis de ambiente abaixo substituem o `.env`: os testes nunca devem
  * apontar para um banco real. `JWT_SECRET` é obrigatório para emitir/validar
@@ -16,10 +20,16 @@ import { defineConfig } from "vitest/config";
  */
 const testEnv = {
   NODE_ENV: "test",
+  TZ: "UTC",
   JWT_SECRET: "vitest-only-secret-key",
   JWT_EXPIRES_IN: "1d",
   COOKIE_NAME: "session_id",
   PROTOCOL_FPE_KEY: "vitest-only-protocol-fpe-key",
+  UPLOAD_DIR: join(tmpdir(), `neo-kaizen-test-uploads-${process.pid}`),
+};
+
+const mockReset = {
+  mockReset: true,
 };
 
 export default defineConfig({
@@ -31,6 +41,7 @@ export default defineConfig({
           environment: "node",
           env: testEnv,
           include: ["tests/unit/**/*.test.ts"],
+          ...mockReset,
         },
       },
       {
@@ -39,6 +50,7 @@ export default defineConfig({
           environment: "node",
           env: testEnv,
           include: ["tests/integration/**/*.test.ts"],
+          ...mockReset,
         },
       },
       {
@@ -49,6 +61,22 @@ export default defineConfig({
           include: ["tests/e2e/**/*.test.ts"],
           testTimeout: 20_000,
           hookTimeout: 20_000,
+          ...mockReset,
+        },
+      },
+      {
+        test: {
+          name: "db",
+          environment: "node",
+          env: testEnv,
+          include: ["tests/db/**/*.test.ts"],
+          globalSetup: ["./tests/helpers/dbGlobalSetup.ts"],
+          // Um único banco compartilhado: arquivos rodam em série para que o
+          // reset entre testes não concorra com outra suíte.
+          fileParallelism: false,
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+          ...mockReset,
         },
       },
     ],

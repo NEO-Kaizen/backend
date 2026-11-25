@@ -1,7 +1,23 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { makeAuthState, makeRequestPayload, makeToken } from "../helpers/factories.ts";
-import { startTestServer, TestClient, type TestServer } from "../helpers/http.ts";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { rm } from "node:fs/promises";
+import {
+  makeAuthState,
+  makeCreateRequestResponse,
+  makeRequestPayload,
+  makeToken,
+  makeTrackingResponse,
+} from "../helpers/factories.ts";
+import {
+  expectErrorEnvelope,
+  startTestServer,
+  TestClient,
+  type TestServer,
+} from "../helpers/http.ts";
+import Config from "../../src/configs.ts";
 
+// Contrato HTTP e upload com o service mockado. A persistência real (service +
+// Postgres + anexos) está em `tests/db/requests.service.test.ts` e
+// `tests/db/requests.http.test.ts`.
 vi.mock("../../src/database/conection.ts", async () => {
   const { createFakeDb } = await import("../helpers/fakeDb.ts");
   return { default: createFakeDb() };
@@ -40,12 +56,27 @@ beforeAll(async () => {
   server = await startTestServer();
 });
 
+beforeEach(() => {
+  vi.resetAllMocks();
+});
+
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+});
+
+afterAll(async () => {
+  await server.close();
+  await rm(Config.UPLOAD_DIR, { recursive: true, force: true });
 });
 
 function publicMode() {
   vi.mocked(portalConfigRepository.getSolicitationMode).mockResolvedValue("PUBLIC");
+}
+
+function formWithPayload(payload: unknown): FormData {
+  const form = new FormData();
+  form.append("payload", JSON.stringify(payload));
+  return form;
 }
 
 describe("E2E — rotas de solicitação (modo PUBLIC)", () => {
@@ -54,11 +85,13 @@ describe("E2E — rotas de solicitação (modo PUBLIC)", () => {
     const client = new TestClient(server.baseUrl);
 
     const missing = await client.get("/requests");
-    expect(missing.status).toBe(400);
-    expect(missing.body).toMatchObject({ message: "Parâmetro obrigatório ausente: email" });
+    expectErrorEnvelope(missing, {
+      statusCode: 400,
+      message: "Parâmetro obrigatório ausente: email",
+    });
 
     const invalid = await client.get("/requests?email=nao-email");
-    expect(invalid.status).toBe(400);
+    expectErrorEnvelope(invalid, { statusCode: 400 });
   });
 
   it("lista solicitações por e-mail delegando ao service", async () => {
@@ -81,13 +114,13 @@ describe("E2E — rotas de solicitação (modo PUBLIC)", () => {
     const client = new TestClient(server.baseUrl);
 
     const response = await client.get(`/requests/${PROTOCOL}/tracking`);
-    expect(response.status).toBe(401);
+    expectErrorEnvelope(response, { statusCode: 401 });
   });
 
   it("acompanha a solicitação com o header X-Requester-Identity", async () => {
     publicMode();
-    const tracking = { protocol: PROTOCOL, status: "Em triagem" };
-    vi.mocked(service.getTracking).mockResolvedValue(tracking as never);
+    const tracking = makeTrackingResponse();
+    vi.mocked(service.getTracking).mockResolvedValue(tracking);
 
     const client = new TestClient(server.baseUrl);
     const response = await client.get(`/requests/${PROTOCOL}/tracking`, {
@@ -109,8 +142,8 @@ describe("E2E — POST /requests (validação)", () => {
     const client = new TestClient(server.baseUrl);
 
     const response = await client.post("/requests", {});
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({
+    expectErrorEnvelope(response, {
+      statusCode: 400,
       message: "Parte 'payload' ausente no corpo da requisição.",
     });
   });
@@ -120,8 +153,10 @@ describe("E2E — POST /requests (validação)", () => {
     const client = new TestClient(server.baseUrl);
 
     const response = await client.post("/requests", { payload: "{nao-e-json" });
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({ message: "A parte 'payload' contém um JSON inválido." });
+    expectErrorEnvelope(response, {
+      statusCode: 400,
+      message: "A parte 'payload' contém um JSON inválido.",
+    });
   });
 
   it("rejeita payload sem os blocos obrigatórios (Zod)", async () => {
@@ -129,18 +164,13 @@ describe("E2E — POST /requests (validação)", () => {
     const client = new TestClient(server.baseUrl);
 
     const response = await client.post("/requests", { payload: JSON.stringify({}) });
-    expect(response.status).toBe(400);
-    expect(String((response.body as { message: string }).message)).toContain(
-      "Campos obrigatórios ausentes",
-    );
+    expectErrorEnvelope(response, { statusCode: 400, message: /Campos obrigatórios ausentes/ });
   });
 
   it("cria a solicitação com payload válido (201)", async () => {
     publicMode();
-    vi.mocked(service.registerRequest).mockResolvedValue({
-      protocol: PROTOCOL,
-      status: "Solicitação enviada",
-    } as never);
+    const created = makeCreateRequestResponse({ protocol: PROTOCOL });
+    vi.mocked(service.registerRequest).mockResolvedValue(created);
 
     const client = new TestClient(server.baseUrl);
     const response = await client.post("/requests", {
@@ -150,6 +180,75 @@ describe("E2E — POST /requests (validação)", () => {
     expect(response.status).toBe(201);
     expect(response.body).toMatchObject({ protocol: PROTOCOL });
     expect(service.registerRequest).toHaveBeenCalledOnce();
+  });
+});
+
+describe("E2E — POST /requests (multipart real)", () => {
+  it("processa anexo válido e entrega os metadados ao service", async () => {
+    publicMode();
+    const created = makeCreateRequestResponse({ protocol: PROTOCOL });
+    vi.mocked(service.registerRequest).mockResolvedValue(created);
+
+    const client = new TestClient(server.baseUrl);
+    const form = formWithPayload(makeRequestPayload());
+    form.append(
+      "attachments",
+      new File([Buffer.from("%PDF-1.4 teste")], "documento.pdf", { type: "application/pdf" }),
+    );
+
+    const response = await client.request("POST", "/requests", { rawBody: form });
+
+    expect(response.status).toBe(201);
+    expect(service.registerRequest).toHaveBeenCalledOnce();
+
+    const attachments = vi.mocked(service.registerRequest).mock.calls[0]?.[1];
+    expect(attachments).toHaveLength(1);
+    expect(attachments?.[0]).toMatchObject({
+      fileName: "documento.pdf",
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("rejeita MIME não permitido", async () => {
+    publicMode();
+    const client = new TestClient(server.baseUrl);
+    const form = formWithPayload(makeRequestPayload());
+    form.append("attachments", new File(["texto"], "nota.txt", { type: "text/plain" }));
+
+    const response = await client.request("POST", "/requests", { rawBody: form });
+
+    expectErrorEnvelope(response, {
+      statusCode: 400,
+      message: /Formato de arquivo não permitido/,
+    });
+    expect(service.registerRequest).not.toHaveBeenCalled();
+  });
+
+  it("rejeita mais de 5 anexos", async () => {
+    publicMode();
+    const client = new TestClient(server.baseUrl);
+    const form = formWithPayload(makeRequestPayload());
+
+    for (let index = 0; index < 6; index += 1) {
+      form.append(
+        "attachments",
+        new File([`pdf-${index}`], `documento-${index}.pdf`, { type: "application/pdf" }),
+      );
+    }
+
+    const response = await client.request("POST", "/requests", { rawBody: form });
+    expectErrorEnvelope(response, { statusCode: 400, message: /Máximo de 5 anexos/ });
+  });
+
+  it("rejeita anexo acima de 10 MB", async () => {
+    publicMode();
+    const client = new TestClient(server.baseUrl);
+    const form = formWithPayload(makeRequestPayload());
+    const oversized = Buffer.alloc(10 * 1024 * 1024 + 1);
+    form.append("attachments", new File([oversized], "grande.pdf", { type: "application/pdf" }));
+
+    const response = await client.request("POST", "/requests", { rawBody: form });
+    expectErrorEnvelope(response, { statusCode: 400, message: /no máximo 10MB/ });
   });
 });
 
@@ -180,7 +279,7 @@ describe("E2E — rotas internas exigem sessão", () => {
       headers: { cookie: `session_id=${token}` },
     });
 
-    expect(response.status).toBe(400);
+    expectErrorEnvelope(response, { statusCode: 400 });
     expect(service.updateRequestStatus).not.toHaveBeenCalled();
   });
 });
