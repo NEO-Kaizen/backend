@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPassword } from "../../src/shared/utils/passwordHandler.ts";
-import { makeAuthState, makeAuthUser } from "../helpers/factories.ts";
+import { makeAuthState, makeAuthUser, makeSessionResponse } from "../helpers/factories.ts";
 import { resetFakeDb } from "../helpers/fakeDb.ts";
 import {
   expectErrorEnvelope,
@@ -35,7 +35,6 @@ let passwordHash: string;
 let currentPasswordChangedAt = T0;
 
 beforeAll(async () => {
-  passwordHash = await hashPassword(PASSWORD);
   server = await startTestServer();
 });
 
@@ -80,11 +79,7 @@ describe("E2E — fluxo de autenticação", () => {
 
     expect(login.status).toBe(200);
     expect(login.headers.get("content-type")).toContain("application/json");
-    expect(login.body).toMatchObject({
-      email: "maria@neo.com",
-      role: "Analista",
-      mustChangePassword: false,
-    });
+    expect(login.body).toEqual(makeSessionResponse({ email: "maria@neo.com" }));
     expect(client.getCookie("session_id")).toMatchObject({
       httpOnly: true,
       secure: false,
@@ -92,9 +87,9 @@ describe("E2E — fluxo de autenticação", () => {
       path: "/",
     });
 
-    const me = await client.get<{ role: string }>("/auth/me");
+    const me = await client.get("/auth/me");
     expect(me.status).toBe(200);
-    expect(me.body.role).toBe("Analista");
+    expect(me.body).toEqual(makeSessionResponse({ email: "maria@neo.com" }));
 
     const logout = await client.post("/auth/logout");
     expect(logout.status).toBe(200);

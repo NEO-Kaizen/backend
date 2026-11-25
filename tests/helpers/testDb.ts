@@ -17,22 +17,54 @@ import type { UserRow } from "../../src/shared/types/user.ts";
  */
 const ROOT_DIR = fileURLToPath(new URL("../../", import.meta.url));
 
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+
+function readHost(): string {
+  const host = process.env.TEST_DB_HOST ?? "127.0.0.1";
+  const isRemote = !LOOPBACK_HOSTS.has(host.toLowerCase());
+
+  // Fail-closed: o reset executa TRUNCATE ... CASCADE, então um host remoto
+  // exige opt-in explícito.
+  if (isRemote && process.env.TEST_DB_ALLOW_REMOTE !== "true") {
+    throw new Error(
+      `Recusando rodar a suíte db contra o host "${host}": use localhost ou defina TEST_DB_ALLOW_REMOTE=true para um banco descartável remoto.`,
+    );
+  }
+
+  return host;
+}
+
+function readPort(): number {
+  const port = Number(process.env.TEST_DB_PORT ?? 55432);
+
+  if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
+    throw new Error(`TEST_DB_PORT inválida: "${process.env.TEST_DB_PORT}".`);
+  }
+
+  return port;
+}
+
+function readDatabaseName(): string {
+  const database = process.env.TEST_DB_NAME ?? "neo_test";
+
+  // Fail-closed: exige sufixo `_test` (ou o nome exato `test`), não apenas a
+  // substring "test" — "latest" não pode passar.
+  if (!/^(test|[a-z0-9_]+_test)$/i.test(database)) {
+    throw new Error(
+      `Recusando rodar a suíte db contra "${database}": o nome do banco precisa ser "test" ou terminar em "_test".`,
+    );
+  }
+
+  return database;
+}
+
 export const TEST_DB_CONFIG = {
-  host: process.env.TEST_DB_HOST ?? "127.0.0.1",
-  port: Number(process.env.TEST_DB_PORT ?? 55432),
+  host: readHost(),
+  port: readPort(),
   user: process.env.TEST_DB_USER ?? "neo_test",
   password: process.env.TEST_DB_PASSWORD ?? "neo_test",
-  database: process.env.TEST_DB_NAME ?? "neo_test",
+  database: readDatabaseName(),
 };
-
-const databaseName = TEST_DB_CONFIG.database;
-
-// Fail-closed: jamais apontar para o banco de desenvolvimento por engano.
-if (!/test/i.test(databaseName)) {
-  throw new Error(
-    `Recusando rodar a suíte db contra "${databaseName}": o nome do banco precisa conter "test".`,
-  );
-}
 
 export const testDb = knex({
   client: "pg",
@@ -48,14 +80,31 @@ export const testDb = knex({
   },
 });
 
-/** Sobe todas as migrations pendentes no banco de teste. */
+/**
+ * Sobe todas as migrations pendentes e os dados de referência que não são
+ * criados por migration (criteria e priorities vivem nos seeds). Os seeds
+ * usados aqui são idempotentes e não criam dados mutáveis.
+ */
 export async function ensureMigrated(): Promise<void> {
   await testDb.migrate.latest();
+
+  for (const seed of ["002_criteria.js", "003_priorities.js"]) {
+    await testDb.seed.run({
+      directory: resolve(ROOT_DIR, "seeds/requester_request"),
+      specific: seed,
+      extension: "js",
+    });
+  }
 }
 
 /**
- * Limpa apenas os dados mutáveis (mantém os dados de referência vindos das
- * migrations: profiles, categories, statuses, priorities, criteria e settings).
+ * Limpa apenas os dados mutáveis e devolve os dados de referência ao baseline.
+ *
+ * O `TRUNCATE ... CASCADE` em `users` alcança `system_settings` pela FK
+ * `updated_by` (ON DELETE SET NULL não protege contra TRUNCATE). Por isso o
+ * singleton é recriado explicitamente depois da limpeza — um `UPDATE` não
+ * basta, pois a linha já foi removida. `profiles` também volta a `is_active`,
+ * restaurando mutações feitas por testes.
  *
  * `audit_history` é append-only por trigger no banco real; em teste o reset
  * desabilita triggers de usuário apenas nesta transação, via
@@ -74,7 +123,15 @@ export async function resetTestDb(): Promise<void> {
     `);
   });
 
-  await testDb("system_settings").where({ settings_id: 1 }).update({ solicitation_mode: "PUBLIC" });
+  // Baseline das referências mutáveis: settings/tema e o estado dos perfis
+  // precisam existir/valer depois de qualquer reset. Delete + insert (em vez
+  // de listar colunas) devolve todos os defaults da migration, inclusive após
+  // evoluções de schema.
+  await testDb("system_settings").del();
+  await testDb("system_themes").del();
+  await testDb("system_themes").insert({ theme_id: 1 });
+  await testDb("system_settings").insert({ settings_id: 1, theme_id: 1 });
+  await testDb("profiles").update({ is_active: true });
 }
 
 export async function closeTestDb(): Promise<void> {

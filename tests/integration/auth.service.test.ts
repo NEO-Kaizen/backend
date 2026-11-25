@@ -65,7 +65,7 @@ describe("auth.service.authenticate", () => {
     ).rejects.toMatchObject({ statusCode: 401, message: "Credenciais inválidas" });
   });
 
-  it("rejeita usuário inativo mesmo com senha correta", async () => {
+  it("rejeita usuário inativo mesmo com senha correta, sem revelar a causa", async () => {
     const passwordHash = await hashPassword(OLD_PASSWORD);
     vi.mocked(authRepository.findUserByEmail).mockResolvedValue(
       makeAuthUser({ is_active: false, password_hash: passwordHash }),
@@ -73,7 +73,18 @@ describe("auth.service.authenticate", () => {
 
     await expect(
       authService.authenticate({ email: "maria@neo.com", password: OLD_PASSWORD }),
-    ).rejects.toMatchObject({ statusCode: 401 });
+    ).rejects.toMatchObject({ statusCode: 401, message: "Credenciais inválidas" });
+  });
+
+  it("rejeita perfil inativo com a mesma mensagem anti-enumeração", async () => {
+    const passwordHash = await hashPassword(OLD_PASSWORD);
+    vi.mocked(authRepository.findUserByEmail).mockResolvedValue(
+      makeAuthUser({ profile_is_active: false, password_hash: passwordHash }),
+    );
+
+    await expect(
+      authService.authenticate({ email: "maria@neo.com", password: OLD_PASSWORD }),
+    ).rejects.toMatchObject({ statusCode: 401, message: "Credenciais inválidas" });
   });
 });
 
@@ -85,12 +96,20 @@ describe("auth.service.getSessionUser", () => {
     expect(result.id).toBe("7");
   });
 
-  it("rejeita usuário inexistente ou inativo", async () => {
+  it("rejeita usuário inexistente, inativo ou com perfil inativo", async () => {
     vi.mocked(authRepository.findUserById).mockResolvedValue(undefined);
     await expect(authService.getSessionUser(1)).rejects.toMatchObject({ statusCode: 401 });
 
     vi.mocked(authRepository.findUserById).mockResolvedValue(makeAuthUser({ is_active: false }));
     await expect(authService.getSessionUser(1)).rejects.toMatchObject({ statusCode: 401 });
+
+    vi.mocked(authRepository.findUserById).mockResolvedValue(
+      makeAuthUser({ profile_is_active: false }),
+    );
+    await expect(authService.getSessionUser(1)).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Token inválido ou expirado",
+    });
   });
 });
 
@@ -163,6 +182,22 @@ describe("auth.service.changePassword", () => {
     vi.mocked(authRepository.findUserById).mockResolvedValue(undefined);
     await expect(authService.changePassword(1, body, undefined)).rejects.toMatchObject({
       statusCode: 404,
+    });
+  });
+
+  it("rejeita troca de senha para usuário ou perfil inativo", async () => {
+    vi.mocked(authRepository.findUserById).mockResolvedValue(makeAuthUser({ is_active: false }));
+    await expect(authService.changePassword(1, body, undefined)).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Token inválido ou expirado",
+    });
+
+    vi.mocked(authRepository.findUserById).mockResolvedValue(
+      makeAuthUser({ profile_is_active: false }),
+    );
+    await expect(authService.changePassword(1, body, undefined)).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Token inválido ou expirado",
     });
   });
 });

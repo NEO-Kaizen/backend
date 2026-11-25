@@ -128,7 +128,7 @@ describe("users.service (Postgres real)", () => {
     await expect(testDb("users").where({ email: "maria@neo.com" })).resolves.toHaveLength(1);
   });
 
-  it("faz rollback da criação quando a auditoria falha", async () => {
+  it("faz rollback da criação quando a auditoria falha (inclusive extensão profissional)", async () => {
     const admin = await insertAdmin();
 
     await failAuditWrites();
@@ -136,10 +136,15 @@ describe("users.service (Postgres real)", () => {
       await expect(
         usersService.createUser(
           {
-            fullName: "Maria",
-            email: "maria@neo.com",
-            role: "solicitante",
+            fullName: "Ana",
+            email: "ana@neo.com",
+            role: "analista",
             requester: REQUESTER,
+            professional: {
+              jobTitle: "Analista",
+              specialties: ["Automação"],
+              attendedCategoryIds: [1],
+            },
           },
           admin.user_id,
           undefined,
@@ -149,10 +154,34 @@ describe("users.service (Postgres real)", () => {
       await restoreAuditWrites();
     }
 
-    await expect(testDb("users").where({ email: "maria@neo.com" })).resolves.toHaveLength(0);
+    await expect(testDb("users").where({ email: "ana@neo.com" })).resolves.toHaveLength(0);
     await expect(
-      testDb("requesters").where({ corporate_email: "maria@neo.com" }),
+      testDb("requesters").where({ corporate_email: "ana@neo.com" }),
     ).resolves.toHaveLength(0);
+    await expect(testDb("details_professional")).resolves.toHaveLength(0);
+    await expect(auditRows()).resolves.toHaveLength(0);
+  });
+
+  it("faz rollback da mudança de status quando a auditoria falha", async () => {
+    const admin = await insertAdmin();
+    const target = await insertUser({ email: "alvo@neo.com" });
+
+    await failAuditWrites();
+    try {
+      await expect(
+        usersService.changeUserStatus(
+          String(target.user_id),
+          { isActive: false },
+          admin.user_id,
+          undefined,
+        ),
+      ).rejects.toThrow(/auditoria/i);
+    } finally {
+      await restoreAuditWrites();
+    }
+
+    const persisted = await testDb("users").where({ user_id: target.user_id }).first();
+    expect(persisted.is_active).toBe(true);
     await expect(auditRows()).resolves.toHaveLength(0);
   });
 
@@ -185,9 +214,54 @@ describe("users.service (Postgres real)", () => {
     });
   });
 
-  it("gera senha temporária real e invalida a anterior", async () => {
+  it("ativa usuário com auditoria user.activate", async () => {
+    const admin = await insertAdmin();
+    const target = await insertUser({ email: "alvo@neo.com", isActive: false });
+
+    const result = await usersService.changeUserStatus(
+      String(target.user_id),
+      { isActive: true },
+      admin.user_id,
+      undefined,
+    );
+
+    expect(result).toEqual({ id: String(target.user_id), isActive: true });
+    const persisted = await testDb("users").where({ user_id: target.user_id }).first();
+    expect(persisted.is_active).toBe(true);
+
+    const audits = await auditRows();
+    expect(audits[0]).toMatchObject({
+      action_type: "user.activate",
+      previous_value: "false",
+      new_value: "true",
+    });
+  });
+
+  it("faz rollback do reset de senha quando a auditoria falha", async () => {
     const admin = await insertAdmin();
     const target = await insertUser({ email: "alvo@neo.com", password: "SenhaAntiga@123" });
+    const before = await testDb("users").where({ user_id: target.user_id }).first();
+
+    await failAuditWrites();
+    try {
+      await expect(
+        usersService.resetPassword(String(target.user_id), admin.user_id, undefined),
+      ).rejects.toThrow(/auditoria/i);
+    } finally {
+      await restoreAuditWrites();
+    }
+
+    const persisted = await testDb("users").where({ user_id: target.user_id }).first();
+    await expect(comparePassword("SenhaAntiga@123", persisted.password_hash)).resolves.toBe(true);
+    expect(persisted.must_change_password).toBe(before.must_change_password);
+    expect(persisted.password_changed_at.getTime()).toBe(before.password_changed_at.getTime());
+    await expect(auditRows()).resolves.toHaveLength(0);
+  });
+
+  it("gera senha temporária real, avança password_changed_at e invalida a anterior", async () => {
+    const admin = await insertAdmin();
+    const target = await insertUser({ email: "alvo@neo.com", password: "SenhaAntiga@123" });
+    const before = await testDb("users").where({ user_id: target.user_id }).first();
 
     const result = await usersService.resetPassword(
       String(target.user_id),
@@ -200,6 +274,10 @@ describe("users.service (Postgres real)", () => {
       true,
     );
     expect(persisted.must_change_password).toBe(true);
+    // Reset administrativo também precisa revogar sessões antigas.
+    expect(persisted.password_changed_at.getTime()).toBeGreaterThan(
+      before.password_changed_at.getTime(),
+    );
 
     const audits = await auditRows();
     expect(audits[0]).toMatchObject({ action_type: "user.reset_password", user_id: admin.user_id });

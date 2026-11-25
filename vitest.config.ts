@@ -18,18 +18,30 @@ import { join } from "node:path";
  * apontar para um banco real. `JWT_SECRET` é obrigatório para emitir/validar
  * tokens e `NODE_ENV=test` evita o cookie `secure` (HTTP em localhost).
  */
-const testEnv = {
+const baseTestEnv = {
   NODE_ENV: "test",
   TZ: "UTC",
   JWT_SECRET: "vitest-only-secret-key",
   JWT_EXPIRES_IN: "1d",
   COOKIE_NAME: "session_id",
   PROTOCOL_FPE_KEY: "vitest-only-protocol-fpe-key",
-  UPLOAD_DIR: join(tmpdir(), `neo-kaizen-test-uploads-${process.pid}`),
 };
+
+/**
+ * `UPLOAD_DIR` é isolado por project: e2e e db rodam em paralelo e cada um
+ * limpa o próprio diretório no `afterAll`. Um diretório único por processo
+ * faria um project apagar arquivos do outro.
+ */
+function testEnv(project: string) {
+  return {
+    ...baseTestEnv,
+    UPLOAD_DIR: join(tmpdir(), `neo-kaizen-test-uploads-${project}-${process.pid}`),
+  };
+}
 
 const mockReset = {
   mockReset: true,
+  restoreMocks: true,
 };
 
 export default defineConfig({
@@ -39,7 +51,7 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
-          env: testEnv,
+          env: testEnv("unit"),
           include: ["tests/unit/**/*.test.ts"],
           ...mockReset,
         },
@@ -48,7 +60,7 @@ export default defineConfig({
         test: {
           name: "integration",
           environment: "node",
-          env: testEnv,
+          env: testEnv("integration"),
           include: ["tests/integration/**/*.test.ts"],
           ...mockReset,
         },
@@ -57,7 +69,7 @@ export default defineConfig({
         test: {
           name: "e2e",
           environment: "node",
-          env: testEnv,
+          env: testEnv("e2e"),
           include: ["tests/e2e/**/*.test.ts"],
           testTimeout: 20_000,
           hookTimeout: 20_000,
@@ -68,7 +80,7 @@ export default defineConfig({
         test: {
           name: "db",
           environment: "node",
-          env: testEnv,
+          env: testEnv("db"),
           include: ["tests/db/**/*.test.ts"],
           globalSetup: ["./tests/helpers/dbGlobalSetup.ts"],
           // Um único banco compartilhado: arquivos rodam em série para que o

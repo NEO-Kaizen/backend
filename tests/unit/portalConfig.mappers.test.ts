@@ -4,7 +4,7 @@ import {
   themeFromRow,
   themeToColumns,
 } from "../../src/modules/portalConfig/portalConfig.mappers.ts";
-import type { PortalTheme } from "../../src/shared/types/portalConfig.ts";
+import { THEME_TOKEN_KEYS, type PortalTheme } from "../../src/shared/types/portalConfig.ts";
 import type { SystemThemeRow } from "../../src/shared/types/systemTheme.ts";
 
 /** Constrói uma linha completa a partir das colunas do mapper (fake tipado). */
@@ -33,6 +33,42 @@ describe("portalConfig.mappers", () => {
     const restored = themeFromRow(makeRow(custom));
 
     expect(restored).toEqual(custom);
+  });
+
+  it("faz round-trip de TODAS as colunas com valores únicos e não-default", () => {
+    const custom = structuredClone(DEFAULT_THEME);
+    let counter = 0;
+    const nextHex = () => `#${String(++counter).padStart(6, "0")}`;
+
+    for (const palette of ["light", "dark"] as const) {
+      const tokens = custom[palette] as unknown as Record<string, string>;
+      for (const token of THEME_TOKEN_KEYS) {
+        tokens[token] = nextHex();
+      }
+      custom[palette].gradient = { from: nextHex(), to: nextHex(), angle: 200 + counter };
+      for (const tone of ["error", "success", "info", "warning", "neutral"] as const) {
+        custom[palette].statuses[tone] = {
+          color: nextHex(),
+          background: nextHex(),
+          backgroundLocked: false,
+        };
+      }
+    }
+
+    const columns = themeToColumns(custom);
+    expect(Object.keys(columns)).toHaveLength(62);
+    expect(themeFromRow(makeRow(custom))).toEqual(custom);
+  });
+
+  it("themeToColumns aplica o ângulo default 143 quando ausente", () => {
+    const theme = structuredClone(DEFAULT_THEME);
+    theme.light.gradient.angle = undefined;
+    theme.dark.gradient.angle = undefined;
+
+    const columns = themeToColumns(theme);
+
+    expect(columns.light_gradient_angle).toBe(143);
+    expect(columns.dark_gradient_angle).toBe(143);
   });
 
   it("themeToColumns achata tokens, gradiente e statuses com o prefixo da paleta", () => {

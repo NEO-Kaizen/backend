@@ -1,11 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { startTestServer, TestClient, type TestServer } from "../helpers/http.ts";
-import { closeTestDb, insertUser, resetTestDb, testDb } from "../helpers/testDb.ts";
+import { closeTestDb, insertAdmin, insertUser, resetTestDb, testDb } from "../helpers/testDb.ts";
 
 vi.mock("../../src/database/conection.ts", async () => {
   const { testDb } = await import("../helpers/testDb.ts");
   return { default: testDb };
 });
+
+const usersService = await import("../../src/modules/users/users.service.ts");
 
 const PASSWORD = "SenhaAtual@123";
 const NEW_PASSWORD = "NovaSenha@456";
@@ -54,6 +56,8 @@ describe("HTTP real — autenticação e sessão", () => {
       sameSite: "Lax",
       path: "/",
     });
+    const oldToken = cookie?.value;
+    expect(oldToken).toBeTruthy();
 
     const me = await client.get("/auth/me");
     expect(me.status).toBe(200);
@@ -66,6 +70,17 @@ describe("HTTP real — autenticação e sessão", () => {
     });
     expect(changed.status).toBe(200);
     expect(changed.body).toMatchObject({ mustChangePassword: false });
+
+    // O cookie emitido antes da troca perde validade imediatamente.
+    const oldSession = new TestClient(server.baseUrl);
+    const revoked = await oldSession.get("/auth/me", {
+      cookie: `session_id=${oldToken}`,
+    });
+    expect(revoked.status).toBe(401);
+    expect(revoked.body).toMatchObject({
+      statusCode: 401,
+      message: "Sua sessão foi revogada. Faça login novamente.",
+    });
 
     await client.post("/auth/logout");
     expect(client.cookieHeader).toBe("");
@@ -91,6 +106,46 @@ describe("HTTP real — autenticação e sessão", () => {
       entity_id: String(user.user_id),
       user_id: user.user_id,
     });
+  });
+
+  it("revoga a sessão antiga após reset administrativo de senha", async () => {
+    const admin = await insertAdmin();
+    const target = await insertUser({
+      email: "alvo@neo.com",
+      password: PASSWORD,
+      profileName: "solicitante",
+    });
+    const client = new TestClient(server.baseUrl);
+
+    const login = await client.post("/auth/login", {
+      email: "alvo@neo.com",
+      password: PASSWORD,
+    });
+    expect(login.status).toBe(200);
+    const oldToken = client.getCookie("session_id")?.value;
+    expect(oldToken).toBeTruthy();
+
+    const reset = await usersService.resetPassword(
+      String(target.user_id),
+      admin.user_id,
+      "203.0.113.70",
+    );
+
+    const oldSession = new TestClient(server.baseUrl);
+    const revoked = await oldSession.get("/auth/me", {
+      cookie: `session_id=${oldToken}`,
+    });
+    expect(revoked.status).toBe(401);
+    expect(revoked.body).toMatchObject({
+      message: "Sua sessão foi revogada. Faça login novamente.",
+    });
+
+    const withTemporary = await new TestClient(server.baseUrl).post("/auth/login", {
+      email: "alvo@neo.com",
+      password: reset.temporaryPassword,
+    });
+    expect(withTemporary.status).toBe(200);
+    expect(withTemporary.body).toMatchObject({ mustChangePassword: true });
   });
 
   it("devolve envelope de erro para credenciais inválidas", async () => {

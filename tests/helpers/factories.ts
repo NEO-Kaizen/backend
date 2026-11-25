@@ -4,10 +4,12 @@ import type { AuthState } from "../../src/modules/auth/auth.repository.ts";
 import type { Role } from "../../src/shared/types/role.ts";
 import { generateToken, type TokenPayload } from "../../src/shared/utils/jwtUtil.ts";
 import type { CriterionRow } from "../../src/shared/types/prioritization.ts";
+import type { LoginResponseDTO } from "../../src/modules/DTOs/auth/LoginResponse.dto.ts";
 import type { CreateRequestPayload } from "../../src/modules/DTOs/requests/RequestRequests.dto.ts";
 import type { CreateRequestResponse } from "../../src/modules/DTOs/requests/RequestResponse.dto.ts";
 import type { TrackingDetailsResponse } from "../../src/modules/DTOs/requests/RequestTracking.dto.ts";
-import type { UserSummary } from "../../src/modules/DTOs/users/UserResponse.dto.ts";
+import type { AssignAnalyst, UserSummary } from "../../src/modules/DTOs/users/UserResponse.dto.ts";
+import type { UserProfileResponseDTO } from "../../src/modules/DTOs/users/UserProfileResponse.dto.ts";
 import type { PaginatedResponse } from "../../src/shared/types/pagination.ts";
 import Config from "../../src/configs.ts";
 
@@ -62,6 +64,19 @@ export function makeAuthUser(overrides: Partial<AuthUserRow> = {}): AuthUserRow 
   };
 }
 
+/** Corpo de login/`GET /auth/me` com todos os campos do contrato. */
+export function makeSessionResponse(overrides: Partial<LoginResponseDTO> = {}): LoginResponseDTO {
+  return {
+    id: "1",
+    name: "Usuário de Teste",
+    email: "teste@neo.com",
+    avatarUrl: null,
+    role: "Analista",
+    mustChangePassword: false,
+    ...overrides,
+  };
+}
+
 /** Estado de autenticação lido pelo `authMiddleware` a cada request. */
 export function makeAuthState(overrides: Partial<AuthState> = {}): AuthState {
   return {
@@ -100,10 +115,9 @@ export function makeExpiredToken(overrides: Partial<TokenPayload> = {}): string 
   return jwt.sign(makeTokenPayload(overrides), secret, { expiresIn: -1 });
 }
 
-/** JWT com assinatura adulterada. */
+/** JWT com assinatura adulterada (sufixo extra invalida a assinatura sempre). */
 export function makeTamperedToken(overrides: Partial<TokenPayload> = {}): string {
-  const token = makeToken(overrides);
-  return `${token.slice(0, -2)}xx`;
+  return `${makeToken(overrides)}x`;
 }
 
 /** Payload válido de `POST /requests` (multipart, parte `payload`). */
@@ -140,7 +154,7 @@ export function makeRequestPayload(): CreateRequestPayload {
       mainRisks: "Erros de digitação.",
       clientImpact: "Impacto baixo.",
       operationalImpact: "Médio",
-      desiredDeadline: "2030-12-31",
+      desiredDeadline: "2099-12-31",
       perceivedCriticality: "Alta",
     },
     complementary: {
@@ -150,7 +164,7 @@ export function makeRequestPayload(): CreateRequestPayload {
       handlesRestrictedInfo: false,
       additionalNotes: "Observações adicionais.",
     },
-    schedulePreferences: ["2030-12-30T10:00", "2030-12-31T14:00"],
+    schedulePreferences: ["2099-12-30T10:00", "2099-12-31T14:00"],
   };
 }
 
@@ -202,7 +216,7 @@ export function makeTrackingResponse(
         clientImpact: "Baixo.",
         operationalImpact: "Médio",
         perceivedCriticality: "Alta",
-        desiredDeadline: "2030-12-31",
+        desiredDeadline: "2099-12-31",
       },
       ...overrides,
     },
@@ -219,6 +233,39 @@ export function makeUserSummary(overrides: Partial<UserSummary> = {}): UserSumma
     isActive: true,
     mustChangePassword: false,
     createdAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+export function makeAnalyst(overrides: Partial<AssignAnalyst> = {}): AssignAnalyst {
+  return {
+    id: "2",
+    fullName: "Ana Analista",
+    email: "ana@neo.com",
+    specialty: "Automação",
+    categories: ["Automação"],
+    notes: null,
+    requestLoad: 0,
+    ...overrides,
+  };
+}
+
+export function makeUserProfile(
+  overrides: Partial<UserProfileResponseDTO> = {},
+): UserProfileResponseDTO {
+  return {
+    id: "7",
+    fullName: "Maria",
+    email: "maria@neo.com",
+    role: "Solicitante",
+    avatarUrl: null,
+    requester: {
+      area: "Financeiro",
+      department: null,
+      manager: "Gestor",
+      additionalContact: null,
+    },
+    professional: null,
     ...overrides,
   };
 }

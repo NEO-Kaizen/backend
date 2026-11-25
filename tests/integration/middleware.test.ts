@@ -120,6 +120,23 @@ describe("authMiddleware", () => {
     expect(next).toHaveBeenCalledWith();
   });
 
+  it("libera /auth/change-password e propaga o escopo change_password", async () => {
+    const next = makeNext();
+    vi.mocked(authRepository.getAuthState).mockResolvedValue(
+      makeAuthState({ must_change_password: true }),
+    );
+    const req = makeReq({
+      cookies: { session_id: makeToken({ scope: "change_password" }) },
+      originalUrl: "/auth/change-password?x=1",
+    });
+
+    await authMiddleware(req, makeRes(), next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(next).toHaveBeenCalledWith();
+    expect(req.authScope).toBe("change_password");
+  });
+
   it("revoga tokens emitidos antes de uma troca de senha (401)", async () => {
     const next = makeNext();
     vi.mocked(authRepository.getAuthState).mockResolvedValue(
@@ -143,22 +160,22 @@ describe("authMiddleware", () => {
     });
   });
 
-  it("rejeita usuário inativo com 401", async () => {
+  it("rejeita usuário inativo com 401 e mensagem anti-enumeração", async () => {
     const next = makeNext();
     vi.mocked(authRepository.getAuthState).mockResolvedValue(makeAuthState({ is_active: false }));
 
     await authMiddleware(makeReq({ cookies: { session_id: makeToken() } }), makeRes(), next);
-    expectNextError(next, { statusCode: 401 });
+    expectNextError(next, { statusCode: 401, message: "Token inválido ou expirado" });
   });
 
-  it("rejeita perfil inativo com 401", async () => {
+  it("rejeita perfil inativo com 401 e mensagem anti-enumeração", async () => {
     const next = makeNext();
     vi.mocked(authRepository.getAuthState).mockResolvedValue(
       makeAuthState({ profile_is_active: false }),
     );
 
     await authMiddleware(makeReq({ cookies: { session_id: makeToken() } }), makeRes(), next);
-    expectNextError(next, { statusCode: 401 });
+    expectNextError(next, { statusCode: 401, message: "Token inválido ou expirado" });
   });
 
   it("rejeita quando o usuário não existe mais no banco (401)", async () => {
@@ -244,14 +261,22 @@ describe("requesterDualAuth", () => {
     expectNextError(next, { statusCode: 401 });
   });
 
-  it("rejeita header de identidade malformado", () => {
-    const next = makeNext();
-    requesterDualAuth(
-      makeReq({ headers: { "x-requester-identity": "{invalido" } }),
-      makeRes(),
-      next,
-    );
-    expectNextError(next, { statusCode: 401 });
+  it("rejeita header de identidade malformado ou sem os campos obrigatórios", () => {
+    for (const identity of [
+      "{invalido",
+      JSON.stringify({ name: "Maria" }),
+      JSON.stringify({ email: "maria@neo.com" }),
+      JSON.stringify({ name: 1, email: "maria@neo.com" }),
+      JSON.stringify({ name: "Maria", email: "nao-email" }),
+    ]) {
+      const next = makeNext();
+      requesterDualAuth(
+        makeReq({ headers: { "x-requester-identity": identity } }),
+        makeRes(),
+        next,
+      );
+      expectNextError(next, { statusCode: 401 });
+    }
   });
 
   it("com header X-Requester-Identity válido, marca a identidade no request", () => {
@@ -299,6 +324,20 @@ describe("requireAccessMode", () => {
 
     await requireAccessMode()(makeReq(), makeRes(), next);
     expectNextError(next, { statusCode: 401 });
+  });
+
+  it("modo AUTHENTICATED libera com sessão válida e marca o accessMode", async () => {
+    vi.mocked(portalConfigRepository.getSolicitationMode).mockResolvedValue("AUTHENTICATED");
+    vi.mocked(authRepository.getAuthState).mockResolvedValue(makeAuthState());
+    const next = makeNext();
+    const req = makeReq({ cookies: { session_id: makeToken() } });
+
+    await requireAccessMode()(req, makeRes(), next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(next).toHaveBeenCalledWith();
+    expect(req.accessMode).toBe("AUTHENTICATED");
+    expect(req.user).toMatchObject({ id: "1" });
   });
 
   it("encaminha erro ao ler o modo do banco", async () => {

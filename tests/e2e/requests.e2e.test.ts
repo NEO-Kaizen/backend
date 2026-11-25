@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { rm } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import {
   makeAuthState,
   makeCreateRequestResponse,
@@ -7,13 +7,14 @@ import {
   makeToken,
   makeTrackingResponse,
 } from "../helpers/factories.ts";
+import type { RequestDetail } from "../../src/modules/DTOs/requests/RequestResponse.dto.ts";
 import {
+  cleanupTestUploads,
   expectErrorEnvelope,
   startTestServer,
   TestClient,
   type TestServer,
 } from "../helpers/http.ts";
-import Config from "../../src/configs.ts";
 
 // Contrato HTTP e upload com o service mockado. A persistência real (service +
 // Postgres + anexos) está em `tests/db/requests.service.test.ts` e
@@ -66,7 +67,7 @@ afterEach(() => {
 
 afterAll(async () => {
   await server.close();
-  await rm(Config.UPLOAD_DIR, { recursive: true, force: true });
+  await cleanupTestUploads();
 });
 
 function publicMode() {
@@ -136,12 +137,12 @@ describe("E2E — rotas de solicitação (modo PUBLIC)", () => {
   });
 });
 
-describe("E2E — POST /requests (validação)", () => {
+describe("E2E — POST /requests (multipart: validação do payload)", () => {
   it("exige a parte multipart 'payload'", async () => {
     publicMode();
     const client = new TestClient(server.baseUrl);
 
-    const response = await client.post("/requests", {});
+    const response = await client.request("POST", "/requests", { rawBody: new FormData() });
     expectErrorEnvelope(response, {
       statusCode: 400,
       message: "Parte 'payload' ausente no corpo da requisição.",
@@ -151,8 +152,10 @@ describe("E2E — POST /requests (validação)", () => {
   it("rejeita payload com JSON inválido", async () => {
     publicMode();
     const client = new TestClient(server.baseUrl);
+    const form = new FormData();
+    form.append("payload", "{nao-e-json");
 
-    const response = await client.post("/requests", { payload: "{nao-e-json" });
+    const response = await client.request("POST", "/requests", { rawBody: form });
     expectErrorEnvelope(response, {
       statusCode: 400,
       message: "A parte 'payload' contém um JSON inválido.",
@@ -163,38 +166,38 @@ describe("E2E — POST /requests (validação)", () => {
     publicMode();
     const client = new TestClient(server.baseUrl);
 
-    const response = await client.post("/requests", { payload: JSON.stringify({}) });
+    const response = await client.request("POST", "/requests", {
+      rawBody: formWithPayload({}),
+    });
     expectErrorEnvelope(response, { statusCode: 400, message: /Campos obrigatórios ausentes/ });
   });
 
-  it("cria a solicitação com payload válido (201)", async () => {
+  it("cria a solicitação com payload válido (201) e devolve o DTO completo", async () => {
     publicMode();
     const created = makeCreateRequestResponse({ protocol: PROTOCOL });
     vi.mocked(service.registerRequest).mockResolvedValue(created);
 
     const client = new TestClient(server.baseUrl);
-    const response = await client.post("/requests", {
-      payload: JSON.stringify(makeRequestPayload()),
+    const response = await client.request("POST", "/requests", {
+      rawBody: formWithPayload(makeRequestPayload()),
     });
 
     expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({ protocol: PROTOCOL });
+    expect(response.body).toEqual(created);
     expect(service.registerRequest).toHaveBeenCalledOnce();
   });
 });
 
 describe("E2E — POST /requests (multipart real)", () => {
-  it("processa anexo válido e entrega os metadados ao service", async () => {
+  it("processa anexo válido, grava os bytes e entrega os metadados ao service", async () => {
     publicMode();
     const created = makeCreateRequestResponse({ protocol: PROTOCOL });
     vi.mocked(service.registerRequest).mockResolvedValue(created);
 
     const client = new TestClient(server.baseUrl);
+    const content = Buffer.from("%PDF-1.4 teste");
     const form = formWithPayload(makeRequestPayload());
-    form.append(
-      "attachments",
-      new File([Buffer.from("%PDF-1.4 teste")], "documento.pdf", { type: "application/pdf" }),
-    );
+    form.append("attachments", new File([content], "documento.pdf", { type: "application/pdf" }));
 
     const response = await client.request("POST", "/requests", { rawBody: form });
 
@@ -206,7 +209,12 @@ describe("E2E — POST /requests (multipart real)", () => {
     expect(attachments?.[0]).toMatchObject({
       fileName: "documento.pdf",
       mimeType: "application/pdf",
+      sizeBytes: content.byteLength,
     });
+
+    const storagePath = attachments?.[0]?.storagePath;
+    expect(storagePath).toBeTruthy();
+    await expect(readFile(storagePath!, "utf8")).resolves.toBe(content.toString("utf8"));
   });
 
   it("rejeita MIME não permitido", async () => {
@@ -222,6 +230,69 @@ describe("E2E — POST /requests (multipart real)", () => {
       message: /Formato de arquivo não permitido/,
     });
     expect(service.registerRequest).not.toHaveBeenCalled();
+  });
+
+  it("rejeita extensão não permitida mesmo com MIME de PDF", async () => {
+    publicMode();
+    const client = new TestClient(server.baseUrl);
+    const form = formWithPayload(makeRequestPayload());
+    form.append(
+      "attachments",
+      new File([Buffer.from("<script>alert(1)</script>")], "malicioso.html", {
+        type: "application/pdf",
+      }),
+    );
+
+    const response = await client.request("POST", "/requests", { rawBody: form });
+
+    expectErrorEnvelope(response, {
+      statusCode: 400,
+      message: /Formato de arquivo não permitido/,
+    });
+    expect(service.registerRequest).not.toHaveBeenCalled();
+  });
+
+  it("aceita exatamente 5 anexos e a tabela de MIMEs permitidos", async () => {
+    publicMode();
+    vi.mocked(service.registerRequest).mockResolvedValue(makeCreateRequestResponse());
+    const client = new TestClient(server.baseUrl);
+    const form = formWithPayload(makeRequestPayload());
+    const allowed = [
+      ["documento.pdf", "application/pdf"],
+      ["documento.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+      ["planilha.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+      ["imagem.png", "image/png"],
+      ["foto.jpg", "image/jpeg"],
+    ] as const;
+
+    for (const [name, type] of allowed) {
+      form.append("attachments", new File([`conteudo-${name}`], name, { type }));
+    }
+
+    const response = await client.request("POST", "/requests", { rawBody: form });
+
+    expect(response.status).toBe(201);
+    const attachments = vi.mocked(service.registerRequest).mock.calls[0]?.[1];
+    expect(attachments).toHaveLength(5);
+    expect(attachments?.map((item) => item.fileName)).toEqual(allowed.map(([name]) => name));
+  });
+
+  it("aceita anexo de exatamente 10 MB", async () => {
+    publicMode();
+    vi.mocked(service.registerRequest).mockResolvedValue(makeCreateRequestResponse());
+    const client = new TestClient(server.baseUrl);
+    const form = formWithPayload(makeRequestPayload());
+    const exactlyTenMb = Buffer.alloc(10 * 1024 * 1024);
+    form.append("attachments", new File([exactlyTenMb], "limite.pdf", { type: "application/pdf" }));
+
+    const response = await client.request("POST", "/requests", {
+      rawBody: form,
+      timeoutMs: 20_000,
+    });
+
+    expect(response.status).toBe(201);
+    const attachments = vi.mocked(service.registerRequest).mock.calls[0]?.[1];
+    expect(attachments?.[0]?.sizeBytes).toBe(10 * 1024 * 1024);
   });
 
   it("rejeita mais de 5 anexos", async () => {
@@ -252,20 +323,107 @@ describe("E2E — POST /requests (multipart real)", () => {
   });
 });
 
+describe("E2E — modo AUTHENTICATED", () => {
+  function authenticatedSession() {
+    vi.mocked(portalConfigRepository.getSolicitationMode).mockResolvedValue("AUTHENTICATED");
+    vi.mocked(authRepository.getAuthState).mockResolvedValue(makeAuthState());
+    return { cookie: `session_id=${makeToken()}` };
+  }
+
+  it("rejeita ?email e lista apenas pela identidade da sessão", async () => {
+    const headers = authenticatedSession();
+    const page = { data: [], page: 1, pageSize: 10, total: 0, totalPages: 0 };
+    vi.mocked(service.listRequestsByEmail).mockResolvedValue(page);
+    const client = new TestClient(server.baseUrl);
+
+    const withEmail = await client.get("/requests?email=outra@neo.com", headers);
+    expectErrorEnvelope(withEmail, {
+      statusCode: 400,
+      message: "O parâmetro 'email' não é aceito no modo autenticado.",
+    });
+    expect(service.listRequestsByEmail).not.toHaveBeenCalled();
+
+    const scoped = await client.get("/requests?page=1&pageSize=10", headers);
+    expect(scoped.status).toBe(200);
+    expect(scoped.body).toEqual(page);
+    expect(service.listRequestsByEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, pageSize: 10 }),
+      1,
+    );
+  });
+
+  it("exige cookie no modo AUTHENTICATED", async () => {
+    vi.mocked(portalConfigRepository.getSolicitationMode).mockResolvedValue("AUTHENTICATED");
+    const client = new TestClient(server.baseUrl);
+
+    expectErrorEnvelope(await client.get("/requests"), { statusCode: 401 });
+    expectErrorEnvelope(await client.get(`/requests/${PROTOCOL}`), { statusCode: 401 });
+  });
+
+  it("passa a identidade da sessão ao consultar uma solicitação", async () => {
+    const headers = authenticatedSession();
+    const detail = { protocol: PROTOCOL } as RequestDetail;
+    vi.mocked(service.findRequest).mockResolvedValue(detail);
+    const client = new TestClient(server.baseUrl);
+
+    const response = await client.get(`/requests/${PROTOCOL}`, headers);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(detail);
+    expect(service.findRequest).toHaveBeenCalledWith(PROTOCOL, 1);
+  });
+});
+
+describe("E2E — validação do PATCH interno", () => {
+  it("devolve 422 com fields quando o payload está vazio", async () => {
+    publicMode();
+    vi.mocked(authRepository.getAuthState).mockResolvedValue(makeAuthState());
+    const client = new TestClient(server.baseUrl);
+
+    const response = await client.request("PATCH", `/requests/${PROTOCOL}/internal`, {
+      body: {},
+      headers: { cookie: `session_id=${makeToken({ role: "Analista" })}` },
+    });
+
+    expectErrorEnvelope(response, {
+      statusCode: 422,
+      fields: { requester: "Campo obrigatório." },
+    });
+    expect(service.updateInternalRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe("E2E — erro interno", () => {
+  it("não vaza detalhe quando o service falha com erro não tratado", async () => {
+    publicMode();
+    vi.mocked(service.registerRequest).mockRejectedValue(new Error("detalhe interno sensível"));
+    const client = new TestClient(server.baseUrl);
+
+    const response = await client.request("POST", "/requests", {
+      rawBody: formWithPayload(makeRequestPayload()),
+    });
+
+    expectErrorEnvelope(response, {
+      statusCode: 500,
+      message: "Erro interno do servidor",
+    });
+    expect(response.text).not.toContain("detalhe interno sensível");
+  });
+});
+
 describe("E2E — rotas internas exigem sessão", () => {
   it("bloqueia consulta interna e troca de status sem autenticação", async () => {
     publicMode();
     const client = new TestClient(server.baseUrl);
 
-    expect((await client.get(`/requests/${PROTOCOL}/internal`)).status).toBe(401);
-    expect(
-      (
-        await client.patch(`/requests/${PROTOCOL}/status`, {
-          targetStatus: 3,
-          justification: "ok",
-        })
-      ).status,
-    ).toBe(401);
+    expectErrorEnvelope(await client.get(`/requests/${PROTOCOL}/internal`), { statusCode: 401 });
+    expectErrorEnvelope(
+      await client.patch(`/requests/${PROTOCOL}/status`, {
+        targetStatus: 3,
+        justification: "ok",
+      }),
+      { statusCode: 401 },
+    );
   });
 
   it("valida o corpo da troca de status (400 sem justificativa)", async () => {

@@ -74,8 +74,9 @@ describe("auth.service (Postgres real)", () => {
     }
   });
 
-  it("troca a senha, grava auditoria e invalida a senha antiga", async () => {
+  it("troca a senha, avança password_changed_at, grava auditoria e invalida a antiga", async () => {
     const user = await insertUser({ email: "maria@neo.com", password: PASSWORD });
+    const before = await testDb("users").where({ user_id: user.user_id }).first();
 
     const result = await authService.changePassword(
       user.user_id,
@@ -88,11 +89,16 @@ describe("auth.service (Postgres real)", () => {
     );
 
     expect(result.mustChangePassword).toBe(false);
-    expect(result.passwordChangedAt).toBeGreaterThanOrEqual(
-      new Date("2026-01-01T00:00:00.000Z").getTime(),
-    );
 
     const updated = await testDb("users").where({ user_id: user.user_id }).first();
+    // Se o repository parar de atualizar password_changed_at, a sessão antiga
+    // continuaria válida — esta é a prova real contra o banco.
+    expect(updated.password_changed_at.getTime()).toBeGreaterThan(
+      before.password_changed_at.getTime(),
+    );
+    expect(result.passwordChangedAt).toBe(updated.password_changed_at.getTime());
+    expect(updated.must_change_password).toBe(false);
+
     await expect(comparePassword(NEW_PASSWORD, updated.password_hash)).resolves.toBe(true);
     await expect(comparePassword(PASSWORD, updated.password_hash)).resolves.toBe(false);
 
@@ -134,7 +140,7 @@ describe("auth.service (Postgres real)", () => {
     await expect(auditRows()).resolves.toHaveLength(0);
   });
 
-  it("devolve a sessão apenas para usuário ativo e perfil ativo", async () => {
+  it("devolve a sessão apenas para usuário ativo", async () => {
     const user = await insertUser({ email: "maria@neo.com" });
 
     await expect(authService.getSessionUser(user.user_id)).resolves.toMatchObject({
@@ -145,6 +151,38 @@ describe("auth.service (Postgres real)", () => {
     await testDb("users").where({ user_id: user.user_id }).update({ is_active: false });
     await expect(authService.getSessionUser(user.user_id)).rejects.toMatchObject({
       statusCode: 401,
+    });
+  });
+
+  it("rejeita sessão quando o perfil está inativo", async () => {
+    const user = await insertUser({ email: "maria@neo.com" });
+    await testDb("profiles").where({ name: "analista" }).update({ is_active: false });
+
+    await expect(authService.getSessionUser(user.user_id)).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Token inválido ou expirado",
+    });
+  });
+
+  it("rejeita troca de senha quando usuário ou perfil estão inativos", async () => {
+    const user = await insertUser({ email: "maria@neo.com", password: PASSWORD });
+    const body = {
+      currentPassword: PASSWORD,
+      newPassword: NEW_PASSWORD,
+      confirmNewPassword: NEW_PASSWORD,
+    };
+
+    await testDb("users").where({ user_id: user.user_id }).update({ is_active: false });
+    await expect(authService.changePassword(user.user_id, body, undefined)).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Token inválido ou expirado",
+    });
+
+    await testDb("users").where({ user_id: user.user_id }).update({ is_active: true });
+    await testDb("profiles").where({ name: "analista" }).update({ is_active: false });
+    await expect(authService.changePassword(user.user_id, body, undefined)).rejects.toMatchObject({
+      statusCode: 401,
+      message: "Token inválido ou expirado",
     });
   });
 });

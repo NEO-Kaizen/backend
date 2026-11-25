@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import jwt from "jsonwebtoken";
 import { resolveRole } from "../../src/shared/utils/roleUtils.ts";
+import Config from "../../src/configs.ts";
 import { normalizeEmail, normalizeName } from "../../src/shared/utils/normalizeIdentity.ts";
 import { canonicalJson } from "../../src/shared/utils/json.ts";
 import {
@@ -7,6 +9,7 @@ import {
   normalizeIsoDateOnly,
   toDateOnly,
   toDateTimeMinutes,
+  toSaoPauloDateOnly,
 } from "../../src/shared/utils/date.ts";
 import {
   comparePassword,
@@ -36,6 +39,7 @@ describe("roleUtils.resolveRole", () => {
 describe("normalizeIdentity", () => {
   it("remove acentos, faz trim e minúsculas (sem colapsar espaços internos)", () => {
     expect(normalizeName("  José da Silva ")).toBe("jose da silva");
+    expect(normalizeName("José   da  Silva")).toBe("jose   da  silva");
   });
 
   it("normaliza e-mail (trim + lowercase)", () => {
@@ -65,6 +69,7 @@ describe("date helpers", () => {
 
   it("normalizeIsoDateOnly aceita yyyy-mm-dd e converte Date", () => {
     expect(normalizeIsoDateOnly("2026-05-09")).toBe("2026-05-09");
+    expect(normalizeIsoDateOnly(new Date(2026, 4, 9, 12))).toBe("2026-05-09");
     expect(normalizeIsoDateOnly("valor inválido")).toBeNull();
   });
 
@@ -73,6 +78,12 @@ describe("date helpers", () => {
     expect(toDateOnly(date)).toBe("2026-05-09");
     expect(toDateTimeMinutes(date)).toBe("2026-05-09T08:05");
     expect(toDateOnly("2026-05-09T10:00:00Z")).toBe("2026-05-09");
+  });
+
+  it("toSaoPauloDateOnly não desloca o dia nas viradas de fuso", () => {
+    expect(toSaoPauloDateOnly("2026-05-10T02:00:00Z")).toBe("2026-05-09");
+    expect(toSaoPauloDateOnly("2026-05-10T03:00:00Z")).toBe("2026-05-10");
+    expect(toSaoPauloDateOnly("valor inválido")).toBeNull();
   });
 });
 
@@ -104,5 +115,32 @@ describe("jwtUtil", () => {
   it("rejeita token adulterado", () => {
     const token = generateToken(makeTokenPayload());
     expect(() => verifyToken(`${token}x`)).toThrow();
+  });
+
+  it("rejeita payload assinado estruturalmente inválido", () => {
+    const secret = Config.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET ausente no ambiente de teste");
+
+    const valid = makeTokenPayload();
+    const invalidPayloads: Array<Record<string, unknown>> = [
+      { ...valid, role: "Hacker" },
+      { ...valid, password_changed_at: "2026-01-01" },
+      { ...valid, id: 1 },
+      { ...valid, email: 42 },
+      { ...valid, name: undefined },
+    ];
+
+    for (const payload of invalidPayloads) {
+      const token = jwt.sign(payload, secret, { expiresIn: "1d" });
+      expect(() => verifyToken(token)).toThrow();
+    }
+  });
+
+  it("normaliza escopo desconhecido para session", () => {
+    const secret = Config.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET ausente no ambiente de teste");
+    const token = jwt.sign({ ...makeTokenPayload(), scope: "root" }, secret, { expiresIn: "1d" });
+
+    expect(verifyToken(token).scope).toBe("session");
   });
 });

@@ -24,6 +24,7 @@ vi.mock("../../src/modules/users/users.repository.ts", () => ({
   updateUserFields: vi.fn(),
   syncRequesterIdentity: vi.fn(),
   upsertProfessionalData: vi.fn(),
+  upsertRequesterData: vi.fn(),
   deleteProfessionalData: vi.fn(),
   removeUserAvatar: vi.fn(),
   setUserAvatar: vi.fn(),
@@ -38,6 +39,24 @@ const requesterBlock = {
   manager: "Gestor",
   additionalContact: null,
 };
+
+function profileRow(overrides: Record<string, unknown> = {}) {
+  return {
+    user_id: 9,
+    full_name: "Alvo",
+    email: "alvo@neo.com",
+    avatar_url: null,
+    profile_name: "solicitante",
+    requester: {
+      area: "Financeiro",
+      department: null,
+      manager_name: "Gestor",
+      additional_contact: null,
+    },
+    professional: null,
+    ...overrides,
+  };
+}
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -193,6 +212,187 @@ describe("users.service.resetPassword", () => {
   });
 });
 
+describe("users.service.updateUser", () => {
+  const professional = {
+    jobTitle: "Analista",
+    specialties: ["Automação"],
+    attendedCategoryIds: [1],
+    notes: undefined,
+  };
+
+  it("impede o admin de editar a própria conta", async () => {
+    await expect(usersService.updateUser("1", {}, 1, undefined)).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it("retorna 404 quando o alvo não existe", async () => {
+    vi.mocked(repository.findUserById).mockResolvedValue(undefined);
+    await expect(
+      usersService.updateUser("9", { fullName: "X" }, 1, undefined),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("bloqueia edição de conta de Administrador", async () => {
+    vi.mocked(repository.findUserById).mockResolvedValue(
+      makeAuthUser({ user_id: 9, profile_name: "administrador" }),
+    );
+    await expect(
+      usersService.updateUser("9", { fullName: "X" }, 1, undefined),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: "Não é possível gerenciar contas de Administradores",
+    });
+  });
+
+  it("bloqueia promoção para Administrador (escalonamento vertical)", async () => {
+    vi.mocked(repository.findUserById).mockResolvedValue(
+      makeAuthUser({ user_id: 9, profile_name: "solicitante" }),
+    );
+    vi.mocked(repository.findProfileIdByName).mockResolvedValue(3);
+
+    await expect(
+      usersService.updateUser("9", { role: "administrador" }, 1, undefined),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("recusa dados profissionais em perfil não-analista", async () => {
+    vi.mocked(repository.findUserById).mockResolvedValue(
+      makeAuthUser({ user_id: 9, profile_name: "solicitante" }),
+    );
+
+    await expect(
+      usersService.updateUser("9", { professional }, 1, undefined),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("exige dados profissionais ao promover para Analista", async () => {
+    vi.mocked(repository.findUserById).mockResolvedValue(
+      makeAuthUser({ user_id: 9, profile_name: "solicitante" }),
+    );
+    vi.mocked(repository.findProfileIdByName).mockResolvedValue(2);
+    vi.mocked(repository.isProfessionalProfile)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
+
+    await expect(
+      usersService.updateUser("9", { role: "analista" }, 1, undefined),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("atualiza o usuário, sincroniza a identidade e audita na mesma transação", async () => {
+    const before = profileRow();
+    const after = profileRow({ full_name: "Alvo Novo", email: "novo@neo.com" });
+    vi.mocked(repository.findUserById).mockResolvedValue(
+      makeAuthUser({ user_id: 9, email: "alvo@neo.com", profile_name: "solicitante" }),
+    );
+    vi.mocked(repository.findUserProfile)
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce(after);
+
+    const result = await usersService.updateUser(
+      "9",
+      { fullName: "Alvo Novo", email: "novo@neo.com" },
+      1,
+      "203.0.113.60",
+    );
+
+    expect(result).toMatchObject({ id: "9", fullName: "Alvo Novo", email: "novo@neo.com" });
+    expect(repository.updateUserFields).toHaveBeenCalledOnce();
+    expect(repository.syncRequesterIdentity).toHaveBeenCalledWith(expect.anything(), 9, {
+      fullName: "Alvo Novo",
+      corporateEmail: "novo@neo.com",
+    });
+    expect(fakeDbState.transactions).toBe(1);
+    expect(fakeDbState.commits).toBe(1);
+    expect(fakeDbState.auditRows[0]).toMatchObject({
+      entity_type: "user",
+      entity_id: "9",
+      action_type: "user.update",
+      user_id: 1,
+      ip_address: "203.0.113.60",
+      change_origin: "admin",
+    });
+  });
+});
+
+describe("users.service.updateMyProfile", () => {
+  it("impede editar o perfil de outro usuário", async () => {
+    await expect(usersService.updateMyProfile(9, 1, { fullName: "X" })).rejects.toMatchObject({
+      statusCode: 403,
+    });
+  });
+
+  it("recusa remover e enviar avatar na mesma requisição", async () => {
+    const avatar = {} as Express.Multer.File;
+    await expect(
+      usersService.updateMyProfile(1, 1, { removeAvatar: true }, avatar),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("bloqueia campos administrativos para não-administrador", async () => {
+    vi.mocked(repository.findUserById).mockResolvedValue(
+      makeAuthUser({ user_id: 1, profile_name: "analista" }),
+    );
+    vi.mocked(repository.findUserProfile).mockResolvedValue(profileRow({ user_id: 1 }));
+
+    await expect(
+      usersService.updateMyProfile(1, 1, { requester: { area: "Outra área" } }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+
+    expect(fakeDbState.transactions).toBe(1);
+    expect(fakeDbState.rollbacks).toBe(1);
+    expect(fakeDbState.auditRows).toHaveLength(0);
+  });
+
+  it("atualiza nome/contato e audita como self-edit", async () => {
+    const before = profileRow({ user_id: 1, profile_name: "analista", email: "maria@neo.com" });
+    const after = profileRow({
+      user_id: 1,
+      profile_name: "analista",
+      email: "maria@neo.com",
+      full_name: "Maria Nova",
+    });
+    vi.mocked(repository.findUserById).mockResolvedValue(
+      makeAuthUser({ user_id: 1, profile_name: "analista", email: "maria@neo.com" }),
+    );
+    vi.mocked(repository.findUserProfile)
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce(after);
+
+    const result = await usersService.updateMyProfile(1, 1, {
+      fullName: "Maria Nova",
+      requester: { additionalContact: "11999999999" },
+    });
+
+    expect(result).toMatchObject({ id: "1", fullName: "Maria Nova" });
+    expect(repository.updateUserFields).toHaveBeenCalledOnce();
+    expect(repository.syncRequesterIdentity).toHaveBeenCalledOnce();
+    expect(repository.mergeRequesterData).toHaveBeenCalledOnce();
+    expect(fakeDbState.commits).toBe(1);
+    expect(fakeDbState.auditRows[0]).toMatchObject({
+      entity_type: "user",
+      entity_id: "1",
+      action_type: "user.update_profile",
+      user_id: 1,
+      change_origin: "self",
+    });
+  });
+});
+
+describe("users.service.getUser / getMyProfile", () => {
+  it("retorna 404 para id inválido sem consultar o repository", async () => {
+    await expect(usersService.getUser("abc")).rejects.toMatchObject({ statusCode: 404 });
+    await expect(usersService.getUser("0")).rejects.toMatchObject({ statusCode: 404 });
+    expect(repository.findUserProfile).not.toHaveBeenCalled();
+  });
+
+  it("retorna 404 quando o perfil não existe", async () => {
+    vi.mocked(repository.findUserProfile).mockResolvedValue(undefined);
+    await expect(usersService.getMyProfile(1)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe("users.service.listUsers / getMyProfile", () => {
   it("valida o filtro de perfil contra a tabela profiles", async () => {
     vi.mocked(repository.findProfileIdByName).mockResolvedValue(null);
@@ -207,7 +407,7 @@ describe("users.service.listUsers / getMyProfile", () => {
     vi.mocked(repository.listUsers).mockResolvedValue(page);
 
     await expect(
-      usersService.listUsers({ profile: "Analista", page: 1, pageSize: 10 }),
+      usersService.listUsers({ profile: "analista", page: 1, pageSize: 10 }),
     ).resolves.toEqual(page);
   });
 

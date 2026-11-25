@@ -90,4 +90,24 @@ describe("applyQueueFilters", () => {
     expect(sql).toContain('"mapping_assignee"."user_id" = ?');
     expect(bindings).toEqual([7, 7]);
   });
+
+  it("combina search, status, priority e assignee com AND (sem escapar do escopo)", () => {
+    const { sql, bindings } = build({
+      search: "MAAT",
+      status: "Em triagem",
+      priority: "Alta",
+      assigneeId: "20",
+      scopedUserId: 7,
+    });
+
+    expect(bindings).toEqual(["%MAAT%", "%MAAT%", "%MAAT%", "Em triagem", "Alta", 20, 7, 7]);
+    // O grupo do search fecha e os demais filtros entram com AND.
+    expect(sql).toMatch(/\) and "status"\."name" = \?/);
+    expect(sql).toMatch(/"status"\."name" = \? and "priority_tbl"\."level" = \?/);
+    expect(sql).toMatch(/"priority_tbl"\."level" = \? and "assignee_user"\."user_id" = \?/);
+    // O OR do escopo é intencional e fica entre parênteses.
+    expect(sql).toMatch(
+      /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,
+    );
+  });
 });

@@ -1,7 +1,10 @@
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { rm } from "node:fs/promises";
+import path from "node:path";
 import { expect } from "vitest";
 import { app } from "../../src/app.ts";
+import Config from "../../src/configs.ts";
 
 export interface TestServer {
   baseUrl: string;
@@ -14,8 +17,9 @@ export interface TestServer {
  * `afterAll`, garantindo isolamento entre arquivos.
  */
 export async function startTestServer(): Promise<TestServer> {
-  const server: Server = await new Promise((resolve) => {
-    const instance = app.listen(0, () => resolve(instance));
+  const server: Server = await new Promise((resolve, reject) => {
+    const instance = app.listen(0, "127.0.0.1", () => resolve(instance));
+    instance.once("error", reject);
   });
 
   const address = server.address() as AddressInfo;
@@ -26,11 +30,27 @@ export async function startTestServer(): Promise<TestServer> {
     close: async () => {
       if (closed) return;
       closed = true;
+      server.closeIdleConnections();
+      server.closeAllConnections();
       await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
       });
     },
   };
+}
+
+/**
+ * Remove o diretório temporário de uploads com fail-closed: nunca apaga um
+ * diretório que não tenha o prefixo dos testes.
+ */
+export async function cleanupTestUploads(): Promise<void> {
+  const uploadDir = path.resolve(Config.UPLOAD_DIR);
+
+  if (!path.basename(uploadDir).startsWith("neo-kaizen-test-uploads-")) {
+    throw new Error(`Recusando remover UPLOAD_DIR fora do padrão de testes: "${uploadDir}".`);
+  }
+
+  await rm(uploadDir, { recursive: true, force: true });
 }
 
 export interface HttpResult<T = unknown> {
@@ -121,7 +141,9 @@ export class TestClient {
   ): Promise<HttpResult<T>> {
     const headers: Record<string, string> = { ...options.headers };
 
-    if (this.cookies.size > 0) {
+    // Header explícito vence o jar: permite simular um cookie antigo/paralelo
+    // sem criar outro cliente só para isso.
+    if (this.cookies.size > 0 && headers["cookie"] === undefined) {
       headers["cookie"] = this.cookieHeader;
     }
 

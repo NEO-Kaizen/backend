@@ -94,6 +94,46 @@ describe("requests.service (Postgres real)", () => {
     });
   });
 
+  it("reutiliza a extensão requester 1:1 do usuário autenticado", async () => {
+    const user = await insertUser({
+      fullName: "Maria do Cadastro",
+      email: "cadastro@neo.com",
+      profileName: "solicitante",
+    });
+    const [existing] = await testDb("requesters")
+      .insert({
+        user_id: user.user_id,
+        full_name: "Maria do Cadastro",
+        corporate_email: "cadastro@neo.com",
+        area: "Área antiga",
+        manager_name: "Gestor antigo",
+      })
+      .returning("*");
+
+    const payload = makeRequestPayload();
+    payload.requester.area = "Financeiro";
+    payload.requester.manager = "Novo Gestor";
+    payload.requester.department = "Contas a Pagar";
+    payload.requester.additionalContact = "11999999999";
+
+    const response = await requestsService.registerRequest(payload, [], user.user_id);
+    const request = await testDb("requests").where({ protocol: response.protocol }).first();
+    const requesters = await testDb("requesters").where({ user_id: user.user_id });
+
+    expect(requesters).toHaveLength(1);
+    expect(requesters[0]).toMatchObject({
+      requester_id: existing.requester_id,
+      area: "Financeiro",
+      department: "Contas a Pagar",
+      manager_name: "Novo Gestor",
+      additional_contact: "11999999999",
+      full_name: "Maria do Cadastro",
+      corporate_email: "cadastro@neo.com",
+    });
+    expect(request.requester_id).toBe(existing.requester_id);
+    expect(request.requester_user_id).toBe(user.user_id);
+  });
+
   it("lista solicitações reais por e-mail", async () => {
     await requestsService.registerRequest(makeRequestPayload(), []);
 
@@ -120,5 +160,75 @@ describe("requests.service (Postgres real)", () => {
     });
 
     await expect(testDb("requests")).resolves.toHaveLength(0);
+    await expect(testDb("requesters")).resolves.toHaveLength(0);
+    await expect(testDb("request_time_preferences")).resolves.toHaveLength(0);
+    await expect(testDb("attachments")).resolves.toHaveLength(0);
+  });
+
+  it("faz rollback de request, requester, preferências e anexos quando o anexo viola o CHECK", async () => {
+    const payload = makeRequestPayload();
+
+    await expect(
+      requestsService.registerRequest(payload, [
+        {
+          fileName: "vazio.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 0, // CHECK size_bytes > 0 falha depois do INSERT da request
+          storageKey: "vazio.pdf",
+          storagePath: "/tmp/nao-existe/vazio.pdf",
+        },
+      ]),
+    ).rejects.toThrow(/size_bytes|check constraint/i);
+
+    await expect(testDb("requests")).resolves.toHaveLength(0);
+    await expect(testDb("requesters")).resolves.toHaveLength(0);
+    await expect(testDb("request_time_preferences")).resolves.toHaveLength(0);
+    await expect(testDb("attachments")).resolves.toHaveLength(0);
+  });
+
+  it("rejeita status inexistente na listagem e filtra pelo status real", async () => {
+    await requestsService.registerRequest(makeRequestPayload(), []);
+
+    const filtered = await requestsService.listRequestsByEmail({
+      email: "maria@neo.com",
+      status: "Solicitação enviada",
+      page: 1,
+      pageSize: 10,
+    });
+    expect(filtered.total).toBe(1);
+
+    await expect(
+      requestsService.listRequestsByEmail({
+        email: "maria@neo.com",
+        status: "Status inexistente",
+        page: 1,
+        pageSize: 10,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejeita anexo com content_type fora da lista e com tamanho acima de 10 MB", async () => {
+    const response = await requestsService.registerRequest(makeRequestPayload(), []);
+    const request = await testDb("requests").where({ protocol: response.protocol }).first();
+
+    await expect(
+      testDb("attachments").insert({
+        request_id: request.request_id,
+        file_name: "nota.pdf",
+        file_path: "nota.pdf",
+        content_type: "text/plain",
+        size_bytes: 10,
+      }),
+    ).rejects.toThrow(/ck_attachments_content_type|check constraint/i);
+
+    await expect(
+      testDb("attachments").insert({
+        request_id: request.request_id,
+        file_name: "grande.pdf",
+        file_path: "grande.pdf",
+        content_type: "application/pdf",
+        size_bytes: 10 * 1024 * 1024 + 1,
+      }),
+    ).rejects.toThrow(/ck_attachments_size_bytes|check constraint/i);
   });
 });

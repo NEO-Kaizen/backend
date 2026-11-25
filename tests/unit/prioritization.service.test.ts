@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// `calculateScore` é pura, mas o módulo também importa a conexão real. Mockar
+// a fronteira mantém a camada sem I/O e sem `.env`.
+vi.mock("../../src/database/conection.ts", () => ({ default: {} }));
+
 import {
   assertActiveCriteriaCount,
   calculateScore,

@@ -89,11 +89,16 @@ export function createFakeDb(): FakeDb {
 
   db.transaction = async (callback) => {
     fakeDbState.transactions += 1;
+    // Rollback também desfaz as escritas de auditoria observáveis: sem isso,
+    // um teste poderia concluir que a auditoria foi persistida após uma falha.
+    const auditSnapshot = [...fakeDbState.auditRows];
     try {
       const result = await callback(trx);
       fakeDbState.commits += 1;
       return result;
     } catch (error) {
+      fakeDbState.auditRows.length = 0;
+      fakeDbState.auditRows.push(...auditSnapshot);
       fakeDbState.rollbacks += 1;
       throw error;
     }
