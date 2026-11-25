@@ -2,7 +2,9 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import {
   assertAssigneeTargetEligible,
+  assigneeIsRequesterError,
   assigneeNotAssignableError,
+  CODE_ASSIGNEE_IS_REQUESTER,
   CODE_ASSIGNEE_NOT_ASSIGNABLE,
 } from "../../shared/access/assignability.ts";
 import db from "../../database/conection.ts";
@@ -865,6 +867,7 @@ const RN010_ELIGIBLE_SCREENING = "elegivel";
 async function validateAssigneeCandidate(
   candidate: AssignmentCandidateRow | undefined,
   stage: "triage" | "mapping",
+  requesterUserId: number | null,
 ): Promise<AssignmentCandidateRow> {
   assertAssigneeTargetEligible(candidate);
   const flagEnabled =
@@ -879,15 +882,25 @@ async function validateAssigneeCandidate(
     throw assigneeNotAssignableError();
   }
 
+  // Solicitante e Responsável são papéis distintos: o criador nunca assume a
+  // própria solicitação. O diretório já o omite quando recebe `?protocol=`; a
+  // recusa aqui cobre chamadas diretas ao PATCH. A checagem vem depois da
+  // elegibilidade para que um alvo que não pode ser escolhido receba a recusa
+  // padrão de alvo inválido (`assignee_not_assignable`).
+  if (requesterUserId !== null && candidate.user_id === requesterUserId) {
+    throw assigneeIsRequesterError();
+  }
+
   return candidate;
 }
 
 async function resolveAssigneeByUserId(
   userId: string,
   stage: "triage" | "mapping",
+  requesterUserId: number | null,
 ): Promise<{ professionalId: string; id: string; name: string; email: string }> {
   const candidate = await repository.findAssignmentCandidateByUserId(userId);
-  const assignable = await validateAssigneeCandidate(candidate, stage);
+  const assignable = await validateAssigneeCandidate(candidate, stage, requesterUserId);
   return {
     professionalId: assignable.professional_id,
     id: String(assignable.user_id),
@@ -899,9 +912,10 @@ async function resolveAssigneeByUserId(
 async function resolveAssignee(
   professionalId: string,
   stage: "triage" | "mapping",
+  requesterUserId: number | null,
 ): Promise<{ professionalId: string; id: string; name: string; email: string }> {
   const candidate = await repository.findAssignmentCandidateById(professionalId);
-  const assignable = await validateAssigneeCandidate(candidate, stage);
+  const assignable = await validateAssigneeCandidate(candidate, stage, requesterUserId);
   return {
     professionalId: assignable.professional_id,
     id: String(assignable.user_id),
@@ -922,6 +936,16 @@ async function validateAssignmentTarget<T>(
     if (error instanceof AppError && error.code === CODE_ASSIGNEE_NOT_ASSIGNABLE) {
       await recordAccessDeniedAttempt(protocol, actor.id, ipAddress, "alvo de atribuição inválido");
     }
+
+    if (error instanceof AppError && error.code === CODE_ASSIGNEE_IS_REQUESTER) {
+      await recordAccessDeniedAttempt(
+        protocol,
+        actor.id,
+        ipAddress,
+        "criador da solicitação como responsável",
+      );
+    }
+
     throw error;
   }
 }
@@ -948,7 +972,7 @@ export async function assignResponsible(
     payload.professionalId === null || payload.professionalId === undefined
       ? null
       : await validateAssignmentTarget(protocol.trim(), actor, ipAddress, () =>
-          resolveAssignee(payload.professionalId as string, "triage"),
+          resolveAssignee(payload.professionalId as string, "triage", request.requester_user_id),
         );
 
   const previousId = request.professional_id;
@@ -1048,7 +1072,7 @@ export async function assignAnalyst(
         throw new AppError("analystId vazio", 400);
       }
       const resolved = await validateAssignmentTarget(protocol.trim(), actor, ipAddress, () =>
-        resolveAssigneeByUserId(String(raw), "triage"),
+        resolveAssigneeByUserId(String(raw), "triage", request.requester_user_id),
       );
       const previous = request.professional_id;
       const auditPrev = previous
@@ -1135,7 +1159,7 @@ export async function assignAnalyst(
         throw new AppError("analystId vazio", 400);
       }
       const resolved = await validateAssignmentTarget(protocol.trim(), actor, ipAddress, () =>
-        resolveAssigneeByUserId(String(raw), "mapping"),
+        resolveAssigneeByUserId(String(raw), "mapping", request.requester_user_id),
       );
       const previous = request.mapping_professional_id;
       const auditPrev = previous

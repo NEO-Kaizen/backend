@@ -11,6 +11,9 @@ export type AssignabilityStage = "triage" | "mapping";
 
 export const CODE_ASSIGNEE_NOT_ASSIGNABLE = "assignee_not_assignable";
 
+/** Recusa de autoatribuição: o criador da solicitação não pode ser o Responsável. */
+export const CODE_ASSIGNEE_IS_REQUESTER = "assignee_is_requester";
+
 export interface AssigneeEligibilityRow {
   readonly professional_status: string;
   readonly user_is_active: boolean;
@@ -35,6 +38,18 @@ export function assigneeNotAssignableError(): AppError {
     "O alvo não pode ser escolhido como Responsável.",
     400,
     CODE_ASSIGNEE_NOT_ASSIGNABLE,
+  );
+}
+
+/**
+ * Solicitante e Responsável não se concentram na mesma pessoa: quem criou a
+ * solicitação não pode ser escolhido como Responsável dela.
+ */
+export function assigneeIsRequesterError(): AppError {
+  return new AppError(
+    "Quem criou a solicitação não pode ser o responsável por ela.",
+    400,
+    CODE_ASSIGNEE_IS_REQUESTER,
   );
 }
 

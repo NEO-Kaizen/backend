@@ -68,6 +68,13 @@ export const listUsersQuerySchema = z
 
 export const listAssignableProfessionalsQuerySchema = z.object({
   stage: z.enum(["triage", "mapping"]).default("triage"),
+  /** Protocolo da solicitação: o diretório deixa de fora quem a criou. */
+  protocol: z
+    .string()
+    .trim()
+    .min(1, "Protocolo inválido.")
+    .max(25, "Máximo de 25 caracteres.")
+    .optional(),
 });
 
 export const requesterPatchSchema = z.object({

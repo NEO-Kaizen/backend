@@ -730,6 +730,7 @@ export async function findAssignmentContextByProtocol(
     professional_id: "requests.professional_id",
     status: "statuses.name",
     screening_result: "requests.screening_result",
+    requester_user_id: "requests.requester_user_id",
     assignee_user_id: "dp.user_id",
   };
 
