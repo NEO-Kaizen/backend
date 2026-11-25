@@ -1,4 +1,6 @@
-# Contrato Backend x Frontend - RF13
+# Guia informativo de integração — RF13
+
+Este documento resume comportamento e exemplos. O contrato HTTP normativo (rotas, payloads, respostas e códigos) é a OpenAPI em `src/docs/`, materializada em `docs/openapi.json`.
 
 ## Objetivo
 
