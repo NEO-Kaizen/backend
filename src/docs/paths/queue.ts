@@ -186,7 +186,7 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Criar ou atualizar mapeamento",
       description:
-        "Cria ou atualiza o mapeamento. Exige `mapping:write` e Custódia sobre o Responsável da solicitação ou do mapeamento corrente; snapshots não concedem acesso. Campos ausentes mantêm o valor atual; `null` limpa; `participants` substitui a lista.",
+        "Cria ou atualiza o mapeamento. Exige `mapping:write` e Custódia sobre o Responsável da solicitação ou do mapeamento corrente; snapshots não concedem acesso. Campos ausentes mantêm o valor atual; `null` limpa; `participants` substitui a lista. O criador da solicitação não pode ser o designado do mapeamento (`assignee_is_requester`).",
       operationId: "putMapping",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -290,7 +290,9 @@ export default {
           },
         },
         "400": {
-          description: "Payload malformado ou alvo não atribuível (`assignee_not_assignable`).",
+          description:
+            "Payload malformado, alvo não atribuível (`assignee_not_assignable`) ou criador da " +
+            "solicitação como designado do mapeamento (`assignee_is_requester`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

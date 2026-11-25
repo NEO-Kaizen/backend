@@ -16,6 +16,7 @@
 import db from "../../database/conection.ts";
 import {
   assertAssigneeTargetEligible,
+  assigneeIsRequesterError,
   assigneeNotAssignableError,
 } from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
@@ -443,6 +444,21 @@ export const upsertMappingService = async (
       );
       if (payload.mappingAssigneeId !== null) {
         await assertCandidateEligible(trx, candidate);
+
+        // Solicitante e Responsável são papéis distintos também no Mapeamento:
+        // o criador não assume a própria solicitação. O diretório já o omite
+        // com `?protocol=`; a recusa aqui cobre chamadas diretas ao PUT. A
+        // checagem vem depois da elegibilidade para manter a recusa padrão de
+        // alvo inválido (`assignee_not_assignable`) como precedente.
+        if (candidate !== null && candidate.userId === context.requester_user_id) {
+          await recordMappingAccessDenied(
+            context.protocol,
+            actor.id,
+            "criador da solicitação como responsável",
+            ipAddress,
+          );
+          throw assigneeIsRequesterError();
+        }
       }
 
       effectiveProfessionalId = payload.mappingAssigneeId;

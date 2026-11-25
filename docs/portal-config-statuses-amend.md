@@ -396,15 +396,15 @@ export interface PutMappingPayload {
 
 **Validações:**
 
-| Campo                                           | Regra                                                                                                    | Limite  |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- |
-| `mappingAssigneeId`                             | se presente, uuid ativo `ASSIGNABLE_PROFILES`                                                            | —       |
-| `targetStatus`                                  | se `completeMapping`, obrigatório: `isActive && isRestricted===false && mappingMode==="conclusion_only"` | —       |
-| `scheduledFor` / `durationMinutes` / `modality` | **obrigatórios se `targetStatus === 6`** (agendamento)                                                   | 480     |
-| `meetingLink` / `location`                      | obrigatório conforme `modality` — **somente quando `targetStatus === 6`**                                | 500/200 |
-| `notes` / `participants`                        | lado reunião — só quando `targetStatus === 6` (caso contrário `null`/`[]`)                               | 2000/20 |
-| `justification`                                 | obrigatório se `targetStatus !== 6`, trim não-vazio                                                      | 4000    |
-| `lastTechnicalMessage`                          | obrigatório se `targetStatus.isPublic`, trim não-vazio                                                   | 4000    |
+| Campo                                           | Regra                                                                                                          | Limite  |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------- |
+| `mappingAssigneeId`                             | se presente, uuid ativo `ASSIGNABLE_PROFILES`; não pode ser o criador da solicitação (`assignee_is_requester`) | —       |
+| `targetStatus`                                  | se `completeMapping`, obrigatório: `isActive && isRestricted===false && mappingMode==="conclusion_only"`       | —       |
+| `scheduledFor` / `durationMinutes` / `modality` | **obrigatórios se `targetStatus === 6`** (agendamento)                                                         | 480     |
+| `meetingLink` / `location`                      | obrigatório conforme `modality` — **somente quando `targetStatus === 6`**                                      | 500/200 |
+| `notes` / `participants`                        | lado reunião — só quando `targetStatus === 6` (caso contrário `null`/`[]`)                                     | 2000/20 |
+| `justification`                                 | obrigatório se `targetStatus !== 6`, trim não-vazio                                                            | 4000    |
+| `lastTechnicalMessage`                          | obrigatório se `targetStatus.isPublic`, trim não-vazio                                                         | 4000    |
 
 **Response 200 — `MappingDetail`:**
 

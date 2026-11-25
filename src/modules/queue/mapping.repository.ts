@@ -55,6 +55,8 @@ export interface MappingRequestContext {
   /** `details_professional.user_id` do responsável (id de `users`, não UUID). */
   assignee_user_id: number | null;
   mapping_assignee_user_id: number | null;
+  /** Conta que criou a solicitação; `null` nas linhas anônimas e legadas. */
+  requester_user_id: number | null;
   /** Motor de Status v4 (issue #124): flags do status vigente. */
   status_id: number | null;
   is_terminal: boolean;
@@ -128,6 +130,7 @@ export const findMappingRequestContext = async (
       status: "s.name",
       assignee_user_id: "dp.user_id",
       mapping_assignee_user_id: "mapping_user.user_id",
+      requester_user_id: "requests.requester_user_id",
       status_id: "requests.status_id",
       is_terminal: "s.is_terminal",
       is_restricted: "s.is_restricted",

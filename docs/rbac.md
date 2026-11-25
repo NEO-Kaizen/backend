@@ -357,7 +357,7 @@ Regras de validação do alvo:
 - usuário inativo ou perfil inativo não é alvo;
 - a flag sozinha não basta: o predicado de chaves é revalidado no servidor;
 - reatribuir usa a mesma chave e as mesmas validações;
-- o criador da solicitação não pode ser o Responsável dela: a recusa é `400 assignee_is_requester` na triagem, no mapeamento e na rota legada. O diretório com `?protocol=` já omite o criador; remover o Responsável (`null`) continua permitido, e solicitações anônimas ou legadas sem `requester_user_id` não são afetadas;
+- o criador da solicitação não pode ser o Responsável dela: a recusa é `400 assignee_is_requester` na triagem, no mapeamento (inclusive a designação pelo `PUT /queue/requests/:protocol/mapping`) e na rota legada. O diretório com `?protocol=` já omite o criador; remover o Responsável (`null`) continua permitido, e solicitações anônimas ou legadas sem `requester_user_id` não são afetadas;
 - o Administrador e o Admin Root têm as chaves, mas não são atribuíveis.
 
 Nos perfis base, só o Analista tem as duas flags ligadas.
