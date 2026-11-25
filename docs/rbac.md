@@ -49,7 +49,7 @@ Uma chave `custodial` é concedida em um de três vínculos. O valor é o mesmo 
 
 `own` não significa “dono da fila” nem “dono do sistema”: significa a solicitação em que o ator é o Solicitante. `assigned` é a custódia — o vínculo que o Responsável corrente tem com a linha. `all` dispensa o filtro de linha.
 
-Abrir uma solicitação estabelece a posse: o autor passa a ser o Solicitante daquela linha. As chaves `request:track` e `pending_item:respond` operam sobre esse vínculo em `own`. Autoria **não** concede `request:read`, `queue:read`, `triage:read` nem custódia interna: para ver a solicitação na visão interna, o autor precisa da chave interna e do vínculo `assigned`/`all`.
+Abrir uma solicitação estabelece a posse: o autor passa a ser o Solicitante daquela linha. As chaves `request:track` e `pending_item:respond` operam sobre esse vínculo em `own`. A posse autenticada vem de `requests.requester_user_id`; só nas linhas legadas ou anônimas sem vínculo a comparação cai para `requests.requester_email` normalizado. Autoria **não** concede `request:read`, `queue:read`, `triage:read` nem custódia interna: para ver a solicitação na visão interna, o autor precisa da chave interna e do vínculo `assigned`/`all`.
 
 Só `request:track` e `pending_item:respond` aceitam `own` — nenhuma outra chave custodial usa esse vínculo. As duas têm **custódia fixa em `own`**: posse é o único vínculo que elas modelam. Não existe `request:track` em `assigned`/`all` — acompanhar a solicitação de outra pessoa é papel da visão interna (`request:read`), e responder à pendência de outra pessoa é papel de `pending_item:review`.
 
@@ -369,6 +369,7 @@ A extensão de profissional (`details_professional`, 1:1 com a conta) é a ânco
 - nasce na mesma transação da criação de usuário cujo Perfil ativo tem `is_assignable_triage` ou `is_assignable_mapping`;
 - backfill transacional ao ligar a flag num perfil que já tem usuários ativos;
 - backfill transacional ao mover uma conta, via `user:manage`, para um Perfil ativo com a flag;
+- mover a conta para um Perfil sem flag remove a extensão, e a remoção é bloqueada enquanto houver designação aberta;
 - o diretório de atribuíveis (`assignee_directory:read`) e a designação exigem extensão ativa, conta e Perfil ativos e a Atribuibilidade completa (flag + predicado de chaves).
 
 ## 7. Mapa rota → chave

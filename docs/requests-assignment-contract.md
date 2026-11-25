@@ -100,7 +100,7 @@ Responsáveis atribuíveis conforme flag e predicado de cada etapa.
 
 ## 2. PATCH /requests/:protocol/assignee — Definir / substituir / remover responsável
 
-Protegido por autenticação e `request:assign`. O serviço valida a Custódia
+Protegido por autenticação e `request:assign`. O service valida a Custódia
 da solicitação e a Atribuibilidade do alvo. Alvo inválido responde 400 com
 code `assignee_not_assignable`; criador da solicitação como responsável
 responde 400 com code `assignee_is_requester`. A rota interna de designação
