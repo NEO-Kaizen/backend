@@ -133,11 +133,11 @@ jobs:
           }
           # Newest first. Each down removes the entity_type from the CHECK;
           # the step must still reject that type while accepting the adjacent one.
-          # Use migrate:down/up (single migration) because migrate:latest applies
-          # all pending migrations in one batch, so rollback would drop audit_history.
-          while IFS='|' read -r removed accepted action; do
-            [ -n "$removed" ] || continue
-            npx --no-install knex migrate:down --env development
+          # Use named migrate:down/up so later migrations (e.g. notifications)
+          # stay applied and audit_history is preserved for assertions.
+          while IFS='|' read -r migration removed accepted action; do
+            [ -n "$migration" ] || continue
+            npx --no-install knex migrate:down "$migration" --env development
             assert_rejected "$removed" "$action"
             assert_accepted "$accepted" "$(case "$accepted" in
               mapping) echo mapping.assign ;;
@@ -146,13 +146,13 @@ jobs:
               prioritization) echo prioritization.evaluate ;;
               user) echo user.create ;;
             esac)"
-            npx --no-install knex migrate:up --env development
+            npx --no-install knex migrate:up "$migration" --env development
           done <<'CASES'
-          pending_item|mapping|pending_item.create
-          mapping|request|mapping.assign
-          request|settings|request.assign
-          settings|prioritization|settings.update
-          prioritization|user|prioritization.evaluate
+          20260921000001_alter_audit_history_entity_type_pending_item.js|pending_item|mapping|pending_item.create
+          20260918120000_alter_audit_history_entity_type_mapping.js|mapping|request|mapping.assign
+          20260917120000_alter_audit_history_entity_type_request.js|request|settings|request.assign
+          20260916160002_add_settings_to_audit_entity_type.js|settings|prioritization|settings.update
+          20260913120000_alter_audit_history_entity_type_prioritization.js|prioritization|user|prioritization.evaluate
           CASES
           npx --no-install knex migrate:rollback --all --env development
           npx --no-install knex migrate:latest --env development
