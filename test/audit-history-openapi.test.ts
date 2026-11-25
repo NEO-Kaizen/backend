@@ -25,7 +25,7 @@ test("GET /audit-history documents its pagination filters and response envelope"
 });
 
 test("audit-history 403 responses describe only the permitted roles", () => {
-  const expectedDescription = "Perfil diferente de Administrador ou Gestor.";
+  const expectedDescription = "Perfil sem acesso (Administrador ou Gestor).";
   assert.equal(
     auditHistoryPaths["/audit-history"].get.responses["403"].description,
     expectedDescription,
