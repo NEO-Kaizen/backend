@@ -7,9 +7,10 @@ test("portal Status returns isPaused as read-only and excludes it from PATCH", (
   assert.ok(schemas.PortalStatus.required.includes("isPaused"));
   assert.equal(schemas.PortalStatus.properties.isPaused.readOnly, true);
   assert.equal(Object.hasOwn(schemas.PortalStatusPatch.properties, "isPaused"), false);
+  assert.equal(schemas.PortalStatusPatch.additionalProperties, false);
   assert.deepEqual(
     portalConfigPaths["/portal-config/statuses"].patch.requestBody.content["application/json"]
-      .schema.properties.statuses.items,
-    { $ref: "#/components/schemas/PortalStatusPatch" },
+      .schema,
+    { $ref: "#/components/schemas/PortalStatusesPatchBody" },
   );
 });

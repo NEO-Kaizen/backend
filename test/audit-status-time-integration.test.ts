@@ -219,7 +219,7 @@ describe(
           totalPausedMilliseconds: number;
         };
 
-        t.mock.timers.setTime(new Date(firstQueryTime.getTime() + 1_000));
+        t.mock.timers.setTime(firstQueryTime.getTime() + 1_000);
         const secondResponse = await fetch(
           `${baseUrl}/audit-logs/${protocol}/status-times`,
           { headers },
