@@ -19,15 +19,17 @@ A busca da fila (`GET /queue` e exportação CSV) considera o conteúdo das nota
 internas como um dos campos pesquisáveis. A nota só faz a solicitação
 corresponder; o conteúdo não é devolvido na resposta.
 
-O escopo da busca agregada é o da fila:
+A listagem usa o escopo da fila: o Analista vê solicitações em que é responsável
+de triagem ou de mapeamento. A correspondência por nota é mais estreita e usa a
+custódia de `internal_note:read`:
 
-- Analista encontra apenas solicitações em que é responsável de triagem ou de
-  mapeamento;
-- Gestor e Administrador encontram todas;
+- Analista só encontra por nota as solicitações em que é o responsável; ser
+  responsável de mapeamento não amplia essa busca;
+- Gestor e Administrador encontram todas, pois têm custódia `all`;
 - Solicitante não acessa a busca interna.
 
-Essa regra vale somente para a busca agregada. A Linha do tempo continua com o
-gate de perfil da rota, conforme a seção anterior.
+A Linha do tempo continua com o gate de perfil da rota, conforme a seção
+anterior; a regra de custódia acima vale somente para a busca agregada.
 
 O campo legado `requests.internal_notes` (`internalObservations`) não participa
 da busca; apenas `request_internal_notes.content`.

@@ -45,8 +45,9 @@ export default {
           required: false,
           description:
             "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, " +
-            "descrição, problema e conteúdo das notas internas. A busca em notas internas respeita o " +
-            "escopo de visibilidade do usuário.",
+            "descrição, problema e conteúdo das notas internas. Para o Analista, a correspondência em " +
+            "notas considera apenas solicitações em que ele é o responsável; o responsável de " +
+            "mapeamento não amplia essa busca.",
           schema: { type: "string", maxLength: 254 },
         },
         {

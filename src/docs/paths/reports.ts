@@ -88,8 +88,8 @@ export default {
           required: false,
           description:
             "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, " +
-            "descrição, problema e conteúdo das notas internas. A busca em notas internas respeita o " +
-            "escopo de visibilidade do usuário.",
+            "descrição, problema e conteúdo das notas internas. Rota restrita a Gestor/Administrador, " +
+            "sem recorte por responsável.",
           schema: { type: "string", maxLength: 254 },
         },
         {

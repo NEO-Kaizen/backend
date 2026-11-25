@@ -42,6 +42,7 @@ export const listQueueService = async (
   const repoUnassigned = Boolean(unassigned || assigneeId === "unassigned");
   const repoAssigneeId =
     typeof assigneeId === "string" && assigneeId !== "unassigned" ? assigneeId : undefined;
+  const queueScopeUserId = resolveQueueScope(actor);
 
   const [{ items, total }, assignees] = await Promise.all([
     findQueueRequests({
@@ -50,7 +51,8 @@ export const listQueueService = async (
       priority,
       assigneeId: repoAssigneeId,
       unassigned: repoUnassigned,
-      scopedUserId: resolveQueueScope(actor),
+      scopedUserId: queueScopeUserId,
+      noteCustodianUserId: queueScopeUserId,
       limit: pageSize,
       offset,
     }),

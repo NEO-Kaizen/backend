@@ -341,6 +341,7 @@ Regras de aplicação:
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
 - Sem sessão, não há ator: a porta pública do modo `PUBLIC` é a única que não avalia chaves. Ela usa o e-mail declarado e o protocolo.
 - Snapshots de triagem e de mapeamento não concedem acesso. Mapeamento concluído é histórico.
+- A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: só casa nota de solicitação cujo Responsável é o ator. O responsável de mapeamento não amplia essa busca, embora amplie a fila conforme a #102. Essa divergência entre o escopo da fila e a regra original desta seção é pré-existente e não é alterada nesta mudança.
 - Solicitação órfã não é visível ao Analista custodial; ela é atribuída por quem tem `request:assign` em `all`.
 
 ## 6. Atribuir e ser atribuível

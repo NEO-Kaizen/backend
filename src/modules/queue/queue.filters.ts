@@ -3,6 +3,7 @@ import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 
 export interface QueueRepositoryFilters extends QueueFilterQuery {
   scopedUserId?: number;
+  noteCustodianUserId?: number;
 }
 
 /**
@@ -12,10 +13,15 @@ export interface QueueRepositoryFilters extends QueueFilterQuery {
  *
  * A busca inclui notas internas, então este helper só pode ser usado por
  * consultas internas (`GET /queue` e exportação CSV de Gestor/Administrador).
- * O escopo do Analista já restringe `requests` na mesma consulta.
+ *
+ * Dois limites são distintos: `scopedUserId` é o escopo da fila (triagem ou
+ * mapeamento); `noteCustodianUserId` é a custódia de `internal_note:read` e
+ * vale somente para a correspondência em notas. O responsável de mapeamento
+ * amplia a fila, mas não amplia a busca por nota.
  */
 export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueRepositoryFilters): void {
-  const { search, status, priority, assigneeId, unassigned, scopedUserId } = filters;
+  const { search, status, priority, assigneeId, unassigned, scopedUserId, noteCustodianUserId } =
+    filters;
 
   if (search) {
     const searchPattern = `%${search}%`;
@@ -33,6 +39,10 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
             .from("request_internal_notes as note")
             .whereRaw("note.request_id = requests.request_id")
             .andWhere("note.content", "ilike", searchPattern);
+
+          if (noteCustodianUserId !== undefined) {
+            notesQuery.andWhere("assignee_user.user_id", noteCustodianUserId);
+          }
         });
     });
   }
