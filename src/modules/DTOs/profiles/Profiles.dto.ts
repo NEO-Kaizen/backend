@@ -36,7 +36,7 @@ export interface PermissionCatalogEntryDTO {
 
 /** Resposta de `GET /profiles/keys`. */
 export interface PermissionCatalogResponse {
-  /** As 39 chaves na ordem de referência da matriz. */
+  /** As 37 chaves na ordem de referência da matriz. */
   permissions: PermissionCatalogEntryDTO[];
   /** Predicados de Atribuibilidade por etapa (flag + chaves de trabalho). */
   assignabilityPredicates: {

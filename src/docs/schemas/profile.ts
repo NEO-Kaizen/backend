@@ -122,7 +122,7 @@ export const ProfileKeyCatalog = {
   properties: {
     permissions: {
       type: "array",
-      description: "As 39 chaves na ordem de referência da matriz de Perfil.",
+      description: "As 37 chaves na ordem de referência da matriz de Perfil.",
       items: { $ref: "#/components/schemas/ProfilePermissionCatalogEntry" },
     },
     assignabilityPredicates: {
