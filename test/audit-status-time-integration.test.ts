@@ -260,7 +260,7 @@ describe(
       assert.match(body.message, /Acesso restrito/);
     });
 
-    it("PATCH /portal-config/statuses updates and returns pause configuration", async () => {
+    it("PATCH /portal-config/statuses rejects pause changes and preserves pause configuration", async () => {
       const { baseUrl, cookieName, adminToken } = getContext();
       const configResponse = await fetch(`${baseUrl}/portal-config`);
       assert.equal(configResponse.status, 200);
@@ -281,41 +281,40 @@ describe(
       };
       const configurableStatus = config.statuses.find((status) => !status.isCore);
       assert.ok(configurableStatus, "deve haver um Status configurável no seed");
-      const updatedStatuses = config.statuses.map((status) =>
+      const pauseChangeStatuses = config.statuses.map((status) =>
         status.id === configurableStatus.id ? { ...status, isPaused: !status.isPaused } : status,
       );
-      let pauseConfigChanged = false;
-      try {
-        const updateResponse = await fetch(`${baseUrl}/portal-config/statuses`, {
-          method: "PATCH",
-          headers: {
-            Cookie: `${cookieName}=${adminToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ statuses: updatedStatuses }),
-        });
-        pauseConfigChanged = updateResponse.status === 200;
-        assert.equal(updateResponse.status, 200);
-        const updatedConfig = (await updateResponse.json()) as {
-          statuses: Array<{ id: number; isPaused: boolean }>;
-        };
-        assert.equal(
-          updatedConfig.statuses.find((status) => status.id === configurableStatus.id)?.isPaused,
-          !configurableStatus.isPaused,
-        );
-      } finally {
-        if (pauseConfigChanged) {
-          const restoreResponse = await fetch(`${baseUrl}/portal-config/statuses`, {
-            method: "PATCH",
-            headers: {
-              Cookie: `${cookieName}=${adminToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ statuses: config.statuses }),
-          });
-          assert.equal(restoreResponse.status, 200);
-        }
-      }
+      const rejectedResponse = await fetch(`${baseUrl}/portal-config/statuses`, {
+        method: "PATCH",
+        headers: {
+          Cookie: `${cookieName}=${adminToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ statuses: pauseChangeStatuses }),
+      });
+      assert.equal(rejectedResponse.status, 400);
+
+      const statusesWithoutPauseFlag = config.statuses.map((status) => {
+        const { isPaused, ...patchStatus } = status;
+        assert.equal(typeof isPaused, "boolean");
+        return patchStatus;
+      });
+      const updateResponse = await fetch(`${baseUrl}/portal-config/statuses`, {
+        method: "PATCH",
+        headers: {
+          Cookie: `${cookieName}=${adminToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ statuses: statusesWithoutPauseFlag }),
+      });
+      assert.equal(updateResponse.status, 200);
+      const updatedConfig = (await updateResponse.json()) as {
+        statuses: Array<{ id: number; isPaused: boolean }>;
+      };
+      assert.equal(
+        updatedConfig.statuses.find((status) => status.id === configurableStatus.id)?.isPaused,
+        configurableStatus.isPaused,
+      );
     });
 
     it("PATCH /requests/:protocol/status records an authorized human transition", async () => {
