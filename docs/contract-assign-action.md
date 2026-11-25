@@ -15,11 +15,12 @@ Lista Responsáveis atribuíveis para o modal. Sem paginação; filtra pela etap
 ```http
 GET /users/analysts?stage=triage -> 200 AssignableProfessional[]
 GET /users/analysts?stage=mapping -> 200 AssignableProfessional[]
+GET /users/analysts?stage=triage&protocol=MAAT-8K3P-9X2M -> 200 AssignableProfessional[]
 ```
 
 Exige sessão e `assignee_directory:read`. Retorna apenas contas ativas, com extensão profissional ativa, cujo Perfil ativo tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. A regra não depende do nome do Perfil.
 
-**Query:** `stage` aceita `triage` ou `mapping`; ausente equivale a `triage` para compatibilidade. O backend filtra pelos perfis ativos cuja flag e chaves de Atribuibilidade atendem à etapa solicitada. `search` (nome/especialidade) e `category` continuam filtrados 100% no frontend (`AssignAction.svelte` com `normalize`).
+**Query:** `stage` aceita `triage` ou `mapping`; ausente equivale a `triage` para compatibilidade. O backend filtra pelos perfis ativos cuja flag e chaves de Atribuibilidade atendem à etapa solicitada. `protocol`, quando informado, resolve o criador da solicitação e o omite do diretório — Solicitante e Responsável não podem ser a mesma pessoa; protocolo inexistente responde `404 request_not_found`. `search` (nome/especialidade) e `category` continuam filtrados 100% no frontend (`AssignAction.svelte` com `normalize`).
 
 **Resposta 200:**
 
@@ -112,7 +113,7 @@ interface InternalRequestDetail {
 
 **Erros:**
 
-- `400` — body inválido ou alvo inválido (`assignee_not_assignable`)
+- `400` — body inválido, alvo inválido (`assignee_not_assignable`) ou criador da solicitação como responsável (`assignee_is_requester`)
 - `401` — sem sessão ou sessão inválida
 - `403` — ator sem `request:assign`
 - `404` — `protocol` não encontrado ou fora da Custódia
@@ -169,7 +170,7 @@ Cookie obrigatório. `GET /users/analysts` exige `assignee_directory:read`; `PAT
 ## Mocks (DEV)
 
 - `src/lib/mocks/users.mock.ts` — `mockUsers` com 6 ativos + `listUsersMock` paginado (admin) e lista de profissionais atribuíveis por etapa (`AssignableProfessional[]` direto); filtros `search`/`category` são 100% no front (`AssignAction`)
-- `src/lib/api/user.api.ts` — `listUsers` (`GET /users?...` paginado) e `listAnalysts` (`GET /users/analysts?stage=...`; Triagem é o padrão compatível)
+- `src/lib/api/user.api.ts` — `listUsers` (`GET /users?...` paginado) e `listAnalysts` (`GET /users/analysts?stage=...&protocol=...`; Triagem é o padrão compatível, e o protocolo omite o criador da solicitação)
 - `src/lib/mocks/requests.mock.ts` — `mockInternalRequestDetails` com `assignee` e `mappingAssignee: null`, `assignAnalystMock(protocol, analystId, responsibility)` atualiza campo correto e `mockRequests` para `triagem`
 - `MOCK_DOMAINS.users` / `MOCK_DOMAINS.request` controlam mocks; em prod `dev===false` elimina branches (DCE)
 
