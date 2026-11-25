@@ -1,3 +1,4 @@
+import { lockRequestForWrite } from "../requests/requests.repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
@@ -46,16 +47,11 @@ export async function evaluateScore(
   payload: EvaluatePrioritizationRequest,
   actor: Actor,
 ): Promise<EvaluatePrioritizationResponse> {
-  const exists = await repository.findRequestByProtocol(protocol);
-  if (!exists) {
+  const observed = await repository.findRequestEvaluationContext(protocol);
+  if (!observed) {
     throw new AppError("Solicitação não encontrada", 404);
   }
-
-  const assigneeUserId = await repository.findAssigneeUserIdByProtocol(protocol);
-  if (assigneeUserId === undefined) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
-  if (!isAdminOrAssignee(actor, assigneeUserId)) {
+  if (!isAdminOrAssignee(actor, observed.assigneeUserId)) {
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
@@ -73,6 +69,20 @@ export async function evaluateScore(
   };
 
   const evaluation = await db.transaction(async (trx) => {
+    await lockRequestForWrite(trx, observed.requestId);
+    const current = await repository.findRequestEvaluationContext(protocol, trx);
+    if (
+      !current ||
+      current.requestId !== observed.requestId ||
+      current.reopenRef !== observed.reopenRef ||
+      !isAdminOrAssignee(actor, current.assigneeUserId)
+    ) {
+      throw new AppError(
+        "Ciclo ou custódia da solicitação mudou.",
+        409,
+        "request_evaluation_conflict",
+      );
+    }
     const previous = await repository.findCurrentEvaluationForShare(trx, protocol);
     const previousSnapshot: EvaluationSnapshot | null = previous
       ? {

@@ -3574,6 +3574,12 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
+          },
+          "409": {
+            "description": "Estado ou custódia mudou durante a atribuição.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
           }
         }
       }
@@ -3632,6 +3638,12 @@
           },
           "404": {
             "description": "Protocolo inexistente.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Estado ou custódia mudou durante a atribuição.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4979,6 +4991,12 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
+          },
+          "409": {
+            "description": "Ciclo ou custódia alterado durante a avaliação.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
           }
         }
       }
@@ -5483,7 +5501,7 @@
       "get": {
         "tags": ["Pendências"],
         "summary": "Listar pendências",
-        "description": "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Dual-auth: cookie interno ou identidade do solicitante.",
+        "description": "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Exclui pendências anteriores à reabertura. Dual-auth: cookie interno ou identidade do solicitante.",
         "operationId": "listPendingItems",
         "security": [{ "cookieAuth": [] }, { "requesterIdentity": [] }],
         "parameters": [
@@ -5581,7 +5599,7 @@
             }
           },
           "409": {
-            "description": "Solicitação concluída/cancelada ou lote já em aberto.",
+            "description": "Solicitação encerrada, alterada em concorrência ou lote vigente em aberto.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5647,7 +5665,7 @@
             }
           },
           "409": {
-            "description": "Item não está no estado permitido.",
+            "description": "Item fora do estado permitido, pendência histórica, solicitação encerrada ou custódia alterada.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5711,7 +5729,7 @@
             }
           },
           "409": {
-            "description": "Pendência já respondida ou em estado não permitido.",
+            "description": "Pendência já respondida, histórica ou solicitação encerrada.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5774,6 +5792,12 @@
           },
           "404": {
             "description": "Solicitação ou pendência não encontrada.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Pendência histórica ou solicitação encerrada.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }

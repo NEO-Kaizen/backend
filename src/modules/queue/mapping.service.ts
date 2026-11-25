@@ -35,23 +35,22 @@ import type { Knex } from "knex";
 
 /** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
 async function recordMappingAccessDenied(
+  trx: Knex.Transaction,
   protocol: string,
   actorId: number,
   detail: string,
   ipAddress?: string,
 ): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.access_denied",
-      entityId: protocol,
-      userId: actorId,
-      previousValue: null,
-      newValue: null,
-      note: `Mapping negado: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
+  await recordAudit(trx, {
+    entityType: "request",
+    actionType: "request.access_denied",
+    entityId: protocol,
+    userId: actorId,
+    previousValue: null,
+    newValue: null,
+    note: `Mapping negado: ${detail}`,
+    ipAddress,
+    changeOrigin: "system",
   });
 }
 
@@ -312,9 +311,9 @@ export const upsertMappingService = async (
   actor: MappingActor,
   ipAddress?: string,
 ): Promise<MappingResponseDTO> => {
-  return db.transaction<MappingResponseDTO>(async (trx) => {
-    // Contexto lido DENTRO da transação: status e responsável são recém-lidos
-    // antes das escritas (fecha janela TOCTOU com conclusão/reatribuição).
+  const result = await db.transaction<MappingResponseDTO | AppError>(async (trx) => {
+    await trx("requests").where({ protocol: protocol.trim() }).forNoKeyUpdate().first("request_id");
+    // Reler o contexto depois do lock mantém status e custódia do mesmo ciclo.
     const context = await repository.findMappingRequestContext(trx, protocol.trim());
     if (!context) {
       throw new AppError("Solicitação não encontrada", 404);
@@ -322,12 +321,13 @@ export const upsertMappingService = async (
 
     if (actor.role === "Gestor") {
       await recordMappingAccessDenied(
+        trx,
         context.protocol,
         actor.id,
         "perfil Gestor é somente leitura",
         ipAddress,
       );
-      throw new AppError(
+      return new AppError(
         "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
@@ -337,8 +337,14 @@ export const upsertMappingService = async (
     // Status terminais não aceitam edição (não reabre fluxo encerrado).
     // Motor de Status v4: guard por `isTerminal` (não por lista de nomes).
     if (context.is_terminal) {
-      await recordMappingAccessDenied(context.protocol, actor.id, "demanda encerrada", ipAddress);
-      throw new AppError("Solicitação encerrada.", 422);
+      await recordMappingAccessDenied(
+        trx,
+        context.protocol,
+        actor.id,
+        "demanda encerrada",
+        ipAddress,
+      );
+      return new AppError("Solicitação encerrada.", 422);
     }
 
     // Priorizado (isRestricted) bloqueia o PUT de qualquer perfil — inclusive
@@ -346,8 +352,14 @@ export const upsertMappingService = async (
     // (ver `docs/rules/requests-lifecycle.md`, seção Restrição e status
     // terminal: "Priorizado só via override").
     if (context.is_restricted) {
-      await recordMappingAccessDenied(context.protocol, actor.id, "demanda priorizada", ipAddress);
-      throw new AppError(
+      await recordMappingAccessDenied(
+        trx,
+        context.protocol,
+        actor.id,
+        "demanda priorizada",
+        ipAddress,
+      );
+      return new AppError(
         "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
@@ -429,12 +441,13 @@ export const upsertMappingService = async (
 
     if (designationAction && !canDesignate) {
       await recordMappingAccessDenied(
+        trx,
         context.protocol,
         actor.id,
         "sem permissão para designar o mapeamento",
         ipAddress,
       );
-      throw new AppError(
+      return new AppError(
         "Você não tem permissão para designar o mapeamento: apenas o responsável pela solicitação ou Administrador.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
@@ -442,12 +455,13 @@ export const upsertMappingService = async (
     }
     if (contentAction && !canEditContent) {
       await recordMappingAccessDenied(
+        trx,
         context.protocol,
         actor.id,
         "sem custódia para editar o mapeamento",
         ipAddress,
       );
-      throw new AppError(
+      return new AppError(
         "Você não tem permissão para editar este mapeamento.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
@@ -714,4 +728,6 @@ export const upsertMappingService = async (
       toMappingAssignee(assigneeCandidate),
     );
   });
+  if (result instanceof AppError) throw result;
+  return result;
 };

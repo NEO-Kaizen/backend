@@ -170,13 +170,27 @@ export const findMappingAssigneeCandidate = async (
   return row ?? null;
 };
 
+function currentMappingRows(queryable: Knex, requestId: string) {
+  return queryable("mappings")
+    .where("mappings.request_id", requestId)
+    .whereExists(
+      queryable("requests")
+        .select(queryable.raw("1"))
+        .where("requests.request_id", requestId)
+        .andWhere((query) => {
+          query
+            .whereNull("requests.last_reopened_at")
+            .orWhereRaw("?? >= ??", ["mappings.created_at", "requests.last_reopened_at"]);
+        }),
+    );
+}
+
 /** Mapeamento mais recente da solicitação (inclusive concluído) — resposta do GET. */
 export const findCurrentMapping = async (
   queryable: Knex,
   requestId: string,
 ): Promise<MappingRow | null> => {
-  const row = await queryable("mappings")
-    .where({ request_id: requestId })
+  const row = await currentMappingRows(queryable, requestId)
     .orderBy("created_at", "desc")
     .orderBy("updated_at", "desc")
     .first();
@@ -189,8 +203,8 @@ export const findLatestOpenMapping = async (
   queryable: Knex,
   requestId: string,
 ): Promise<MappingRow | null> => {
-  const row = await queryable("mappings")
-    .where({ request_id: requestId, is_concluded: false })
+  const row = await currentMappingRows(queryable, requestId)
+    .where({ is_concluded: false })
     .orderBy("created_at", "desc")
     .orderBy("updated_at", "desc")
     .first();
@@ -204,8 +218,8 @@ export const findMappingById = async (
   requestId: string,
   mappingId: string,
 ): Promise<MappingRow | null> => {
-  const row = await queryable("mappings")
-    .where({ request_id: requestId, mapping_id: mappingId })
+  const row = await currentMappingRows(queryable, requestId)
+    .where({ mapping_id: mappingId })
     .first();
 
   return row ?? null;
@@ -302,7 +316,7 @@ export const insertMapping = async (
       location: args.values.location,
       notes: args.values.notes,
       created_by: args.createdBy,
-      created_at: trx.fn.now(),
+      created_at: trx.raw("clock_timestamp()"),
     })
     .returning("mapping_id");
 

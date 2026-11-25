@@ -1,6 +1,7 @@
 import type { Knex } from "knex";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
+import { lockRequestForWrite } from "../requests.repository.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
@@ -21,6 +22,7 @@ interface RequestContextRow {
   professional_id: string | null;
   assignee_user_id: number | null;
   status_id: number;
+  reopen_ref: string | null;
   status_name: string | null;
   status_is_restricted: boolean;
   status_is_terminal: boolean;
@@ -33,6 +35,7 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
     .leftJoin("statuses as s", "s.status_id", "r.status_id")
     .leftJoin("categories as c", "c.category_id", "r.category_id")
     .where("r.protocol", protocol)
+    .select(db.raw("r.reopen_ref AS reopen_ref"))
     .first({
       request_id: "r.request_id",
       protocol: "r.protocol",
@@ -272,11 +275,21 @@ export async function saveTriageDecision(
   statusIsPublic: boolean,
   lastTechnicalMessage: string | null,
   expectedStatusId: number,
+  expectedReopenRef: string | null,
   updatedBy: string,
   previousAssignee: { professionalId: string | null; userId: number | null },
   audit: TriageAuditContext,
 ): Promise<void> {
   await db.transaction(async (trx) => {
+    const current = await lockRequestForWrite(trx, requestId);
+    if (
+      !current ||
+      current.status_id !== expectedStatusId ||
+      current.reopen_ref !== expectedReopenRef ||
+      current.professional_id !== previousAssignee.professionalId
+    ) {
+      throw new AppError("Ciclo ou custódia da solicitação mudou.", 409, "request_triage_conflict");
+    }
     await insertTriage(requestId, triage, trx);
     await applyRequestOutcome(
       protocol,

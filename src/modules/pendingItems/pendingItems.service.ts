@@ -177,6 +177,8 @@ export async function createPendingItems(
     batchId,
     rows,
     actor,
+    observedStatusId: request.status_id,
+    observedReopenRef: request.reopen_ref,
     ip,
   });
 
@@ -514,7 +516,6 @@ export async function reviewPendingItems(
     requestAttachment: body.requestAttachment,
     actor,
     ip,
-    currentStatusName: request.status,
     decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
   });
 

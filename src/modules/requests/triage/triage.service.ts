@@ -167,6 +167,7 @@ export async function createTriage(
     exitStatus.isPublic,
     triage.lastTechnicalMessage,
     request.status_id,
+    request.reopen_ref,
     actor.email,
     { professionalId: request.professional_id, userId: request.assignee_user_id },
     {

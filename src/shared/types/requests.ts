@@ -116,6 +116,9 @@ export interface RequesterTable {
 }
 
 export interface AssignmentContextRow {
+  status_id: number;
+  closure_ref: string | null;
+  reopen_ref: string | null;
   request_id: string;
   protocol: string;
   professional_id: string | null;

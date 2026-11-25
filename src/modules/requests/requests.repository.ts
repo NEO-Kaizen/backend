@@ -730,8 +730,17 @@ export async function findEvaluationByProtocol(
   protocol: string,
 ): Promise<{ score: number; classification: string } | undefined> {
   const row = await db("prioritization_evaluations")
-    .where({ protocol })
-    .first("score", "classification");
+    .join("requests", "requests.protocol", "prioritization_evaluations.protocol")
+    .where("requests.protocol", protocol)
+    .andWhere((query) => {
+      query
+        .whereNull("requests.last_reopened_at")
+        .orWhereRaw("?? >= ??", [
+          "prioritization_evaluations.calculated_at",
+          "requests.last_reopened_at",
+        ]);
+    })
+    .first("prioritization_evaluations.score", "prioritization_evaluations.classification");
 
   if (!row) return undefined;
 
@@ -809,14 +818,17 @@ export async function findAssignmentCandidateById(
 
 export async function findAssignmentContextByProtocol(
   protocol: string,
+  source: Knex | Knex.Transaction = db,
 ): Promise<AssignmentContextRow | undefined> {
-  const hasMapping = await db.schema.hasColumn("requests", "mapping_professional_id");
+  const hasMapping = await source.schema.hasColumn("requests", "mapping_professional_id");
 
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
     professional_id: "requests.professional_id",
     status: "statuses.name",
+    status_id: "requests.status_id",
+    closure_ref: "requests.closure_ref",
     screening_result: "requests.screening_result",
     assignee_user_id: "dp.user_id",
   };
@@ -826,7 +838,7 @@ export async function findAssignmentContextByProtocol(
     columns["mapping_assignee_user_id"] = "dpm.user_id";
   }
 
-  const query = db("requests")
+  const query = source("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
   if (hasMapping) {
@@ -837,7 +849,10 @@ export async function findAssignmentContextByProtocol(
     );
   }
 
-  const row = await query.where("requests.protocol", protocol).first(columns);
+  const row = await query
+    .where("requests.protocol", protocol)
+    .select(source.raw("requests.reopen_ref"))
+    .first(columns);
 
   if (!row) return undefined;
 

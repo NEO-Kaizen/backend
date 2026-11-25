@@ -1,4 +1,5 @@
-﻿import { STATUS_IDS } from "../../shared/types/status.ts";
+﻿import type { Knex } from "knex";
+import { STATUS_IDS } from "../../shared/types/status.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
@@ -929,6 +930,7 @@ export async function assignResponsible(
     request.screening_result === RN010_ELIGIBLE_SCREENING;
 
   await db.transaction(async (trx) => {
+    await assertAssignmentIsCurrent(trx, request, actor);
     await repository.updateAssignee(trx, request.request_id, nextId, actor.email);
 
     await recordAudit(trx, {
@@ -1003,6 +1005,7 @@ export async function assignAnalyst(
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
         : null;
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateAssignee(trx, request.request_id, null, actor.email);
         await recordAudit(trx, {
           entityType: "request",
@@ -1033,6 +1036,7 @@ export async function assignAnalyst(
         request.status === RN010_FROM_STATUS &&
         request.screening_result === RN010_ELIGIBLE_SCREENING;
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateAssignee(
           trx,
           request.request_id,
@@ -1094,6 +1098,7 @@ export async function assignAnalyst(
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
         : null;
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
         await recordAudit(trx, {
           entityType: "request",
@@ -1121,6 +1126,7 @@ export async function assignAnalyst(
         : null;
       const action = auditPrev === null ? "assign" : "reassign";
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateMappingAssignee(
           trx,
           request.request_id,
@@ -1163,6 +1169,32 @@ export async function assignAnalyst(
 // issue #124 â€” atribuiÃ§Ã£o (internal/assignee + legado /assignee):
 // ANALYST_ASSIGNEE (responsÃ¡vel da triagem OU designado do mapeamento) ou
 // Administrador. Gestor continua sem atribuir (Q3/RN).
+async function assertAssignmentIsCurrent(
+  trx: Knex.Transaction,
+  observed: AssignmentContextRow,
+  actor: { id: number; role: Role },
+): Promise<void> {
+  await repository.lockRequestForWrite(trx, observed.request_id);
+  const current = await repository.findAssignmentContextByProtocol(observed.protocol, trx);
+  if (
+    !current ||
+    current.request_id !== observed.request_id ||
+    !canAssignRequest(actor, current) ||
+    current.status_id !== observed.status_id ||
+    current.closure_ref !== observed.closure_ref ||
+    current.reopen_ref !== observed.reopen_ref ||
+    current.professional_id !== observed.professional_id ||
+    current.mapping_professional_id !== observed.mapping_professional_id ||
+    current.screening_result !== observed.screening_result
+  ) {
+    throw new AppError(
+      "Estado ou custódia da solicitação mudou.",
+      409,
+      "request_assignment_conflict",
+    );
+  }
+}
+
 function canAssignRequest(
   actor: { id: number; role: Role },
   request: AssignmentContextRow,

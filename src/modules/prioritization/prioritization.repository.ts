@@ -13,20 +13,21 @@ function normalizeRow(row: EvaluationRow): EvaluationRow {
   return { ...row, score: Number(row.score) };
 }
 
-export async function findRequestByProtocol(protocol: string): Promise<boolean> {
-  const row = await db("requests").where({ protocol }).first("protocol");
-  return row !== undefined;
+interface RequestEvaluationContext {
+  requestId: string;
+  assigneeUserId: number | null;
+  reopenRef: string | null;
 }
 
-export async function findAssigneeUserIdByProtocol(
+export async function findRequestEvaluationContext(
   protocol: string,
-): Promise<number | null | undefined> {
-  const row = await db("requests as r")
+  source: Knex | Knex.Transaction = db,
+): Promise<RequestEvaluationContext | undefined> {
+  return source("requests as r")
     .leftJoin("details_professional as dp", "dp.professional_id", "r.professional_id")
     .where("r.protocol", protocol)
-    .first({ assigneeUserId: "dp.user_id" });
-  if (!row) return undefined;
-  return (row.assigneeUserId as number | null) ?? null;
+    .select(source.raw('r.reopen_ref AS "reopenRef"'))
+    .first({ requestId: "r.request_id", assigneeUserId: "dp.user_id" });
 }
 
 export async function listActiveCriteria(): Promise<CriterionRow[]> {
@@ -75,8 +76,8 @@ export async function upsertEvaluation(
     score: evaluation.score,
     classification: evaluation.classification,
     calculated_by: evaluation.calculatedBy,
-    calculated_at: trx.fn.now(),
-    updated_at: trx.fn.now(),
+    calculated_at: trx.raw("clock_timestamp()"),
+    updated_at: trx.raw("clock_timestamp()"),
   };
 
   const rows = (await trx("prioritization_evaluations")

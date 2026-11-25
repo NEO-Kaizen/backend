@@ -48,6 +48,7 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Perfil ou custódia insuficiente."),
         "404": error("Protocolo inexistente."),
+        "409": error("Ciclo ou custódia alterado durante a avaliação."),
       },
     },
   },
