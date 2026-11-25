@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **175**.
 - Tipos nomeados: **302** â€” 210 interfaces, 89 aliases `type`, 3 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1898** â€” 1423 variÃ¡veis, 240 parÃ¢metros e 235 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1896** â€” 1421 variÃ¡veis, 240 parÃ¢metros e 235 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **133**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -3887,15 +3887,13 @@ interface GroupedIssues {
 - L227 â€” variÃ¡vel: `isManagerLike`
 - L239 â€” variÃ¡vel: `isAssignee`
 - L241 â€” variÃ¡vel: `isMappingAssignee`
-- L259 â€” variÃ¡vel: `normalized`
-- L260 â€” variÃ¡vel: `request`
-- L262 â€” variÃ¡vel: `calculatedAt`
-- L263 â€” variÃ¡vel: `summary`
-- L284 â€” variÃ¡vel: `normalized`
-- L285 â€” variÃ¡vel: `request`
-- L287 â€” variÃ¡vel: `rows`
-- L288 â€” parÃ¢metro: `row`
-- L288 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L266 â€” variÃ¡vel: `request`
+- L268 â€” variÃ¡vel: `calculatedAt`
+- L269 â€” variÃ¡vel: `summary`
+- L290 â€” variÃ¡vel: `request`
+- L292 â€” variÃ¡vel: `rows`
+- L293 â€” parÃ¢metro: `row`
+- L293 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/auditHistory/statusTime.ts](../src/modules/auditHistory/statusTime.ts)
 
