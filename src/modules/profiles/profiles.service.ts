@@ -27,6 +27,7 @@ import {
   effectivePermissionsFromGrants,
   findWorkKeyLosses,
   STAGE_LABEL,
+  validateAssignedScope,
   validateAssignabilityPredicates,
   validateComposition,
   type CompositionState,
@@ -129,7 +130,8 @@ async function assertNameAvailable(name: string, excludeProfileId?: number): Pro
  * Perder chave de trabalho com a flag ainda ligada é recusado com instrução
  * (desligue a flag na mesma chamada). Desligar a flag junto só é aceito quando
  * não há solicitações abertas atribuídas a usuários do Perfil na etapa; se
- * houver, a recusa lista os protocolos até a realocação por `request:assign`.
+ * houver, a recusa é um conflito de estado (409) que lista os protocolos até a
+ * realocação por `request:assign`.
  */
 async function assertWorkKeyGuard(
   source: CompositionState,
@@ -156,7 +158,7 @@ async function assertWorkKeyGuard(
       throw new AppError(
         `Há solicitações abertas atribuídas a usuários deste perfil em ${STAGE_LABEL[loss.stage]}: ` +
           `${protocols.join(", ")}. Realoque-as antes de desligar a flag e remover as chaves de trabalho.`,
-        400,
+        409,
         "profile_work_key_open_requests",
       );
     }
@@ -221,6 +223,7 @@ export async function createProfile(
   };
 
   validateAssignabilityPredicates({ ...flags, permissions });
+  validateAssignedScope({ ...flags, permissions });
   assertNoEscalation(permissions, actor.permissions);
   await assertNameAvailable(payload.name);
 
@@ -313,6 +316,7 @@ export async function updateProfile(
   );
 
   validateAssignabilityPredicates({ ...nextFlags, permissions: nextPermissions });
+  validateAssignedScope({ ...nextFlags, permissions: nextPermissions });
 
   if (payload.name !== undefined) {
     await assertNameAvailable(payload.name, id);
@@ -446,6 +450,7 @@ export async function duplicateProfile(
   };
 
   validateAssignabilityPredicates({ ...flags, permissions: sourcePermissions });
+  validateAssignedScope({ ...flags, permissions: sourcePermissions });
   assertNoEscalation(sourcePermissions, actor.permissions);
   await assertNameAvailable(payload.name);
 
