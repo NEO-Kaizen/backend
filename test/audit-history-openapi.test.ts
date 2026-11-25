@@ -35,3 +35,17 @@ test("audit-history 403 responses describe only the permitted roles", () => {
     expectedDescription,
   );
 });
+
+test("status-times documents audit history divergence as a standard 409 error", () => {
+  const response =
+    auditHistoryPaths["/audit-logs/{protocol}/status-times"].get.responses["409"];
+  assert.equal(
+    response.content["application/json"].schema.$ref,
+    "#/components/schemas/ErrorResponse",
+  );
+  assert.equal(
+    response.content["application/json"].example.code,
+    "STATUS_HISTORY_DIVERGENCE",
+  );
+  assert.equal(schemas.ErrorResponse.properties.code.type, "string");
+});

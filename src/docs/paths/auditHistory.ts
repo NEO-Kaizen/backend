@@ -226,6 +226,20 @@ export default {
             },
           },
         },
+        "409": {
+          description: "Histórico de Status divergente da solicitação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+              example: {
+                status: "error",
+                statusCode: 409,
+                message: "A trilha de auditoria diverge do Status atual da solicitação.",
+                code: "STATUS_HISTORY_DIVERGENCE",
+              },
+            },
+          },
+        },
       },
     },
   },
