@@ -1,0 +1,59 @@
+import { toSaoPauloDateOnly } from "../../shared/utils/date.ts";
+
+/**
+ * Template materializado de uma Solicitação aberta no corpus de duplicidade
+ * (issue #209; regras em `docs/rules/duplicate-detection.md`).
+ *
+ * Uma aberta NUNCA publica título, descrição, problema, resultado esperado ou
+ * justificativa livres: apenas Categoria, Status "Em andamento" e o trimestre
+ * de criação no fuso America/Sao_Paulo.
+ */
+export const OPEN_REQUEST_PUBLIC_STATUS = "Em andamento";
+export const OPEN_REQUEST_REDACTION_VERSION = "v1-open-template";
+
+export interface OpenRequestTemplate {
+  title: string;
+  summary: string;
+  category: string;
+  status: string;
+  period: string;
+  redactionVersion: string;
+}
+
+/**
+ * Trimestre de `created_at` no fuso America/Sao_Paulo, no formato `YYYY-Qn`.
+ * O trimestre é calculado a partir da data local de São Paulo, não do UTC.
+ */
+export function toSaoPauloQuarter(value: unknown): string {
+  const dateOnly = toSaoPauloDateOnly(value);
+
+  if (!dateOnly) {
+    throw new Error("Data inválida para o período da projeção pública.");
+  }
+
+  const [yearPart, monthPart] = dateOnly.split("-");
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error("Data inválida para o período da projeção pública.");
+  }
+
+  return `${year}-Q${Math.ceil(month / 3)}`;
+}
+
+export function buildOpenRequestTemplate(input: {
+  category: string;
+  createdAt: Date | string;
+}): OpenRequestTemplate {
+  const period = toSaoPauloQuarter(input.createdAt);
+
+  return {
+    title: `Solicitação de ${input.category} em andamento`,
+    summary: `Solicitação em andamento da categoria ${input.category}, registrada no período ${period}.`,
+    category: input.category,
+    status: OPEN_REQUEST_PUBLIC_STATUS,
+    period,
+    redactionVersion: OPEN_REQUEST_REDACTION_VERSION,
+  };
+}

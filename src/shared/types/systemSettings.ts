@@ -22,6 +22,7 @@ export interface SystemSettingsRow {
   platform_name: string;
   solicitation_mode: SolicitationMode;
   protocol_mask: string;
+  duplicate_detection_enabled: boolean;
   theme_id: number | null;
   logo_light_url: string | null;
   logo_dark_url: string | null;
