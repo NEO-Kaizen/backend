@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import type { Knex } from "knex";
 import {
   isUniqueViolation,
   getUniqueViolationConstraint,
@@ -128,16 +129,15 @@ async function assertNameAvailable(name: string, excludeProfileId?: number): Pro
  * Guarda 6 — edição atômica da chave de trabalho.
  *
  * Perder chave de trabalho com a flag ainda ligada é recusado com instrução
- * (desligue a flag na mesma chamada). Desligar a flag junto só é aceito quando
- * não há solicitações abertas atribuídas a usuários do Perfil na etapa; se
- * houver, a recusa é um conflito de estado (409) que lista os protocolos até a
- * realocação por `request:assign`.
+ * (desligue a flag na mesma chamada) — é erro de composição, e a checagem roda
+ * antes dos predicados para preservar o código `profile_work_key_flag_on`.
+ * Desligar a flag junto só é aceito quando não há solicitações abertas
+ * atribuídas a usuários do Perfil na etapa; se houver, a recusa é um conflito
+ * de estado (409) que lista os protocolos até a realocação por
+ * `request:assign`. Essa segunda checagem roda dentro da transação de escrita,
+ * para não haver janela entre a leitura das solicitações e o update.
  */
-async function assertWorkKeyGuard(
-  source: CompositionState,
-  target: CompositionState,
-  profileId: number,
-): Promise<void> {
+function assertWorkKeyFlagGuard(source: CompositionState, target: CompositionState): void {
   for (const loss of findWorkKeyLosses(source, target)) {
     if (loss.targetFlag) {
       throw new AppError(
@@ -147,12 +147,22 @@ async function assertWorkKeyGuard(
         "profile_work_key_flag_on",
       );
     }
+  }
+}
 
-    if (!loss.sourceFlag) {
+/** Guarda 6 (conflito) — solicitações abertas na etapa cuja chave seria removida. */
+async function assertNoOpenWorkKeyRequests(
+  source: CompositionState,
+  target: CompositionState,
+  profileId: number,
+  queryable: Knex,
+): Promise<void> {
+  for (const loss of findWorkKeyLosses(source, target)) {
+    if (loss.targetFlag || !loss.sourceFlag) {
       continue;
     }
 
-    const protocols = await repository.listOpenAssignedProtocols(profileId, loss.stage);
+    const protocols = await repository.listOpenAssignedProtocols(profileId, loss.stage, queryable);
 
     if (protocols.length > 0) {
       throw new AppError(
@@ -309,14 +319,13 @@ export async function updateProfile(
     assertNoEscalation(nextPermissions, actor.permissions);
   }
 
-  await assertWorkKeyGuard(
-    profileState(current, currentPermissions),
-    { ...nextFlags, permissions: nextPermissions },
-    id,
-  );
+  const currentState = profileState(current, currentPermissions);
+  const nextState = { ...nextFlags, permissions: nextPermissions };
 
-  validateAssignabilityPredicates({ ...nextFlags, permissions: nextPermissions });
-  validateAssignedScope({ ...nextFlags, permissions: nextPermissions });
+  assertWorkKeyFlagGuard(currentState, nextState);
+
+  validateAssignabilityPredicates(nextState);
+  validateAssignedScope(nextState);
 
   if (payload.name !== undefined) {
     await assertNameAvailable(payload.name, id);
@@ -332,6 +341,8 @@ export async function updateProfile(
 
   await runProfileWrite(() =>
     db.transaction(async (trx) => {
+      await assertNoOpenWorkKeyRequests(currentState, nextState, id, trx);
+
       await repository.updateProfileFields(trx, id, {
         name: payload.name,
         description: payload.description,
