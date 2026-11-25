@@ -962,6 +962,7 @@
           "demand",
           "operational",
           "canCancel",
+          "canReopen",
           "schedulePreferences",
           "mappingDate",
           "attachments"
@@ -984,6 +985,15 @@
             "type": "boolean",
             "description": "Indica elegibilidade atual para o titular autenticado."
           },
+          "canReopen": {
+            "type": "boolean",
+            "description": "Verdadeiro para o titular direto com encerramento vigente em 16 ou 17."
+          },
+          "closureRef": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Presente somente quando canReopen é verdadeiro."
+          },
           "complementary": { "$ref": "#/components/schemas/ComplementaryBlock" },
           "schedulePreferences": {
             "type": "array",
@@ -995,6 +1005,43 @@
             "type": "array",
             "items": { "$ref": "#/components/schemas/RequesterAttachment" }
           }
+        },
+        "oneOf": [
+          {
+            "properties": { "canReopen": { "type": "boolean", "enum": [true] } },
+            "required": ["closureRef"]
+          },
+          {
+            "properties": { "canReopen": { "type": "boolean", "enum": [false] } },
+            "not": { "required": ["closureRef"] }
+          }
+        ]
+      },
+      "ReopenRequestPayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["justification", "closureRef"],
+        "properties": {
+          "justification": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "Justificativa obrigatória. Os limites se aplicam após remover espaços das extremidades."
+          },
+          "closureRef": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Referência do encerramento atual."
+          }
+        }
+      },
+      "ReopenRequestResponse": {
+        "type": "object",
+        "required": ["protocol", "statusId", "status"],
+        "properties": {
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "statusId": { "type": "integer", "enum": [1] },
+          "status": { "type": "string", "enum": ["Solicitação enviada"] }
         }
       },
       "PublicTrackingResponse": {
@@ -1769,6 +1816,18 @@
           "role": { "type": "string", "enum": ["Analista", "Gestor", "Administrador"] }
         }
       },
+      "TimelineEventActor": {
+        "type": "object",
+        "required": ["id", "name", "role"],
+        "properties": {
+          "id": { "type": "string", "example": "101" },
+          "name": { "type": "string", "example": "Analista Teste" },
+          "role": {
+            "type": "string",
+            "enum": ["Analista", "Gestor", "Administrador", "Solicitante"]
+          }
+        }
+      },
       "TimelineNote": {
         "type": "object",
         "required": ["type", "id", "content", "createdAt", "author"],
@@ -1797,6 +1856,7 @@
               "request.reassign",
               "request.unassign",
               "request.status_change",
+              "request.reopen",
               "mapping.assign"
             ]
           },
@@ -1808,13 +1868,13 @@
           "occurredAt": { "type": "string", "format": "date-time" },
           "actor": {
             "type": "object",
-            "allOf": [{ "$ref": "#/components/schemas/TimelineActor" }],
+            "allOf": [{ "$ref": "#/components/schemas/TimelineEventActor" }],
             "nullable": true,
             "description": "`null` para ação de sistema ou usuário removido."
           },
           "changeOrigin": {
             "type": "string",
-            "enum": ["admin", "system", "internal"],
+            "enum": ["admin", "system", "internal", "requester"],
             "nullable": true
           },
           "justification": {
@@ -1976,6 +2036,15 @@
             "type": "string",
             "nullable": true,
             "description": "Snapshot do retorno público da transição."
+          },
+          "previous_meeting": {
+            "type": "object",
+            "description": "Reunião legada arquivada no evento request.reopen, quando não havia mapeamento correspondente.",
+            "required": ["scheduledFor", "link"],
+            "properties": {
+              "scheduledFor": { "type": "string", "format": "date-time", "nullable": true },
+              "link": { "type": "string", "nullable": true }
+            }
           },
           "ip_address": { "type": "string", "nullable": true },
           "change_origin": { "type": "string", "nullable": true },
@@ -3158,7 +3227,7 @@
       "get": {
         "tags": ["Solicitações"],
         "summary": "Acompanhamento do solicitante",
-        "description": "Acompanhamento bimodal. Cookie de sessão do Solicitante → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. O recorte nunca inclui triagem, priorização ou notas internas.",
+        "description": "Acompanhamento bimodal. Cookie de sessão do Solicitante → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. O recorte exclui triagem, priorização e notas internas. Apenas o modo autenticado informa canReopen e, para titular direto elegível, closureRef.",
         "operationId": "getTracking",
         "security": [{ "cookieAuth": [] }, { "requesterIdentity": [] }],
         "parameters": [
@@ -3181,6 +3250,9 @@
         "responses": {
           "200": {
             "description": "Detalhe de acompanhamento.",
+            "headers": {
+              "Cache-Control": { "schema": { "type": "string", "example": "private, no-store" } }
+            },
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/TrackingResponse" } }
             }
@@ -3201,6 +3273,80 @@
             "description": "Protocolo não encontrado ou de terceiro.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/requests/{protocol}/reopen": {
+      "post": {
+        "tags": ["Solicitações"],
+        "summary": "Reabrir solicitação encerrada",
+        "description": "O Solicitante autenticado e titular direto pode reabrir um encerramento vigente em Concluído (16) ou Cancelado (17). O servidor preserva o protocolo, retorna ao status 1, atualiza as projeções e grava a auditoria na mesma transação. O acompanhamento público e o vínculo por e-mail não autorizam esta operação.",
+        "operationId": "postReopenRequest",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "protocol",
+            "in": "path",
+            "required": true,
+            "description": "Protocolo de rastreio (ex.: MAAT-8K3P-9X2M).",
+            "schema": { "type": "string", "example": "MAAT-8K3P-9X2M", "pattern": "\\S" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReopenRequestPayload" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Solicitação reaberta após commit.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReopenRequestResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Protocolo vazio ou composto apenas por espaços.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem permissão para reabrir.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Protocolo inexistente ou sem vínculo direto com o solicitante autenticado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Estado inelegível ou referência de encerramento obsoleta (rf02_closure_conflict).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Payload inválido.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
             }
           }
         }

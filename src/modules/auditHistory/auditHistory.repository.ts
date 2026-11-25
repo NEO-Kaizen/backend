@@ -25,6 +25,7 @@ interface AuditHistoryDetailRow {
   new_value: string | null;
   note: string | null;
   last_technical_message: string | null;
+  previous_meeting: unknown;
   ip_address: string | null;
   change_origin: string | null;
   occurred_at: Date | string;
@@ -83,6 +84,7 @@ export async function findAuditHistoryById(
       "a.new_value",
       "a.note",
       "a.last_technical_message",
+      "a.previous_meeting",
       "a.ip_address",
       "a.change_origin",
       "a.occurred_at",
@@ -112,6 +114,7 @@ export async function listAuditHistoryByProtocol(
       "a.new_value",
       "a.note",
       "a.last_technical_message",
+      "a.previous_meeting",
       "a.ip_address",
       "a.change_origin",
       "a.occurred_at",

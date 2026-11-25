@@ -1,4 +1,5 @@
 import { AppError } from "../../shared/errors/AppError.ts";
+import { z } from "zod";
 import type { Role } from "../../shared/types/role.ts";
 import type {
   AuditHistoryQuery,
@@ -43,12 +44,21 @@ export async function listAuditHistoryLogs(
   };
 }
 
+const previousMeetingSchema = z.object({
+  scheduledFor: z.string().nullable(),
+  link: z.string().nullable(),
+});
+
 function toDetail(
   row: NonNullable<Awaited<ReturnType<typeof repository.findAuditHistoryById>>>,
 ): AuditHistoryDetail {
   const occurredAt =
     row.occurred_at instanceof Date ? row.occurred_at.toISOString() : String(row.occurred_at);
   const userId = row.user_id === null ? null : Number(row.user_id);
+  const previousMeeting =
+    row.action_type === "request.reopen"
+      ? previousMeetingSchema.safeParse(row.previous_meeting)
+      : undefined;
   return {
     audit_id: Number(row.audit_id),
     entity_type: row.entity_type,
@@ -63,6 +73,7 @@ function toDetail(
     new_value: row.new_value,
     note: row.note,
     last_technical_message: row.last_technical_message ?? null,
+    ...(previousMeeting?.success ? { previous_meeting: previousMeeting.data } : {}),
     ip_address: row.ip_address ?? null,
     change_origin: row.change_origin,
     occurred_at: occurredAt,

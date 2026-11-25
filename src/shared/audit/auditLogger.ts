@@ -22,6 +22,7 @@ export interface AuditEntryBase {
   /** Snapshot do retorno pÃºblico submetido na transiÃ§Ã£o (sÃ³ status pÃºblico). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
+  previousMeeting?: { scheduledFor: string | null; link: string | null };
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
   changeOrigin?: ChangeOrigin | null;
 }
@@ -75,6 +76,8 @@ export async function recordAudit<E extends AuditEntityType, A extends ComposedA
       last_technical_message: entry.lastTechnicalMessage ?? null,
       ip_address: entry.ipAddress ?? null,
       change_origin: entry.changeOrigin ?? null,
+      ...(entry.previousMeeting && { previous_meeting: entry.previousMeeting }),
+      ...(entry.actionType === "request.reopen" && { occurred_at: trx.raw("clock_timestamp()") }),
     })
     .returning("audit_id");
 

@@ -11,10 +11,12 @@ import {
   createRequestPayloadSchema,
   listAuthenticatedRequestsQuerySchema,
   listRequestsQuerySchema,
+  reopenRequestSchema,
   updateRequestPayloadSchema,
   updateStatusSchema,
 } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
+import { reopenRequest } from "./requests-reopen.service.ts";
 
 /**
  * `req.user` só existe quando o `requireAccessMode`/`authMiddleware` autenticou
@@ -53,6 +55,27 @@ export const getTracking = async (req: Request, res: Response): Promise<Response
     requesterIdentity: req.requesterIdentity ?? null,
   });
 
+  return res.set("Cache-Control", "private, no-store").status(200).json(response);
+};
+
+export const postReopenRequest = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+  const parsed = reopenRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const { message, fields } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
+  }
+  if (!req.user) {
+    throw new AppError("Sessão inválida", 401);
+  }
+
+  const response = await reopenRequest({
+    protocol,
+    actor: req.user,
+    justification: parsed.data.justification,
+    closureRef: parsed.data.closureRef,
+    ipAddress: req.ip,
+  });
   return res.status(200).json(response);
 };
 

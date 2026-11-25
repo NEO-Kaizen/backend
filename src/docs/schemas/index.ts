@@ -59,6 +59,8 @@ import {
   RequesterAttachment,
   PublicRequestDetails,
   RequesterRequestDetails,
+  ReopenRequestPayload,
+  ReopenRequestResponse,
   PublicTrackingResponse,
   AuthenticatedTrackingResponse,
   TrackingResponse,
@@ -105,6 +107,7 @@ import {
 
 import {
   TimelineActor,
+  TimelineEventActor,
   TimelineNote,
   TimelineEvent,
   TimelineItem,
@@ -228,6 +231,8 @@ export const schemas = {
   RequesterAttachment,
   PublicRequestDetails,
   RequesterRequestDetails,
+  ReopenRequestPayload,
+  ReopenRequestResponse,
   PublicTrackingResponse,
   AuthenticatedTrackingResponse,
   TrackingResponse,
@@ -274,6 +279,7 @@ export const schemas = {
 
   // Internal notes
   TimelineActor,
+  TimelineEventActor,
   TimelineNote,
   TimelineEvent,
   TimelineItem,

@@ -67,6 +67,16 @@ export const AuditHistoryDetail = {
       nullable: true,
       description: "Snapshot do retorno público da transição.",
     },
+    previous_meeting: {
+      type: "object",
+      description:
+        "Reunião legada arquivada no evento request.reopen, quando não havia mapeamento correspondente.",
+      required: ["scheduledFor", "link"],
+      properties: {
+        scheduledFor: { type: "string", format: "date-time", nullable: true },
+        link: { type: "string", nullable: true },
+      },
+    },
     ip_address: { type: "string", nullable: true },
     change_origin: { type: "string", nullable: true },
     occurred_at: { type: "string", format: "date-time" },

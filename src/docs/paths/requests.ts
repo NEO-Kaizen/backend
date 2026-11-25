@@ -278,7 +278,7 @@ export default {
       summary: "Acompanhamento do solicitante",
       description:
         "Acompanhamento bimodal. Cookie de sessão do Solicitante → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. " +
-        "O recorte nunca inclui triagem, priorização ou notas internas.",
+        "O recorte exclui triagem, priorização e notas internas. Apenas o modo autenticado informa canReopen e, para titular direto elegível, closureRef.",
       operationId: "getTracking",
       security: [{ cookieAuth: [] }, { requesterIdentity: [] }],
       parameters: [
@@ -294,10 +294,50 @@ export default {
         },
       ],
       responses: {
-        "200": { description: "Detalhe de acompanhamento.", ...json("TrackingResponse") },
+        "200": {
+          description: "Detalhe de acompanhamento.",
+          headers: {
+            "Cache-Control": { schema: { type: "string", example: "private, no-store" } },
+          },
+          ...json("TrackingResponse"),
+        },
         "401": error("Identidade ausente/divergente ou sessão inválida."),
         "403": error("Perfil interno ou verificação indisponível no modo AUTHENTICATED."),
         "404": error("Protocolo não encontrado ou de terceiro."),
+      },
+    },
+  },
+
+  "/requests/{protocol}/reopen": {
+    post: {
+      tags: ["Solicitações"],
+      summary: "Reabrir solicitação encerrada",
+      description:
+        "O Solicitante autenticado e titular direto pode reabrir um encerramento vigente em Concluído (16) ou Cancelado (17). " +
+        "O servidor preserva o protocolo, retorna ao status 1, atualiza as projeções e grava a auditoria na mesma transação. " +
+        "O acompanhamento público e o vínculo por e-mail não autorizam esta operação.",
+      operationId: "postReopenRequest",
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          ...protocolParam,
+          schema: { ...protocolParam.schema, pattern: "\\S" },
+        },
+      ],
+      requestBody: { required: true, ...json("ReopenRequestPayload") },
+      responses: {
+        "200": {
+          description: "Solicitação reaberta após commit.",
+          ...json("ReopenRequestResponse"),
+        },
+        "400": error("Protocolo vazio ou composto apenas por espaços."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem permissão para reabrir."),
+        "404": error("Protocolo inexistente ou sem vínculo direto com o solicitante autenticado."),
+        "409": error(
+          "Estado inelegível ou referência de encerramento obsoleta (rf02_closure_conflict).",
+        ),
+        "422": error("Payload inválido.", "ValidationErrorResponse"),
       },
     },
   },

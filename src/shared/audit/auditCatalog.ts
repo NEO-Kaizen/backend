@@ -34,6 +34,7 @@ export const auditCatalog = {
       "reassign",
       "unassign",
       "status_change",
+      "reopen",
       "update",
       "triage",
       // Motor de Status v4 (issue #124): bypass de perfil/restrição do

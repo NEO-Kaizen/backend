@@ -15,7 +15,7 @@ import type {
   InternalNotesResponse,
   MappingHistoryEntry,
   MarkInternalNotesReadRequest,
-  TimelineActorDTO,
+  TimelineEventActorDTO,
   TimelineEvent,
   TimelineItem,
   TimelineNote,
@@ -121,9 +121,13 @@ function normalizeEventAction(action: AuditTimelineAction): TimelineEventAction 
   return action === "request.override_status_admin" ? "request.status_change" : action;
 }
 
-/** `request.status_change` e seu override de Admin compartilham render/payload. */
+/** Ações que carregam justificativa e retorno público da transição. */
 function isStatusChangeAction(action: AuditTimelineAction): boolean {
-  return action === "request.status_change" || action === "request.override_status_admin";
+  return (
+    action === "request.status_change" ||
+    action === "request.override_status_admin" ||
+    action === "request.reopen"
+  );
 }
 
 function composeEventText(
@@ -133,6 +137,8 @@ function composeEventText(
   statusNames: Map<number, string>,
 ): string {
   switch (row.action_type) {
+    case "request.reopen":
+      return "Solicitação reaberta";
     case "request.status_change":
     case "request.override_status_admin": {
       if (!row.new_value) return "Status alterado";
@@ -163,17 +169,15 @@ function composeEventText(
 }
 
 /** Proveniência mínima do audit compartilhada por eventos e históricos. */
-interface ActorSource {
-  actor_user_id: number | null;
-  actor_name: string | null;
-  actor_profile_name: string | null;
-}
-
-function toActorDTO(row: ActorSource): TimelineActorDTO | null {
-  if (row.actor_user_id === null || row.actor_name === null || row.actor_profile_name === null) {
+function toActorDTO(row: TimelineEventRow): TimelineEventActorDTO | null {
+  if (row.actor_user_id === null || row.actor_name === null) {
     return null;
   }
 
+  if (row.action_type === "request.reopen") {
+    return { id: String(row.actor_user_id), name: row.actor_name, role: "Solicitante" };
+  }
+  if (row.actor_profile_name === null) return null;
   const role = resolveRole(row.actor_profile_name);
   if (role === "Solicitante") {
     return null;

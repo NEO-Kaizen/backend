@@ -50,6 +50,7 @@ import {
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 import { applyStatusTransition } from "./statusTransition.ts";
+import { isReopenableStatus } from "./requests-reopen.service.ts";
 import { emitNotification } from "../../shared/notifications/emitNotification.ts";
 import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 
@@ -568,10 +569,14 @@ async function buildAuthenticatedDetails(
   // O modo autenticado nÃ£o tem `impacts`: os mesmos campos vivem dentro de
   // `operational` (`RequesterOperational extends PublicOperationalImpacts`).
   const { impacts, ...base } = buildPublicDetails(row);
+  const closureRef =
+    row.requester_user_id === userId && isReopenableStatus(row.status_id) ? row.closure_ref : null;
 
   return {
     ...base,
     canCancel: cancellation?.requester_user_id === userId && isCancellationEligible(cancellation),
+    canReopen: Boolean(closureRef),
+    ...(closureRef ? { closureRef } : {}),
     operational: {
       ...impacts,
       processDescription: row.process_description,

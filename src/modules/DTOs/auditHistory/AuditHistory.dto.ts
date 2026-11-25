@@ -35,6 +35,8 @@ export interface AuditHistoryDetail {
   note: string | null;
   /** Snapshot do retorno público da transição (nunca concatenado em `note`). */
   last_technical_message: string | null;
+  /** Reunião legada arquivada na reabertura, quando havia apenas projeção vigente. */
+  previous_meeting?: { scheduledFor: string | null; link: string | null };
   ip_address: string | null;
   /** Valor persistido em `audit_history.change_origin`; histórico pode estar fora de `ChangeOrigin`. */
   change_origin: string | null;

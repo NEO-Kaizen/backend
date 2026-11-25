@@ -39,6 +39,80 @@ import { applyStatusTransition } from "./statusTransition.ts";
 
 const INITIAL_STATUS = "Solicitação enviada";
 
+interface LockedRequestClosure {
+  request_id: string;
+  status_id: number;
+  closure_ref: string | null;
+  meeting_scheduled_for: string | null;
+  meeting_link: string | null;
+}
+
+export async function lockRequestByDirectOwner(
+  trx: Knex.Transaction,
+  protocol: string,
+  requesterUserId: number,
+): Promise<LockedRequestClosure | undefined> {
+  return trx<LockedRequestClosure>("requests")
+    .where("protocol", protocol)
+    .andWhere("requester_user_id", requesterUserId)
+    .forNoKeyUpdate()
+    .select(trx.raw("to_json(meeting_scheduled_for) #>> '{}' AS meeting_scheduled_for"))
+    .first("request_id", "status_id", "closure_ref", "meeting_link");
+}
+
+interface RequestWriteState {
+  status_id: number;
+  closure_ref: string | null;
+  reopen_ref: string | null;
+  professional_id: string | null;
+  mapping_professional_id: string | null;
+}
+
+export async function lockRequestForWrite(
+  trx: Knex.Transaction,
+  requestId: string,
+): Promise<RequestWriteState | undefined> {
+  return trx<RequestWriteState>("requests")
+    .where("request_id", requestId)
+    .forNoKeyUpdate()
+    .select(trx.raw("reopen_ref"))
+    .first("status_id", "closure_ref", "professional_id", "mapping_professional_id");
+}
+
+export async function clearReopenedRequestProjections(
+  trx: Knex.Transaction,
+  request: LockedRequestClosure,
+): Promise<{ scheduledFor: string | null; link: string | null } | undefined> {
+  const { request_id, meeting_scheduled_for, meeting_link } = request;
+  let previousMeeting: { scheduledFor: string | null; link: string | null } | undefined;
+  if (meeting_scheduled_for !== null || meeting_link !== null) {
+    const mapping = await trx("mappings")
+      .where({ request_id, scheduled_for: meeting_scheduled_for, meeting_link })
+      .first("mapping_id");
+    if (!mapping) {
+      previousMeeting = { scheduledFor: meeting_scheduled_for, link: meeting_link };
+    }
+  }
+  // O relógio da transação pode ser anterior à aquisição do lock.
+  const reopenedAt = trx.raw("statement_timestamp()");
+  await trx("requests")
+    .where({ request_id })
+    .update({
+      professional_id: null,
+      mapping_professional_id: null,
+      meeting_scheduled_for: null,
+      meeting_link: null,
+      priority_id: null,
+      screening_result: null,
+      last_reopened_at: reopenedAt,
+      // Identidade imutável do ciclo: não depende do relógio nem do fuso.
+      reopen_ref: trx.raw("gen_random_uuid()"),
+      updated_at: reopenedAt,
+      last_external_update_at: reopenedAt,
+    });
+  return previousMeeting;
+}
+
 interface YesNoDetailColumns {
   flag: boolean | null;
   detail: string | null;
@@ -550,6 +624,8 @@ export async function findInternalRequestByProtocol(
     // Dono da solicitação quando criada em modo AUTHENTICATED (#53) — base do
     // owner-check do acompanhamento (GET /requests/:protocol/tracking).
     "requests.requester_user_id",
+    "requests.status_id",
+    "requests.closure_ref",
 
     "requests.protocol",
     "requests.title",

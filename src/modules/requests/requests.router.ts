@@ -11,6 +11,7 @@ import {
   getTracking,
   patchInternalAssignee,
   patchRequestStatus,
+  postReopenRequest,
   postRequest,
   postCancelRequest,
   getAssignees,
@@ -56,6 +57,12 @@ requestsRoutes.patch(
 // dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
 // antes de `/:protocol` para não ser capturado por engano.
 requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);
+requestsRoutes.post(
+  "/:protocol/reopen",
+  authMiddleware,
+  requireRole("Solicitante"),
+  postReopenRequest,
+);
 
 // Motor de Status v4 (issue #124 — ver `docs/rules/requests-lifecycle.md`,
 // seção Troca direta de status): troca de status única.

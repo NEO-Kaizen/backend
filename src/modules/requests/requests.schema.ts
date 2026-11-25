@@ -12,6 +12,13 @@ import type {
   UpdateInternalRequestPayload,
 } from "../DTOs/requests/RequestRequests.dto.ts";
 
+export const reopenJustificationSchema = requiredString(4000);
+
+export const reopenRequestSchema = z.strictObject({
+  justification: reopenJustificationSchema,
+  closureRef: z.uuid("Referência de encerramento inválida."),
+});
+
 const yesNoDetailSchema = z.union(
   [
     z.literal(false),

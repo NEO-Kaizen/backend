@@ -157,6 +157,10 @@ export interface InternalRequestRow {
   requester_user_id: number | null;
   protocol: string;
   title: string;
+  status_id: number;
+  closure_ref: string | null;
+  has_triage: boolean;
+  reopen_ref: string | null;
   request_type: string;
   process_name: string;
   need_description: string;

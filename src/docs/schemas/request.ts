@@ -526,6 +526,36 @@ export const PublicRequestDetails = {
   },
 };
 
+export const ReopenRequestPayload = {
+  type: "object",
+  additionalProperties: false,
+  required: ["justification", "closureRef"],
+  properties: {
+    justification: {
+      type: "string",
+      minLength: 1,
+      maxLength: 4000,
+      description:
+        "Justificativa obrigatória. Os limites se aplicam após remover espaços das extremidades.",
+    },
+    closureRef: {
+      type: "string",
+      format: "uuid",
+      description: "Referência do encerramento atual.",
+    },
+  },
+};
+
+export const ReopenRequestResponse = {
+  type: "object",
+  required: ["protocol", "statusId", "status"],
+  properties: {
+    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    statusId: { type: "integer", enum: [1] },
+    status: { type: "string", enum: ["Solicitação enviada"] },
+  },
+};
+
 export const CancelRequestPayload = {
   type: "object",
   additionalProperties: false,
@@ -560,6 +590,7 @@ export const RequesterRequestDetails = {
     "demand",
     "operational",
     "canCancel",
+    "canReopen",
     "schedulePreferences",
     "mappingDate",
     "attachments",
@@ -582,6 +613,15 @@ export const RequesterRequestDetails = {
       type: "boolean",
       description: "Indica elegibilidade atual para o titular autenticado.",
     },
+    canReopen: {
+      type: "boolean",
+      description: "Verdadeiro para o titular direto com encerramento vigente em 16 ou 17.",
+    },
+    closureRef: {
+      type: "string",
+      format: "uuid",
+      description: "Presente somente quando canReopen é verdadeiro.",
+    },
     complementary: { $ref: "#/components/schemas/ComplementaryBlock" },
     schedulePreferences: {
       type: "array",
@@ -594,6 +634,13 @@ export const RequesterRequestDetails = {
       items: { $ref: "#/components/schemas/RequesterAttachment" },
     },
   },
+  oneOf: [
+    { properties: { canReopen: { type: "boolean", enum: [true] } }, required: ["closureRef"] },
+    {
+      properties: { canReopen: { type: "boolean", enum: [false] } },
+      not: { required: ["closureRef"] },
+    },
+  ],
 };
 
 export const PublicTrackingResponse = {

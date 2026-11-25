@@ -8,6 +8,14 @@ export const TimelineActor = {
   },
 };
 
+export const TimelineEventActor = {
+  ...TimelineActor,
+  properties: {
+    ...TimelineActor.properties,
+    role: { type: "string", enum: ["Analista", "Gestor", "Administrador", "Solicitante"] },
+  },
+};
+
 export const TimelineNote = {
   type: "object",
   required: ["type", "id", "content", "createdAt", "author"],
@@ -37,6 +45,7 @@ export const TimelineEvent = {
         "request.reassign",
         "request.unassign",
         "request.status_change",
+        "request.reopen",
         "mapping.assign",
       ],
     },
@@ -48,13 +57,13 @@ export const TimelineEvent = {
     occurredAt: { type: "string", format: "date-time" },
     actor: {
       type: "object",
-      allOf: [{ $ref: "#/components/schemas/TimelineActor" }],
+      allOf: [{ $ref: "#/components/schemas/TimelineEventActor" }],
       nullable: true,
       description: "`null` para ação de sistema ou usuário removido.",
     },
     changeOrigin: {
       type: "string",
-      enum: ["admin", "system", "internal"],
+      enum: ["admin", "system", "internal", "requester"],
       nullable: true,
     },
     justification: {

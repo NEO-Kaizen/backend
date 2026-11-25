@@ -25,11 +25,12 @@ export type TimelineEventAction =
   | "request.reassign"
   | "request.unassign"
   | "request.status_change"
+  | "request.reopen"
   | "mapping.assign";
 
 /**
  * Ações persistidas em `audit_history` que alimentam a timeline. Diferente da
- * lista fechada exposta na API (`TimelineEventAction`, 5 ações), inclui
+ * lista fechada exposta na API (`TimelineEventAction`), inclui
  * `request.override_status_admin` — gravada pelo bypass de Administrador no
  * `PATCH /requests/:protocol/status` e **normalizada na leitura** para
  * `request.status_change` (issue #124). A gravação permanece intocada.
@@ -40,7 +41,10 @@ export type AuditTimelineAction = TimelineEventAction | "request.override_status
  * Subconjunto de `audit_history.change_origin` usado na timeline.
  * O vínculo deixa explícito que a timeline deriva do catálogo de auditoria.
  */
-export type TimelineChangeOrigin = Extract<ChangeOrigin, "admin" | "system" | "internal"> | null;
+export type TimelineChangeOrigin = Extract<
+  ChangeOrigin,
+  "admin" | "system" | "internal" | "requester"
+> | null;
 
 export interface TimelineCursor {
   t: Date;

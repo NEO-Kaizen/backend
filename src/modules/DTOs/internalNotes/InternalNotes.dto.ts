@@ -5,12 +5,15 @@ import type {
 } from "../../../shared/types/internalNotes.ts";
 import type { TriageAssessment } from "../../requests/triage/triage.schema.ts";
 import type { MappingResponseDTO } from "../queue/mapping.dto.ts";
+import type { Role } from "../../../shared/types/role.ts";
 
 export interface TimelineActorDTO {
   id: string;
   name: string;
   role: InternalRole;
 }
+
+export type TimelineEventActorDTO = Omit<TimelineActorDTO, "role"> & { role: Role };
 
 export interface TimelineNote {
   type: "note";
@@ -26,13 +29,13 @@ export interface TimelineEvent {
   action: TimelineEventAction;
   text: string;
   occurredAt: string;
-  actor: TimelineActorDTO | null;
+  actor: TimelineEventActorDTO | null;
   changeOrigin: TimelineChangeOrigin;
   /** Justificativa interna da transição (nunca o retorno público). */
   justification?: string | null;
   /**
    * Snapshot do retorno público da própria transição — populado **somente**
-   * em `request.status_change` de destino público; `null`/ausente nos demais.
+   * em transições com retorno público; `null`/ausente nas demais.
    */
   lastTechnicalMessage?: string | null;
 }
