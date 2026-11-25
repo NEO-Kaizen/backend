@@ -2217,7 +2217,8 @@
           "mappingMode",
           "isRestricted",
           "tone",
-          "isActive"
+          "isActive",
+          "isPaused"
         ],
         "properties": {
           "id": { "type": "integer", "minimum": 1, "maximum": 50, "example": 1 },
@@ -2227,6 +2228,52 @@
           "isTerminal": { "type": "boolean", "example": false },
           "triageMode": { "$ref": "#/components/schemas/StatusMode" },
           "mappingMode": { "$ref": "#/components/schemas/StatusMode" },
+          "isRestricted": { "type": "boolean", "example": false },
+          "tone": {
+            "type": "string",
+            "enum": ["error", "success", "info", "warning", "neutral"],
+            "example": "neutral"
+          },
+          "isActive": { "type": "boolean", "example": true },
+          "isPaused": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Indica que o Status é período de pausa: o tempo nesse Status não conta como tempo ativo. Configurado somente por migration/seed.",
+            "example": false
+          }
+        }
+      },
+      "PortalStatusPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "isCore",
+          "isPublic",
+          "isTerminal",
+          "triageMode",
+          "mappingMode",
+          "isRestricted",
+          "tone",
+          "isActive"
+        ],
+        "properties": {
+          "id": { "type": "integer", "minimum": 1, "maximum": 50, "example": 1 },
+          "name": { "type": "string", "maxLength": 40, "example": "Solicitação enviada" },
+          "isCore": { "type": "boolean", "example": true },
+          "isPublic": { "type": "boolean", "example": true },
+          "isTerminal": { "type": "boolean", "example": false },
+          "triageMode": {
+            "type": "string",
+            "enum": ["none", "free", "conclusion_only"],
+            "example": "none"
+          },
+          "mappingMode": {
+            "type": "string",
+            "enum": ["none", "free", "conclusion_only"],
+            "example": "none"
+          },
           "isRestricted": { "type": "boolean", "example": false },
           "tone": {
             "type": "string",
@@ -2461,7 +2508,7 @@
             "type": "array",
             "minItems": 1,
             "maxItems": 50,
-            "items": { "$ref": "#/components/schemas/PortalStatus" }
+            "items": { "$ref": "#/components/schemas/PortalStatusPatch" }
           }
         }
       },
@@ -2471,6 +2518,74 @@
         "required": ["prioritizationWeights"],
         "properties": {
           "prioritizationWeights": { "$ref": "#/components/schemas/PrioritizationWeights" }
+        }
+      },
+      "StatusTimeInterval": {
+        "type": "object",
+        "required": [
+          "status",
+          "enteredAt",
+          "exitedAt",
+          "activeMilliseconds",
+          "pausedMilliseconds",
+          "isPaused"
+        ],
+        "properties": {
+          "status": { "type": "string", "example": "Pendente de informações" },
+          "enteredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-20T11:00:00.000Z"
+          },
+          "exitedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null,
+            "description": "Instante de saída; null somente para o Status atual não terminal. Em Status terminal, coincide com enteredAt."
+          },
+          "activeMilliseconds": { "type": "integer", "minimum": 0, "example": 0 },
+          "pausedMilliseconds": { "type": "integer", "minimum": 0, "example": 10800000 },
+          "isPaused": { "type": "boolean", "example": true }
+        }
+      },
+      "StatusTimeByStatus": {
+        "type": "object",
+        "required": ["status", "activeMilliseconds", "pausedMilliseconds", "isPaused"],
+        "properties": {
+          "status": { "type": "string", "example": "Pendente de informações" },
+          "activeMilliseconds": { "type": "integer", "minimum": 0, "example": 0 },
+          "pausedMilliseconds": { "type": "integer", "minimum": 0, "example": 10800000 },
+          "isPaused": { "type": "boolean", "example": true }
+        }
+      },
+      "StatusTimeResponse": {
+        "type": "object",
+        "required": [
+          "protocol",
+          "calculatedAt",
+          "intervals",
+          "totalsByStatus",
+          "totalActiveMilliseconds",
+          "totalPausedMilliseconds"
+        ],
+        "properties": {
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-20T14:22:45.736Z"
+          },
+          "intervals": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StatusTimeInterval" }
+          },
+          "totalsByStatus": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StatusTimeByStatus" }
+          },
+          "totalActiveMilliseconds": { "type": "integer", "minimum": 0, "example": 3600000 },
+          "totalPausedMilliseconds": { "type": "integer", "minimum": 0, "example": 10800000 }
         }
       },
       "PrioritizationCriterion": {
@@ -4518,7 +4633,7 @@
       "patch": {
         "tags": ["Configuração do portal"],
         "summary": "Alterar status do ciclo do portal",
-        "description": "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige perfil `Administrador`.",
+        "description": "Substitui a lista completa de status do ciclo de forma atômica. `isPaused` é somente leitura nas respostas e definido por migration/seed; não pode ser enviado neste PATCH. Exige perfil `Administrador`.",
         "operationId": "updatePortalStatuses",
         "security": [{ "cookieAuth": [] }],
         "requestBody": {
@@ -4885,22 +5000,31 @@
             "name": "page",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+            "description": "Página solicitada (padrão: 1).",
+            "schema": { "type": "integer", "minimum": 1, "default": 1, "example": 1 }
           },
           {
             "name": "limit",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+            "description": "Itens por página (padrão: 20; máximo: 100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "example": 20
+            }
           },
           {
             "name": "entityType",
             "in": "query",
             "required": false,
-            "description": "Filtra por entidade do catálogo de auditoria.",
+            "description": "Filtra pelo tipo de entidade auditada.",
             "schema": {
               "type": "string",
-              "enum": ["user", "prioritization", "request", "mapping", "settings", "pending_item"]
+              "enum": ["user", "prioritization", "request", "mapping", "settings", "pending_item"],
+              "example": "request"
             }
           }
         ],
@@ -5035,6 +5159,65 @@
             "description": "Protocolo inexistente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/audit-logs/{protocol}/status-times": {
+      "get": {
+        "tags": ["Auditoria"],
+        "summary": "Consultar tempo por Status",
+        "description": "Retorna os intervalos ativos e pausados por Status de uma solicitação. Exige autenticação e acesso interno à solicitação.",
+        "operationId": "getStatusTimesByProtocol",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "protocol",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "MAAT-8K3P-9X2M" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tempo ativo e pausado por Status.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusTimeResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Usuário sem custódia ou protocolo não visível ao Analista sem custódia.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Protocolo inexistente para perfil Administrador ou Gestor.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Histórico de Status divergente da solicitação.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+                "example": {
+                  "status": "error",
+                  "statusCode": 409,
+                  "message": "A trilha de auditoria diverge do Status atual da solicitação.",
+                  "code": "STATUS_HISTORY_DIVERGENCE"
+                }
+              }
             }
           }
         }
