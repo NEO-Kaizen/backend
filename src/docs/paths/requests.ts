@@ -400,7 +400,9 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Sem permissão para alterar o status."),
         "404": error("Protocolo ou status de destino inexistente."),
-        "409": error("Status de destino inativo ou conflito de concorrência."),
+        "409": error(
+          "Status de destino inativo, conflito de concorrência ou saída de Concluído/Cancelado sem reabertura formal (rf02_use_reopen).",
+        ),
         "422": error("Status de destino igual ao atual ou erro de estado."),
       },
     },

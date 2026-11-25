@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **173**.
 - Tipos nomeados: **299** â€” 208 interfaces, 89 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1865** â€” 1404 variÃ¡veis, 233 parÃ¢metros e 228 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1867** â€” 1406 variÃ¡veis, 233 parÃ¢metros e 228 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **49**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **130**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -1910,6 +1910,8 @@ export interface RequestStatusContext {
   title: string;
   requester_user_id: number | null;
   current_status_id: number | null;
+  closure_ref: string | null;
+  reopen_ref: string | null;
   current_status_name: string | null;
   current_is_terminal: boolean;
   current_is_restricted: boolean;
@@ -1920,7 +1922,7 @@ export interface RequestStatusContext {
 }
 ```
 
-#### L959 â€” interface RequestStatusTarget
+#### L961 â€” interface RequestStatusTarget
 
 ```ts
 export interface RequestStatusTarget {
@@ -4983,15 +4985,15 @@ interface GroupedIssues {
 - L885 â€” variÃ¡vel: `statusId`
 - L886 â€” variÃ¡vel: `expectedStatusId`
 - L918 â€” variÃ¡vel: `triages`
-- L973 â€” variÃ¡vel: `hasMappingColumn`
-- L990 â€” variÃ¡vel: `query`
-- L1001 â€” variÃ¡vel: `row`
-- L1026 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1085 â€” variÃ¡vel: `manualControls`
-- L1086 â€” variÃ¡vel: `processDocumentation`
-- L1087 â€” variÃ¡vel: `similarSolution`
-- L1088 â€” variÃ¡vel: `otherAreas`
-- L1089 â€” variÃ¡vel: `restrictedInfo`
+- L976 â€” variÃ¡vel: `hasMappingColumn`
+- L994 â€” variÃ¡vel: `query`
+- L1005 â€” variÃ¡vel: `row`
+- L1033 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1092 â€” variÃ¡vel: `manualControls`
+- L1093 â€” variÃ¡vel: `processDocumentation`
+- L1094 â€” variÃ¡vel: `similarSolution`
+- L1095 â€” variÃ¡vel: `otherAreas`
+- L1096 â€” variÃ¡vel: `restrictedInfo`
 
 ### [src/modules/requests/requests.router.ts](../src/modules/requests/requests.router.ts)
 
@@ -5152,22 +5154,24 @@ interface GroupedIssues {
 - L1123 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L1172 â€” variÃ¡vel: `isTriageAssignee`
 - L1174 â€” variÃ¡vel: `isMappingAssignee`
-- L1200 â€” parÃ¢metro: `trx`
-- L1200 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1221 â€” variÃ¡vel: `request`
-- L1226 â€” variÃ¡vel: `target`
-- L1231 â€” variÃ¡vel: `isAdmin`
-- L1245 â€” variÃ¡vel: `isAssignee`
-- L1247 â€” variÃ¡vel: `isMappingAssignee`
-- L1250 â€” variÃ¡vel: `isAnalystAssignee`
-- L1316 â€” variÃ¡vel: `changeOrigin`
-- L1318 â€” parÃ¢metro: `trx`
-- L1318 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1318 â€” variÃ¡vel: `{ lastUpdate, committed }`
-- L1319 â€” variÃ¡vel: `persistedAt`
-- L1331 â€” variÃ¡vel: `auditId`
-- L1349 â€” variÃ¡vel: `requesterUserId`
-- L1351 â€” variÃ¡vel: `committedNotifications`
+- L1199 â€” parÃ¢metro: `trx`
+- L1199 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1220 â€” variÃ¡vel: `request`
+- L1225 â€” variÃ¡vel: `target`
+- L1230 â€” variÃ¡vel: `isAdmin`
+- L1244 â€” variÃ¡vel: `isAssignee`
+- L1246 â€” variÃ¡vel: `isMappingAssignee`
+- L1249 â€” variÃ¡vel: `isAnalystAssignee`
+- L1324 â€” variÃ¡vel: `changeOrigin`
+- L1326 â€” parÃ¢metro: `trx`
+- L1326 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L1326 â€” variÃ¡vel: `{ lastUpdate, committed }`
+- L1327 â€” variÃ¡vel: `locked`
+- L1341 â€” variÃ¡vel: `current`
+- L1352 â€” variÃ¡vel: `persistedAt`
+- L1364 â€” variÃ¡vel: `auditId`
+- L1382 â€” variÃ¡vel: `requesterUserId`
+- L1384 â€” variÃ¡vel: `committedNotifications`
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
@@ -5825,7 +5829,7 @@ interface GroupedIssues {
 - L508 â€” variÃ¡vel: `response`
 - L732 â€” variÃ¡vel: `row`
 - L840 â€” variÃ¡vel: `row`
-- L1001 â€” variÃ¡vel: `row`
+- L1005 â€” variÃ¡vel: `row`
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 

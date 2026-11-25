@@ -91,11 +91,19 @@ conflito e nenhuma auditoria de cancelamento.
   Administrador; o mapeamento bloqueia todos; a troca direta bloqueia
   não-Administrador como **destino**, mas não impede um responsável de **sair**
   de um Status restrito para um destino `free`.
-- Status terminal não recebe novas pendências nem mapeamentos. A checagem de
-  pendência ainda usa os nomes `Concluído`/`Cancelado`, não a flag; um Status
-  terminal customizado escaparia da regra.
-- A troca direta **não** bloqueia a saída de um Status terminal hoje. Reabrir
-  solicitações encerradas está previsto na issue #148.
+- Status terminal não recebe gravações de pendências nem mapeamentos. A
+  persistência de pendências verifica a flag terminal depois do bloqueio.
+- No `PATCH /status`, `Concluído` e `Cancelado` só podem transitar entre si.
+  Uma saída direta ou por outro terminal recebe 409. A reabertura formal
+  volta ao status inicial e remove as custódias e projeções vigentes.
+- Após a reabertura, pendências e mapeamentos anteriores permanecem no histórico
+  e ficam fora das operações do ciclo atual. A avaliação de prioridade anterior
+  também fica fora da projeção vigente.
+- A RF02 exige sessão de Solicitante, vínculo direto, justificativa e a
+  referência do encerramento corrente. A capacidade aparece no acompanhamento
+  autenticado. O retorno ao fluxo ativo e o evento `request.reopen` ocorrem na
+  mesma transação. Quando há reunião legada arquivada nesse evento, seu snapshot
+  está disponível no detalhe autorizado de auditoria.
 
 ## Regras transversais
 

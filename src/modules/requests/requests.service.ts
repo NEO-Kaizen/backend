@@ -1,4 +1,5 @@
-﻿import { AppError } from "../../shared/errors/AppError.ts";
+﻿import { STATUS_IDS } from "../../shared/types/status.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
 import type {
@@ -9,7 +10,6 @@ import type {
   AssignmentContextRow,
   InternalRequestRow,
 } from "../../shared/types/requests.ts";
-import { STATUS_IDS } from "../../shared/types/status.ts";
 import { REQUEST_PRIORITIES } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
@@ -1186,8 +1186,7 @@ function canAssignRequest(
 // - `ANALYST_ASSIGNEE` (responsável pela triagem ou designado do mapeamento,
 //   qualquer perfil interno com custódia — inclusive Gestor): só status ativo,
 //   `isRestricted=false` e com `triageMode` OU `mappingMode` `free`;
-// - status terminais (`isTerminal`) não bloqueiam a saída hoje — reabrir uma
-//   solicitação encerrada por esta rota é decisão pendente (issue #148).
+// - Concluído e Cancelado só podem sair desse conjunto pela reabertura formal.
 // Auditoria: bypass → `request.override_status_admin`; normal →
 // `request.status_change`; negado → `request.access_denied`.
 
@@ -1263,6 +1262,15 @@ export async function updateRequestStatus(
     );
   }
 
+  if (
+    (request.current_status_id === STATUS_IDS.completed ||
+      request.current_status_id === STATUS_IDS.canceled) &&
+    target.status_id !== STATUS_IDS.completed &&
+    target.status_id !== STATUS_IDS.canceled
+  ) {
+    throw new AppError("Use a operação específica de reabertura.", 409, "rf02_use_reopen");
+  }
+
   if (request.current_status_id !== null && request.current_status_id === target.status_id) {
     throw new AppError("A solicitaÃ§Ã£o jÃ¡ estÃ¡ neste status.", 422);
   }
@@ -1316,6 +1324,31 @@ export async function updateRequestStatus(
   const changeOrigin = isAdmin ? "admin" : "internal";
 
   const { lastUpdate, committed } = await db.transaction(async (trx) => {
+    const locked = await repository.lockRequestForWrite(trx, request.request_id);
+    if (
+      !locked ||
+      locked.status_id !== request.current_status_id ||
+      locked.closure_ref !== request.closure_ref ||
+      locked.reopen_ref !== request.reopen_ref
+    ) {
+      throw new AppError(
+        "A solicitação foi atualizada por outra operação.",
+        409,
+        "rf02_closure_conflict",
+      );
+    }
+    if (!isAdmin) {
+      const current = await repository.findRequestStatusContext(protocol.trim(), trx);
+      if (
+        !current ||
+        current.request_id !== request.request_id ||
+        (Number(current.assignee_user_id) !== actor.id &&
+          Number(current.mapping_assignee_user_id) !== actor.id)
+      ) {
+        throw new AppError("A custódia da solicitação mudou.", 409, "request_assignment_conflict");
+      }
+    }
+
     const persistedAt = await applyStatusTransition(trx, {
       requestId: request.request_id,
       target: {

@@ -946,6 +946,8 @@ export interface RequestStatusContext {
   title: string;
   requester_user_id: number | null;
   current_status_id: number | null;
+  closure_ref: string | null;
+  reopen_ref: string | null;
   current_status_name: string | null;
   current_is_terminal: boolean;
   current_is_restricted: boolean;
@@ -969,8 +971,9 @@ export interface RequestStatusTarget {
 
 export async function findRequestStatusContext(
   protocol: string,
+  source: Knex | Knex.Transaction = db,
 ): Promise<RequestStatusContext | undefined> {
-  const hasMappingColumn = await db.schema.hasColumn("requests", "mapping_professional_id");
+  const hasMappingColumn = await source.schema.hasColumn("requests", "mapping_professional_id");
 
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
@@ -978,6 +981,7 @@ export async function findRequestStatusContext(
     title: "requests.title",
     requester_user_id: "requests.requester_user_id",
     current_status_id: "requests.status_id",
+    closure_ref: "requests.closure_ref",
     current_status_name: "statuses.name",
     current_is_terminal: "statuses.is_terminal",
     current_is_restricted: "statuses.is_restricted",
@@ -987,7 +991,7 @@ export async function findRequestStatusContext(
     columns["mapping_assignee_user_id"] = "dpm.user_id";
   }
 
-  const query = db("requests")
+  const query = source("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
   if (hasMappingColumn) {
@@ -998,7 +1002,10 @@ export async function findRequestStatusContext(
     );
   }
 
-  const row = await query.where("requests.protocol", protocol).first(columns);
+  const row = await query
+    .where("requests.protocol", protocol)
+    .select(source.raw("requests.reopen_ref"))
+    .first(columns);
   if (!row) return undefined;
 
   if (!hasMappingColumn) {

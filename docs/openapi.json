@@ -3504,7 +3504,7 @@
             }
           },
           "409": {
-            "description": "Status de destino inativo ou conflito de concorrência.",
+            "description": "Status de destino inativo, conflito de concorrência ou saída de Concluído/Cancelado sem reabertura formal (rf02_use_reopen).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
