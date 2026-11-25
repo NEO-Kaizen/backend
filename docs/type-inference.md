@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **172**.
 - Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1818** â€” 1361 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1823** â€” 1366 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -3445,7 +3445,7 @@ interface GroupedIssues {
 
 ### [src/database/conection.ts](../src/database/conection.ts)
 
-- L5 â€” variÃ¡vel: `db`
+- L10 â€” variÃ¡vel: `db`
 
 ### [src/docs/components/parameters.ts](../src/docs/components/parameters.ts)
 
@@ -5325,8 +5325,8 @@ interface GroupedIssues {
 
 ### [src/shared/middleware/dualAuth.ts](../src/shared/middleware/dualAuth.ts)
 
-- L20 â€” variÃ¡vel: `hasCookie`
-- L27 â€” variÃ¡vel: `identity`
+- L24 â€” variÃ¡vel: `hasCookie`
+- L31 â€” variÃ¡vel: `identity`
 
 ### [src/shared/middleware/errorHandler.ts](../src/shared/middleware/errorHandler.ts)
 
@@ -5353,18 +5353,20 @@ interface GroupedIssues {
 
 ### [src/shared/middleware/upload.ts](../src/shared/middleware/upload.ts)
 
-- L5 â€” variÃ¡vel: `ALLOWED_MIMES`
-- L13 â€” variÃ¡vel: `MAX_FILE_SIZE_BYTES`
-- L14 â€” variÃ¡vel: `MAX_ATTACHMENT_COUNT`
-- L15 â€” variÃ¡vel: `MAX_FIELD_SIZE_BYTES`
-- L17 â€” variÃ¡vel: `upload`
-- L24 â€” parÃ¢metro: `_req`
-- L24 â€” parÃ¢metro: `cb`
-- L24 â€” parÃ¢metro: `file`
-- L24 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L35 â€” variÃ¡vel: `multerFields`
-- L49 â€” parÃ¢metro: `err`
-- L49 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L6 â€” variÃ¡vel: `ALLOWED_MIMES`
+- L14 â€” variÃ¡vel: `ALLOWED_EXTENSIONS`
+- L16 â€” variÃ¡vel: `MAX_FILE_SIZE_BYTES`
+- L17 â€” variÃ¡vel: `MAX_ATTACHMENT_COUNT`
+- L18 â€” variÃ¡vel: `MAX_FIELD_SIZE_BYTES`
+- L20 â€” variÃ¡vel: `upload`
+- L27 â€” parÃ¢metro: `_req`
+- L27 â€” parÃ¢metro: `cb`
+- L27 â€” parÃ¢metro: `file`
+- L27 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L28 â€” variÃ¡vel: `extension`
+- L43 â€” variÃ¡vel: `multerFields`
+- L57 â€” parÃ¢metro: `err`
+- L57 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/shared/middleware/uploadAssets.ts](../src/shared/middleware/uploadAssets.ts)
 
@@ -5566,7 +5568,10 @@ interface GroupedIssues {
 
 ### [src/shared/utils/requesterIdentity.ts](../src/shared/utils/requesterIdentity.ts)
 
-- L7 â€” variÃ¡vel: `obj`
+- L1 â€” variÃ¡vel: `EMAIL_PATTERN`
+- L9 â€” variÃ¡vel: `obj`
+- L12 â€” variÃ¡vel: `name`
+- L13 â€” variÃ¡vel: `email`
 
 ### [src/shared/utils/roleUtils.ts](../src/shared/utils/roleUtils.ts)
 
@@ -5723,7 +5728,7 @@ interface GroupedIssues {
 
 ### [src/shared/middleware/upload.ts](../src/shared/middleware/upload.ts)
 
-- L49 â€” parÃ¢metro: `err`
+- L57 â€” parÃ¢metro: `err`
 
 ### [src/shared/middleware/uploadAssets.ts](../src/shared/middleware/uploadAssets.ts)
 

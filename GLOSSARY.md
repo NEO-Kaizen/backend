@@ -46,6 +46,32 @@ _Evitar_: gravidade, urgência, severidade.
 Atributo que situa a solicitação no fluxo: Status, Prioridade e Categoria. São atributos da solicitação, nunca perguntas do formulário. Só a Categoria é pedida ao solicitante — e é ela que escolhe o formulário que ele preenche.
 _Evitar_: tipo, rótulo, tag.
 
+## Duplicidade
+
+**Duplicidade**:
+Relação entre duas solicitações que descrevem a mesma necessidade. É o mesmo conceito no RF16, que a detecta, e no RF25, que a trata.
+_Evitar_: sugestão, duplicata, similaridade (é a medida, não a relação).
+
+**Similaridade**:
+Grau de proximidade entre os textos de duas solicitações, usado como sinal para o alerta. Não é veredito de duplicidade.
+_Evitar_: score, pontuação, match.
+
+**Alerta de duplicidade**:
+Aviso ao solicitante, ao concluir a aba de Demanda, de que existem solicitações com características em comum. Não vincula registros nem altera status; é a detecção do RF16.
+_Evitar_: sugestão, aviso de duplicata, alerta de similaridade.
+
+**Marcação de duplicidade**:
+Ato formal do RF25 que vincula uma _Solicitação duplicada_ à _Solicitação principal_ e altera o status. Diferente do alerta, que só informa.
+_Evitar_: vinculação, associação, merge.
+
+**Solicitação duplicada**:
+Solicitação marcada como duplicada no RF25, vinculada à _Solicitação principal_.
+_Evitar_: duplicata, duplicado.
+
+**Solicitação principal**:
+Solicitação que representa a necessidade comum e à qual as _Solicitações duplicadas_ são vinculadas no RF25.
+_Evitar_: demanda pai, protocolo pai, original.
+
 ## Análise e priorização
 
 **Triagem**:
