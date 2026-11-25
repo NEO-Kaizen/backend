@@ -102,14 +102,14 @@ Cookie: session_id=<jwt>
 
 Cada item de `intervals`:
 
-| Campo                | Tipo             | Significado                                                  |
-| -------------------- | ---------------- | ------------------------------------------------------------ |
-| `status`             | `string`         | Nome do Status.                                              |
-| `enteredAt`          | `string` ISO     | Entrada no Status.                                           |
+| Campo                | Tipo             | Significado                                                                                                     |
+| -------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| `status`             | `string`         | Nome do Status.                                                                                                 |
+| `enteredAt`          | `string` ISO     | Entrada no Status.                                                                                              |
 | `exitedAt`           | `string \| null` | Saída do Status; `null` somente para Status atual não terminal. O Status terminal fecha no instante de entrada. |
-| `activeMilliseconds` | `number`         | Tempo ativo dentro deste intervalo.                          |
-| `pausedMilliseconds` | `number`         | Tempo pausado dentro deste intervalo.                        |
-| `isPaused`           | `boolean`        | Indica se o Status configurado é período de pausa.           |
+| `activeMilliseconds` | `number`         | Tempo ativo dentro deste intervalo.                                                                             |
+| `pausedMilliseconds` | `number`         | Tempo pausado dentro deste intervalo.                                                                           |
+| `isPaused`           | `boolean`        | Indica se o Status configurado é período de pausa.                                                              |
 
 Cada item de `totalsByStatus`:
 
@@ -127,7 +127,7 @@ Cada item de `totalsByStatus`:
 | `401`  | Sem sessão ou sessão inválida.                                                      |
 | `403`  | Perfil sem custódia; também usado por Analista para mascarar protocolo inexistente. |
 | `404`  | Protocolo inexistente para Administrador ou Gestor.                                 |
-| `409`  | Trilha inválida ou divergente do Status atual (`code: STATUS_HISTORY_DIVERGENCE`).   |
+| `409`  | Trilha inválida ou divergente do Status atual (`code: STATUS_HISTORY_DIVERGENCE`).  |
 
 ### Uso no frontend
 

@@ -201,10 +201,9 @@ describe(
           now: firstQueryTime,
         });
         const headers = { Cookie: `${cookieName}=${adminToken}` };
-        const firstResponse = await fetch(
-          `${baseUrl}/audit-logs/${protocol}/status-times`,
-          { headers },
-        );
+        const firstResponse = await fetch(`${baseUrl}/audit-logs/${protocol}/status-times`, {
+          headers,
+        });
         assert.equal(firstResponse.status, 200);
         const first = (await firstResponse.json()) as {
           calculatedAt: string;
@@ -220,10 +219,9 @@ describe(
         };
 
         t.mock.timers.setTime(firstQueryTime.getTime() + 1_000);
-        const secondResponse = await fetch(
-          `${baseUrl}/audit-logs/${protocol}/status-times`,
-          { headers },
-        );
+        const secondResponse = await fetch(`${baseUrl}/audit-logs/${protocol}/status-times`, {
+          headers,
+        });
         assert.equal(secondResponse.status, 200);
         const second = (await secondResponse.json()) as typeof first;
 
