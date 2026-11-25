@@ -153,6 +153,62 @@ export default {
     },
   },
 
+  "/requests/duplicates/check": {
+    post: {
+      tags: ["Solicitações"],
+      summary: "Verificar duplicidade da Demanda",
+      description:
+        "Consulta o corpus público curado ao concluir a aba de Demanda (RF16). " +
+        "Público no modo `PUBLIC` e com sessão obrigatória no modo `AUTHENTICATED`; sujeito a rate limit por IP. " +
+        "A resposta nunca ecoa o texto enviado e pode trazer apenas `publicId`, `title`, `summary`, `category`, `status` e `period`. " +
+        'Flag desligada, índice indisponível ou falha de busca degradam para `200` com `confidence: "none"` e `items: []`. ' +
+        "Solicitações em aberto aparecem apenas com o resumo de template; concluídas entram com texto tarjado (issue #210). " +
+        "O Alerta não vincula registros nem altera Status — a Marcação de duplicidade é o ato formal do RF25.",
+      operationId: "postDuplicateCheck",
+      security: [{}, { cookieAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/DuplicateCheckRequest" },
+            example: {
+              demand: {
+                title: "Automatizar conciliação bancária",
+                requestType: "Automação",
+                category: "Automação",
+                processName: "Conciliação bancária mensal",
+                description: "Conferência manual de extratos e lançamentos.",
+                problem: "Retrabalho e risco de divergência no fechamento.",
+                expectedResult: "Conciliação automática com trilha de conferência.",
+                justification: "Reduzir esforço manual do time financeiro.",
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Faixa de confiança e itens públicos do Alerta de duplicidade. Resposta com `Cache-Control: no-store`.",
+          headers: {
+            "Cache-Control": {
+              description: "Impede cache da resposta com dados de terceiros.",
+              schema: { type: "string", example: "no-store" },
+            },
+          },
+          ...json("DuplicateCheckResponse"),
+        },
+        "401": error("Modo AUTHENTICATED sem sessão válida."),
+        "422": error(
+          "Corpo inválido, campo obrigatório ausente ou chave desconhecida.",
+          "ValidationErrorResponse",
+        ),
+        "429": error("Muitas requisições (rate limit por IP)."),
+        "500": error("Falha interna genérica, sem detalhe do corpus."),
+      },
+    },
+  },
+
   "/requests/{protocol}": {
     get: {
       tags: ["Solicitações"],

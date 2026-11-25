@@ -83,6 +83,13 @@ import {
   MappingPayload,
 } from "./queue.ts";
 
+import {
+  DuplicateCheckRequest,
+  DuplicateCheckDemand,
+  DuplicateAlertItem,
+  DuplicateCheckResponse,
+} from "./duplicates.ts";
+
 import { TriageAssignee, TriagemResponse, CreateTriagePayload } from "./triage.ts";
 
 import {
@@ -235,6 +242,12 @@ export const schemas = {
   AssignAnalystPayload,
   UpdateStatusPayload,
   UpdateStatusResponse,
+
+  // Duplicate alert (RF16)
+  DuplicateCheckRequest,
+  DuplicateCheckDemand,
+  DuplicateAlertItem,
+  DuplicateCheckResponse,
 
   // Queue + mapping
   QueueMetrics,
