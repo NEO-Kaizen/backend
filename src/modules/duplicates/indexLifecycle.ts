@@ -140,6 +140,9 @@ export function startDuplicateIndexPolling(): void {
     onError: () => {
       console.warn("[duplicates] index poll failed");
     },
+    // O boot já reconstruiu o índice quando a flag está ligada; a primeira
+    // volta do poller pode ser incremental.
+    initialized: ready,
   });
 
   poller.start();

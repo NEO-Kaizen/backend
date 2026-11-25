@@ -1407,10 +1407,15 @@ export interface IndexPollerOptions {
   intervalMs?: number;
   overlapMs?: number;
   onError?: (error: unknown) => void;
+  /**
+   * Quando o índice já foi construído antes do poller (boot), a primeira
+   * execução pode ser incremental em vez de um rebuild completo redundante.
+   */
+  initialized?: boolean;
 }
 ```
 
-#### L28 â€” interface IndexPoller
+#### L33 â€” interface IndexPoller
 
 ```ts
 export interface IndexPoller {
@@ -4154,22 +4159,22 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/indexPoller.ts](../src/modules/duplicates/indexPoller.ts)
 
-- L34 â€” variÃ¡vel: `DUPLICATE_INDEX_POLL_INTERVAL_MS`
-- L35 â€” variÃ¡vel: `DUPLICATE_INDEX_OVERLAP_MS`
-- L38 â€” variÃ¡vel: `intervalMs`
-- L39 â€” variÃ¡vel: `overlapMs`
-- L40 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L40 â€” variÃ¡vel: `now`
-- L48 â€” variÃ¡vel: `enabled`
-- L57 â€” variÃ¡vel: `runAt`
-- L62 â€” variÃ¡vel: `documents`
-- L64 â€” variÃ¡vel: `document`
-- L72 â€” variÃ¡vel: `since`
-- L73 â€” variÃ¡vel: `changes`
-- L75 â€” variÃ¡vel: `change`
-- L89 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L92 â€” variÃ¡vel: `error`
-- L107 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L39 â€” variÃ¡vel: `DUPLICATE_INDEX_POLL_INTERVAL_MS`
+- L40 â€” variÃ¡vel: `DUPLICATE_INDEX_OVERLAP_MS`
+- L43 â€” variÃ¡vel: `intervalMs`
+- L44 â€” variÃ¡vel: `overlapMs`
+- L45 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L45 â€” variÃ¡vel: `now`
+- L53 â€” variÃ¡vel: `enabled`
+- L62 â€” variÃ¡vel: `runAt`
+- L67 â€” variÃ¡vel: `documents`
+- L69 â€” variÃ¡vel: `document`
+- L77 â€” variÃ¡vel: `since`
+- L78 â€” variÃ¡vel: `changes`
+- L80 â€” variÃ¡vel: `change`
+- L94 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L97 â€” variÃ¡vel: `error`
+- L112 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/duplicates/miniSearchIndex.ts](../src/modules/duplicates/miniSearchIndex.ts)
 

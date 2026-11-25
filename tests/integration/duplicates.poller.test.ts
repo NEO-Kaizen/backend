@@ -146,6 +146,16 @@ describe("poller do índice de duplicidade", () => {
     expect(deps.apply).toHaveBeenCalledWith(expect.objectContaining({ publicId: "a" }));
   });
 
+  it("com índice já construído no boot, a primeira execução é incremental", async () => {
+    const deps = createDeps({ changes: [] });
+    const poller = createIndexPoller({ ...deps.options, initialized: true });
+
+    await poller.runOnce();
+
+    expect(deps.readAll).not.toHaveBeenCalled();
+    expect(deps.readChanges).toHaveBeenCalledOnce();
+  });
+
   it("dispara o poll no intervalo configurado com fake timers", async () => {
     vi.useFakeTimers();
     const deps = createDeps({ documents: [document("a")] });

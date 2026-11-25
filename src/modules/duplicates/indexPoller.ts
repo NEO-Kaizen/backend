@@ -23,6 +23,11 @@ export interface IndexPollerOptions {
   intervalMs?: number;
   overlapMs?: number;
   onError?: (error: unknown) => void;
+  /**
+   * Quando o índice já foi construído antes do poller (boot), a primeira
+   * execução pode ser incremental em vez de um rebuild completo redundante.
+   */
+  initialized?: boolean;
 }
 
 export interface IndexPoller {
@@ -39,8 +44,8 @@ export function createIndexPoller(options: IndexPollerOptions): IndexPoller {
   const overlapMs = options.overlapMs ?? DUPLICATE_INDEX_OVERLAP_MS;
   const now = options.now ?? (() => new Date());
 
-  let cursor: Date | null = null;
-  let enabledState: boolean | null = null;
+  let cursor: Date | null = (options.initialized ?? false) ? now() : null;
+  let enabledState: boolean | null = (options.initialized ?? false) ? true : null;
   let running: Promise<void> | null = null;
   let timer: NodeJS.Timeout | null = null;
 
