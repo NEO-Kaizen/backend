@@ -507,6 +507,8 @@ function buildPublicDetails(row: InternalRequestRow): PublicRequestDetails {
   };
 }
 
+const INITIAL_CANCEL_CYCLE = "initial";
+
 function isCancellationEligible(request: { status_id: number; has_triage: boolean }): boolean {
   return request.status_id === STATUS_IDS.requestSent && !request.has_triage;
 }
@@ -526,6 +528,17 @@ export async function cancelRequest(
     }
     if (!isCancellationEligible(request)) {
       throw new AppError("Esta solicitação não pode mais ser cancelada.", 422, "rf07_not_eligible");
+    }
+
+    if (
+      (payload.cancelCycleRef ?? INITIAL_CANCEL_CYCLE) !==
+      (request.reopen_ref ?? INITIAL_CANCEL_CYCLE)
+    ) {
+      throw new AppError(
+        "O ciclo da solicitação mudou. Atualize o acompanhamento.",
+        409,
+        "rf07_cycle_conflict",
+      );
     }
 
     const lastTechnicalMessage = "Solicitação cancelada pelo titular.";
@@ -555,12 +568,11 @@ export async function cancelRequest(
 
 async function buildAuthenticatedDetails(
   row: InternalRequestRow,
-  userId: number,
+  requesterUserId: number,
 ): Promise<RequesterRequestDetails> {
   const requestId = row.request_id;
-  const [attachments, cancellation, schedulePreferences] = await Promise.all([
+  const [attachments, schedulePreferences] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
-    repository.findCancellationContext(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
   ]);
 
@@ -570,11 +582,15 @@ async function buildAuthenticatedDetails(
   // `operational` (`RequesterOperational extends PublicOperationalImpacts`).
   const { impacts, ...base } = buildPublicDetails(row);
   const closureRef =
-    row.requester_user_id === userId && isReopenableStatus(row.status_id) ? row.closure_ref : null;
+    row.requester_user_id === requesterUserId && isReopenableStatus(row.status_id)
+      ? row.closure_ref
+      : null;
 
+  const canCancel = row.requester_user_id === requesterUserId && isCancellationEligible(row);
   return {
     ...base,
-    canCancel: cancellation?.requester_user_id === userId && isCancellationEligible(cancellation),
+    canCancel,
+    ...(canCancel ? { cancelCycleRef: row.reopen_ref ?? INITIAL_CANCEL_CYCLE } : {}),
     canReopen: Boolean(closureRef),
     ...(closureRef ? { closureRef } : {}),
     operational: {

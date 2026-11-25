@@ -626,6 +626,8 @@ export async function findInternalRequestByProtocol(
     "requests.requester_user_id",
     "requests.status_id",
     "requests.closure_ref",
+    hasHistoricalTriage(db),
+    "requests.reopen_ref",
 
     "requests.protocol",
     "requests.title",
@@ -898,6 +900,7 @@ interface CancellationContext {
   requester_user_id: number | null;
   status_id: number;
   has_triage: boolean;
+  reopen_ref: string | null;
 }
 
 export async function lockRequestForCancellation(
@@ -911,11 +914,17 @@ export async function lockRequestForCancellation(
     .first("request_id");
 }
 
+function hasHistoricalTriage(source: Knex | Knex.Transaction): Knex.Raw<boolean> {
+  const triages = source("triages")
+    .select("triages.request_id")
+    .where("triages.request_id", source.ref("requests.request_id"));
+  return source.raw("EXISTS (?) AS has_triage", [triages]);
+}
+
 export async function findCancellationContext(
   requestId: string,
   source: Knex | Knex.Transaction = db,
 ): Promise<CancellationContext | undefined> {
-  const triages = source("triages").select("request_id").where({ request_id: requestId });
   return source("requests")
     .where({ request_id: requestId })
     .first(
@@ -923,7 +932,8 @@ export async function findCancellationContext(
       "protocol",
       "requester_user_id",
       "status_id",
-      source.raw("EXISTS (?) AS has_triage", [triages]),
+      hasHistoricalTriage(source),
+      source.raw("requests.reopen_ref"),
     );
 }
 

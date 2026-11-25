@@ -34,6 +34,15 @@ A justificativa é obrigatória e integra a auditoria. O estado passa para
 `Cancelado` (id 17), com atualização do retrato público e preservação dos
 dados, anexos e histórico.
 
+A confirmação é vinculada ao ciclo que estava vigente quando o titular abriu
+o modal. O backend compara a referência sob lock antes de gravar o
+cancelamento. A referência é o UUID `requests.reopen_ref`, gerado em cada
+reabertura e imune a coincidência de relógio ou de fuso. No ciclo inicial,
+clientes anteriores podem omitir a referência. Após uma reabertura, esses
+clientes precisam atualizar o acompanhamento e enviar a referência recebida
+para cancelar. Referências ausentes nesse ciclo ou de um ciclo anterior geram
+conflito e nenhuma auditoria de cancelamento.
+
 ## Triagem
 
 - Cada triagem é um registro novo; nunca há duas simultâneas. A vigente é a

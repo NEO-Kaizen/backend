@@ -370,7 +370,7 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Perfil sem permissão para cancelar."),
         "404": error("Protocolo não encontrado para o titular autenticado."),
-        "409": error("Conflito com outra alteração da solicitação."),
+        "409": error("Conflito com outra alteração ou ciclo obsoleto (rf07_cycle_conflict)."),
         "422": error("Justificativa inválida ou solicitação inelegível (rf07_not_eligible)."),
       },
     },

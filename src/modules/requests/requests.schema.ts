@@ -221,6 +221,7 @@ export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 export const cancelRequestSchema = z
   .object({
     justification: requiredString(4000),
+    cancelCycleRef: z.string().min(1).max(64).optional(),
   })
   .strict();
 

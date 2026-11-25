@@ -68,6 +68,7 @@ export interface PublicRequestDetails {
 
 export interface RequesterRequestDetails extends Omit<PublicRequestDetails, "impacts"> {
   canCancel: boolean;
+  cancelCycleRef?: string;
   canReopen: boolean;
   closureRef?: string;
   operational: RequesterOperational;

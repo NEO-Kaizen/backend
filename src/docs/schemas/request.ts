@@ -568,6 +568,13 @@ export const CancelRequestPayload = {
       description:
         "Justificativa obrigatória, com limite aplicado após remover espaços nas extremidades.",
     },
+    cancelCycleRef: {
+      type: "string",
+      minLength: 1,
+      maxLength: 64,
+      description:
+        "Referência do ciclo lida no acompanhamento (`initial` ou o UUID da reabertura vigente). A omissão só é aceita no ciclo inicial.",
+    },
   },
 };
 
@@ -613,6 +620,11 @@ export const RequesterRequestDetails = {
       type: "boolean",
       description: "Indica elegibilidade atual para o titular autenticado.",
     },
+    cancelCycleRef: {
+      type: "string",
+      description:
+        "Referência opaca do ciclo atual (`initial` ou o UUID da reabertura). Presente somente quando canCancel é verdadeiro.",
+    },
     canReopen: {
       type: "boolean",
       description: "Verdadeiro para o titular direto com encerramento vigente em 16 ou 17.",
@@ -639,6 +651,20 @@ export const RequesterRequestDetails = {
     {
       properties: { canReopen: { type: "boolean", enum: [false] } },
       not: { required: ["closureRef"] },
+    },
+  ],
+  allOf: [
+    {
+      oneOf: [
+        {
+          properties: { canCancel: { type: "boolean", enum: [true] } },
+          required: ["cancelCycleRef"],
+        },
+        {
+          properties: { canCancel: { type: "boolean", enum: [false] } },
+          not: { required: ["cancelCycleRef"] },
+        },
+      ],
     },
   ],
 };
