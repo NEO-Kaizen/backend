@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: quality (${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [24, 26]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js ${{ matrix.node }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck, lint and format
+        run: npm run check
+      - name: Build
+        run: npm run build
+
+  database:
+    name: database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    services:
+      postgres:
+        # Keep this digest in sync with docker-compose.yml.
+        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+        env:
+          POSTGRES_USER: neo_test
+          POSTGRES_PASSWORD: neo_test
+          POSTGRES_DB: neo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U neo_test -d neo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 10s
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: neo_test
+      DB_USER: neo_test
+      DB_PASSWORD: neo_test
+      NODE_ENV: test
+      JWT_SECRET: ci-only-not-a-secret
+      PROTOCOL_FPE_KEY: ci-only-not-a-secret
+      PORT: 3000
+      UPLOAD_DIR: /tmp/neo-kaizen-uploads
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Ensure no .env file
+        # knexfile.js loads .env with dotenv `override: true`, which would
+        # override the job env above and point Knex at the wrong database.
+        run: |
+          if [ -e .env ]; then
+            echo "::error::.env must not exist in CI; it overrides the workflow env."
+            exit 1
+          fi
+      - name: Run migrations (up)
+        run: npm run migrate:latest
+      - name: Roll back all migrations
+        # The rollback MUST happen before any seed runs: with seeded data in
+        # place, the audit-mapping migration fails to roll back (see #142).
+        run: npx --no-install knex migrate:rollback --all --env development
+      - name: Run migrations again (up)
+        run: npm run migrate:latest
+      # Seeds only run after the rollback/up cycle above; running them before
+      # the rollback is what triggers the audit-mapping bug tracked in #142.
+      - name: Run base seeds (first pass)
+        run: npm run seed:run
+      - name: Run base seeds (second pass)
+        run: npm run seed:run
+      - name: Run scenario seeds (first pass)
+        run: npm run seed:scenarios:run
+      - name: Run scenario seeds (second pass)
+        run: npm run seed:scenarios:run
+      - name: Start API
+        # Node 24 runs src/server.ts directly via native type stripping.
+        run: |
+          nohup node src/server.ts > /tmp/api.log 2>&1 &
+          echo $! > /tmp/api.pid
+      - name: Smoke test GET /portal-config
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/portal-config; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::API did not answer GET /portal-config after 30 attempts"
+          cat /tmp/api.log
+          exit 1
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f /tmp/api.pid ]; then
+            kill "$(cat /tmp/api.pid)" 2>/dev/null || true
+            rm -f /tmp/api.pid
+          fi
+
+  # TODO(#135): the test suite lives on feat/135-implemented-test-suite and is
+  # not merged into main yet. Enable this job and add `test` to the required
+  # checks once #135 lands. Keep it commented until then.
+  # test:
+  #   name: test
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
+  #   if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+  #   services:
+  #     postgres:
+  #       image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+  #       env:
+  #         POSTGRES_USER: neo_test
+  #         POSTGRES_PASSWORD: neo_test
+  #         POSTGRES_DB: neo_test
+  #       ports:
+  #         - 5432:5432
+  #       options: >-
+  #         --health-cmd "pg_isready -U neo_test -d neo_test"
+  #         --health-interval 5s
+  #         --health-timeout 5s
+  #         --health-retries 10
+  #         --health-start-period 10s
+  #   steps:
+  #     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  #       with:
+  #         persist-credentials: false
+  #     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+  #       with:
+  #         node-version: 24
+  #         cache: npm
+  #     - run: npm ci --no-audit --no-fund
+  #     - run: npm run migrate:latest
+  #     - run: npm test
+  #       env:
+  #         DB_HOST: 127.0.0.1
+  #         DB_PORT: 5432
+  #         DB_NAME: neo_test
+  #         DB_USER: neo_test
+  #         DB_PASSWORD: neo_test
+  #         NODE_ENV: test

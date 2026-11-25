@@ -17,7 +17,7 @@ import {
 
 const usersRoutes = express.Router();
 
-// Lista para modal de atribuição — contrato contract-assign-action.md
+// Lista para modal de atribuição — regras em `docs/rules/assignment.md`
 // Sem query, sem paginação, todos com profile === "Analista", isActive=true.
 // Autenticado, qualquer perfil interno logado pode listar (modal triagem).
 usersRoutes.get("/analysts", authMiddleware, listAnalysts);
