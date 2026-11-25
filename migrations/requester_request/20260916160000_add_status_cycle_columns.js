@@ -1,5 +1,5 @@
 /**
- * Estende o ciclo de vida dinâmico dos status (contrato `portal-config-api.md`,
+ * Estende o ciclo de vida dinâmico dos status (especificação OpenAPI em `src/docs/`,
  * seção "statuses"), refletindo as colunas de `PortalStatus` no banco:
  *
  * - `visibility` — enum nativo `status_visibility` (PUBLIC | INTERNAL);

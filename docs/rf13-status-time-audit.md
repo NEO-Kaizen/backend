@@ -127,7 +127,7 @@ Cada item de `totalsByStatus`:
 | `401`  | Sem sessão ou sessão inválida.                                                      |
 | `403`  | Perfil sem custódia; também usado por Analista para mascarar protocolo inexistente. |
 | `404`  | Protocolo inexistente para Administrador ou Gestor.                                 |
-| `409`  | Trilha de auditoria inválida ou divergente do Status atual.                         |
+| `409`  | Trilha inválida ou divergente do Status atual (`code: STATUS_HISTORY_DIVERGENCE`).   |
 
 ### Uso no frontend
 
@@ -186,7 +186,6 @@ Body:
       "isCore": true,
       "isPublic": true,
       "isTerminal": false,
-      "isPaused": true,
       "triageMode": "free",
       "mappingMode": "free",
       "isRestricted": false,
@@ -199,11 +198,11 @@ Body:
 
 `isPaused`:
 
-- Opcional no contrato TypeScript atual;
-- Ausente na atualização: o backend preserva o valor existente no banco;
+- Obrigatório e somente leitura na resposta de `GET /portal-config`;
+- Não faz parte do payload de `PATCH /portal-config/statuses` (schema estrito);
+- Configurado por migration/seed, não pela API;
 - `true`: o Status é considerado período pausado;
 - `false`: o Status conta como tempo ativo;
-- Status de núcleo não podem ter `isPaused` alterado por esta rota.
 - Transições novas snapshotam `status_id`; renomear um Status não reclassifica esses períodos.
 - Eventos anteriores ao snapshot permanecem append-only, com IDs nulos, e são resolvidos pelo nome
   persistido ao consultar. Portanto, renomeações anteriores à migration não podem ser reconstruídas

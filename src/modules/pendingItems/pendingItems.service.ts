@@ -190,8 +190,9 @@ export type PendingCaller = {
 };
 
 /**
- * Criar/revisar exige Administrador ou o assignee atual (contrato 03 §3,
- * mesma regra do botão "Editar" / `canTriage`). Gestor é read-only.
+ * Criar/revisar exige Administrador ou o assignee atual (regras em
+ * `docs/rules/pending-items.md`, mesma regra do botão "Editar" / `canTriage`).
+ * Gestor é read-only.
  */
 async function assertCanCreateOrReview(
   requestId: string,

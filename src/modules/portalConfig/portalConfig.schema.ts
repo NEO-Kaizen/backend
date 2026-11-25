@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   CORE_STATUS_IDS,
   PRIORITIZATION_CRITERIA,
+  STATUS_MODES,
   THEME_TOKEN_KEYS,
   type AccessSection,
   type CategoriesSection,
@@ -11,9 +12,9 @@ import {
 import { STATUS_TONES, type StatusTone } from "../../shared/types/systemTheme.ts";
 
 /**
- * Schemas por seção do `PATCH /portal-config/*` (contrato `portal-config-api.md`).
- * Espelham as validações do contrato por Card; escala de pesos **inteira 1–10**
- * (portal-config-api-0_4.md, alinhada a `criteria.weight`; a migration de CHECK
+ * Schemas por seção do `PATCH /portal-config/*` (regras em `docs/rules/portal-config.md`).
+ * Espelham as validações de domínio por Card; escala de pesos **inteira 1–10**
+ * (`docs/rules/portal-config.md`, alinhada a `criteria.weight`; a migration de CHECK
  * do banco aceita 0–10 por decisão de produto issue-59 §8.3).
  */
 
@@ -141,7 +142,7 @@ export const updateCategoriesSchema = z
   })
   .strict() satisfies z.ZodType<CategoriesSection>;
 
-const StatusModeSchema = z.enum(["none", "free", "conclusion_only"], {
+const StatusModeSchema = z.enum(STATUS_MODES, {
   error: "Modo inválido — opções: none, free ou conclusion_only.",
 });
 
@@ -225,7 +226,7 @@ export const updateStatusesSchema = z
 
 /**
  * Pesos da priorização — objeto atômico completo, sempre com todas as chaves.
- * Escala **inteira 1–10** (contrato `portal-config-api-0_4.md`, alinhada ao
+ * Escala **inteira 1–10** (regras em `docs/rules/portal-config.md`, alinhada ao
  * `criteria.weight`).
  */
 const prioritizationWeightSchema = z
@@ -258,7 +259,7 @@ export const updatePrioritizationWeightsSchema = z
 /**
  * Parte JSON `assets` do multipart (chaves com URL definida diretamente).
  * Aceita URL relativa do app (`/...`) ou `http(s)://`; rejeita esquemas como
- * `blob:`/`javascript:` (contrato `portal-config-api-0_4.md` §5 — `blob:` é
+ * `blob:`/`javascript:` (ver `docs/rules/portal-config.md`, seção Assets — `blob:` é
  * permitido apenas no preview local do frontend em dev).
  */
 const assetUrlSchema = z

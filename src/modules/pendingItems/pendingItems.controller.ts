@@ -106,7 +106,7 @@ export async function publicVerify(req: Request, res: Response): Promise<Respons
     ...(req.body as object),
     protocol: (req.body as Record<string, unknown>)?.["protocol"] ?? protocol,
   };
-  // ordem contrato 03 §7: rate-limit → formato → modo → identidade (todas as tentativas contam)
+  // ordem: rate-limit → formato → modo → identidade (todas as tentativas contam)
   const key = rateLimitKey(req.ip, protocol);
   if (!checkRateLimit(key))
     throw new AppError("Muitas tentativas. Tente novamente em alguns minutos.", 429);

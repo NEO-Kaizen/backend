@@ -90,7 +90,7 @@ function participantId(userId: number | null): string | null {
   return userId !== null ? String(userId) : null;
 }
 
-/** Designado serializado para a resposta (`userId` para a comparação do contrato §9). */
+/** Designado serializado para a resposta (`userId` para a comparação de `docs/rules/assignment.md`). */
 function toMappingAssignee(
   candidate: repository.MappingAssigneeCandidate | null,
 ): MappingAssignee | null {
@@ -343,7 +343,8 @@ export const upsertMappingService = async (
 
     // Priorizado (isRestricted) bloqueia o PUT de qualquer perfil — inclusive
     // Admin/designado → movimentação de/r para Priorizado só via `PATCH /status`
-    // (delta v4 §3.2: "Priorizado só via override").
+    // (ver `docs/rules/requests-lifecycle.md`, seção Restrição e status
+    // terminal: "Priorizado só via override").
     if (context.is_restricted) {
       await recordMappingAccessDenied(context.protocol, actor.id, "demanda priorizada", ipAddress);
       throw new AppError(
@@ -373,9 +374,10 @@ export const upsertMappingService = async (
 
     const previousProfessionalId = mapping ? mapping.professional_id : null;
 
-    // Autorização — dois vínculos distintos (contrato §9):
-    // - Designação (`mappingAssigneeId` presente): responsável da solicitação
-    //   (dono pode delegar) ou Admin; o designado atual também pode (re)designar.
+    // Autorização — dois vínculos distintos (ver `docs/rules/assignment.md`):
+    // - Designação (`mappingAssigneeId` presente): o Responsável pela
+    //   solicitação (Custódia) delega a outro profissional, o designado atual
+    //   também pode (re)designar e o Admin sempre pode.
     // - Campos do mapeamento (com ou sem designação): o designado ATUAL ou Admin.
     //   Criação sem designação herda o responsável — o próprio responsável pode
     //   criar (ele será o designado efetivo).

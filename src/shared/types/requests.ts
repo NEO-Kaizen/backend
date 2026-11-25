@@ -57,7 +57,7 @@ export interface RequesterBlock {
   area: string; // obrigatório — máx. 100
   department?: string; // opcional (padrão; Admin pode tornar obrigatório) — máx. 100
   // renderização híbrida: <Select> se houver departamentos
-  // cadastrados; texto livre caso contrário (§1.1)
+  // cadastrados; texto livre caso contrário
   manager: string; // obrigatório — gestor responsável, máx. 150
   additionalContact?: string; // opcional — telefone, ramal ou e-mail secundário, máx. 100
 }

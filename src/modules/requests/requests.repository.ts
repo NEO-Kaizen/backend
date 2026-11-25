@@ -292,7 +292,6 @@ async function saveAttachments(
       file_path: attachment.storageKey,
       content_type: attachment.mimeType,
       size_bytes: attachment.sizeBytes,
-      is_restricted: false,
       uploaded_by: uploadedBy,
       uploaded_at: trx.fn.now(),
     })),
@@ -395,7 +394,7 @@ export async function findRequestsByRequesterEmail(
       protocol: "requests.protocol",
       process_name: "requests.process_name",
       priority: "priorities.level",
-      status: db.raw(`${PUBLIC_STATUS_SUMMARY_SQL} as status`),
+      status: db.raw(PUBLIC_STATUS_SUMMARY_SQL),
       assignee: "assignee_user.full_name",
       requester_name: "requesters.full_name",
       created_at: "requests.created_at",
@@ -491,7 +490,7 @@ export async function findRequestByProtocolWithOwner(
   };
 }
 
-// --- Consulta administrativa/interna (issue #48 + contract-assign-action) ---
+// --- Consulta administrativa/interna (issue #48 + docs/rules/assignment.md) ---
 
 /** Anexo de solicitação — projeção de `attachments` usada no detalhe. */
 export interface RequestAttachmentRow {
@@ -662,7 +661,7 @@ export async function findEvaluationByProtocol(
   };
 }
 
-/** Perfil que pode ser responsável técnico — contrato contract-assign-action.md: só Analista. */
+/** Perfil que pode ser Responsável — regras em `docs/rules/assignment.md`: só Analista. */
 export const ASSIGNABLE_PROFILES = ["analista"] as const;
 
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
