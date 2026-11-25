@@ -25,6 +25,15 @@ posição do array na configuração, não um campo `order`.
 Toda solicitação nasce em `Solicitação enviada` (id 1), que também é o primeiro
 retrato público. O protocolo é gerado na criação e não é reutilizado.
 
+## Cancelamento pelo titular
+
+O solicitante autenticado pode cancelar enquanto o status atual for
+`Solicitação enviada` (id 1) e ainda não houver avaliação registrada em
+`triages`. A titularidade exige vínculo direto entre a solicitação e a conta.
+A justificativa é obrigatória e integra a auditoria. O estado passa para
+`Cancelado` (id 17), com atualização do retrato público e preservação dos
+dados, anexos e histórico.
+
 ## Triagem
 
 - Cada triagem é um registro novo; nunca há duas simultâneas. A vigente é a

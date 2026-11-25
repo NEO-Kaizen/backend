@@ -12,6 +12,7 @@ import {
   patchInternalAssignee,
   patchRequestStatus,
   postRequest,
+  postCancelRequest,
   getAssignees,
   patchAssignee,
   patchInternalRequestByProtocol,
@@ -65,6 +66,13 @@ requestsRoutes.patch(
   authMiddleware,
   requireRole("Analista", "Gestor", "Administrador"),
   patchRequestStatus,
+);
+
+requestsRoutes.post(
+  "/:protocol/cancel",
+  authMiddleware,
+  requireRole("Solicitante"),
+  postCancelRequest,
 );
 
 requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);

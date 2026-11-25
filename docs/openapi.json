@@ -961,6 +961,7 @@
           "requester",
           "demand",
           "operational",
+          "canCancel",
           "schedulePreferences",
           "mappingDate",
           "attachments"
@@ -979,6 +980,10 @@
           "requester": { "$ref": "#/components/schemas/RequesterBlock" },
           "demand": { "$ref": "#/components/schemas/DemandBlock" },
           "operational": { "$ref": "#/components/schemas/RequesterOperational" },
+          "canCancel": {
+            "type": "boolean",
+            "description": "Indica elegibilidade atual para o titular autenticado."
+          },
           "complementary": { "$ref": "#/components/schemas/ComplementaryBlock" },
           "schedulePreferences": {
             "type": "array",
@@ -1079,6 +1084,24 @@
             "example": "22"
           }
         }
+      },
+      "CancelRequestPayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["justification"],
+        "properties": {
+          "justification": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\s*\\S(?:[\\s\\S]{0,3998}\\S)?\\s*$",
+            "description": "Justificativa obrigatória, com limite aplicado após remover espaços nas extremidades."
+          }
+        }
+      },
+      "CancelRequestResponse": {
+        "type": "object",
+        "required": ["status"],
+        "properties": { "status": { "type": "string", "enum": ["Cancelado"] } }
       },
       "UpdateStatusPayload": {
         "type": "object",
@@ -3176,6 +3199,78 @@
           },
           "404": {
             "description": "Protocolo não encontrado ou de terceiro.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/requests/{protocol}/cancel": {
+      "post": {
+        "tags": ["Solicitações"],
+        "summary": "Cancelar solicitação antes da triagem",
+        "description": "Disponível ao solicitante autenticado com vínculo direto, no estado Solicitação enviada e sem avaliação registrada.",
+        "operationId": "postCancelRequest",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "protocol",
+            "in": "path",
+            "required": true,
+            "description": "Protocolo de rastreio. Deve conter ao menos um caractere que não seja espaço em branco.",
+            "schema": { "type": "string", "example": "MAAT-8K3P-9X2M", "pattern": "\\S" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CancelRequestPayload" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Solicitação cancelada.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CancelRequestResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Protocolo vazio ou composto apenas por espaços em branco.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem permissão para cancelar.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Protocolo não encontrado para o titular autenticado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Conflito com outra alteração da solicitação.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Justificativa inválida ou solicitação inelegível (rf07_not_eligible).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }

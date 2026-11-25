@@ -211,6 +211,14 @@ export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 // solicitação encerrada por esta rota é decisão pendente (issue #148). Toda
 // mudança exige justificativa (ver `docs/rules/requests-lifecycle.md`).
 
+export const cancelRequestSchema = z
+  .object({
+    justification: requiredString(4000),
+  })
+  .strict();
+
+export type CancelRequestPayload = z.infer<typeof cancelRequestSchema>;
+
 export const updateStatusSchema = z
   .object({
     targetStatus: z
