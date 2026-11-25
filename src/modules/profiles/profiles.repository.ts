@@ -218,10 +218,11 @@ export async function ensureProfessionalExtensionsForActiveUsers(
 export async function listOpenAssignedProtocols(
   profileId: number,
   stage: AssignabilityStage,
+  queryable: Knex = db,
 ): Promise<string[]> {
   const assignedColumn = stage === "triage" ? "r.professional_id" : "r.mapping_professional_id";
 
-  const rows = (await db("requests as r")
+  const rows = (await queryable("requests as r")
     .join("details_professional as dp", "dp.professional_id", assignedColumn)
     .join("users as u", "u.user_id", "dp.user_id")
     .join("statuses as s", "s.status_id", "r.status_id")

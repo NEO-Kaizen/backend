@@ -118,7 +118,7 @@ export default {
       tags: ["Usuários"],
       summary: "Listar Responsáveis atribuíveis",
       description:
-        "Exige `assignee_directory:read`. Lista contas ativas com extensão profissional ativa cujo Perfil tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. Não depende do nome do Perfil. Use `stage=triage` (padrão) ou `stage=mapping`.",
+        "Exige `assignee_directory:read`. Lista contas ativas com extensão profissional ativa cujo Perfil tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. Não depende do nome do Perfil. Use `stage=triage` (padrão) ou `stage=mapping`. Com `protocol`, exclui o criador da solicitação do resultado — Solicitante e Responsável não podem ser a mesma pessoa.",
       operationId: "listAssignableProfessionals",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -128,6 +128,14 @@ export default {
           required: false,
           schema: { type: "string", enum: ["triage", "mapping"], default: "triage" },
           description: "Etapa da Atribuibilidade usada para filtrar os profissionais.",
+        },
+        {
+          in: "query",
+          name: "protocol",
+          required: false,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+          description:
+            "Protocolo da solicitação: omite do diretório a conta que a criou. Sem o parâmetro, o diretório permanece global.",
         },
       ],
       responses: {
@@ -143,7 +151,7 @@ export default {
           },
         },
         "400": {
-          description: "Etapa inválida.",
+          description: "Etapa ou protocolo inválido.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -160,6 +168,14 @@ export default {
         },
         "403": {
           description: "Sem `assignee_directory:read`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Protocolo informado em `protocol` não encontrado (`request_not_found`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

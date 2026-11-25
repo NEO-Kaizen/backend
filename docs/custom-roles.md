@@ -114,11 +114,12 @@ Toda edição de perfil passa pelo servidor. As guardas abaixo não são sugest�
 2. **Perfil Admin Root protegido.** O perfil Admin Root é identificado por `is_root`, nunca pelo nome. Só o Admin Root o edita; ele não perde `profile:manage` nem é desativado. A conta é única, nasce só do seed e fica fora de rota.
 3. **Exclusão física não existe.** Nenhum perfil — base ou customizado — é excluído fisicamente; a desativação segue a guarda 4 para todos, salvo o Admin Root (guarda 2).
 4. **Perfil com usuários.** Não é desativado sem a realocação dos usuários para outro perfil.
-5. **Dependências de chave.** As dependências estão na § 1.7 do `rbac.md`: `*:manage` exige `*:read`; `request:status_override` exige `request:status_change`; `pending_item:respond` exige `request:track`. `request:track` e `pending_item:respond` só aceitam `own`. As flags `is_assignable_triage` e `is_assignable_mapping` exigem o predicado de chaves de trabalho da § 1.4 do `rbac.md`.
-6. **Edição atômica da chave de trabalho.** Remover a chave de escrita de uma etapa com a flag ligada — e a flag ausente no corpo — é `400`. Desligar a flag e remover as chaves na mesma chamada é aceito, exceto quando existem solicitações abertas atribuídas a usuários do perfil: a resposta é `400` com os protocolos, até a realocação.
-7. **Auditoria.** Toda alteração de perfil grava o antes e o depois, o ator e o momento na trilha de auditoria.
-8. **Autoedição.** Ninguém altera a designação de perfil da própria conta pelas rotas administrativas. A troca de perfil de uma conta é uma operação de `user:manage`, sujeita à matriz de contas do `rbac.md`.
-9. **Duplicação é criação.** A cópia nasce como customizado e passa por todas as validações da criação (§ 2.3).
+5. **Dependências de chave.** As dependências estão na § 1.7 do `rbac.md`: `*:manage` exige `*:read`; `request:create` exige `request:track`; `request:assign` exige `assignee_directory:read`; `request:status_override` exige `request:status_change`; `user:manage` exige `profile:read`; `pending_item:respond` exige `request:track`. `request:track` e `pending_item:respond` só aceitam `own`. As flags `is_assignable_triage` e `is_assignable_mapping` exigem o predicado de chaves de trabalho da § 1.4 do `rbac.md`.
+6. **Edição atômica da chave de trabalho.** Remover a chave de escrita de uma etapa com a flag ligada — e a flag ausente no corpo — é `400`. Desligar a flag e remover as chaves na mesma chamada é aceito, exceto quando existem solicitações abertas atribuídas a usuários do perfil: a resposta é `409 profile_work_key_open_requests` com os protocolos, até a realocação.
+7. **Escopo `assigned` exige atribuibilidade.** Composição com pelo menos uma chave em `assigned` exige `is_assignable_triage` ou `is_assignable_mapping`; sem a flag é `400 profile_assigned_scope_without_assignability`. A guarda vale em criação, edição e duplicação.
+8. **Auditoria.** Toda alteração de perfil grava o antes e o depois, o ator e o momento na trilha de auditoria.
+9. **Autoedição.** Ninguém altera a designação de perfil da própria conta pelas rotas administrativas. A troca de perfil de uma conta é uma operação de `user:manage`, sujeita à matriz de contas do `rbac.md`.
+10. **Duplicação é criação.** A cópia nasce como customizado e passa por todas as validações da criação (§ 2.3).
 
 ## 5. Exemplos
 
@@ -138,7 +139,8 @@ Os exemplos acima destacam as chaves internas que distinguem cada perfil. O auto
 
 ## 6. Efeito no frontend
 
-- `GET /auth/me` devolve `profile: { id, name }` e `permissions: [{ key, custody }]`. A tela usa `has(key)` e o vínculo, não o nome do perfil.
+- `GET /auth/me` e o login devolvem `profile: { id, name, isRoot }` e `permissions: [{ key, custody }]`. A tela usa `has(key)` e o vínculo, e a identidade do Admin Root vem de `profile.isRoot` — nunca do nome.
+- O editor lê as dependências em `GET /profiles/keys` e inclui automaticamente a dependência ao marcar a chave principal (por exemplo, `request:create` traz `request:track`).
 - A abertura de solicitação usa `has("request:create")`; “minhas solicitações” usa `has("request:track")`; a resposta a pendências usa `has("pending_item:respond")`.
 - O cadastro de usuário lê os perfis com `profile:read` e mostra os ativos, inclusive customizados.
 - Abas, botões e guardas de rota derivam da chave. Uma tela nova não pergunta “é Administrador?”; pergunta “tem `theme:manage`?”.

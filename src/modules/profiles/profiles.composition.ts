@@ -96,7 +96,8 @@ function invalidCustody(key: string, custody: string): AppError {
  * - vínculo conhecido e aceito pela chave (`global` só `global`; posse fixa só
  *   `own`; demais custodiais `assigned`/`all`);
  * - dependências da § 1.7 presentes (`*:manage` → `*:read`,
- *   `status_override` → `status_change`, `respond` → `track`).
+ *   `status_override` → `status_change`, `respond`/`create` → `track`,
+ *   `assign` → `assignee_directory:read`).
  */
 export function validateComposition(
   input: readonly ProfilePermissionInput[],
@@ -175,6 +176,25 @@ export function validateAssignabilityPredicates(state: CompositionState): void {
       );
     }
   }
+}
+
+/**
+ * Guarda 7 — custódia `assigned` sem atribuibilidade.
+ * Um perfil que só enxerga o que está atribuído a ele precisa poder receber
+ * atribuições; sem flag, a composição é incoerente.
+ */
+export function validateAssignedScope(state: CompositionState): void {
+  const hasAssigned = state.permissions.some((permission) => permission.custody === "assigned");
+
+  if (!hasAssigned || state.isAssignableTriage || state.isAssignableMapping) {
+    return;
+  }
+
+  throw new AppError(
+    "O escopo 'Atribuído' exige que o perfil seja atribuível à triagem ou ao mapeamento.",
+    400,
+    "profile_assigned_scope_without_assignability",
+  );
 }
 
 /** Perda de chaves de trabalho de uma etapa entre o estado atual e o resultante. */

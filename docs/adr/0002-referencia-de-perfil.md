@@ -46,3 +46,13 @@ Snapshots históricos preservam o que o banco registrou:
 - A chave de Permissão que **autorizou** uma ação não é auditada. As recusas
   ganham `denied_permission_keys` estruturado; a decisão de autorização
   completa continua fora da trilha.
+
+## Emenda — 25/11/2026 (Rodada 01 do RBAC)
+
+A sessão (`login`, `GET /auth/me` e troca de senha) passa a publicar
+`profile: { id, name, isRoot }` (`SessionProfileReference`), extensão de
+`ProfileReference` com a marca estável `profiles.is_root`. A referência
+genérica `{ id, name }` continua valendo para listagens, timeline e snapshots
+de auditoria; `isRoot` não é propagado para esses contextos. O nome do Perfil
+Admin Root segue editável, e nenhum cliente deve derivar autoridade do rótulo —
+a identidade vem da marca.

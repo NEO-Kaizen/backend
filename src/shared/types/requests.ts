@@ -144,6 +144,8 @@ export interface AssignmentContextRow {
   mapping_professional_id: string | null;
   status: RequestStatus;
   screening_result: string | null;
+  /** Conta do Solicitante; `null` nas linhas anônimas e legadas sem vínculo. */
+  requester_user_id: number | null;
   /** `details_professional.user_id` do responsável da triagem (issue #124). */
   assignee_user_id: number | null;
   /** `details_professional.user_id` do designado do mapeamento (issue #124). */

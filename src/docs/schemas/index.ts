@@ -2,6 +2,7 @@ import { ErrorResponse, ValidationErrorResponse } from "./common.ts";
 
 import {
   AuthenticatedUser,
+  SessionProfileReference,
   LoginRequest,
   LoginResponse,
   LogoutResponse,
@@ -90,6 +91,7 @@ export {
   ErrorResponse,
   ValidationErrorResponse,
   AuthenticatedUser,
+  SessionProfileReference,
   LoginRequest,
   LoginResponse,
   LogoutResponse,
@@ -160,6 +162,7 @@ export const schemas = {
   ErrorResponse,
   ValidationErrorResponse,
   AuthenticatedUser,
+  SessionProfileReference,
   LoginRequest,
   LoginResponse,
   LogoutResponse,

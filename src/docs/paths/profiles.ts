@@ -28,6 +28,7 @@ const COMPOSITION_ERROR_CODES = [
   "profile_permission_duplicate_key",
   "profile_permission_missing_dependency",
   "profile_flag_predicate_missing",
+  "profile_assigned_scope_without_assignability",
   "profile_permission_key_escalation",
   "profile_permission_custody_escalation",
 ] as const;
@@ -37,10 +38,16 @@ const CREATE_ERROR_CODES = [...COMPOSITION_ERROR_CODES, "profile_name_taken"] as
 const UPDATE_ERROR_CODES = [
   ...CREATE_ERROR_CODES,
   "profile_work_key_flag_on",
-  "profile_work_key_open_requests",
   "profile_root_requires_manage",
   "profile_root_not_assignable",
 ] as const;
+
+/**
+ * Conflito de estado: a edição é válida, mas o Perfil ainda tem solicitações
+ * abertas atribuídas a usuários dele na etapa. Diferente das recusas de
+ * composição (`400`), a resolução depende de realocar as solicitações.
+ */
+const CONFLICT_ERROR_CODES = ["profile_work_key_open_requests"] as const;
 
 const STATUS_ERROR_CODES = [
   "profile_has_users",
@@ -93,8 +100,8 @@ export default {
           },
         },
         "400": errorResponse(
-          "Composição inválida (chave, vínculo, dependência ou escalação) ou nome já usado por " +
-            `perfil ativo. Códigos: ${formatErrorCodes(...CREATE_ERROR_CODES)}.`,
+          "Composição inválida (chave, vínculo, dependência, escopo `assigned` sem flag ou " +
+            `escalação) ou nome já usado por perfil ativo. Códigos: ${formatErrorCodes(...CREATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),
@@ -107,7 +114,7 @@ export default {
       tags: ["Perfis"],
       summary: "Catálogo de chaves do editor de perfis",
       description:
-        "Devolve as 39 chaves na ordem de referência (tipo, vínculos permitidos, dependências) e os predicados de Atribuibilidade das flags.",
+        "Devolve as 37 chaves na ordem de referência (tipo, vínculos permitidos, dependências) e os predicados de Atribuibilidade das flags.",
       operationId: "getProfileKeyCatalog",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -153,7 +160,7 @@ export default {
       tags: ["Perfis"],
       summary: "Editar perfil (parcial e atômico)",
       description:
-        "Edita nome, descrição, flags e/ou composição. Campo ausente é intocado; `permissions` presente substitui integralmente. Remover chave de trabalho exige desligar a flag de Atribuibilidade correspondente na mesma chamada; com solicitações abertas atribuídas a usuários do perfil, a recusa lista os protocolos. O Perfil Admin Root só é editado pelo Admin Root, mantém `profile:manage` e não recebe flags.",
+        "Edita nome, descrição, flags e/ou composição. Campo ausente é intocado; `permissions` presente substitui integralmente. Remover chave de trabalho exige desligar a flag de Atribuibilidade correspondente na mesma chamada; com solicitações abertas atribuídas a usuários do perfil, a recusa é `409` com os protocolos. Composição com escopo `assigned` exige ao menos uma flag de Atribuibilidade. O Perfil Admin Root só é editado pelo Admin Root, mantém `profile:manage` e não recebe flags.",
       operationId: "updateProfile",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -181,9 +188,14 @@ export default {
         },
         "400": errorResponse(
           "Composição inválida, nome já usado por perfil ativo, remoção de chave de trabalho com " +
-            "a flag de Atribuibilidade ligada, solicitações abertas atribuídas a usuários do " +
-            "perfil, retirada de `profile:manage` do Perfil Admin Root ou flag no Perfil Admin " +
+            "a flag de Atribuibilidade ligada, escopo `assigned` sem flag de Atribuibilidade, " +
+            "retirada de `profile:manage` do Perfil Admin Root ou flag no Perfil Admin " +
             `Root. Códigos: ${formatErrorCodes(...UPDATE_ERROR_CODES)}.`,
+        ),
+        "409": errorResponse(
+          "Solicitações abertas atribuídas a usuários do perfil na etapa cuja chave de trabalho " +
+            "seria removida. Realoque-as antes de repetir a edição. " +
+            `Códigos: ${formatErrorCodes(...CONFLICT_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse(
@@ -271,8 +283,8 @@ export default {
           },
         },
         "400": errorResponse(
-          "Escalação de chave/vínculo, dependência, predicado de flag ou nome já usado por " +
-            `perfil ativo. Códigos: ${formatErrorCodes(...CREATE_ERROR_CODES)}.`,
+          "Escalação de chave/vínculo, dependência, predicado de flag, escopo `assigned` sem " +
+            `flag de Atribuibilidade ou nome já usado por perfil ativo. Códigos: ${formatErrorCodes(...CREATE_ERROR_CODES)}.`,
         ),
         "401": errorResponse("Sem sessão ou token inválido."),
         "403": errorResponse("Perfil sem a permissão profile:manage."),

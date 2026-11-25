@@ -54,7 +54,10 @@ export const listAssignableProfessionals = async (
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const professionals = await service.listAssignableProfessionals(parsed.data.stage);
+  const professionals = await service.listAssignableProfessionals(
+    parsed.data.stage,
+    parsed.data.protocol,
+  );
   return res.status(200).json(professionals);
 };
 

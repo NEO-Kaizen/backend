@@ -32,8 +32,12 @@ essas condições no servidor em cada atribuição e reatribuição.
 Para designação interna, o ator precisa de `request:assign` e Custódia sobre a
 solicitação; o alvo inválido (incluindo usuário ou Perfil inativo) responde
 `400` com o código estável `assignee_not_assignable`. A reatribuição aplica as
-mesmas validações. Quando o ator não pode ler a linha após a mutação, a resposta
-é um acknowledgement `{ protocol, updated: true }`, sem conteúdo interno.
+mesmas validações. Quem criou a solicitação não pode ser o Responsável dela:
+a recusa é `400 assignee_is_requester` na triagem, no mapeamento e na rota
+legada; `null` (remover) continua permitido, e solicitações anônimas ou legadas
+sem `requests.requester_user_id` não são afetadas. Quando o ator não pode ler a
+linha após a mutação, a resposta é um acknowledgement
+`{ protocol, updated: true }`, sem conteúdo interno.
 
 `requests.professional_id` referencia `details_professional.professional_id` com `ON DELETE SET NULL` — solicitações antigas mantêm o vínculo mesmo se o
 profissional for desativado.
@@ -98,9 +102,11 @@ Responsáveis atribuíveis conforme flag e predicado de cada etapa.
 
 Protegido por autenticação e `request:assign`. O service valida a Custódia
 da solicitação e a Atribuibilidade do alvo. Alvo inválido responde 400 com
-code `assignee_not_assignable`. A rota interna de designação segue as mesmas
-validações. Seu resultado detalhado só é devolvido quando o ator também pode
-ler a solicitação; caso contrário, a resposta contém `{ protocol, updated: true }`.
+code `assignee_not_assignable`; criador da solicitação como responsável
+responde 400 com code `assignee_is_requester`. A rota interna de designação
+segue as mesmas validações. Seu resultado detalhado só é devolvido quando o ator
+também pode ler a solicitação; caso contrário, a resposta contém
+`{ protocol, updated: true }`.
 
 **Body** — `AssignRequestPayload`
 
@@ -128,12 +134,12 @@ ler a solicitação; caso contrário, a resposta contém `{ protocol, updated: t
 
 **Erros**
 
-| Código | Situação                                                                         |
-| ------ | -------------------------------------------------------------------------------- |
-| 400    | Body inválido ou alvo inválido; alvo inválido usa code `assignee_not_assignable` |
-| 401    | Sem sessão ou sessão inválida                                                    |
-| 403    | Ator sem `request:assign`                                                        |
-| 404    | Solicitação inexistente ou fora da Custódia do ator                              |
+| Código | Situação                                                                                                       |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| 400    | Body inválido, alvo inválido (`assignee_not_assignable`) ou criador como responsável (`assignee_is_requester`) |
+| 401    | Sem sessão ou sessão inválida                                                                                  |
+| 403    | Ator sem `request:assign`                                                                                      |
+| 404    | Solicitação inexistente ou fora da Custódia do ator                                                            |
 
 ### Semântica
 

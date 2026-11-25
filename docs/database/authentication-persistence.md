@@ -148,6 +148,10 @@ A tabela `profile_permissions` guarda a composição de Permissões de cada Perf
 
 A composição dos cinco perfis base é semeada por `013_base_profile_permissions.js`, que lê a matriz de referência de `src/shared/catalog/baseProfiles.ts` — nenhuma cópia das chaves ou dos vínculos na seed. A conta Admin Root é criada por `014_admin_root_account.js`, apenas se não existir Admin Root, a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD` (documentadas em `.env.example`).
 
+Duas migrations de dados acompanham a Rodada 01 do RBAC: `20261125120000_backfill_rbac_dependencies.js` inclui as dependências de chave em perfis existentes (`request:create` → `request:track`, `request:assign` → `assignee_directory:read`, `user:manage` → `profile:read`), de forma idempotente; `20261125120100_remove_form_permission_grants.js` remove as concessões das chaves descontinuadas `form:read` e `form:manage`. Ambas têm `down` no-op deliberado: remover concessões aditivas ou reconstruir um estado anterior não distinguível quebraria perfis legítimos.
+
+Essas duas migrations precisam rodar **antes** de o código novo receber tráfego. `buildEffectivePermissions` falha alto para dependência ausente e para chave fora do catálogo, então perfis ainda sem as dependências (ou ainda com `form:*`) quebrariam `/auth/me`, login e `GET /profiles` até a migration ser aplicada. O deploy deve rodar a migration e só então liberar a aplicação.
+
 ## Tabela `users`
 
 A tabela `users` armazena os usuários que poderão utilizar o mecanismo de autenticação da aplicação.

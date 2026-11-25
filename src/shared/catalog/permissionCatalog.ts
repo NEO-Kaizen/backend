@@ -3,7 +3,7 @@
  *
  * Módulo de domínio puro: sem HTTP, sem banco e sem configuração. O seed dos
  * perfis base, a sessão (`GET /auth/me`) e as guardas de composição consomem
- * este módulo; nenhuma outra cópia das 39 chaves existe no código.
+ * este módulo; nenhuma outra cópia das 37 chaves existe no código.
  *
  * Contrato: `docs/rbac.md` (§§ 1–3).
  */
@@ -31,7 +31,7 @@ export interface PermissionDefinition {
 }
 
 /**
- * As 39 chaves na ordem de referência da matriz de perfil (§ 4.1). A ordem é
+ * As 37 chaves na ordem de referência da matriz de perfil (§ 4.1). A ordem é
  * contrato: a lista efetiva da sessão sai nesta sequência.
  */
 export const PERMISSION_CATALOG = [
@@ -40,7 +40,7 @@ export const PERMISSION_CATALOG = [
     key: "request:create",
     custodyType: "global",
     allowedCustodies: ["global"],
-    dependencies: [],
+    dependencies: ["request:track"],
   },
   {
     key: "request:track",
@@ -64,7 +64,7 @@ export const PERMISSION_CATALOG = [
     key: "request:assign",
     custodyType: "custodial",
     allowedCustodies: ["assigned", "all"],
-    dependencies: [],
+    dependencies: ["assignee_directory:read"],
   },
   {
     key: "request:status_change",
@@ -189,7 +189,7 @@ export const PERMISSION_CATALOG = [
     key: "user:manage",
     custodyType: "global",
     allowedCustodies: ["global"],
-    dependencies: ["user:read"],
+    dependencies: ["user:read", "profile:read"],
   },
   {
     key: "profile:read",
@@ -263,19 +263,6 @@ export const PERMISSION_CATALOG = [
     custodyType: "global",
     allowedCustodies: ["global"],
     dependencies: ["prioritization_config:read"],
-  },
-  // § 3.8 — Formulário
-  {
-    key: "form:read",
-    custodyType: "global",
-    allowedCustodies: ["global"],
-    dependencies: [],
-  },
-  {
-    key: "form:manage",
-    custodyType: "global",
-    allowedCustodies: ["global"],
-    dependencies: ["form:read"],
   },
 ] as const satisfies readonly PermissionDefinition[];
 

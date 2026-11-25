@@ -255,10 +255,26 @@ export async function listUsers(query: ListUsersQuery): Promise<PaginatedRespons
   return repository.listUsers(query);
 }
 
+/**
+ * Diretório de atribuíveis. Com `protocol`, exclui o criador da solicitação:
+ * Solicitante e Responsável são papéis distintos. Protocolo inexistente é 404
+ * — ignorar o filtro devolveria o diretório global em silêncio.
+ */
 export async function listAssignableProfessionals(
   stage: AssignabilityStage,
+  protocol?: string,
 ): Promise<AssignableProfessional[]> {
-  return repository.listAssignableProfessionals(stage);
+  if (protocol === undefined) {
+    return repository.listAssignableProfessionals(stage);
+  }
+
+  const requesterUserId = await repository.findRequesterUserIdByProtocol(protocol);
+
+  if (requesterUserId === undefined) {
+    throw new AppError("Solicitação não encontrada", 404, "request_not_found");
+  }
+
+  return repository.listAssignableProfessionals(stage, requesterUserId);
 }
 
 export const getUserMetrics = async (): Promise<UserMetricsResponse> => {

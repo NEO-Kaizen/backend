@@ -3,7 +3,7 @@
 **Status:** aceito — 19/11/2026
 
 O acesso do portal deixa de ser decidido pelo nome do Perfil e passa a ser
-decidido pela Permissão `recurso:ação` (§ `docs/rbac.md`). As 39 chaves vivem
+decidido pela Permissão `recurso:ação` (§ `docs/rbac.md`). As chaves vivem
 num módulo de domínio puro (`src/shared/catalog/permissionCatalog.ts`), que
 descreve ordem de referência, tipo de custódia, vínculos aceitos, dependências,
 posse fixa e predicados de Atribuibilidade. A composição de cada Perfil —

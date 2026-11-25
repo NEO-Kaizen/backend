@@ -581,19 +581,39 @@ interface AssignableProfessionalRow {
   professional_id: string;
 }
 
+/**
+ * Conta que criou a solicitação — `undefined` quando o protocolo não existe e
+ * `null` quando a linha é anônima ou legada sem vínculo.
+ */
+export async function findRequesterUserIdByProtocol(
+  protocol: string,
+): Promise<number | null | undefined> {
+  const row = (await db("requests").where({ protocol }).first("requester_user_id")) as
+    { requester_user_id: number | null } | undefined;
+
+  return row ? row.requester_user_id : undefined;
+}
+
 export async function listAssignableProfessionals(
   stage: AssignabilityStage,
+  requesterUserId?: number | null,
 ): Promise<AssignableProfessional[]> {
   const assignableProfileIds = await findAssignableProfileIds({ stage });
   if (assignableProfileIds.length === 0) return [];
 
-  const rows = (await db("users as u")
+  const query = db("users as u")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .join("details_professional as dp", "dp.user_id", "u.user_id")
     .whereIn("p.profile_id", assignableProfileIds)
     .andWhere("p.is_active", true)
     .andWhere("u.is_active", true)
-    .andWhere("dp.status", "active")
+    .andWhere("dp.status", "active");
+
+  if (requesterUserId !== undefined && requesterUserId !== null) {
+    query.andWhereNot("u.user_id", requesterUserId);
+  }
+
+  const rows = (await query
     .select({
       user_id: "u.user_id",
       full_name: "u.full_name",

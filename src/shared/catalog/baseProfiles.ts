@@ -127,7 +127,7 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
     ),
   },
   {
-    // Coluna "Administrador": as 39 chaves; não atribuível (§ 1.4).
+    // Coluna "Administrador": as 37 chaves; não atribuível (§ 1.4).
     profileName: "Administrador",
     isRoot: false,
     isAssignableTriage: false,

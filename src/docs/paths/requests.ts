@@ -688,7 +688,7 @@ export default {
       tags: ["Solicitações"],
       summary: "Definir ou remover responsável",
       description:
-        "Rota legada de designação. Exige `request:assign` e Custódia sobre a solicitação. O service valida a Atribuibilidade do alvo também em reatribuições; alvo inválido retorna 400 com code `assignee_not_assignable`.",
+        "Rota legada de designação. Exige `request:assign` e Custódia sobre a solicitação. O service valida a Atribuibilidade do alvo também em reatribuições; alvo inválido retorna 400 com code `assignee_not_assignable`. Quem criou a solicitação não pode ser o Responsável (`assignee_is_requester`).",
       operationId: "patchRequestAssignee",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -727,7 +727,9 @@ export default {
           },
         },
         "400": {
-          description: "Payload inválido ou alvo não atribuível (`assignee_not_assignable`).",
+          description:
+            "Payload inválido, alvo não atribuível (`assignee_not_assignable`) ou criador da " +
+            "solicitação escolhido como Responsável (`assignee_is_requester`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -767,7 +769,7 @@ export default {
       summary: "Atribuir responsável interno",
       description:
         "Define ou remove o responsável (assignee) ou mapeamento (mappingAssigneeId). " +
-        "Exatamente um dos dois campos deve ser informado. Exige `request:assign` e Custódia sobre a solicitação; o service valida a Atribuibilidade do alvo. Alvo inválido retorna 400 com code `assignee_not_assignable`.",
+        "Exatamente um dos dois campos deve ser informado. Exige `request:assign` e Custódia sobre a solicitação; o service valida a Atribuibilidade do alvo. Alvo inválido retorna 400 com code `assignee_not_assignable`. Quem criou a solicitação não pode ser o Responsável (`assignee_is_requester`).",
       operationId: "patchInternalAssignee",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -814,7 +816,9 @@ export default {
           },
         },
         "400": {
-          description: "Payload inválido ou alvo não atribuível (`assignee_not_assignable`).",
+          description:
+            "Payload inválido, alvo não atribuível (`assignee_not_assignable`) ou criador da " +
+            "solicitação escolhido como Responsável (`assignee_is_requester`).",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

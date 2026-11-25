@@ -115,11 +115,11 @@ Capability nomeada `recurso:ação` — o que um perfil pode fazer, como `triage
 _Evitar_: direito, autorização (autorização é o processo), regra.
 
 **Posse**:
-Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia interna: nasce ao abrir e autoriza acompanhar e responder à própria solicitação. No código, as chaves `request:track` e `pending_item:respond` valem sobre esse vínculo em `own`; com sessão, a identidade é o e-mail da conta, e sem sessão a porta pública usa o e-mail declarado e o protocolo. As duas chaves têm custódia fixa em `own`, e responder pendência exige `request:track`.
+Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia interna: nasce ao abrir e autoriza acompanhar e responder à própria solicitação. No código, as chaves `request:track` e `pending_item:respond` valem sobre esse vínculo em `own`; com sessão, a identidade é `requests.requester_user_id` (o e-mail da conta só vale nas linhas legadas sem vínculo), e sem sessão a porta pública usa o e-mail declarado e o protocolo. As duas chaves têm custódia fixa em `own`, e responder pendência exige `request:track`.
 _Evitar_: propriedade, ownership, dono.
 
 **Custódia**:
-Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.responsible_id`); para as chaves de mapeamento, o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, o e-mail do Solicitante (`requests.requester_email`). Os snapshots de triagem e de mapeamento não concedem acesso.
+Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.professional_id` via `details_professional.user_id`); para as chaves de mapeamento, o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, a conta do Solicitante (`requests.requester_user_id`, com o e-mail apenas nas linhas legadas sem vínculo). Os snapshots de triagem e de mapeamento não concedem acesso.
 _Evitar_: escopo, abrangência, alcance, dono, ownership.
 
 **Atribuibilidade (atribuível)**:
@@ -147,7 +147,7 @@ Conjunto de pares chave+vínculo de um Perfil, base da matriz de contas. Um Perf
 _Evitar_: hierarquia de perfis, nível, ranking, poder.
 
 **Responsável**:
-Pessoa designada para conduzir a triagem ou o mapeamento de uma solicitação. O vínculo com a solicitação é a _Custódia_; a propriedade do perfil de poder receber essa designação é a _Atribuibilidade_.
+Pessoa designada para conduzir a triagem ou o mapeamento de uma solicitação. O vínculo com a solicitação é a _Custódia_; a propriedade do perfil de poder receber essa designação é a _Atribuibilidade_. Quem criou a solicitação não pode ser o _Responsável_ dela (`assignee_is_requester`): o vínculo de posse não se acumula com o de custódia.
 _Evitar_: analista (é o perfil, não o vínculo), dono, responsável técnico.
 
 **Modo de acesso**:
