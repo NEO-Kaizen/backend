@@ -22,6 +22,7 @@ test("status time separates active and paused periods", () => {
     initialStatusId: 3,
     currentStatus: "Em triagem",
     currentStatusId: 3,
+    currentIsTerminal: false,
     pausedStatusIds: [4],
     transitions: [
       {
@@ -59,6 +60,7 @@ test("completed request closes each audited interval and the final status", () =
     initialStatusId: 3,
     currentStatus: "Concluída",
     currentStatusId: 19,
+    currentIsTerminal: true,
     pausedStatusIds: [4],
     transitions: [
       {
@@ -75,9 +77,12 @@ test("completed request closes each audited interval and the final status", () =
     now: new Date("2026-11-20T13:00:00Z"),
   });
 
-  assert.equal(result.intervals.at(-1)?.exitedAt, null);
+  assert.equal(result.intervals.at(-1)?.enteredAt, "2026-11-20T12:00:00.000Z");
+  assert.equal(result.intervals.at(-1)?.exitedAt, "2026-11-20T12:00:00.000Z");
   assert.equal(result.intervals.at(-1)?.status, "Concluída");
-  assert.equal(result.totalActiveMilliseconds, 2 * 60 * 60 * 1000);
+  assert.equal(result.intervals.at(-1)?.activeMilliseconds, 0);
+  assert.equal(result.intervals.at(-1)?.pausedMilliseconds, 0);
+  assert.equal(result.totalActiveMilliseconds, 60 * 60 * 1000);
   assert.equal(result.totalPausedMilliseconds, 2 * 60 * 60 * 1000);
 });
 
@@ -88,6 +93,7 @@ test("in-progress request keeps the current status open", () => {
     initialStatusId: 3,
     currentStatus: "Em atendimento",
     currentStatusId: 7,
+    currentIsTerminal: false,
     pausedStatusIds: [],
     transitions: [
       {
@@ -111,6 +117,7 @@ test("divergent audit and database status fails instead of inventing a period", 
         openedAt: new Date("2026-11-20T09:00:00Z"),
         initialStatus: "Em triagem",
         currentStatus: "Concluída",
+        currentIsTerminal: false,
         pausedStatusIds: [],
         transitions: [
           {

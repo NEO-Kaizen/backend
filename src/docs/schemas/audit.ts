@@ -117,6 +117,8 @@ export const StatusTimeInterval = {
       format: "date-time",
       nullable: true,
       example: null,
+      description:
+        "Instante de saída; null somente para o Status atual não terminal. Em Status terminal, coincide com enteredAt.",
     },
     activeMilliseconds: { type: "integer", minimum: 0, example: 0 },
     pausedMilliseconds: { type: "integer", minimum: 0, example: 10800000 },
