@@ -3972,7 +3972,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, descrição, problema e conteúdo das notas internas. Para o Analista, a correspondência em notas considera apenas solicitações em que ele é o responsável; o responsável de mapeamento não amplia essa busca.",
+            "description": "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, descrição, problema e conteúdo das notas internas. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {
@@ -4811,7 +4811,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, descrição, problema e conteúdo das notas internas. Rota restrita a Gestor/Administrador, sem recorte por responsável.",
+            "description": "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, descrição, problema e conteúdo das notas internas. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {

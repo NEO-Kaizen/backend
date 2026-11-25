@@ -1,3 +1,4 @@
+import { searchParam } from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
 
 export default {
@@ -82,16 +83,7 @@ export default {
       operationId: "exportRequestsCsv",
       security: [{ cookieAuth: [] }],
       parameters: [
-        {
-          name: "search",
-          in: "query",
-          required: false,
-          description:
-            "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, " +
-            "descrição, problema e conteúdo das notas internas. Rota restrita a Gestor/Administrador, " +
-            "sem recorte por responsável.",
-          schema: { type: "string", maxLength: 254 },
-        },
+        searchParam,
         {
           name: "status",
           in: "query",

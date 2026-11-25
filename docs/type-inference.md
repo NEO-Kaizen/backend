@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **172**.
 - Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1821** â€” 1362 variÃ¡veis, 232 parÃ¢metros e 227 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1827** â€” 1368 variÃ¡veis, 232 parÃ¢metros e 227 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -3456,6 +3456,7 @@ interface GroupedIssues {
 ### [src/docs/components/parameters.ts](../src/docs/components/parameters.ts)
 
 - L1 â€” variÃ¡vel: `protocolParam`
+- L9 â€” variÃ¡vel: `searchParam`
 
 ### [src/docs/components/responses.ts](../src/docs/components/responses.ts)
 
@@ -4708,21 +4709,21 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.service.ts](../src/modules/queue/queue.service.ts)
 
-- L17 â€” variÃ¡vel: `resolveQueueScope`
-- L20 â€” variÃ¡vel: `userId`
-- L24 â€” variÃ¡vel: `getQueueMetricsService`
-- L35 â€” variÃ¡vel: `listQueueService`
-- L39 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
-- L40 â€” variÃ¡vel: `offset`
-- L42 â€” variÃ¡vel: `repoUnassigned`
-- L43 â€” variÃ¡vel: `repoAssigneeId`
-- L45 â€” variÃ¡vel: `queueScopeUserId`
-- L47 â€” variÃ¡vel: `[{ items, total }, assignees]`
-- L62 â€” variÃ¡vel: `totalPages`
-- L65 â€” variÃ¡vel: `effectivePage`
-- L67 â€” parÃ¢metro: `item`
-- L67 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L67 â€” variÃ¡vel: `formattedData`
+- L18 â€” variÃ¡vel: `resolveAnalystUserId`
+- L21 â€” variÃ¡vel: `userId`
+- L25 â€” variÃ¡vel: `getQueueMetricsService`
+- L36 â€” variÃ¡vel: `listQueueService`
+- L40 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
+- L41 â€” variÃ¡vel: `offset`
+- L43 â€” variÃ¡vel: `repoUnassigned`
+- L44 â€” variÃ¡vel: `repoAssigneeId`
+- L46 â€” variÃ¡vel: `analystUserId`
+- L48 â€” variÃ¡vel: `[{ items, total }, assignees]`
+- L65 â€” variÃ¡vel: `totalPages`
+- L68 â€” variÃ¡vel: `effectivePage`
+- L70 â€” parÃ¢metro: `item`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” variÃ¡vel: `formattedData`
 
 ### [src/modules/reports/reports.controller.ts](../src/modules/reports/reports.controller.ts)
 

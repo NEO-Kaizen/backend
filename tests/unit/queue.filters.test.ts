@@ -38,7 +38,59 @@ describe("applyQueueFilters", () => {
     expect(sql).toContain('"requests"."protocol" ilike ?');
     expect(sql).toContain('"requester"."corporate_email" ilike ?');
     expect(sql).toContain('"requester"."full_name" ilike ?');
-    expect(bindings).toEqual(["%MAAT%", "%MAAT%", "%MAAT%"]);
+    expect(bindings).toEqual(Array(6).fill("%MAAT%"));
+  });
+
+  it("search também cobre descrição, problema e conteúdo da nota", () => {
+    const { sql, bindings } = build({ search: "carga operacional" });
+
+    expect(sql).toContain('"requests"."need_description" ilike ?');
+    expect(sql).toContain('"requests"."problem_opportunity" ilike ?');
+    expect(sql).toContain('"note"."content" ilike ?');
+    expect(bindings).toEqual(Array(6).fill("%carga operacional%"));
+  });
+
+  it("busca em notas usa EXISTS correlacionado, sem junção e sem devolver conteúdo", () => {
+    const { sql } = build({ search: "kickoff" });
+
+    expect(sql).toMatch(
+      /exists \(select 1 from "request_internal_notes" as "note" where note\.request_id = requests\.request_id and "note"\."content" ilike \?\)/,
+    );
+    expect(sql).not.toContain('join "request_internal_notes"');
+    expect(sql).not.toContain('select "note"."content"');
+  });
+
+  it("noteCustodianUserId restringe a nota ao Responsável sem alterar o escopo da fila", () => {
+    const { sql, bindings } = build({
+      search: "kickoff",
+      scopedUserId: 7,
+      noteCustodianUserId: 7,
+    });
+
+    // 6 ILIKEs (protocolo, e-mail, nome, descrição, problema e nota) + custódia + 2 do escopo.
+    expect(bindings).toEqual([...Array(6).fill("%kickoff%"), 7, 7, 7]);
+    expect(sql.match(/"assignee_user"\."user_id" = \?/g)).toHaveLength(2);
+    expect(sql.match(/"mapping_assignee"\."user_id" = \?/g)).toHaveLength(1);
+  });
+
+  it("sem noteCustodianUserId (Gestor/Administrador) a nota não é recortada", () => {
+    const { sql, bindings } = build({ search: "kickoff" });
+
+    expect(bindings).toEqual(Array(6).fill("%kickoff%"));
+    expect(sql).not.toContain('"assignee_user"."user_id" = ?');
+  });
+
+  it("campos opcionais vazios não geram condições", () => {
+    const { sql, bindings } = build({
+      search: "",
+      status: undefined,
+      priority: undefined,
+      assigneeId: undefined,
+      unassigned: false,
+    });
+
+    expect(sql).not.toContain("where");
+    expect(bindings).toEqual([]);
   });
 
   it("status e priority filtram pelas tabelas corretas", () => {
@@ -100,7 +152,7 @@ describe("applyQueueFilters", () => {
       scopedUserId: 7,
     });
 
-    expect(bindings).toEqual(["%MAAT%", "%MAAT%", "%MAAT%", "Em triagem", "Alta", 20, 7, 7]);
+    expect(bindings).toEqual([...Array(6).fill("%MAAT%"), "Em triagem", "Alta", 20, 7, 7]);
     // O grupo do search fecha e os demais filtros entram com AND.
     expect(sql).toMatch(/\) and "status"\."name" = \?/);
     expect(sql).toMatch(/"status"\."name" = \? and "priority_tbl"\."level" = \?/);

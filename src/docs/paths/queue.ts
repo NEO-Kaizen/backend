@@ -1,4 +1,4 @@
-import { protocolParam } from "../components/parameters.ts";
+import { protocolParam, searchParam } from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
 
 export default {
@@ -39,17 +39,7 @@ export default {
           required: true,
           schema: { type: "integer", minimum: 1, maximum: 100, example: 10 },
         },
-        {
-          name: "search",
-          in: "query",
-          required: false,
-          description:
-            "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, " +
-            "descrição, problema e conteúdo das notas internas. Para o Analista, a correspondência em " +
-            "notas considera apenas solicitações em que ele é o responsável; o responsável de " +
-            "mapeamento não amplia essa busca.",
-          schema: { type: "string", maxLength: 254 },
-        },
+        searchParam,
         {
           name: "status",
           in: "query",
