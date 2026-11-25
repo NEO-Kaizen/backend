@@ -58,6 +58,26 @@ export function toProfileReference(profileId: number, name: string): ProfileRefe
   return { id: String(profileId), name };
 }
 
+/**
+ * Referência de Perfil na sessão (`/auth/me` e login).
+ *
+ * Além do rótulo e da identidade, expõe a marca estável `isRoot` — a única
+ * fonte de identidade do Perfil Admin Root. O nome é mutável desde que a marca
+ * passou a existir; nenhum cliente deve derivar autoridade do rótulo.
+ */
+export interface SessionProfileReference extends ProfileReference {
+  isRoot: boolean;
+}
+
+/** Referência de Perfil da sessão, a partir da linha `profiles`. */
+export function toSessionProfile(
+  profileId: number,
+  name: string,
+  isRoot: boolean,
+): SessionProfileReference {
+  return { ...toProfileReference(profileId, name), isRoot };
+}
+
 /** Snapshot de Perfil de uma nota interna (ID pode não ter sido registrado). */
 export function toProfileSnapshot(profileId: number | null, name: string): ProfileSnapshot {
   return { id: profileId === null ? null : String(profileId), name };
