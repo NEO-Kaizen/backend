@@ -252,12 +252,18 @@ function assertRequestCustody(
   return request;
 }
 
+async function findCustodiedRequest(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<RequestStatusContext> {
+  return assertRequestCustody(await findRequestStatusContext(protocol.trim()), actor);
+}
+
 export async function getStatusTimesByProtocol(
   protocol: string,
   actor: { id: number; role: Role },
 ): Promise<StatusTimeResponse> {
-  const normalized = protocol.trim();
-  const request = assertRequestCustody(await findRequestStatusContext(normalized), actor);
+  const request = await findCustodiedRequest(protocol, actor);
 
   const calculatedAt = new Date();
   const summary = await calculateStatusTimeForRequest(request, calculatedAt);
@@ -281,8 +287,7 @@ export async function listAuditLogsByProtocol(
   protocol: string,
   actor: { id: number; role: Role },
 ): Promise<AuditHistoryDetail[]> {
-  const normalized = protocol.trim();
-  const request = assertRequestCustody(await findRequestStatusContext(normalized), actor);
+  const request = await findCustodiedRequest(protocol, actor);
 
   const rows = await repository.listAuditHistoryByProtocol(request.protocol);
   return rows.map((row) => toDetail(row));
