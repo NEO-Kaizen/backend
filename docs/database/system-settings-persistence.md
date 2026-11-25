@@ -62,6 +62,7 @@ erDiagram
         varchar logo_light_url
         varchar logo_dark_url
         boolean logo_use_primary_color
+        boolean duplicate_detection_enabled
         varchar avatar_light_url
         varchar avatar_dark_url
         varchar login_image_light_url
@@ -108,25 +109,26 @@ Possui exatamente uma linha (singleton via `PRIMARY KEY` + `CHECK
 
 ### Estrutura
 
-| Campo                    | Tipo                            | Obrigatório | Restrição / Default                        | Finalidade                                                                          |
-| ------------------------ | ------------------------------- | ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------- |
-| `settings_id`            | SMALLINT                        | Sim         | PK; `DEFAULT 1`; CHECK `= 1`               | Chave do singleton                                                                  |
-| `platform_name`          | VARCHAR(80)                     | Sim         | Default `'MAAT'`                           | Nome exibido da plataforma                                                          |
-| `solicitation_mode`      | ENUM `portal_solicitation_mode` | Sim         | `PUBLIC`/`AUTHENTICATED`; default `PUBLIC` | Modo de abertura do portal (efetivo nas rotas de solicitação — `requireAccessMode`) |
-| `protocol_mask`          | VARCHAR(10)                     | Sim         | Default `'MAAT'`                           | Máscara dos protocolos                                                              |
-| `theme_id`               | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Aparência vigente (tabela própria)                                                  |
-| `logo_light_url`         | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (Aparência clara)                                               |
-| `logo_dark_url`          | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (Aparência escura)                                              |
-| `logo_use_primary_color` | BOOLEAN                         | Sim         | Default `false`                            | Logo renderizado monocromático na cor primária                                      |
-| `avatar_light_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (Aparência clara)                                             |
-| `avatar_dark_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (Aparência escura)                                            |
-| `login_image_light_url`  | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (claro)                                              |
-| `login_image_dark_url`   | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (escuro)                                             |
-| `favicon_light_url`      | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (Aparência clara)                                            |
-| `favicon_dark_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (Aparência escura)                                           |
-| `updated_by`             | INTEGER                         | Não         | FK → `users.user_id`, `ON DELETE SET NULL` | Usuário/admin que alterou                                                           |
-| `created_at`             | TIMESTAMPTZ                     | Sim         | DEFAULT `CURRENT_TIMESTAMP`                | Criação do registro                                                                 |
-| `updated_at`             | TIMESTAMPTZ                     | Não         | NULL até a primeira atualização            | Última atualização                                                                  |
+| Campo                         | Tipo                            | Obrigatório | Restrição / Default                        | Finalidade                                                                          |
+| ----------------------------- | ------------------------------- | ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `settings_id`                 | SMALLINT                        | Sim         | PK; `DEFAULT 1`; CHECK `= 1`               | Chave do singleton                                                                  |
+| `platform_name`               | VARCHAR(80)                     | Sim         | Default `'MAAT'`                           | Nome exibido da plataforma                                                          |
+| `solicitation_mode`           | ENUM `portal_solicitation_mode` | Sim         | `PUBLIC`/`AUTHENTICATED`; default `PUBLIC` | Modo de abertura do portal (efetivo nas rotas de solicitação — `requireAccessMode`) |
+| `protocol_mask`               | VARCHAR(10)                     | Sim         | Default `'MAAT'`                           | Máscara dos protocolos                                                              |
+| `theme_id`                    | SMALLINT                        | Não         | FK → `system_themes`, NULL permitido       | Aparência vigente (tabela própria)                                                  |
+| `logo_light_url`              | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (Aparência clara)                                               |
+| `logo_dark_url`               | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do logo (Aparência escura)                                              |
+| `logo_use_primary_color`      | BOOLEAN                         | Sim         | Default `false`                            | Logo renderizado monocromático na cor primária                                      |
+| `duplicate_detection_enabled` | BOOLEAN                         | Sim         | Default `false`                            | Liga/desliga a detecção de duplicidade (RF16 — issue #209)                          |
+| `avatar_light_url`            | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (Aparência clara)                                             |
+| `avatar_dark_url`             | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do avatar (Aparência escura)                                            |
+| `login_image_light_url`       | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (claro)                                              |
+| `login_image_dark_url`        | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho da imagem de login (escuro)                                             |
+| `favicon_light_url`           | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (Aparência clara)                                            |
+| `favicon_dark_url`            | VARCHAR(500)                    | Não         | NULL permitido                             | URL/caminho do favicon (Aparência escura)                                           |
+| `updated_by`                  | INTEGER                         | Não         | FK → `users.user_id`, `ON DELETE SET NULL` | Usuário/admin que alterou                                                           |
+| `created_at`                  | TIMESTAMPTZ                     | Sim         | DEFAULT `CURRENT_TIMESTAMP`                | Criação do registro                                                                 |
+| `updated_at`                  | TIMESTAMPTZ                     | Não         | NULL até a primeira atualização            | Última atualização                                                                  |
 
 ## Tabela `system_themes`
 
@@ -215,6 +217,17 @@ cores; `system_settings.theme_id` aponta para ele já no nascimento.
 ### Onde ficam categories, statuses e pesos?
 
 Nas tabelas próprias (`categories`, `statuses`, `criteria`).
+
+### O que a flag de duplicidade controla?
+
+`duplicate_detection_enabled` (BOOLEAN, default `false`) é a chave geral do
+Alerta de duplicidade do RF16 (issue #209). Desligada, ela limpa o índice
+MiniSearch e faz `POST /requests/duplicates/check` responder vazio; o seed de
+desenvolvimento liga a flag para demonstração. As allowlists de corpus vivem em
+`categories.is_publicly_listable` e `statuses.is_duplicate_corpus_eligible`
+(ver [`requests-persistence.md`](requests-persistence.md)). A edição
+administrativa da flag é escopo da issue #212; regras em
+[`duplicate-detection.md`](../rules/duplicate-detection.md).
 
 ## Aplicando e revertendo
 
