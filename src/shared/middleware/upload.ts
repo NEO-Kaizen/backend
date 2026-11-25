@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import multer, { MulterError } from "multer";
+import path from "node:path";
 import { AppError } from "../../shared/errors/AppError.ts";
 
 export const ALLOWED_MIMES = new Set([
@@ -9,6 +10,8 @@ export const ALLOWED_MIMES = new Set([
   "image/png",
   "image/jpeg",
 ]);
+
+export const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".xlsx", ".png", ".jpg", ".jpeg"]);
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENT_COUNT = 5;
@@ -22,7 +25,12 @@ const upload = multer({
     fieldSize: MAX_FIELD_SIZE_BYTES,
   },
   fileFilter: (_req, file, cb) => {
-    if (!ALLOWED_MIMES.has(file.mimetype)) {
+    const extension = path.extname(file.originalname).toLowerCase();
+
+    // MIME declarado pelo cliente não basta: um `.html` com
+    // `application/pdf` seria servido depois em `/uploads`. Valida a extensão
+    // contra a mesma lista de formatos aceitos.
+    if (!ALLOWED_MIMES.has(file.mimetype) || !ALLOWED_EXTENSIONS.has(extension)) {
       cb(
         new AppError("Formato de arquivo não permitido. Aceitos: PDF, DOCX, XLSX, PNG e JPG.", 400),
       );
