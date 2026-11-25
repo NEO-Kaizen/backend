@@ -33,6 +33,7 @@ export interface StatusTimeCalculationInput {
   initialStatusId?: number;
   currentStatus: string;
   currentStatusId?: number;
+  currentIsTerminal: boolean;
   pausedStatusIds: readonly number[];
   transitions: readonly StatusTimeTransition[];
   now: Date;
@@ -75,7 +76,6 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
     enteredAt = transition.occurredAt;
   }
 
-  const now = input.now.getTime() >= enteredAt.getTime() ? input.now : enteredAt;
   if (status !== input.currentStatus) {
     throw new StatusTimeHistoryDivergenceError();
   }
@@ -87,13 +87,18 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
     throw new StatusTimeHistoryDivergenceError();
   }
 
-  const currentDuration = positiveMilliseconds(enteredAt, now);
+  const currentEnd = input.currentIsTerminal
+    ? enteredAt
+    : input.now.getTime() >= enteredAt.getTime()
+      ? input.now
+      : enteredAt;
+  const currentDuration = positiveMilliseconds(enteredAt, currentEnd);
   const currentIsPaused = statusId !== undefined && pausedStatusIds.has(statusId);
 
   intervals.push({
     status,
     enteredAt: enteredAt.toISOString(),
-    exitedAt: null,
+    exitedAt: input.currentIsTerminal ? enteredAt.toISOString() : null,
     activeMilliseconds: currentIsPaused ? 0 : currentDuration,
     pausedMilliseconds: currentIsPaused ? currentDuration : 0,
     isPaused: currentIsPaused,

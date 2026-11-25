@@ -57,7 +57,9 @@ Regras:
 - Tentativas negadas por acesso ou regra registram `request.access_denied`,
   sem alterar o Status.
 - Uma constraint trigger valida no commit que mudança real em
-  `requests.status_id` possui evento `request.*` na mesma transação.
+  `requests.status_id` possui exatamente um evento `request.status_change`,
+  `request.override_status_admin` ou `request.triage` correspondente na mesma
+  transação. `request.access_denied` não satisfaz essa exigência.
 - Transições automáticas usam `change_origin = "system"`; ações humanas usam
   o `user_id` da sessão.
 
@@ -70,6 +72,12 @@ e cobrem:
 - ação de triagem e ações automáticas;
 - ação de tentativa negada;
 - entidade `request` no catálogo.
+- cálculo de intervalos ativos/pausados, encerramento de Status terminal e
+  divergência do histórico.
+
+O teste de integração em `test/audit-status-time-integration.test.ts` valida
+`GET /audit-logs/:protocol/status-times`, incluindo um intervalo terminal
+fechado e totais estáveis entre consultas em instantes diferentes.
 
 ## Como validar
 

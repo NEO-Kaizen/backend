@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import db from "../src/database/conection.ts";
+import { recordAudit } from "../src/shared/audit/auditLogger.ts";
 
 const hasDatabaseConfig =
   Boolean(process.env.DB_HOST) &&
@@ -136,6 +137,111 @@ describe(
       assert.ok(result.totalActiveMilliseconds > 0);
       assert.equal(result.intervals.at(-1)?.status, "Aguardando mapeamento");
       assert.equal(result.intervals.at(-1)?.exitedAt, null);
+    });
+
+    it("GET /audit-logs/:protocol/status-times keeps terminal totals fixed", async (t) => {
+      const { baseUrl, cookieName, adminToken, admin } = getContext();
+      const request = await db("requests as r")
+        .join("statuses as s", "s.status_id", "r.status_id")
+        .where("r.protocol", protocol)
+        .first<{ status_id: number; name: string; is_terminal: boolean }>(
+          "r.status_id",
+          "s.name",
+          "s.is_terminal",
+        );
+      assert.ok(request);
+      assert.equal(request.is_terminal, false);
+
+      const terminalStatus = await db("statuses")
+        .where({ is_terminal: true })
+        .orderBy("status_id")
+        .first<{ status_id: number; name: string }>("status_id", "name");
+      assert.ok(terminalStatus, "deve haver um Status terminal no seed");
+
+      const recordTransition = async (
+        previousStatus: string,
+        nextStatus: string,
+        nextStatusId: number,
+      ): Promise<string> =>
+        db.transaction(async (trx) => {
+          const auditId = await recordAudit(trx, {
+            entityType: "request",
+            entityId: protocol,
+            actionType: "request.override_status_admin",
+            userId: admin.user_id,
+            previousValue: previousStatus,
+            newValue: nextStatus,
+            note: "Transição de fixture para teste de integração.",
+            changeOrigin: "admin",
+          });
+          await trx("requests").where({ protocol }).update({ status_id: nextStatusId });
+          const audit = await trx("audit_history")
+            .where({ audit_id: auditId })
+            .first<{ occurred_at: Date | string }>("occurred_at");
+          assert.ok(audit);
+          return audit.occurred_at instanceof Date
+            ? audit.occurred_at.toISOString()
+            : new Date(audit.occurred_at).toISOString();
+        });
+
+      let transitionCommitted = false;
+      try {
+        const terminalEnteredAt = await recordTransition(
+          request.name,
+          terminalStatus.name,
+          terminalStatus.status_id,
+        );
+        transitionCommitted = true;
+
+        const firstQueryTime = new Date(
+          Math.max(Date.now(), Date.parse(terminalEnteredAt)) + 1_000,
+        );
+        t.mock.timers.enable({
+          apis: ["Date"],
+          now: firstQueryTime,
+        });
+        const headers = { Cookie: `${cookieName}=${adminToken}` };
+        const firstResponse = await fetch(
+          `${baseUrl}/audit-logs/${protocol}/status-times`,
+          { headers },
+        );
+        assert.equal(firstResponse.status, 200);
+        const first = (await firstResponse.json()) as {
+          calculatedAt: string;
+          intervals: Array<{
+            status: string;
+            enteredAt: string;
+            exitedAt: string | null;
+            activeMilliseconds: number;
+            pausedMilliseconds: number;
+          }>;
+          totalActiveMilliseconds: number;
+          totalPausedMilliseconds: number;
+        };
+
+        t.mock.timers.setTime(new Date(firstQueryTime.getTime() + 1_000));
+        const secondResponse = await fetch(
+          `${baseUrl}/audit-logs/${protocol}/status-times`,
+          { headers },
+        );
+        assert.equal(secondResponse.status, 200);
+        const second = (await secondResponse.json()) as typeof first;
+
+        const terminalInterval = first.intervals.at(-1);
+        assert.equal(first.calculatedAt === second.calculatedAt, false);
+        assert.equal(terminalInterval?.status, terminalStatus.name);
+        assert.equal(terminalInterval?.enteredAt, terminalEnteredAt);
+        assert.equal(terminalInterval?.exitedAt, terminalEnteredAt);
+        assert.equal(terminalInterval?.activeMilliseconds, 0);
+        assert.equal(terminalInterval?.pausedMilliseconds, 0);
+        assert.equal(first.totalActiveMilliseconds, second.totalActiveMilliseconds);
+        assert.equal(first.totalPausedMilliseconds, second.totalPausedMilliseconds);
+      } finally {
+        t.mock.timers.reset();
+        if (transitionCommitted) {
+          await recordTransition(terminalStatus.name, request.name, request.status_id);
+        }
+      }
     });
 
     it("GET /audit-history rejects roles outside Administrador and Gestor", async () => {

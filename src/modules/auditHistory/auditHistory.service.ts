@@ -203,6 +203,7 @@ async function calculateStatusTimeForRequest(
       initialStatusId: previousStatus.statusId ?? statusIdByName.get(INITIAL_REQUEST_STATUS),
       currentStatus,
       currentStatusId: request.current_status_id !== null ? request.current_status_id : undefined,
+      currentIsTerminal: request.current_is_terminal,
       pausedStatusIds,
       transitions,
       now,

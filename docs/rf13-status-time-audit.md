@@ -106,7 +106,7 @@ Cada item de `intervals`:
 | -------------------- | ---------------- | ------------------------------------------------------------ |
 | `status`             | `string`         | Nome do Status.                                              |
 | `enteredAt`          | `string` ISO     | Entrada no Status.                                           |
-| `exitedAt`           | `string \| null` | Saída do Status; `null` significa que este é o Status atual. |
+| `exitedAt`           | `string \| null` | Saída do Status; `null` somente para Status atual não terminal. O Status terminal fecha no instante de entrada. |
 | `activeMilliseconds` | `number`         | Tempo ativo dentro deste intervalo.                          |
 | `pausedMilliseconds` | `number`         | Tempo pausado dentro deste intervalo.                        |
 | `isPaused`           | `boolean`        | Indica se o Status configurado é período de pausa.           |
@@ -135,7 +135,7 @@ Cada item de `totalsByStatus`:
 - Use `totalsByStatus` para gráfico ou tabela consolidada por Status.
 - Use os totais gerais para cartões de tempo ativo e pausado.
 - Formate intervalos fechados com `exitedAt - enteredAt`.
-- Para `exitedAt === null`, use `calculatedAt - enteredAt`.
+- Para `exitedAt === null`, use `calculatedAt - enteredAt`; esse caso ocorre somente enquanto o Status atual não for terminal.
 - Não some os intervalos manualmente se `totalsByStatus` já estiver disponível.
 - Não aplicar regras de SLA com base nesta resposta sem uma implementação de RF10.
 
@@ -304,7 +304,7 @@ O frontend deve tratar os dados assim:
 
 1. `activeMilliseconds > 0`: período ativo.
 2. `pausedMilliseconds > 0`: período pausado.
-3. `exitedAt === null`: Status atual.
+3. `exitedAt === null`: Status atual não terminal. Para Status terminal, o intervalo fecha em `occurred_at` da transição de entrada, com duração zero.
 4. `isPaused === true`: tempo pertence à pausa.
 5. `intervals` pode conter múltiplas entradas no mesmo Status; `totalsByStatus` já consolida.
 6. Não assumir que 1 dia tem exatamente 24 horas se existir regra futura de SLA; RF13 mede tempo cronológico.
