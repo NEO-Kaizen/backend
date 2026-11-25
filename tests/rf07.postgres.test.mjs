@@ -1,5 +1,5 @@
-// node --env-file=.env --test tests/rf07.postgres.test.mjs
-// Provisiona um banco novo. Nenhuma migration ou fixture é aplicada ao banco de origem.
+// Execute com NODE_ENV=test e conexão explícita de um cluster de testes.
+// O harness provisiona um banco separado para migrations e fixtures.
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { mkdtempSync } from "node:fs";
@@ -41,6 +41,9 @@ const triage = {
 const actorIds = { requester: 112, other: 104, admin: 102 };
 
 before(async () => {
+  assert.equal(process.env.NODE_ENV, "test");
+  assert.match(connection.database ?? "", /^(test|[a-z0-9_]+_test)$/i);
+  assert.ok(connection.host, "Informe DB_HOST para o cluster de testes.");
   const provisioner = new Client(connection);
   try {
     await provisioner.connect();
@@ -171,17 +174,20 @@ test("tracking, cancelamento, projeção pública, anexos, auditoria e repetiç�
   });
   const previous = await current(request);
   const previousAttachments = await db("attachments").where({ request_id: request.request_id });
+  assert.equal(previous.closure_ref, null);
   assert.equal((await call(request, "tracking", { method: "GET" })).body.details.canCancel, true);
   assert.deepEqual(await cancel(request), { status: 200, body: { status: "Cancelado" } });
   const updated = await current(request);
   assert.equal(updated.status_id, 17);
   assert.equal(updated.last_public_status_id, 17);
+  assert.match(updated.closure_ref, /^[\da-f-]{36}$/i);
   assert.equal(updated.last_technical_message, "Solicitação cancelada pelo titular.");
   assert.ok(updated.last_external_update_at instanceof Date);
   for (const column of Object.keys(previous)) {
     if (
       ![
         "status_id",
+        "closure_ref",
         "last_public_status_id",
         "last_technical_message",
         "last_external_update_at",
@@ -208,6 +214,121 @@ test("tracking, cancelamento, projeção pública, anexos, auditoria e repetiç�
   assert.equal(event.previous_value, "Solicitação enviada");
   assert.equal(event.new_value, "Cancelado");
   assert.equal(event.note, cancellation.justification.trim());
+});
+
+test("confirmações de cancelamento não atravessam reaberturas sucessivas", async () => {
+  const request = await fixture();
+  const tracking = async () => {
+    const response = await call(request, "tracking", { method: "GET" });
+    assert.equal(response.status, 200);
+    return response.body.details;
+  };
+  const initial = (await tracking()).cancelCycleRef;
+  assert.equal(initial, "initial");
+
+  let cycleRef = initial;
+  for (const cycle of [1, 2]) {
+    const justification = `Cancelar ciclo ${cycle}`;
+    const canceled = await cancel(request, { body: { justification, cancelCycleRef: cycleRef } });
+    assert.equal(canceled.status, 200);
+    const closed = await tracking();
+    assert.equal(closed.canCancel, false);
+    assert.equal(Object.hasOwn(closed, "cancelCycleRef"), false);
+    assert.equal(closed.canReopen, true);
+
+    const reopened = await call(request, "reopen", {
+      body: { justification: `Reabrir ciclo ${cycle}`, closureRef: closed.closureRef },
+    });
+    assert.equal(reopened.status, 200);
+    const active = await tracking();
+    assert.equal(active.canCancel, true);
+    assert.equal(active.canReopen, false);
+    assert.equal(typeof active.cancelCycleRef, "string");
+    assert.notEqual(active.cancelCycleRef, initial);
+    assert.notEqual(active.cancelCycleRef, cycleRef);
+
+    for (const staleRef of [undefined, initial, cycleRef]) {
+      const stale = await cancel(request, {
+        body: { justification: "Confirmação obsoleta", cancelCycleRef: staleRef },
+      });
+      assert.equal(stale.status, 409);
+      assert.equal(stale.body.code, "rf07_cycle_conflict");
+    }
+    assert.equal((await current(request)).status_id, 1);
+    assert.equal((await audit(request, "request.status_change")).length, cycle);
+    assert.equal((await audit(request, "request.reopen")).length, cycle);
+    cycleRef = active.cancelCycleRef;
+  }
+
+  await db("requests").where({ request_id: request.request_id }).update({ title: "Edição comum" });
+  assert.equal((await tracking()).cancelCycleRef, cycleRef);
+  const legitimate = await cancel(request, {
+    body: { justification: "Confirmação vigente", cancelCycleRef: cycleRef },
+  });
+  assert.equal(legitimate.status, 200);
+  assert.equal((await current(request)).status_id, 17);
+  assert.equal((await audit(request, "request.status_change")).length, 3);
+});
+
+test("identidade do ciclo não depende do marco temporal da reabertura", async () => {
+  const request = await fixture();
+  const tracking = async () => {
+    const response = await call(request, "tracking", { method: "GET" });
+    assert.equal(response.status, 200);
+    return response.body.details;
+  };
+  assert.equal((await tracking()).cancelCycleRef, "initial");
+
+  const identity = [];
+  const marks = [];
+  let cycleRef = "initial";
+  for (const cycle of [1, 2]) {
+    const canceled = await cancel(request, {
+      body: { justification: `Cancelar ciclo ${cycle}`, cancelCycleRef: cycleRef },
+    });
+    assert.equal(canceled.status, 200);
+    const closed = await tracking();
+    const reopened = await call(request, "reopen", {
+      body: { justification: `Reabrir ciclo ${cycle}`, closureRef: closed.closureRef },
+    });
+    assert.equal(reopened.status, 200);
+    const active = await tracking();
+    assert.match(
+      active.cancelCycleRef,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    identity.push(active.cancelCycleRef);
+    marks.push((await current(request)).last_reopened_at);
+    cycleRef = active.cancelCycleRef;
+  }
+  assert.notEqual(identity[0], identity[1]);
+
+  // Força o mesmo marco temporal nos dois ciclos: a identidade permanece.
+  await db("requests")
+    .where({ request_id: request.request_id })
+    .update({ last_reopened_at: marks[0] });
+  const forced = await tracking();
+  assert.equal(forced.cancelCycleRef, identity[1]);
+  assert.notEqual(forced.cancelCycleRef, identity[0]);
+
+  // Edição comum preserva a identidade.
+  await db("requests").where({ request_id: request.request_id }).update({ title: "Edição comum" });
+  assert.equal((await tracking()).cancelCycleRef, identity[1]);
+
+  // Confirmação antiga não atravessa a reabertura.
+  const stale = await cancel(request, {
+    body: { justification: "Confirmação obsoleta", cancelCycleRef: identity[0] },
+  });
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.code, "rf07_cycle_conflict");
+  assert.equal((await current(request)).status_id, 1);
+
+  // Confirmação vigente continua funcionando.
+  const legitimate = await cancel(request, {
+    body: { justification: "Confirmação vigente", cancelCycleRef: identity[1] },
+  });
+  assert.equal(legitimate.status, 200);
+  assert.equal((await current(request)).status_id, 17);
 });
 
 test("status 2, 3, 16, 17 e status 1 com triagem registrada", async () => {
@@ -301,7 +422,7 @@ test("cancelamento vence triagem real: CAS 409 e rollback da avaliação", async
     "request.status_change",
     () => cancel(request),
     () => assess(request),
-    'update "requests"',
+    "for no key update",
   );
   assert.equal(canceled.status, 200);
   assert.equal(assessed.status, 409);
@@ -489,6 +610,10 @@ test("OpenAPI descreve os DTOs reais e rejeição de protocolo em branco", async
   }
   assert.ok(!Object.hasOwn(internal.body, "canCancel"));
   assert.ok(components.schemas.RequesterRequestDetails.required.includes("canCancel"));
+  assert.ok(components.schemas.RequesterRequestDetails.required.includes("canReopen"));
+  assert.equal(components.schemas.RequesterRequestDetails.properties.cancelCycleRef.type, "string");
+  assert.equal(components.schemas.CancelRequestPayload.properties.cancelCycleRef.type, "string");
+  assert.equal(tracking.body.details.cancelCycleRef, "initial");
   assert.equal(tracking.body.details.canCancel, true);
   const operation = paths["/requests/{protocol}/cancel"].post;
   assert.ok(operation.responses["400"]);
