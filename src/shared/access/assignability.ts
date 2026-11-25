@@ -153,8 +153,7 @@ export async function profileHasAssignablePermissions(
   options: ProfileAssignablePermissionsOptions = {},
 ): Promise<boolean> {
   const { queryable = db, requireFlag = false, requireActive = false } = options;
-  const keys =
-    stage === "triage" ? ASSIGNABILITY_PREDICATES.triage : ASSIGNABILITY_PREDICATES.mapping;
+  const keys = ASSIGNABILITY_PREDICATES[stage];
   const predicate = hasAllPermissionKeysPredicate("p.profile_id", keys);
 
   const query = queryable("profiles as p")

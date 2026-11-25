@@ -870,10 +870,10 @@ async function validateAssigneeCandidate(
   requesterUserId: number | null,
 ): Promise<AssignmentCandidateRow> {
   assertAssigneeTargetEligible(candidate);
-  const flagEnabled =
-    stage === "triage" ? candidate.is_assignable_triage : candidate.is_assignable_mapping;
+
+  // Flag e predicado são revalidados no banco: a flag da linha do candidato é a
+  // mesma coluna do Perfil, então checá-la aqui de novo seria redundante.
   if (
-    !flagEnabled ||
     !(await repository.profileHasAssignablePermissions(candidate.profile_id, stage, {
       requireFlag: true,
       requireActive: true,

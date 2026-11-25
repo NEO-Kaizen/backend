@@ -644,6 +644,12 @@ export async function findEvaluationByProtocol(
   };
 }
 
+/**
+ * Diretório de `GET /requests/assignees`: é global de propósito, porque a Fila
+ * usa a mesma lista para filtrar por responsável. A omissão do criador da
+ * solicitação vive no diretório de `GET /users/analysts?protocol=`, que é o
+ * usado pelo modal de atribuição.
+ */
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
   const profileIds = await findAssignableProfileIds();
   if (profileIds.length === 0) return [];
