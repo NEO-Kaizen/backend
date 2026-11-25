@@ -131,11 +131,13 @@ jobs:
             local action_type="$2"
             psql_exec -c "INSERT INTO audit_history (entity_type, entity_id, action_type) VALUES ('${entity_type}', 'ci-rollback-valid', '${action_type}');" >/tmp/audit-check.out
           }
-          # Newest first. Each rollback removes the entity_type from the CHECK;
+          # Newest first. Each down removes the entity_type from the CHECK;
           # the step must still reject that type while accepting the adjacent one.
+          # Use migrate:down/up (single migration) because migrate:latest applies
+          # all pending migrations in one batch, so rollback would drop audit_history.
           while IFS='|' read -r removed accepted action; do
             [ -n "$removed" ] || continue
-            npx --no-install knex migrate:rollback --env development
+            npx --no-install knex migrate:down --env development
             assert_rejected "$removed" "$action"
             assert_accepted "$accepted" "$(case "$accepted" in
               mapping) echo mapping.assign ;;
@@ -144,7 +146,7 @@ jobs:
               prioritization) echo prioritization.evaluate ;;
               user) echo user.create ;;
             esac)"
-            npx --no-install knex migrate:latest --env development
+            npx --no-install knex migrate:up --env development
           done <<'CASES'
           pending_item|mapping|pending_item.create
           mapping|request|mapping.assign
