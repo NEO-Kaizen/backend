@@ -1,6 +1,6 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
-import type { PublicationStatus } from "./projection.ts";
+import type { PublicationStatus } from "../../shared/types/duplicates.ts";
 
 /**
  * Leitura da projeção pública e da flag de duplicidade (issue #209).
@@ -63,7 +63,6 @@ export async function listPublishedProjections(
  * Mudanças desde `since`, incluindo linhas suprimidas ou não listáveis para
  * que o poller saiba remover do índice o que deixou de ser publicado. O
  * chamador aplica a sobreposição de `updated_at`.
-
  */
 export async function listProjectionChangesSince(
   since: Date,

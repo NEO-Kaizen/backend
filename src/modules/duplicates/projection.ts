@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
+import type { PublicationStatus, SuppressionReason } from "../../shared/types/duplicates.ts";
 import { buildOpenRequestTemplate } from "./template.ts";
 
 /**
@@ -11,16 +12,6 @@ import { buildOpenRequestTemplate } from "./template.ts";
  *
  * Regras em `docs/rules/duplicate-detection.md`.
  */
-export type PublicationStatus = "published" | "suppressed";
-
-export type SuppressionReason =
-  | "inactive_status"
-  | "terminal_status"
-  | "restricted_request"
-  | "restricted_status"
-  | "ineligible_category"
-  | "ineligible_status";
-
 interface ProjectionSourceRow {
   request_id: string;
   created_at: Date;

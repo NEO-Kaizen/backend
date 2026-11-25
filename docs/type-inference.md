@@ -1496,25 +1496,7 @@ export class MiniSearchIndex implements SimilarityIndex {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-#### L14 â€” alias PublicationStatus
-
-```ts
-export type PublicationStatus = "published" | "suppressed";
-```
-
-#### L16 â€” alias SuppressionReason
-
-```ts
-export type SuppressionReason =
-  | "inactive_status"
-  | "terminal_status"
-  | "restricted_request"
-  | "restricted_status"
-  | "ineligible_category"
-  | "ineligible_status";
-```
-
-#### L24 â€” interface ProjectionSourceRow
+#### L15 â€” interface ProjectionSourceRow
 
 ```ts
 interface ProjectionSourceRow {
@@ -1531,7 +1513,7 @@ interface ProjectionSourceRow {
 }
 ```
 
-#### L37 â€” interface ExistingProjection
+#### L28 â€” interface ExistingProjection
 
 ```ts
 interface ExistingProjection {
@@ -1542,7 +1524,7 @@ interface ExistingProjection {
 }
 ```
 
-#### L44 â€” interface ProjectionValues
+#### L35 â€” interface ProjectionValues
 
 ```ts
 interface ProjectionValues {
@@ -2599,7 +2581,25 @@ export interface SavedAttachment {
 export type DuplicateConfidence = "high" | "medium" | "none";
 ```
 
-#### L9 â€” interface DuplicateAlertItem
+#### L5 â€” alias PublicationStatus
+
+```ts
+export type PublicationStatus = "published" | "suppressed";
+```
+
+#### L8 â€” alias SuppressionReason
+
+```ts
+export type SuppressionReason =
+  | "inactive_status"
+  | "terminal_status"
+  | "restricted_request"
+  | "restricted_status"
+  | "ineligible_category"
+  | "ineligible_status";
+```
+
+#### L21 â€” interface DuplicateAlertItem
 
 ```ts
 export interface DuplicateAlertItem {
@@ -2612,7 +2612,7 @@ export interface DuplicateAlertItem {
 }
 ```
 
-#### L19 â€” interface DuplicateCheckResponse
+#### L31 â€” interface DuplicateCheckResponse
 
 ```ts
 export interface DuplicateCheckResponse {
@@ -2621,7 +2621,7 @@ export interface DuplicateCheckResponse {
 }
 ```
 
-#### L25 â€” interface SimilarityDocument
+#### L37 â€” interface SimilarityDocument
 
 ```ts
 export interface SimilarityDocument {
@@ -2634,7 +2634,7 @@ export interface SimilarityDocument {
 }
 ```
 
-#### L35 â€” interface SimilarityHit
+#### L47 â€” interface SimilarityHit
 
 ```ts
 export interface SimilarityHit extends SimilarityDocument {
@@ -4118,7 +4118,7 @@ interface GroupedIssues {
 - L26 â€” variÃ¡vel: `PROJECTION_COLUMNS`
 - L43 â€” variÃ¡vel: `source`
 - L54 â€” variÃ¡vel: `source`
-- L72 â€” variÃ¡vel: `source`
+- L71 â€” variÃ¡vel: `source`
 
 ### [src/modules/duplicates/duplicates.schema.ts](../src/modules/duplicates/duplicates.schema.ts)
 
@@ -4204,14 +4204,14 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-- L107 â€” variÃ¡vel: `source`
-- L112 â€” variÃ¡vel: `template`
-- L117 â€” variÃ¡vel: `isPubliclyListable`
-- L120 â€” variÃ¡vel: `suppressionReason`
-- L130 â€” variÃ¡vel: `existing`
-- L136 â€” variÃ¡vel: `now`
-- L137 â€” variÃ¡vel: `publishedAt`
-- L141 â€” variÃ¡vel: `suppressedAt`
+- L98 â€” variÃ¡vel: `source`
+- L103 â€” variÃ¡vel: `template`
+- L108 â€” variÃ¡vel: `isPubliclyListable`
+- L111 â€” variÃ¡vel: `suppressionReason`
+- L121 â€” variÃ¡vel: `existing`
+- L127 â€” variÃ¡vel: `now`
+- L128 â€” variÃ¡vel: `publishedAt`
+- L132 â€” variÃ¡vel: `suppressedAt`
 
 ### [src/modules/duplicates/query.ts](../src/modules/duplicates/query.ts)
 
