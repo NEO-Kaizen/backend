@@ -5,6 +5,7 @@
 - Issue #23 — BANCO DE DADOS - Modelar persistência das solicitações
 - Issue #53 — vínculo opcional da solicitação com `users`
 - Issue #130 — revisão do banco de dados e melhorias
+- Issue #148 — referência do encerramento para reabertura
 
 ## Objetivo
 
@@ -294,6 +295,25 @@ Cada linha é uma solicitação, identificada pelo protocolo público e pelo
 | `additional_notes`             | VARCHAR(2000) | Não         | NULL permitido                        | Observações adicionais          |
 
 ### Colunas de fluxo, triagem e acompanhamento
+
+`requests.closure_ref` é um UUID anulável que identifica o encerramento
+corrente. O trigger gera um UUID ao inserir ou mover um pedido para
+`Concluído` (16) ou `Cancelado` (17), inclusive na troca entre esses estados.
+Edições comuns preservam o UUID. A saída desses estados limpa a referência.
+A migration preenche a referência dos pedidos legados em 16 ou 17 e mantém
+suas datas e auditorias existentes.
+
+`requests.last_reopened_at` é o marco anulável do ciclo reaberto, gravado sob
+bloqueio com o relógio do PostgreSQL. As consultas operacionais de pendências,
+mapeamento e prioridade usam esse marco e conservam os registros anteriores.
+A identidade do ciclo é `requests.reopen_ref`, um UUID anulável gerado na mesma
+transação da reabertura: é ele que o acompanhamento devolve como
+`cancelCycleRef` e que a autorização de cancelamento compara. O UUID não
+depende de relógio, fuso ou representação textual; dois ciclos nunca
+compartilham a mesma referência. Edições comuns preservam o UUID e apenas uma
+nova reabertura o substitui. O evento `request.reopen` pode arquivar em
+`audit_history.previous_meeting` uma projeção legada sem mapeamento
+correspondente, antes de limpar a reunião vigente.
 
 | Campo                     | Tipo         | Obrigatório | Restrição / Default                            | Finalidade                                         |
 | ------------------------- | ------------ | ----------- | ---------------------------------------------- | -------------------------------------------------- |
