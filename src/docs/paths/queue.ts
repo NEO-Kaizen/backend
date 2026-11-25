@@ -1,4 +1,4 @@
-import { protocolParam } from "../components/parameters.ts";
+import { protocolParam, searchParam } from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
 
 export default {
@@ -39,13 +39,7 @@ export default {
           required: true,
           schema: { type: "integer", minimum: 1, maximum: 100, example: 10 },
         },
-        {
-          name: "search",
-          in: "query",
-          required: false,
-          description: "Busca por protocolo, e-mail corporativo ou nome do solicitante.",
-          schema: { type: "string", maxLength: 254 },
-        },
+        searchParam,
         {
           name: "status",
           in: "query",

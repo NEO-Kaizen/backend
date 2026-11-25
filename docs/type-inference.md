@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **172**.
 - Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1823** â€” 1366 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1828** â€” 1369 variÃ¡veis, 232 parÃ¢metros e 227 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -722,6 +722,11 @@ export interface FindQueueParams extends QueueFilterQuery {
    * de mapeamento. `undefined` = sem restrição (perfis Gestor/Administrador).
    */
   scopedUserId?: number;
+  /**
+   * Custódia de `internal_note:read` aplicada somente à correspondência em
+   * notas. `undefined` = sem restrição (Gestor/Administrador e exportação CSV).
+   */
+  noteCustodianUserId?: number;
   limit: number;
   offset: number;
 }
@@ -1679,6 +1684,7 @@ export type MappingPayload = z.infer<typeof mappingPayloadSchema>;
 ```ts
 export interface QueueRepositoryFilters extends QueueFilterQuery {
   scopedUserId?: number;
+  noteCustodianUserId?: number;
 }
 ```
 
@@ -3450,6 +3456,7 @@ interface GroupedIssues {
 ### [src/docs/components/parameters.ts](../src/docs/components/parameters.ts)
 
 - L1 â€” variÃ¡vel: `protocolParam`
+- L9 â€” variÃ¡vel: `searchParam`
 
 ### [src/docs/components/responses.ts](../src/docs/components/responses.ts)
 
@@ -4661,11 +4668,14 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-- L14 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId }`
-- L17 â€” parÃ¢metro: `builder`
-- L17 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” parÃ¢metro: `builder`
-- L45 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L23 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId, noteCustodianUserId }`
+- L27 â€” variÃ¡vel: `searchPattern`
+- L29 â€” parÃ¢metro: `builder`
+- L29 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L36 â€” parÃ¢metro: `notesQuery`
+- L36 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” parÃ¢metro: `builder`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
@@ -4700,20 +4710,21 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.service.ts](../src/modules/queue/queue.service.ts)
 
-- L17 â€” variÃ¡vel: `resolveQueueScope`
-- L20 â€” variÃ¡vel: `userId`
-- L24 â€” variÃ¡vel: `getQueueMetricsService`
-- L35 â€” variÃ¡vel: `listQueueService`
-- L39 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
-- L40 â€” variÃ¡vel: `offset`
-- L42 â€” variÃ¡vel: `repoUnassigned`
-- L43 â€” variÃ¡vel: `repoAssigneeId`
-- L46 â€” variÃ¡vel: `[{ items, total }, assignees]`
-- L60 â€” variÃ¡vel: `totalPages`
-- L63 â€” variÃ¡vel: `effectivePage`
-- L65 â€” parÃ¢metro: `item`
-- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L65 â€” variÃ¡vel: `formattedData`
+- L18 â€” variÃ¡vel: `resolveAnalystUserId`
+- L21 â€” variÃ¡vel: `userId`
+- L25 â€” variÃ¡vel: `getQueueMetricsService`
+- L36 â€” variÃ¡vel: `listQueueService`
+- L40 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
+- L41 â€” variÃ¡vel: `offset`
+- L43 â€” variÃ¡vel: `repoUnassigned`
+- L44 â€” variÃ¡vel: `repoAssigneeId`
+- L46 â€” variÃ¡vel: `analystUserId`
+- L48 â€” variÃ¡vel: `[{ items, total }, assignees]`
+- L65 â€” variÃ¡vel: `totalPages`
+- L68 â€” variÃ¡vel: `effectivePage`
+- L70 â€” parÃ¢metro: `item`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” variÃ¡vel: `formattedData`
 
 ### [src/modules/reports/reports.controller.ts](../src/modules/reports/reports.controller.ts)
 

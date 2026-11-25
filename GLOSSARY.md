@@ -145,7 +145,7 @@ Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia i
 _Evitar_: propriedade, ownership, dono.
 
 **Custódia**:
-Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.responsible_id`); para as chaves de mapeamento, o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, o e-mail do Solicitante (`requests.requester_email`). Os snapshots de triagem e de mapeamento não concedem acesso.
+Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.responsible_id`); para `mapping:read`/`mapping:write` e para a visibilidade da fila (`queue:read`/`queue:export`, #102), o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, o e-mail do Solicitante (`requests.requester_email`). Os snapshots de triagem e de mapeamento não concedem acesso.
 _Evitar_: escopo, abrangência, alcance, dono, ownership.
 
 **Atribuibilidade (atribuível)**:
