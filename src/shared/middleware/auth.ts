@@ -73,8 +73,8 @@ export async function authMiddleware(
     // Identidade e nome do Perfil vêm do banco a cada request — nunca do JWT.
     req.user = {
       id: payload.id,
-      name: payload.name,
-      email: payload.email,
+      name: userState.full_name,
+      email: userState.email,
       profileId: String(userState.profile_id),
       profileName: userState.profile_name,
     };
