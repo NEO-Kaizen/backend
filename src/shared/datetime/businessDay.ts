@@ -10,9 +10,6 @@ export interface DayRange {
   to?: string;
 }
 
-/** Mantido como alias para os consumidores do recorte comercial. */
-export type BusinessDayRange = DayRange;
-
 /**
  * Datas no formato `AAAA-MM-DD` podem ser comparadas como texto; a Ordem
  * lexicográfica coincide com a cronológica.

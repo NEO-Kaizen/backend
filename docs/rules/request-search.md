@@ -14,24 +14,23 @@ afetado por esse recorte.
 - O limite final inclui o fim do dia UTC e é aplicado como intervalo
   semiaberto (`< limite final + 1 dia`), para que nenhum registro no último
   minuto escape.
-- O limite inicial não pode ser posterior ao limite final; o backend responde
-  `400` mesmo que o front já corrija o intervalo antes de enviar.
+- O limite inicial não pode ser posterior ao limite final, mesmo que o front já
+  corrija o intervalo antes de enviar.
 
 A ausência de recorte preserva o comportamento anterior da listagem.
 
 ## Busca textual
 
-`search` (máx. 254 caracteres) cobre protocolo, título da demanda, nome do
-processo, descrição, problema, resultado esperado, observações internas e nome e
-e-mail do solicitante, todos com comparação parcial e case-insensitive. Na fila,
-a correspondência em notas internas continua restrita pela custódia de
-`internal_note:read`.
+`search` cobre protocolo, título da Solicitação, nome do processo, descrição,
+problema, resultado esperado, notas internas e nome e e-mail do solicitante,
+todos com comparação parcial e case-insensitive. Na fila, a correspondência em
+notas internas continua restrita pela custódia de `internal_note:read`.
 
 ## Departamento do solicitante
 
 O recorte por Departamento do Solicitante é por valor exato e case-insensitive,
-com trim do valor recebido (máx. 200 caracteres). Solicitações sem Departamento
-não correspondem. A comparação não é hierárquica nem por similaridade.
+com trim do valor recebido. Solicitações sem Departamento não correspondem. A
+comparação não é hierárquica nem por similaridade.
 
 O envelope da fila também devolve `departments`: departamentos distintos e
 globais, deduplicados sem diferenciar maiúsculas e ordenados. A lista não depende
@@ -50,7 +49,7 @@ a fila paginada quanto para a exportação CSV. Os campos aceitos são `createdA
 
 - `status` obedece a `statuses.order_number` (ordem configurada no portal), não à
   ordem alfabética do nome.
-- Prioridade obedece à gravidade da faixa, não à ordem alfabética do rótulo.
+- Prioridade obedece à faixa configurada, não à ordem alfabética do rótulo.
 - Ausência de Prioridade aparece por último em qualquer direção; nos demais
   campos, valores nulos também ficam no fim.
 - `protocol` é comparado sem diferenciar maiúsculas.

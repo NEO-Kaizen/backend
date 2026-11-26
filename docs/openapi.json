@@ -4087,7 +4087,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca parcial, case-insensitive, por protocolo, título da demanda, nome do processo, descrição, problema, resultado esperado, observações internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
+            "description": "Busca parcial, case-insensitive, por protocolo, título da Solicitação, nome do processo, descrição, problema, resultado esperado, notas internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {
@@ -4142,7 +4142,7 @@
             "name": "sortBy",
             "in": "query",
             "required": false,
-            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a gravidade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
+            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a Prioridade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
             "schema": {
               "type": "string",
               "enum": ["createdAt", "protocol", "status", "priority"],
@@ -4957,7 +4957,7 @@
       "get": {
         "tags": ["Relatórios"],
         "summary": "Exportar solicitações em CSV",
-        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas no fuso `America/Sao_Paulo`.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
+        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas nas colunas do CSV no fuso `America/Sao_Paulo`; os filtros `createdFrom`/`createdTo` usam UTC.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
         "operationId": "exportRequestsCsv",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4965,7 +4965,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca parcial, case-insensitive, por protocolo, título da demanda, nome do processo, descrição, problema, resultado esperado, observações internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
+            "description": "Busca parcial, case-insensitive, por protocolo, título da Solicitação, nome do processo, descrição, problema, resultado esperado, notas internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {
@@ -5017,7 +5017,7 @@
             "name": "sortBy",
             "in": "query",
             "required": false,
-            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a gravidade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
+            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a Prioridade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
             "schema": {
               "type": "string",
               "enum": ["createdAt", "protocol", "status", "priority"],

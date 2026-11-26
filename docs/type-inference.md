@@ -5,7 +5,7 @@
 ## Resumo
 
 - Arquivos-fonte analisados: **179**.
-- Tipos nomeados: **335** â€” 221 interfaces, 112 aliases `type`, 2 classes e 0 enums.
+- Tipos nomeados: **334** â€” 221 interfaces, 111 aliases `type`, 2 classes e 0 enums.
 - DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1954** â€” 1466 variÃ¡veis, 247 parÃ¢metros e 241 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **135**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
@@ -2310,12 +2310,6 @@ export interface DayRange {
   from?: string;
   to?: string;
 }
-```
-
-#### L14 â€” alias BusinessDayRange
-
-```ts
-export type BusinessDayRange = DayRange;
 ```
 
 ### [src/shared/errors/AppError.ts](../src/shared/errors/AppError.ts)

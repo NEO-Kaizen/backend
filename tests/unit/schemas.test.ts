@@ -96,6 +96,16 @@ describe("queueQuerySchema", () => {
     expect(
       queueQuerySchema.safeParse({ page: "1", pageSize: "10", createdFrom: "2026-13-01" }).success,
     ).toBe(false);
+    const atLimit = queueQuerySchema.safeParse({
+      page: "1",
+      pageSize: "10",
+      department: `  ${"x".repeat(200)}  `,
+    });
+    expect(atLimit.success).toBe(true);
+    if (atLimit.success) {
+      expect(atLimit.data.department).toBe("x".repeat(200));
+    }
+
     expect(
       queueQuerySchema.safeParse({
         page: "1",

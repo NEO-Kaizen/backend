@@ -13,8 +13,8 @@ export const searchParam = {
   in: "query",
   required: false,
   description:
-    "Busca parcial, case-insensitive, por protocolo, título da demanda, nome do processo, " +
-    "descrição, problema, resultado esperado, observações internas, nome e e-mail do solicitante. " +
+    "Busca parcial, case-insensitive, por protocolo, título da Solicitação, nome do processo, " +
+    "descrição, problema, resultado esperado, notas internas, nome e e-mail do solicitante. " +
     "Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o " +
     "responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a " +
     "Gestor/Administrador não há recorte por responsável.",
@@ -55,7 +55,7 @@ export const sortByParam = {
   required: false,
   description:
     "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. " +
-    "`status` segue `statuses.order_number` e `priority` a gravidade (Crítica antes de Baixa em `desc`), " +
+    "`status` segue `statuses.order_number` e `priority` a Prioridade (Crítica antes de Baixa em `desc`), " +
     "com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. " +
     "O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. " +
     "Valores: `createdAt`, `protocol`, `status` ou `priority`.",

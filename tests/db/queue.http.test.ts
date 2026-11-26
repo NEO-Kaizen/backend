@@ -107,14 +107,20 @@ async function seedQueue(): Promise<void> {
 
 interface QueueResponse {
   data: Array<{ protocol: string }>;
+  page: number;
   total: number;
+  totalPages: number;
   departments: string[];
 }
 
-async function listQueue(query: string): Promise<QueueResponse> {
-  const response = await client.get<QueueResponse>(`/queue?page=1&pageSize=10&${query}`);
+async function getQueue(requestClient: TestClient, query: string): Promise<QueueResponse> {
+  const response = await requestClient.get<QueueResponse>(`/queue?${query}`);
   expect(response.status).toBe(200);
   return response.body;
+}
+
+async function listQueue(query: string): Promise<QueueResponse> {
+  return await getQueue(client, `page=1&pageSize=10&${query}`);
 }
 
 function queueProtocols(queue: QueueResponse): string[] {
@@ -207,6 +213,18 @@ describe("HTTP real — filtros de data e departamento na fila", () => {
     expect(response.status).toBe(400);
   });
 
+  it("recusa intervalo invertido nas duas rotas com 400", async () => {
+    const queue = await client.get(
+      "/queue?page=1&pageSize=10&createdFrom=2026-11-02&createdTo=2026-11-01",
+    );
+    expect(queue.status).toBe(400);
+
+    const csv = await client.get(
+      "/reports/requests.csv?createdFrom=2026-11-02&createdTo=2026-11-01",
+    );
+    expect(csv.status).toBe(400);
+  });
+
   it("departments é global, distinto e ordenado, independente dos filtros", async () => {
     const queue = await listQueue("department=Financeiro");
 
@@ -229,6 +247,58 @@ describe("HTTP real — busca textual do contrato RF04", () => {
       const queue = await listQueue(`search=${encodeURIComponent(term)}`);
       expect(queueProtocols(queue), term).toEqual([expected]);
     }
+  });
+
+  it("busca por título e resultado esperado sem ampliar a custódia de notas", async () => {
+    const analyst = await insertUser({ email: "analista@neo.com", fullName: "Analista de Teste" });
+    const [professional] = (await testDb("details_professional")
+      .insert({ user_id: analyst.user_id, job_title: "Analista" })
+      .returning("professional_id")) as Array<{ professional_id: string }>;
+
+    if (!professional) throw new Error("Falha ao inserir profissional de teste.");
+
+    // 0001 está sob responsabilidade do Analista; 0002 apenas sob mapeamento.
+    await testDb("requests")
+      .where({ protocol: "TESTE-0001" })
+      .update({ professional_id: professional.professional_id });
+    await testDb("requests")
+      .where({ protocol: "TESTE-0002" })
+      .update({ mapping_professional_id: professional.professional_id });
+
+    await testDb("request_internal_notes").insert([
+      {
+        request_id: 9001,
+        author_user_id: analyst.user_id,
+        author_role_at_creation: "Analista",
+        content: "NotaAlfaReservada",
+      },
+      {
+        request_id: 9002,
+        author_user_id: analyst.user_id,
+        author_role_at_creation: "Analista",
+        content: "NotaBetaReservada",
+      },
+    ]);
+
+    const analystClient = new TestClient(server.baseUrl);
+    const login = await analystClient.post("/auth/login", {
+      email: "analista@neo.com",
+      password: DEFAULT_TEST_PASSWORD,
+    });
+    expect(login.status).toBe(200);
+
+    const search = async (term: string): Promise<string[]> => {
+      const queue = await getQueue(
+        analystClient,
+        `page=1&pageSize=10&search=${encodeURIComponent(term)}`,
+      );
+      return queueProtocols(queue);
+    };
+
+    expect(await search("Titulo Alfa")).toEqual(["TESTE-0001"]);
+    expect(await search("Resultado Beta")).toEqual(["TESTE-0002"]);
+    expect(await search("NotaAlfaReservada")).toEqual(["TESTE-0001"]);
+    expect(await search("NotaBetaReservada")).toEqual([]);
   });
 });
 
@@ -282,6 +352,17 @@ describe("HTTP real — ordenação por domínio", () => {
       "TESTE-0002",
       "TESTE-0004",
     ]);
+  });
+
+  it("ordena antes de paginar", async () => {
+    const firstPage = await getQueue(client, "page=1&pageSize=2&sortBy=protocol&sortOrder=desc");
+    expect(firstPage.page).toBe(1);
+    expect(firstPage.totalPages).toBe(2);
+    expect(queueProtocols(firstPage)).toEqual(["TESTE-0004", "TESTE-0003"]);
+
+    const secondPage = await getQueue(client, "page=2&pageSize=2&sortBy=protocol&sortOrder=desc");
+    expect(secondPage.page).toBe(2);
+    expect(queueProtocols(secondPage)).toEqual(["TESTE-0002", "TESTE-0001"]);
   });
 
   it("compara protocolo sem diferenciar maiúsculas", async () => {
