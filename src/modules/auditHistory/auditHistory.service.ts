@@ -130,6 +130,9 @@ async function calculateStatusTimeForRequest(
   const pausedStatusIds = statuses
     .filter((status) => status.is_paused)
     .map((status) => status.status_id);
+  const terminalStatusIds = statuses
+    .filter((status) => status.is_terminal)
+    .map((status) => status.status_id);
 
   const chronologicalRows = [...auditRows].reverse();
   const transitions: StatusTimeTransition[] = [];
@@ -205,6 +208,7 @@ async function calculateStatusTimeForRequest(
       currentStatusId: request.current_status_id !== null ? request.current_status_id : undefined,
       currentIsTerminal: request.current_is_terminal,
       pausedStatusIds,
+      terminalStatusIds,
       transitions,
       now,
     });

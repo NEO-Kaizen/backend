@@ -35,6 +35,7 @@ export interface StatusTimeCalculationInput {
   currentStatusId?: number;
   currentIsTerminal: boolean;
   pausedStatusIds: readonly number[];
+  terminalStatusIds: readonly number[];
   transitions: readonly StatusTimeTransition[];
   now: Date;
 }
@@ -52,6 +53,7 @@ function positiveMilliseconds(start: Date, end: Date): number {
 
 export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTimeSummary {
   const pausedStatusIds = new Set(input.pausedStatusIds);
+  const terminalStatusIds = new Set(input.terminalStatusIds);
   const intervals: StatusTimeInterval[] = [];
   let status = input.initialStatus;
   let statusId = input.initialStatusId;
@@ -60,12 +62,13 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
   for (const transition of input.transitions) {
     if (transition.status === status) continue;
 
-    const duration = positiveMilliseconds(enteredAt, transition.occurredAt);
+    const isTerminal = statusId !== undefined && terminalStatusIds.has(statusId);
+    const duration = isTerminal ? 0 : positiveMilliseconds(enteredAt, transition.occurredAt);
     const isPaused = statusId !== undefined && pausedStatusIds.has(statusId);
     intervals.push({
       status,
       enteredAt: enteredAt.toISOString(),
-      exitedAt: transition.occurredAt.toISOString(),
+      exitedAt: isTerminal ? enteredAt.toISOString() : transition.occurredAt.toISOString(),
       activeMilliseconds: isPaused ? 0 : duration,
       pausedMilliseconds: isPaused ? duration : 0,
       isPaused,
@@ -87,7 +90,9 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
     throw new StatusTimeHistoryDivergenceError();
   }
 
-  const currentEnd = input.currentIsTerminal
+  const currentIsTerminal =
+    input.currentIsTerminal || (statusId !== undefined && terminalStatusIds.has(statusId));
+  const currentEnd = currentIsTerminal
     ? enteredAt
     : input.now.getTime() >= enteredAt.getTime()
       ? input.now
@@ -98,7 +103,7 @@ export function calculateStatusTime(input: StatusTimeCalculationInput): StatusTi
   intervals.push({
     status,
     enteredAt: enteredAt.toISOString(),
-    exitedAt: input.currentIsTerminal ? enteredAt.toISOString() : null,
+    exitedAt: currentIsTerminal ? enteredAt.toISOString() : null,
     activeMilliseconds: currentIsPaused ? 0 : currentDuration,
     pausedMilliseconds: currentIsPaused ? currentDuration : 0,
     isPaused: currentIsPaused,

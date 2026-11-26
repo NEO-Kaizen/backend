@@ -135,7 +135,7 @@ describe("integração HTTP de auditoria e transições de Status (Postgres real
     assert.equal(result.intervals.at(-1)?.exitedAt, null);
   });
 
-  it("GET /audit-logs/:protocol/status-times keeps terminal totals fixed", async () => {
+  it("GET /audit-logs/:protocol/status-times keeps terminal totals fixed after reopening", async () => {
     const { baseUrl, cookieName, adminToken, admin } = getContext();
     const request = await testDb("requests as r")
       .join("statuses as s", "s.status_id", "r.status_id")
@@ -153,6 +153,13 @@ describe("integração HTTP de auditoria e transições de Status (Postgres real
       .orderBy("status_id")
       .first<{ status_id: number; name: string }>("status_id", "name");
     assert.ok(terminalStatus, "deve haver um Status terminal no seed");
+
+    const laterStatus = await testDb("statuses")
+      .where({ is_terminal: false, is_active: true })
+      .whereNotIn("status_id", [request.status_id, terminalStatus.status_id])
+      .orderBy("status_id")
+      .first<{ status_id: number; name: string }>("status_id", "name");
+    assert.ok(laterStatus, "deve haver outro Status não terminal no seed");
 
     const recordTransition = async (
       previousStatus: string,
@@ -181,6 +188,7 @@ describe("integração HTTP de auditoria e transições de Status (Postgres real
       });
 
     let transitionCommitted = false;
+    let currentStatusName = request.name;
     try {
       const terminalEnteredAt = await recordTransition(
         request.name,
@@ -188,6 +196,7 @@ describe("integração HTTP de auditoria e transições de Status (Postgres real
         terminalStatus.status_id,
       );
       transitionCommitted = true;
+      currentStatusName = terminalStatus.name;
 
       const firstQueryTime = new Date(Math.max(Date.now(), Date.parse(terminalEnteredAt)) + 1_000);
       vi.useFakeTimers({ toFake: ["Date"] });
@@ -226,10 +235,29 @@ describe("integração HTTP de auditoria e transições de Status (Postgres real
       assert.equal(terminalInterval?.pausedMilliseconds, 0);
       assert.equal(first.totalActiveMilliseconds, second.totalActiveMilliseconds);
       assert.equal(first.totalPausedMilliseconds, second.totalPausedMilliseconds);
+
+      vi.useRealTimers();
+      await recordTransition(terminalStatus.name, request.name, request.status_id);
+      currentStatusName = request.name;
+      await recordTransition(request.name, laterStatus.name, laterStatus.status_id);
+      currentStatusName = laterStatus.name;
+
+      const reopenedResponse = await fetch(`${baseUrl}/audit-logs/${protocol}/status-times`, {
+        headers,
+      });
+      assert.equal(reopenedResponse.status, 200);
+      const reopened = (await reopenedResponse.json()) as typeof first;
+      const reopenedTerminalInterval = reopened.intervals.find(
+        (interval) => interval.status === terminalStatus.name,
+      );
+      assert.equal(reopenedTerminalInterval?.enteredAt, terminalEnteredAt);
+      assert.equal(reopenedTerminalInterval?.exitedAt, terminalEnteredAt);
+      assert.equal(reopenedTerminalInterval?.activeMilliseconds, 0);
+      assert.equal(reopenedTerminalInterval?.pausedMilliseconds, 0);
     } finally {
       vi.useRealTimers();
       if (transitionCommitted) {
-        await recordTransition(terminalStatus.name, request.name, request.status_id);
+        await recordTransition(currentStatusName, request.name, request.status_id);
       }
     }
   });

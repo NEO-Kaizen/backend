@@ -24,6 +24,7 @@ test("status time separates active and paused periods", () => {
     currentStatusId: 3,
     currentIsTerminal: false,
     pausedStatusIds: [4],
+    terminalStatusIds: [],
     transitions: [
       {
         status: "Pendente de informações",
@@ -62,6 +63,7 @@ test("status time classifies pauses by status ID rather than label", () => {
     currentStatusId: 3,
     currentIsTerminal: false,
     pausedStatusIds: [4],
+    terminalStatusIds: [],
     transitions: [
       {
         status: "Pendente de informações",
@@ -87,6 +89,7 @@ test("completed request closes each audited interval and the final status", () =
     currentStatusId: 19,
     currentIsTerminal: true,
     pausedStatusIds: [4],
+    terminalStatusIds: [19],
     transitions: [
       {
         status: "Pendente de informações",
@@ -120,6 +123,7 @@ test("in-progress request keeps the current status open", () => {
     currentStatusId: 7,
     currentIsTerminal: false,
     pausedStatusIds: [],
+    terminalStatusIds: [],
     transitions: [
       {
         status: "Em atendimento",
@@ -144,6 +148,7 @@ test("divergent audit and database status fails instead of inventing a period", 
         currentStatus: "Concluída",
         currentIsTerminal: false,
         pausedStatusIds: [],
+        terminalStatusIds: [],
         transitions: [
           {
             status: "Em atendimento",
@@ -154,4 +159,43 @@ test("divergent audit and database status fails instead of inventing a period", 
       }),
     /não corresponde/,
   );
+});
+
+test("reopened terminal intervals have zero duration and do not affect totals", () => {
+  const result = calculateStatusTime({
+    openedAt: new Date("2026-11-20T09:00:00Z"),
+    initialStatus: "Em triagem",
+    initialStatusId: 3,
+    currentStatus: "Em atendimento",
+    currentStatusId: 7,
+    currentIsTerminal: false,
+    pausedStatusIds: [4],
+    terminalStatusIds: [19],
+    transitions: [
+      {
+        status: "Concluída",
+        statusId: 19,
+        occurredAt: new Date("2026-11-20T10:00:00Z"),
+      },
+      {
+        status: "Em triagem",
+        statusId: 3,
+        occurredAt: new Date("2026-11-21T10:00:00Z"),
+      },
+      {
+        status: "Em atendimento",
+        statusId: 7,
+        occurredAt: new Date("2026-11-21T11:00:00Z"),
+      },
+    ],
+    now: new Date("2026-11-21T12:00:00Z"),
+  });
+
+  const terminalInterval = result.intervals.find((interval) => interval.status === "Concluída");
+  assert.equal(terminalInterval?.enteredAt, "2026-11-20T10:00:00.000Z");
+  assert.equal(terminalInterval?.exitedAt, "2026-11-20T10:00:00.000Z");
+  assert.equal(terminalInterval?.activeMilliseconds, 0);
+  assert.equal(terminalInterval?.pausedMilliseconds, 0);
+  assert.equal(result.totalActiveMilliseconds, 3 * 60 * 60 * 1000);
+  assert.equal(result.totalPausedMilliseconds, 0);
 });

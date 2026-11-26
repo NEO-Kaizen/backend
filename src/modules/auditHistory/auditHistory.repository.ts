@@ -18,6 +18,7 @@ export interface StatusRow {
   status_id: number;
   name: string;
   is_paused: boolean;
+  is_terminal: boolean;
 }
 
 interface AuditHistoryDetailRow {
@@ -137,6 +138,6 @@ export async function listAuditHistoryByProtocol(
 
 export async function listStatuses(): Promise<StatusRow[]> {
   return db("statuses")
-    .select("status_id", "name", "is_paused")
+    .select("status_id", "name", "is_paused", "is_terminal")
     .then((rows) => rows as StatusRow[]);
 }
