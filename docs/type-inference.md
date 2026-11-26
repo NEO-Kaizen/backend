@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **175**.
 - Tipos nomeados: **302** â€” 210 interfaces, 89 aliases `type`, 3 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1896** â€” 1421 variÃ¡veis, 240 parÃ¢metros e 235 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1902** â€” 1425 variÃ¡veis, 241 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **133**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -821,6 +821,11 @@ export interface FindQueueParams extends QueueFilterQuery {
    * de mapeamento. `undefined` = sem restrição (perfis Gestor/Administrador).
    */
   scopedUserId?: number;
+  /**
+   * Custódia de `internal_note:read` aplicada somente à correspondência em
+   * notas. `undefined` = sem restrição (Gestor/Administrador e exportação CSV).
+   */
+  noteCustodianUserId?: number;
   limit: number;
   offset: number;
 }
@@ -1778,6 +1783,7 @@ export type MappingPayload = z.infer<typeof mappingPayloadSchema>;
 ```ts
 export interface QueueRepositoryFilters extends QueueFilterQuery {
   scopedUserId?: number;
+  noteCustodianUserId?: number;
 }
 ```
 
@@ -3558,6 +3564,7 @@ interface GroupedIssues {
 ### [src/docs/components/parameters.ts](../src/docs/components/parameters.ts)
 
 - L1 â€” variÃ¡vel: `protocolParam`
+- L9 â€” variÃ¡vel: `searchParam`
 
 ### [src/docs/components/responses.ts](../src/docs/components/responses.ts)
 
@@ -4371,57 +4378,58 @@ interface GroupedIssues {
 - L202 â€” variÃ¡vel: `professionalId`
 - L203 â€” variÃ¡vel: `requestProfessionalId`
 - L210 â€” variÃ¡vel: `request`
-- L214 â€” variÃ¡vel: `nameOk`
-- L215 â€” variÃ¡vel: `emailOk`
-- L225 â€” variÃ¡vel: `identity`
-- L227 â€” variÃ¡vel: `nameOk`
-- L228 â€” variÃ¡vel: `emailOk`
-- L239 â€” variÃ¡vel: `request`
-- L241 â€” variÃ¡vel: `rows`
-- L242 â€” variÃ¡vel: `items`
-- L251 â€” variÃ¡vel: `openRow`
-- L252 â€” parÃ¢metro: `row`
-- L252 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L254 â€” variÃ¡vel: `targetRow`
-- L255 â€” variÃ¡vel: `batchId`
-- L256 â€” variÃ¡vel: `requestAttachment`
-- L258 â€” parÃ¢metro: `row`
-- L258 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L273 â€” variÃ¡vel: `request`
-- L275 â€” variÃ¡vel: `row`
-- L283 â€” variÃ¡vel: `type`
-- L301 â€” variÃ¡vel: `response`
-- L314 â€” variÃ¡vel: `updated`
-- L324 â€” parÃ¢metro: `facts`
-- L324 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L332 â€” variÃ¡vel: `list`
-- L350 â€” variÃ¡vel: `request`
-- L352 â€” variÃ¡vel: `row`
-- L368 â€” variÃ¡vel: `[saved]`
-- L378 â€” variÃ¡vel: `err`
-- L418 â€” variÃ¡vel: `date`
-- L440 â€” variÃ¡vel: `nullableComplement`
-- L470 â€” variÃ¡vel: `request`
-- L475 â€” variÃ¡vel: `batchId`
-- L476 â€” variÃ¡vel: `batchRows`
-- L479 â€” parÃ¢metro: `row`
-- L479 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L479 â€” variÃ¡vel: `byId`
-- L481 â€” variÃ¡vel: `decision`
-- L482 â€” variÃ¡vel: `row`
-- L484 â€” variÃ¡vel: `status`
-- L496 â€” parÃ¢metro: `decision`
-- L496 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L500 â€” variÃ¡vel: `row`
-- L501 â€” variÃ¡vel: `fieldKey`
-- L510 â€” variÃ¡vel: `decidedRows`
-- L519 â€” parÃ¢metro: `facts`
-- L519 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L522 â€” variÃ¡vel: `mapped`
-- L532 â€” variÃ¡vel: `mode`
-- L537 â€” variÃ¡vel: `found`
-- L539 â€” variÃ¡vel: `nameOk`
-- L540 â€” variÃ¡vel: `emailOk`
+- L214 â€” variÃ¡vel: `requesterUserId`
+- L226 â€” variÃ¡vel: `nameOk`
+- L227 â€” variÃ¡vel: `emailOk`
+- L237 â€” variÃ¡vel: `identity`
+- L239 â€” variÃ¡vel: `nameOk`
+- L240 â€” variÃ¡vel: `emailOk`
+- L251 â€” variÃ¡vel: `request`
+- L253 â€” variÃ¡vel: `rows`
+- L254 â€” variÃ¡vel: `items`
+- L263 â€” variÃ¡vel: `openRow`
+- L264 â€” parÃ¢metro: `row`
+- L264 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L266 â€” variÃ¡vel: `targetRow`
+- L267 â€” variÃ¡vel: `batchId`
+- L268 â€” variÃ¡vel: `requestAttachment`
+- L270 â€” parÃ¢metro: `row`
+- L270 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L285 â€” variÃ¡vel: `request`
+- L287 â€” variÃ¡vel: `row`
+- L295 â€” variÃ¡vel: `type`
+- L313 â€” variÃ¡vel: `response`
+- L326 â€” variÃ¡vel: `updated`
+- L336 â€” parÃ¢metro: `facts`
+- L336 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L344 â€” variÃ¡vel: `list`
+- L362 â€” variÃ¡vel: `request`
+- L364 â€” variÃ¡vel: `row`
+- L380 â€” variÃ¡vel: `[saved]`
+- L390 â€” variÃ¡vel: `err`
+- L430 â€” variÃ¡vel: `date`
+- L452 â€” variÃ¡vel: `nullableComplement`
+- L482 â€” variÃ¡vel: `request`
+- L487 â€” variÃ¡vel: `batchId`
+- L488 â€” variÃ¡vel: `batchRows`
+- L491 â€” parÃ¢metro: `row`
+- L491 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L491 â€” variÃ¡vel: `byId`
+- L493 â€” variÃ¡vel: `decision`
+- L494 â€” variÃ¡vel: `row`
+- L496 â€” variÃ¡vel: `status`
+- L508 â€” parÃ¢metro: `decision`
+- L508 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L512 â€” variÃ¡vel: `row`
+- L513 â€” variÃ¡vel: `fieldKey`
+- L522 â€” variÃ¡vel: `decidedRows`
+- L531 â€” parÃ¢metro: `facts`
+- L531 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L534 â€” variÃ¡vel: `mapped`
+- L544 â€” variÃ¡vel: `mode`
+- L549 â€” variÃ¡vel: `found`
+- L551 â€” variÃ¡vel: `nameOk`
+- L552 â€” variÃ¡vel: `emailOk`
 
 ### [src/modules/portalConfig/portalConfig.controller.ts](../src/modules/portalConfig/portalConfig.controller.ts)
 
@@ -4846,11 +4854,14 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-- L14 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId }`
-- L17 â€” parÃ¢metro: `builder`
-- L17 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” parÃ¢metro: `builder`
-- L45 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L23 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId, noteCustodianUserId }`
+- L27 â€” variÃ¡vel: `searchPattern`
+- L29 â€” parÃ¢metro: `builder`
+- L29 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L36 â€” parÃ¢metro: `notesQuery`
+- L36 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” parÃ¢metro: `builder`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
@@ -4885,20 +4896,21 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.service.ts](../src/modules/queue/queue.service.ts)
 
-- L17 â€” variÃ¡vel: `resolveQueueScope`
-- L20 â€” variÃ¡vel: `userId`
-- L24 â€” variÃ¡vel: `getQueueMetricsService`
-- L35 â€” variÃ¡vel: `listQueueService`
-- L39 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
-- L40 â€” variÃ¡vel: `offset`
-- L42 â€” variÃ¡vel: `repoUnassigned`
-- L43 â€” variÃ¡vel: `repoAssigneeId`
-- L46 â€” variÃ¡vel: `[{ items, total }, assignees]`
-- L60 â€” variÃ¡vel: `totalPages`
-- L63 â€” variÃ¡vel: `effectivePage`
-- L65 â€” parÃ¢metro: `item`
-- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L65 â€” variÃ¡vel: `formattedData`
+- L18 â€” variÃ¡vel: `resolveAnalystUserId`
+- L21 â€” variÃ¡vel: `userId`
+- L25 â€” variÃ¡vel: `getQueueMetricsService`
+- L36 â€” variÃ¡vel: `listQueueService`
+- L40 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
+- L41 â€” variÃ¡vel: `offset`
+- L43 â€” variÃ¡vel: `repoUnassigned`
+- L44 â€” variÃ¡vel: `repoAssigneeId`
+- L46 â€” variÃ¡vel: `analystUserId`
+- L48 â€” variÃ¡vel: `[{ items, total }, assignees]`
+- L65 â€” variÃ¡vel: `totalPages`
+- L68 â€” variÃ¡vel: `effectivePage`
+- L70 â€” parÃ¢metro: `item`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” variÃ¡vel: `formattedData`
 
 ### [src/modules/reports/reports.controller.ts](../src/modules/reports/reports.controller.ts)
 

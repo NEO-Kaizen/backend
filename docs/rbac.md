@@ -28,11 +28,13 @@ Toda chave é `global` ou `custodial`.
 
 A custódia não vai no token e não envelhece com ele. As fontes do vínculo com a linha são:
 
-| Fonte                                            | Vale para                                                                                |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `requests.responsible_id`                        | solicitação, fila, triagem, priorização, pendências internas, notas internas e auditoria |
-| `mappings.responsible_id` do mapeamento corrente | `mapping:read` e `mapping:write`, além do responsável da solicitação                     |
-| `requests.requester_email`                       | posse: `request:track` e `pending_item:respond`, comparando com o e-mail da conta        |
+| Fonte                                            | Vale para                                                                                     |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `requests.responsible_id`                        | solicitação, fila, triagem, priorização, pendências internas, notas internas e auditoria      |
+| `mappings.responsible_id` do mapeamento corrente | `mapping:read`, `mapping:write` e visibilidade da fila (#102); não amplia a custódia de notas |
+| `requests.requester_email`                       | posse: `request:track` e `pending_item:respond`, comparando com o e-mail da conta             |
+
+A visibilidade da fila (`queue:read`/`queue:export`, #102) inclui o responsável do mapeamento corrente; a custódia de `internal_note:read`, usada pela busca por notas, continua restrita a `requests.responsible_id`.
 
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
@@ -321,18 +323,18 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 
 ## 5. Como a custódia é resolvida
 
-| Chave                                                                      | Fonte do vínculo                                                                          |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                                 |
-| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                                 |
-| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.responsible_id` do mapeamento corrente         |
-| `prioritization:write`                                                     | `requests.responsible_id`                                                                 |
-| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                                 |
-| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                                 |
-| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                      |
-| `queue:read`, `queue:export`                                               | Fila do ator: `requests.responsible_id = ator.id`; o responsável do mapeamento não amplia |
-| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)      |
-| chaves `global`                                                            | nenhuma verificação de linha                                                              |
+| Chave                                                                      | Fonte do vínculo                                                                                                                                              |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                                                                                                     |
+| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                                                                                                     |
+| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.responsible_id` do mapeamento corrente                                                                             |
+| `prioritization:write`                                                     | `requests.responsible_id`                                                                                                                                     |
+| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                                                                                                     |
+| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                                                                                                     |
+| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                                                                                          |
+| `queue:read`, `queue:export`                                               | Fila do ator: `requests.responsible_id = ator.id` ou responsável do mapeamento corrente (#102); a busca por nota usa `internal_note:read` (ver regras abaixo) |
+| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                                                                          |
+| chaves `global`                                                            | nenhuma verificação de linha                                                                                                                                  |
 
 Regras de aplicação:
 
@@ -341,6 +343,7 @@ Regras de aplicação:
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
 - Sem sessão, não há ator: a porta pública do modo `PUBLIC` é a única que não avalia chaves. Ela usa o e-mail declarado e o protocolo.
 - Snapshots de triagem e de mapeamento não concedem acesso. Mapeamento concluído é histórico.
+- A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: só casa nota de solicitação cujo Responsável é o ator. O responsável de mapeamento não amplia essa busca, embora amplie a fila conforme a #102. Essa divergência entre o escopo da fila e a custódia da nota é pré-existente; a tabela acima e `docs/rules/internal-observations.md` a explicitam.
 - Solicitação órfã não é visível ao Analista custodial; ela é atribuída por quem tem `request:assign` em `all`.
 
 ## 6. Atribuir e ser atribuível
@@ -474,7 +477,7 @@ Estas regras não são expressáveis como chave e continuam no código:
 - Autoria estabelece posse; as chaves de posse operam sobre ela e não aceitam outro vínculo (§ 1.3). Autoria não concede `request:read` nem custódia interna.
 - A custódia é por linha e é lida a cada operação. Snapshots e token não concedem acesso.
 - `request:status_override` libera o alvo protegido; não substitui `request:status_change` para decidir sobre qual solicitação o status muda.
-- `queue:read` e `queue:export` são a própria Fila do ator; o responsável do mapeamento não a amplia.
+- `queue:read` e `queue:export` são a própria Fila do ator; `requests.responsible_id` e o responsável do mapeamento corrente (#102) ampliam a visibilidade, mas não a custódia de notas usada na busca.
 - Sem escalação cobre chave e vínculo: o concedente não amplia o que possui (`all` > `assigned`; `own` fixo nas chaves de posse; `profile:manage` incluída).
 - Contas, por autoridade (§ 4.2): quem tem `user:manage` gerencia perfis estritamente abaixo; o Admin Root gerencia qualquer conta, inclusive de autoridade igual; contas com o perfil Admin Root ficam fora de rota; ninguém gerencia a própria conta pelas rotas administrativas.
 - O Admin Root é único: no máximo uma conta `is_root`, criada só pelo seed; o perfil não perde `profile:manage` nem é desativado, e não é atribuível.

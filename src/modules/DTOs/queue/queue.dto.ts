@@ -11,6 +11,11 @@ export interface FindQueueParams extends QueueFilterQuery {
    * de mapeamento. `undefined` = sem restrição (perfis Gestor/Administrador).
    */
   scopedUserId?: number;
+  /**
+   * Custódia de `internal_note:read` aplicada somente à correspondência em
+   * notas. `undefined` = sem restrição (Gestor/Administrador e exportação CSV).
+   */
+  noteCustodianUserId?: number;
   limit: number;
   offset: number;
 }
