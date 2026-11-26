@@ -4,6 +4,7 @@ import { REQUEST_PRIORITIES } from "../../shared/types/requests.ts";
 import {
   QUEUE_SORT_BY,
   QUEUE_SORT_ORDER,
+  type QueueExportQuery,
   type QueueFilterQuery,
   type QueueQuery,
 } from "../../shared/types/queue.types.ts";
@@ -30,13 +31,13 @@ const queueFilterShape = {
     .enum(["true", "false", "1", "0"], { error: 'Valor inválido para "unassigned".' })
     .transform((value) => value === "true" || value === "1")
     .optional(),
-  dateFrom: z.iso.date("Data inicial inválida — use o formato AAAA-MM-DD.").optional(),
-  dateTo: z.iso.date("Data final inválida — use o formato AAAA-MM-DD.").optional(),
+  createdFrom: z.iso.date("Data inicial inválida — use o formato AAAA-MM-DD.").optional(),
+  createdTo: z.iso.date("Data final inválida — use o formato AAAA-MM-DD.").optional(),
   department: z
     .string()
     .trim()
     .min(1, "Departamento inválido.")
-    .max(100, "Máximo de 100 caracteres.")
+    .max(200, "Máximo de 200 caracteres.")
     .optional(),
 };
 
@@ -62,21 +63,32 @@ function applyQueueRefinements<Output extends QueueFilterQuery, Input>(
       message: '"unassigned" e "assigneeId" não podem ser combinados.',
       path: ["unassigned"],
     })
-    .refine((filters) => isOrderedDateRange({ from: filters.dateFrom, to: filters.dateTo }), {
+    .refine((filters) => isOrderedDateRange({ from: filters.createdFrom, to: filters.createdTo }), {
       message: "A data inicial não pode ser posterior à data final.",
-      path: ["dateFrom"],
+      path: ["createdFrom"],
     });
 }
 
-/** Filtros sem paginação, compartilhados pela fila e pela exportação CSV. */
+/**
+ * Filtros e ordenação da exportação CSV (sem paginação).
+ * A exportação aceita `sortBy`/`sortOrder` conforme o contrato RF04.
+ */
 export const queueFilterQuerySchema = applyQueueRefinements(
-  z.object(queueFilterShape, { error: "A query deve ser um objeto com filtros válidos." }).strict(),
-) satisfies z.ZodType<QueueFilterQuery>;
+  z
+    .object(
+      {
+        ...queueFilterShape,
+        ...queueSortShape,
+      },
+      { error: "A query deve ser um objeto com filtros válidos." },
+    )
+    .strict(),
+) satisfies z.ZodType<QueueExportQuery>;
 
 /**
  * Validação da query de `GET /queue`.
- * `page`/`pageSize` são obrigatórios; os filtros compartilhados também alimentam
- * o CSV, enquanto `sortBy`/`sortOrder` valem apenas para a listagem paginada.
+ * `page`/`pageSize` são obrigatórios; os demais parâmetros seguem o mesmo
+ * contrato da exportação e também alimentam a listagem paginada.
  */
 export const queueQuerySchema = applyQueueRefinements(
   z.object(

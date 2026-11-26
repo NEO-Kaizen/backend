@@ -1,4 +1,9 @@
-import { findQueueRequests, fetchQueueMetrics, fetchAllAssignees } from "./queue.repository.ts";
+import {
+  findQueueRequests,
+  fetchQueueMetrics,
+  fetchAllAssignees,
+  fetchAllDepartments,
+} from "./queue.repository.ts";
 import type {
   QueueQuery,
   QueueResponse,
@@ -45,7 +50,7 @@ export const listQueueService = async (
     typeof assigneeId === "string" && assigneeId !== "unassigned" ? assigneeId : undefined;
   const analystUserId = resolveAnalystUserId(actor);
 
-  const [{ items, total }, assignees] = await Promise.all([
+  const [{ items, total }, assignees, departments] = await Promise.all([
     findQueueRequests({
       ...queueFilters,
       assigneeId: repoAssigneeId,
@@ -60,6 +65,7 @@ export const listQueueService = async (
       offset,
     }),
     fetchAllAssignees(),
+    fetchAllDepartments(),
   ]);
 
   const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
@@ -86,5 +92,6 @@ export const listQueueService = async (
     total,
     totalPages,
     assignees,
+    departments,
   };
 };

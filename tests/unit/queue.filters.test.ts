@@ -32,22 +32,20 @@ describe("applyQueueFilters", () => {
     expect(bindings).toEqual([]);
   });
 
-  it("search aplica ILIKE em protocolo, e-mail e nome do requester", () => {
+  it("search aplica ILIKE em todos os campos do contrato RF04", () => {
     const { sql, bindings } = build({ search: "MAAT" });
 
     expect(sql).toContain('"requests"."protocol" ilike ?');
-    expect(sql).toContain('"requester"."corporate_email" ilike ?');
-    expect(sql).toContain('"requester"."full_name" ilike ?');
-    expect(bindings).toEqual(Array(6).fill("%MAAT%"));
-  });
-
-  it("search também cobre descrição, problema e conteúdo da nota", () => {
-    const { sql, bindings } = build({ search: "carga operacional" });
-
+    expect(sql).toContain('"requests"."title" ilike ?');
+    expect(sql).toContain('"requests"."process_name" ilike ?');
     expect(sql).toContain('"requests"."need_description" ilike ?');
     expect(sql).toContain('"requests"."problem_opportunity" ilike ?');
+    expect(sql).toContain('"requests"."expected_result" ilike ?');
+    expect(sql).toContain('"requester"."corporate_email" ilike ?');
+    expect(sql).toContain('"requester"."full_name" ilike ?');
     expect(sql).toContain('"note"."content" ilike ?');
-    expect(bindings).toEqual(Array(6).fill("%carga operacional%"));
+    // Oito colunas diretas + EXISTS das notas.
+    expect(bindings).toEqual(Array(9).fill("%MAAT%"));
   });
 
   it("busca em notas usa EXISTS correlacionado, sem junção e sem devolver conteúdo", () => {
@@ -67,8 +65,8 @@ describe("applyQueueFilters", () => {
       noteCustodianUserId: 7,
     });
 
-    // 6 ILIKEs (protocolo, e-mail, nome, descrição, problema e nota) + custódia + 2 do escopo.
-    expect(bindings).toEqual([...Array(6).fill("%kickoff%"), 7, 7, 7]);
+    // 9 correspondências de search + custódia da nota + 2 do escopo.
+    expect(bindings).toEqual([...Array(9).fill("%kickoff%"), 7, 7, 7]);
     expect(sql.match(/"assignee_user"\."user_id" = \?/g)).toHaveLength(2);
     expect(sql.match(/"mapping_assignee"\."user_id" = \?/g)).toHaveLength(1);
   });
@@ -76,7 +74,7 @@ describe("applyQueueFilters", () => {
   it("sem noteCustodianUserId (Gestor/Administrador) a nota não é recortada", () => {
     const { sql, bindings } = build({ search: "kickoff" });
 
-    expect(bindings).toEqual(Array(6).fill("%kickoff%"));
+    expect(bindings).toEqual(Array(9).fill("%kickoff%"));
     expect(sql).not.toContain('"assignee_user"."user_id" = ?');
   });
 
@@ -152,7 +150,7 @@ describe("applyQueueFilters", () => {
       scopedUserId: 7,
     });
 
-    expect(bindings).toEqual([...Array(6).fill("%MAAT%"), "Em triagem", "Alta", 20, 7, 7]);
+    expect(bindings).toEqual([...Array(9).fill("%MAAT%"), "Em triagem", "Alta", 20, 7, 7]);
     // O grupo do search fecha e os demais filtros entram com AND.
     expect(sql).toMatch(/\) and "status"\."name" = \?/);
     expect(sql).toMatch(/"status"\."name" = \? and "priority_tbl"\."level" = \?/);
@@ -163,21 +161,16 @@ describe("applyQueueFilters", () => {
     );
   });
 
-  // Bordas reais de fuso/dia e o comportamento isolado de `dateTo` são
+  // Bordas reais de dia e o comportamento isolado de `createdTo` são
   // verificados com banco em `tests/db/queue.http.test.ts`.
-  it("dateFrom e dateTo filtram created_at no dia comercial, com dateTo inclusivo", () => {
-    const { sql, bindings } = build({ dateFrom: "2026-11-01", dateTo: "2026-11-30" });
+  it("createdFrom e createdTo filtram created_at em UTC, com createdTo inclusivo", () => {
+    const { sql, bindings } = build({ createdFrom: "2026-11-01", createdTo: "2026-11-30" });
 
     expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
     expect(sql).toContain(
       `"requests"."created_at" < ((?::date + INTERVAL '1 day')::timestamp AT TIME ZONE ?)`,
     );
-    expect(bindings).toEqual([
-      "2026-11-01",
-      "America/Sao_Paulo",
-      "2026-11-30",
-      "America/Sao_Paulo",
-    ]);
+    expect(bindings).toEqual(["2026-11-01", "UTC", "2026-11-30", "UTC"]);
   });
 
   it("department compara requesters.department de forma exata e case-insensitive", () => {
@@ -190,15 +183,15 @@ describe("applyQueueFilters", () => {
   it("data, departamento e busca entram juntos sem alterar o escopo do Analista", () => {
     const { sql, bindings } = build({
       search: "MAAT",
-      dateFrom: "2026-11-01",
+      createdFrom: "2026-11-01",
       department: "Desenvolvimento",
       scopedUserId: 7,
     });
 
     expect(bindings).toEqual([
-      ...Array(6).fill("%MAAT%"),
+      ...Array(9).fill("%MAAT%"),
       "2026-11-01",
-      "America/Sao_Paulo",
+      "UTC",
       "Desenvolvimento",
       7,
       7,

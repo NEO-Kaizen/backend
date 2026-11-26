@@ -1181,7 +1181,7 @@
       },
       "QueueResponse": {
         "type": "object",
-        "required": ["data", "page", "pageSize", "total", "totalPages", "assignees"],
+        "required": ["data", "page", "pageSize", "total", "totalPages", "assignees", "departments"],
         "properties": {
           "data": { "type": "array", "items": { "$ref": "#/components/schemas/QueueItem" } },
           "page": { "type": "integer", "example": 1 },
@@ -1192,6 +1192,12 @@
             "type": "array",
             "description": "Responsáveis atribuíveis para o filtro da fila.",
             "items": { "$ref": "#/components/schemas/QueueAssignee" }
+          },
+          "departments": {
+            "type": "array",
+            "description": "Departamentos distintos e globais do solicitante, ordenados; não dependem dos filtros nem da paginação.",
+            "items": { "type": "string" },
+            "example": ["Desenvolvimento", "Financeiro"]
           }
         }
       },
@@ -4061,7 +4067,7 @@
       "get": {
         "tags": ["Fila de atendimento"],
         "summary": "Listar fila de atendimento",
-        "description": "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
+        "description": "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
         "operationId": "getQueue",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4081,7 +4087,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, descrição, problema e conteúdo das notas internas. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
+            "description": "Busca parcial, case-insensitive, por protocolo, título da Solicitação, nome do processo, descrição, problema, resultado esperado, notas internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {
@@ -4112,34 +4118,34 @@
             "schema": { "type": "string", "enum": ["true", "1", "false", "0"] }
           },
           {
-            "name": "dateFrom",
+            "name": "createdFrom",
             "in": "query",
             "required": false,
-            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC. Não pode ser posterior a `createdTo`.",
             "schema": { "type": "string", "format": "date", "example": "2026-11-01" }
           },
           {
-            "name": "dateTo",
+            "name": "createdTo",
             "in": "query",
             "required": false,
-            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC.",
             "schema": { "type": "string", "format": "date", "example": "2026-11-30" }
           },
           {
             "name": "department",
             "in": "query",
             "required": false,
-            "description": "Departamento do solicitante. Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
-            "schema": { "type": "string", "maxLength": 100, "example": "Desenvolvimento" }
+            "description": "Departamento do solicitante (com trim). Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
+            "schema": { "type": "string", "maxLength": 200, "example": "Desenvolvimento" }
           },
           {
             "name": "sortBy",
             "in": "query",
             "required": false,
-            "description": "Campo de ordenação. `status` segue a ordem do ciclo de vida e `priority` a gravidade (Crítica antes de Baixa em `desc`). O desempate é feito por `protocol` em ordem ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `requesterName`, `status`, `priority` ou `assignee`.",
+            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a Prioridade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
             "schema": {
               "type": "string",
-              "enum": ["createdAt", "protocol", "requesterName", "status", "priority", "assignee"],
+              "enum": ["createdAt", "protocol", "status", "priority"],
               "default": "createdAt"
             }
           },
@@ -4951,7 +4957,7 @@
       "get": {
         "tags": ["Relatórios"],
         "summary": "Exportar solicitações em CSV",
-        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas no fuso `America/Sao_Paulo`.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `dateFrom`/`dateTo` filtram a abertura e `department` filtra o departamento do solicitante; todos são combináveis com `search`.",
+        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas nas colunas do CSV no fuso `America/Sao_Paulo`; os filtros `createdFrom`/`createdTo` usam UTC.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
         "operationId": "exportRequestsCsv",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4959,7 +4965,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca parcial, case-insensitive, por protocolo, e-mail corporativo, nome do solicitante, descrição, problema e conteúdo das notas internas. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
+            "description": "Busca parcial, case-insensitive, por protocolo, título da Solicitação, nome do processo, descrição, problema, resultado esperado, notas internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {
@@ -4987,25 +4993,43 @@
             "schema": { "type": "string", "enum": ["true", "1", "false", "0"] }
           },
           {
-            "name": "dateFrom",
+            "name": "createdFrom",
             "in": "query",
             "required": false,
-            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC. Não pode ser posterior a `createdTo`.",
             "schema": { "type": "string", "format": "date", "example": "2026-11-01" }
           },
           {
-            "name": "dateTo",
+            "name": "createdTo",
             "in": "query",
             "required": false,
-            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC.",
             "schema": { "type": "string", "format": "date", "example": "2026-11-30" }
           },
           {
             "name": "department",
             "in": "query",
             "required": false,
-            "description": "Departamento do solicitante. Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
-            "schema": { "type": "string", "maxLength": 100, "example": "Desenvolvimento" }
+            "description": "Departamento do solicitante (com trim). Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
+            "schema": { "type": "string", "maxLength": 200, "example": "Desenvolvimento" }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a Prioridade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
+            "schema": {
+              "type": "string",
+              "enum": ["createdAt", "protocol", "status", "priority"],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "required": false,
+            "description": "Direção da ordenação.",
+            "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" }
           }
         ],
         "responses": {

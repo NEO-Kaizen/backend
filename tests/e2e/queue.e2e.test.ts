@@ -55,11 +55,12 @@ describe("E2E — GET /queue com filtros e ordenação", () => {
       total: 0,
       totalPages: 0,
       assignees: [],
+      departments: [],
     });
     const client = new TestClient(server.baseUrl);
 
     const response = await client.get(
-      "/queue?page=1&pageSize=10&search=MAAT&dateFrom=2026-11-01&dateTo=2026-11-30&department=Desenvolvimento&sortBy=protocol&sortOrder=asc",
+      "/queue?page=1&pageSize=10&search=MAAT&createdFrom=2026-11-01&createdTo=2026-11-30&department=Desenvolvimento&sortBy=protocol&sortOrder=asc",
       headers,
     );
 
@@ -69,8 +70,8 @@ describe("E2E — GET /queue com filtros e ordenação", () => {
         page: 1,
         pageSize: 10,
         search: "MAAT",
-        dateFrom: "2026-11-01",
-        dateTo: "2026-11-30",
+        createdFrom: "2026-11-01",
+        createdTo: "2026-11-30",
         department: "Desenvolvimento",
         sortBy: "protocol",
         sortOrder: "asc",
@@ -84,7 +85,7 @@ describe("E2E — GET /queue com filtros e ordenação", () => {
     const client = new TestClient(server.baseUrl);
 
     const inverted = await client.get(
-      "/queue?page=1&pageSize=10&dateFrom=2026-12-01&dateTo=2026-11-30",
+      "/queue?page=1&pageSize=10&createdFrom=2026-12-01&createdTo=2026-11-30",
       headers,
     );
     expectErrorEnvelope(inverted, { statusCode: 400 });

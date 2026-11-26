@@ -16,8 +16,9 @@ Linha do tempo não reaplica a custódia do Analista.
 ## Busca
 
 A busca da fila (`GET /queue` e exportação CSV) considera o conteúdo das notas
-internas como um dos campos pesquisáveis. A nota só faz a solicitação
-corresponder; o conteúdo não é devolvido na resposta.
+internas como um dos campos pesquisáveis, além de protocolo, título, nome do
+processo, descrição, problema, resultado esperado, nome e e-mail do solicitante.
+A nota só faz a solicitação corresponder; o conteúdo não é devolvido na resposta.
 
 A listagem usa o escopo da fila: o Analista vê solicitações em que é responsável
 de triagem ou de mapeamento. A correspondência por nota é mais estreita e usa a

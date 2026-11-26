@@ -5,7 +5,7 @@ import type {
 } from "../DTOs/reports/Dashboard.dto.ts";
 import type { QueueCsvExport, QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
 import { BUSINESS_TIME_ZONE } from "../../shared/datetime/businessDay.ts";
-import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
+import type { QueueExportQuery } from "../../shared/types/queue.types.ts";
 import type { RequestPriority } from "../../shared/types/requests.ts";
 import type { StatusTone } from "../../shared/types/systemTheme.ts";
 import * as repository from "./reports.repository.ts";
@@ -159,7 +159,7 @@ function rowToCsv(row: QueueExportRow): string {
     .join(";");
 }
 
-export async function exportQueueCsv(filters: QueueFilterQuery): Promise<QueueCsvExport> {
+export async function exportQueueCsv(filters: QueueExportQuery): Promise<QueueCsvExport> {
   const rows = await repository.fetchQueueExportRows(filters);
   const lines = [CSV_HEADERS.map(csvField).join(";"), ...rows.map(rowToCsv)];
 

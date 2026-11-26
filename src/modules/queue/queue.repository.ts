@@ -122,6 +122,32 @@ export const findQueueRequests = async (
   return { items, total };
 };
 
+/**
+ * Departamentos distintos e globais do solicitante, sem depender dos filtros
+ * nem da paginação da fila. A deduplicação é case-insensitive, alinhada ao
+ * filtro `department`; valores com caixas diferentes preservam a primeira
+ * grafia em ordem alfabética.
+ */
+export const fetchAllDepartments = async (): Promise<string[]> => {
+  const rows = (await db("requests")
+    .join("requesters as requester", "requester.requester_id", "requests.requester_id")
+    .select(db.raw(`trim(requester.department) as department`))
+    .whereNotNull("requester.department")
+    .andWhereRaw("trim(requester.department) <> ''")
+    .distinct()
+    .orderByRaw("trim(requester.department) asc")) as Array<{ department: string }>;
+
+  const seen = new Set<string>();
+  return rows
+    .map((row) => row.department)
+    .filter((department) => {
+      const key = department.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {
   const rows = await db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
