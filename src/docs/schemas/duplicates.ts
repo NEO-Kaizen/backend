@@ -1,11 +1,13 @@
 import { DemandBlock } from "./request.ts";
 
 /**
- * Contrato do Alerta de duplicidade (RF16 — issue #209).
+ * Contrato do Alerta de duplicidade (RF16 — issues #209/#210).
  *
  * O item expõe exatamente seis chaves públicas. Nunca há Protocolo, score,
  * total, contagem, Notas internas, Triagem, Prioridade, Responsável, Anexos ou
- * PII. Regras em `docs/rules/duplicate-detection.md`.
+ * PII. Abertas usam template; concluídas dentro da janela usam texto tarjado e
+ * caem para o template quando o gate de PII encontra suspeita. Regras em
+ * `docs/rules/duplicate-detection.md`.
  */
 export const DuplicateCheckDemand = {
   ...DemandBlock,
@@ -35,14 +37,23 @@ export const DuplicateAlertItem = {
     title: {
       type: "string",
       maxLength: 200,
+      description:
+        "Título público. Aberta usa o template; concluída dentro da janela usa o título tarjado ou o template quando o gate de PII reprova.",
       example: "Solicitação de Automação em andamento",
     },
     summary: {
       type: "string",
+      description:
+        "Resumo público. Aberta usa o template; concluída usa descrição + problema tarjados ou o template de fallback.",
       example: "Solicitação em andamento da categoria Automação, registrada no período 2026-Q4.",
     },
     category: { type: "string", maxLength: 80, example: "Automação" },
-    status: { type: "string", maxLength: 100, example: "Em andamento" },
+    status: {
+      type: "string",
+      maxLength: 100,
+      description: "Status público: `Em andamento` ou `Concluída`.",
+      example: "Em andamento",
+    },
     period: {
       type: "string",
       pattern: "^\\d{4}-Q[1-4]$",

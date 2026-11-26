@@ -60,6 +60,14 @@ _Evitar_: score, pontuação, match.
 Aviso ao solicitante, ao concluir a aba de Demanda, de que existem solicitações com características em comum. Não vincula registros nem altera status; é a detecção do RF16.
 _Evitar_: sugestão, aviso de duplicata, alerta de similaridade.
 
+**Janela de conclusão**:
+Período configurável (1 a 36 meses, padrão 3) em que uma solicitação concluída continua no corpus do alerta após a conclusão. Fora da janela, a solicitação é suprimida do corpus.
+_Evitar_: validade, retenção, prazo de expiração.
+
+**Texto tarjado**:
+Título e resumo de uma solicitação concluída publicados no alerta depois do gate de PII. Se houver suspeita de dado pessoal, os dois campos caem para o template e o texto bruto não é publicado.
+_Evitar_: texto mascarado, texto anonimizado, tarjamento parcial.
+
 **Marcação de duplicidade**:
 Ato formal do RF25 que vincula uma _Solicitação duplicada_ à _Solicitação principal_ e altera o status. Diferente do alerta, que só informa.
 _Evitar_: vinculação, associação, merge.
