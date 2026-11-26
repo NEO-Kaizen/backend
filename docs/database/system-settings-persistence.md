@@ -231,11 +231,13 @@ desenvolvimento liga a flag para demonstração. As allowlists de corpus vivem e
 
 `duplicate_completed_window_months` (INTEGER, default `3`, CHECK 1..36) define
 por quantos meses uma Solicitação concluída continua no corpus (issue #210). A
-leitura tem fallback 3 quando o singleton está ausente. A varredura da janela
-roda no poll e no rebuild, usa `now() - make_interval(months => ?)` e reconcilia
-nos dois sentidos: suprime fora da janela e republica `outside_window` que
-voltou para dentro dela, reavaliando todas as regras. A edição administrativa da
-flag/janela é escopo da issue #212; regras em
+leitura tem fallback 3 quando o singleton está ausente ou o valor é inválido,
+com um aviso único por processo no log para não mascarar banco mal configurado.
+A varredura da janela roda no poll e no rebuild, usa
+`now() - make_interval(months => ?)` e reconcilia nos dois sentidos: suprime
+fora da janela e republica `outside_window` que voltou para dentro dela,
+reavaliando todas as regras. A edição administrativa da flag/janela é escopo da
+issue #212; regras em
 [`duplicate-detection.md`](../rules/duplicate-detection.md).
 
 ## Aplicando e revertendo

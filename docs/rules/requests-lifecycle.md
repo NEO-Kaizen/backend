@@ -71,7 +71,8 @@ retrato público. O protocolo é gerado na criação e não é reutilizado.
 
 `requests.concluded_at` acompanha o Status 16 (Concluído):
 
-- entrar no 16 grava `now()`; sair limpa a coluna;
+- entrar no 16 grava `now()`; permanecer no 16 (reaplicação do Status) preserva
+  a data e preenche um legado nulo; sair limpa a coluna;
 - a regra vale para todas as vias que mudam Status — troca direta, conclusão de
   mapeamento, desfecho da Triagem, pendências, RN-010 e `updateStatusById`;
 - a escrita roda na mesma transação da mudança de Status, antes da publicação

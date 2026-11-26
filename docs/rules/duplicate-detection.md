@@ -74,21 +74,31 @@ Dentro da janela, a concluída entra com:
 - `period`: trimestre de `created_at` no fuso `America/Sao_Paulo`;
 - `redaction_version`: `v1-regex`.
 
-Antes de publicar, o título e o resumo passam pelo **gate de PII**: CPF, CNPJ,
-e-mail, telefone, RG, CEP, placa antiga/Mercosul e sequências de 7+ dígitos. Os
-padrões aceitam separadores opcionais (espaço, ponto, hífen e, no CNPJ, barra) e
-cobrem o RG de 8 dígitos sem dígito verificador. É um gate, não mascaramento
-parcial: **qualquer match em qualquer um dos dois campos derruba os dois** para
-o template:
+Antes de publicar, o título e o resumo passam pelo **gate de PII**: CPF, CNPJ
+(numérico e alfanumérico), e-mail, telefone com DDD/`+55` ou celular de 9
+dígitos, RG, CEP, placa antiga/Mercosul e sequências de 7+ dígitos. Os padrões
+aceitam separadores opcionais e duplos (espaço, ponto, hífen e, no CNPJ,
+barra), cobrem o CNPJ alfanumérico (`12.ABC.345/01DE-35`) e detectam RG
+canônico com dígito verificador; RG de 8 dígitos e placa antiga com espaço
+exigem contexto (`RG 12.345.678`, `placa ABC 1234`) para não casar anos, valores
+e unidades. O gate **não valida dígito verificador** de CPF/CNPJ: um número
+digitado com erro continua sendo PII e precisa cair para o template.
+
+É um gate, não mascaramento parcial: **qualquer match em qualquer um dos dois
+campos derruba os dois** para o template. Título ou resumo vazio após `trim()`
+também cai para o template. O fallback usa:
 
 - `title`: `Solicitação de <categoria> concluída`
 - `summary`: `Solicitação concluída da categoria <categoria>, registrada no período <YYYY-Qn>.`
+- `redaction_version`: `v1-template`
 
-Nomes sem contexto podem passar; por isso a flag nasce desligada e o canário de
-RN04 é obrigatório. Uma linha suprimida por **qualquer** motivo (inativa,
-terminal não-16, restrição, Status restrito, `missing_concluded_at`,
-`outside_window`, Categoria/Status inelegível) também guarda o template, nunca
-texto livre. A republicação futura relê `requests` e regenera o snapshot.
+Assim, `v1-regex` identifica texto livre aprovado pelo gate e `v1-template`
+identifica fallback de PII/texto vazio ou qualquer linha de concluída suprimida
+(inativa, terminal não-16, restrição, Status restrito, `missing_concluded_at`,
+`outside_window`, Categoria/Status inelegível). A linha suprimida nunca guarda
+texto livre; a republicação futura relê `requests` e regenera o snapshot. Nomes
+próprios sem contexto ainda podem passar; por isso a flag nasce desligada e o
+canário de RN04 é obrigatório.
 
 A projeção guarda `public_concluded_at` (TIMESTAMPTZ) apenas para uso interno da
 janela e da varredura; ele **não** entra no DTO.
@@ -97,7 +107,8 @@ janela e da varredura; ele **não** entra no DTO.
 
 `system_settings.duplicate_completed_window_months` define a janela em meses
 (INTEGER, padrão 3, CHECK 1..36). A comparação usa o relógio do banco:
-`concluded_at >= now() - make_interval(months => ?)`.
+`concluded_at >= now() - make_interval(months => ?)`. Singleton ausente ou fora
+do intervalo cai para 3 com um aviso único por processo no log.
 
 A varredura da janela roda nos dois sentidos e não depende só da publicação:
 
@@ -108,15 +119,17 @@ A varredura da janela roda nos dois sentidos e não depende só da publicação:
 
 No sentido de encolhimento, `suppressCompletedOutsideWindow(windowMonths)` marca
 `publication_status = 'suppressed'`, `suppression_reason = 'outside_window'`,
-`suppressed_at = now()`, substitui o texto pelo template e incrementa
+`suppressed_at = now()`, substitui o texto pelo template (`v1-template`, gerado
+a partir das mesmas partes do template em TS) e incrementa
 `version`/`updated_at` apenas nas publicadas e listáveis fora da janela.
 
 No sentido de crescimento, a varredura busca linhas
 `suppressed`/`outside_window` cuja conclusão voltou a ficar dentro da janela e
-roda `publishRequestProjection` em transação para cada uma. A publicação relê
-`requests` e reavalia **todas** as regras — restrição, Categoria, Status,
-`concluded_at` e gate de PII —, regenerando o texto tarjado. Uma linha
-suprimida por restrição não é republicada só porque a janela aumentou.
+republica em lotes de até 50, com uma transação por lote e a janela lida uma
+única vez. A publicação relê `requests` e reavalia **todas** as regras —
+restrição, Categoria, Status, `concluded_at` e gate de PII —, regenerando o
+texto tarjado. Uma linha suprimida por restrição não é republicada só porque a
+janela aumentou.
 
 A #212 continua responsável por editar e auditar a configuração e por preservar
 o Status 16 ligado na allowlist.
@@ -130,12 +143,17 @@ entrada no 16 grava o `occurred_at`; saída limpa. Eventos de triagem usam
 `exitStatus` do JSON; os eventos do Motor usam o nome do Status.
 
 - `--dry-run` não escreve nada e relata o que faria;
+- processa em lotes de 100, com uma transação por lote, uma única leitura de
+  Auditoria por `whereIn` e a janela lida uma vez;
 - só atualiza `status_id = 16 AND concluded_at IS NULL`, sem tocar
   `updated_at`/`updated_by`;
 - republica a projeção na mesma transação do update;
 - é idempotente;
 - concluídas sem evento de entrada vigente são apenas relatadas, sem data
   inventada e sem criação de projeção;
+- candidatas cujo Status deixou de ser 16 entre a leitura e o update entram em
+  `skipped`; o relatório fecha com
+  `scanned = updated + withoutEvent + skipped`;
 - `updated_at` e `last_external_update_at` **nunca** são fallback.
 
 ### Supressão

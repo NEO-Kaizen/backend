@@ -307,28 +307,28 @@ Cada linha é uma solicitação, identificada pelo protocolo público e pelo
 
 ### Colunas de fluxo, triagem e acompanhamento
 
-| Campo                     | Tipo         | Obrigatório | Restrição / Default                            | Finalidade                                         |
-| ------------------------- | ------------ | ----------- | ---------------------------------------------- | -------------------------------------------------- |
-| `category_id`             | INTEGER      | Sim         | FK `categories` (RESTRICT)                     | Categoria                                          |
-| `status_id`               | INTEGER      | Sim         | FK `statuses` (RESTRICT)                       | Status atual                                       |
-| `last_public_status_id`   | INTEGER      | Não         | FK `statuses` (RESTRICT); indexado             | Último status público (painel do solicitante)      |
-| `priority_id`             | INTEGER      | Não         | FK `priorities` (RESTRICT)                     | Prioridade                                         |
-| `professional_id`         | UUID         | Não         | FK `details_professional` (SET NULL)           | Responsável técnico                                |
-| `mapping_professional_id` | UUID         | Não         | FK `details_professional` (SET NULL); indexado | Designado para executar o mapeamento               |
-| `requester_user_id`       | INTEGER      | Não         | FK `users` (SET NULL); indexado                | Conta autenticada que criou (NULL no modo público) |
-| `screening_result`        | VARCHAR(50)  | Não         | CHECK `ck_requests_screening_result`           | Resultado da triagem: `elegivel`/`nao_elegivel`    |
-| `internal_notes`          | TEXT         | Não         | NULL permitido                                 | Notas internas (campo texto legado, em uso)        |
-| `next_steps`              | TEXT         | Não         | NULL permitido                                 | Próximos passos                                    |
-| `last_technical_message`  | TEXT         | Não         | NULL permitido                                 | Última mensagem pública do responsável             |
-| `estimated_completion`    | DATE         | Não         | NULL permitido                                 | Previsão de conclusão                              |
-| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido                                 | Data/hora da reunião de mapeamento                 |
-| `meeting_link`            | TEXT         | Não         | NULL permitido                                 | Link da reunião                                    |
-| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                                       | Usuário/e-mail de criação                          |
-| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                    | Criação                                            |
-| `updated_by`              | VARCHAR(254) | Não         | NULL permitido                                 | Usuário/e-mail da última atualização               |
-| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização                                 |
-| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização visível ao solicitante          |
-| `concluded_at`            | TIMESTAMPTZ  | Não         | NULL permitido                                 | Entrada no Status 16; limpo ao sair (RF16)         |
+| Campo                     | Tipo         | Obrigatório | Restrição / Default                            | Finalidade                                                   |
+| ------------------------- | ------------ | ----------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| `category_id`             | INTEGER      | Sim         | FK `categories` (RESTRICT)                     | Categoria                                                    |
+| `status_id`               | INTEGER      | Sim         | FK `statuses` (RESTRICT)                       | Status atual                                                 |
+| `last_public_status_id`   | INTEGER      | Não         | FK `statuses` (RESTRICT); indexado             | Último status público (painel do solicitante)                |
+| `priority_id`             | INTEGER      | Não         | FK `priorities` (RESTRICT)                     | Prioridade                                                   |
+| `professional_id`         | UUID         | Não         | FK `details_professional` (SET NULL)           | Responsável técnico                                          |
+| `mapping_professional_id` | UUID         | Não         | FK `details_professional` (SET NULL); indexado | Designado para executar o mapeamento                         |
+| `requester_user_id`       | INTEGER      | Não         | FK `users` (SET NULL); indexado                | Conta autenticada que criou (NULL no modo público)           |
+| `screening_result`        | VARCHAR(50)  | Não         | CHECK `ck_requests_screening_result`           | Resultado da triagem: `elegivel`/`nao_elegivel`              |
+| `internal_notes`          | TEXT         | Não         | NULL permitido                                 | Notas internas (campo texto legado, em uso)                  |
+| `next_steps`              | TEXT         | Não         | NULL permitido                                 | Próximos passos                                              |
+| `last_technical_message`  | TEXT         | Não         | NULL permitido                                 | Última mensagem pública do responsável                       |
+| `estimated_completion`    | DATE         | Não         | NULL permitido                                 | Previsão de conclusão                                        |
+| `meeting_scheduled_for`   | TIMESTAMPTZ  | Não         | NULL permitido                                 | Data/hora da reunião de mapeamento                           |
+| `meeting_link`            | TEXT         | Não         | NULL permitido                                 | Link da reunião                                              |
+| `created_by`              | VARCHAR(254) | Sim         | NOT NULL                                       | Usuário/e-mail de criação                                    |
+| `created_at`              | TIMESTAMPTZ  | Sim         | DEFAULT `CURRENT_TIMESTAMP`                    | Criação                                                      |
+| `updated_by`              | VARCHAR(254) | Não         | NULL permitido                                 | Usuário/e-mail da última atualização                         |
+| `updated_at`              | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização                                           |
+| `last_external_update_at` | TIMESTAMPTZ  | Não         | NULL permitido                                 | Última atualização visível ao solicitante                    |
+| `concluded_at`            | TIMESTAMPTZ  | Não         | NULL permitido                                 | Entrada no Status 16; preservado ao reaplicar, limpo ao sair |
 
 - Índices: `idx_requests_created_at`, `_status`, `_category`, `_priority`,
   `_professional`, `_requester`, `_requester_user`, `_mapping_professional`,
@@ -337,8 +337,9 @@ Cada linha é uma solicitação, identificada pelo protocolo público e pelo
   `estimated_monthly_effort >= 0` (`ck_requests_estimated_monthly_effort`).
 - `screening_result` aceita apenas `elegivel`, `nao_elegivel` ou `NULL`
   (`ck_requests_screening_result`).
-- `concluded_at` é gravado com `now()` ao entrar no Status 16 e limpo ao sair
-  em todas as vias de mudança de Status (Motor, triagem, pendências, RN-010 e
+- `concluded_at` é gravado com `now()` ao entrar no Status 16; reaplicar o 16
+  preserva a data (e preenche um legado nulo); sair limpa a coluna em todas as
+  vias de mudança de Status (Motor, triagem, pendências, RN-010 e
   `updateStatusById`). O backfill da issue #210 reconstrói a data pela Auditoria;
   `updated_at` nunca é fallback. A coluna alimenta a janela do corpus de
   duplicidade, não o `mappings.concluded_at`.

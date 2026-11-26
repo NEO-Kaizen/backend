@@ -31,7 +31,7 @@ pública; o endpoint nunca consulta `requests`.
 | `public_period`        | VARCHAR(7)                        | Sim         | NOT NULL                                   | Trimestre `YYYY-Qn` em America/Sao_Paulo         |
 | `publication_status`   | ENUM `request_publication_status` | Sim         | `published`/`suppressed`                   | Publicada ou suprimida                           |
 | `is_publicly_listable` | BOOLEAN                           | Sim         | NOT NULL                                   | Snapshot da allowlist Categoria + Status         |
-| `redaction_version`    | VARCHAR(30)                       | Sim         | NOT NULL                                   | Versão da política de texto                      |
+| `redaction_version`    | VARCHAR(30)                       | Sim         | NOT NULL                                   | `v1-open-template`, `v1-regex` ou `v1-template`  |
 | `version`              | INTEGER                           | Sim         | DEFAULT 1; incrementa a cada upsert        | Versão da linha                                  |
 | `public_concluded_at`  | TIMESTAMPTZ                       | Não         | NULL permitido                             | Conclusão usada na janela (interno, fora do DTO) |
 | `published_at`         | TIMESTAMPTZ                       | Não         | NULL permitido                             | Primeira publicação                              |
@@ -76,9 +76,10 @@ vazio. A edição administrativa é escopo da issue #212.
 ### `system_settings.duplicate_completed_window_months`
 
 INTEGER `NOT NULL DEFAULT 3`, CHECK 1..36. Define a janela das concluídas em
-meses. A leitura tem fallback 3 quando o singleton está ausente; o banco garante
-o intervalo. A comparação usa `now() - make_interval(months => ?)`. A edição
-administrativa é escopo da issue #212.
+meses. A leitura tem fallback 3 quando o singleton está ausente ou o valor é
+inválido, com aviso único por processo; o banco garante o intervalo pelo CHECK.
+A comparação usa `now() - make_interval(months => ?)`. A edição administrativa é
+escopo da issue #212.
 
 ### `categories.is_publicly_listable`
 
@@ -89,9 +90,11 @@ migration liga as categorias existentes. Ver
 ### `statuses.is_duplicate_corpus_eligible`
 
 BOOLEAN `NOT NULL DEFAULT TRUE`. A migration da #209 desliga os ids 10, 13, 16,
-17 e 19 (quando existirem); a migration da #210 **religa o 16**, que passa a
-entrar no corpus de concluídas respeitando a janela. O catálogo canônico atual
-vai até o id 17; o id 19 (`Duplicada`) será criado pela Marcação de duplicidade
+17 e 19 (quando existirem); a migration da #210 **religa apenas o 16**, que
+passa a entrar no corpus de concluídas respeitando a janela. O `down` da
+migration da #210 volta somente o 16 para `false`; não regrava os demais ids,
+que pertencem ao baseline da #209/#212. O catálogo canônico atual vai até o id
+17; o id 19 (`Duplicada`) será criado pela Marcação de duplicidade
 (RF25)/administração (#212), e a allowlist já o cobre. Ver
 [`requests-persistence.md`](requests-persistence.md#tabela-statuses).
 
@@ -102,8 +105,8 @@ vai até o id 17; o id 19 (`Duplicada`) será criado pela Marcação de duplicid
    Status + janela, decide a supressão e faz upsert por `request_id`,
    preservando `public_id`.
 3. Aberta publica o template `v1-open-template`; concluída dentro da janela
-   publica título/resumo com `v1-regex` depois do gate de PII. Qualquer
-   supressão guarda o template.
+   publica título/resumo com `v1-regex` depois do gate de PII. PII, título ou
+   resumo vazio e qualquer supressão usam o template `v1-template`.
 4. Publicada: `published_at` é mantido (ou preenchido na primeira vez),
    `suppressed_at` e `suppression_reason` ficam nulos.
 5. Suprimida: `suppressed_at` é mantido (ou preenchido na transição),
@@ -124,12 +127,14 @@ reconcilia nos dois sentidos:
    `published` e listáveis com
    `public_concluded_at < now() - make_interval(months => ?)`, gravando
    `publication_status = 'suppressed'`, `suppression_reason = 'outside_window'`,
-   `suppressed_at = now()`, o template de concluída e `version + 1`.
+   `suppressed_at = now()`, o template de concluída (`v1-template`) e
+   `version + 1`.
 2. `listSuppressedCompletedWithinWindow(windowMonths)` busca linhas
    `suppressed`/`outside_window` com
-   `public_concluded_at >= now() - make_interval(months => ?)` e, para cada uma,
-   roda `publishRequestProjection` em transação. A publicação relê `requests` e
-   reavalia todas as regras, regenerando ou mantendo a supressão.
+   `public_concluded_at >= now() - make_interval(months => ?)` e republica em
+   lotes de até 50, com uma transação por lote e `windowMonths` passado para
+   `publishRequestProjection`. A publicação relê `requests` e reavalia todas as
+   regras, regenerando ou mantendo a supressão.
 
 `listPublishedProjections` também filtra a janela, como proteção contra a
 defasagem entre a mudança da configuração e a varredura.
@@ -137,18 +142,25 @@ defasagem entre a mudança da configuração e a varredura.
 ### Backfill
 
 `backfillConcludedAt` lê candidatos com `status_id = 16 AND concluded_at IS NULL`
-e a Auditoria do protocolo. O update usa a mesma condição, preserva
-`updated_at`/`updated_by` e republica a projeção na mesma transação. O CLI
+e a Auditoria dos protocolos do lote em uma única consulta `whereIn`. Processa
+em lotes de 100, com uma transação por lote e `windowMonths` lido uma vez. O
+update usa a mesma condição, preserva `updated_at`/`updated_by` e republica a
+projeção na mesma transação. O relatório tem `updated`, `withoutEvent` e
+`skipped` (Status alterado entre a leitura e o update), fechando
+`scanned = updated + withoutEvent + skipped`. O CLI
 (`npm run backfill:concluded-at`) aceita `--dry-run` e imprime o relatório JSON.
 Concluídas sem evento de entrada vigente não recebem data e não ganham projeção.
 
 ## Leitura e índice
 
 - O repository da duplicidade lê apenas `request_public_projections` e
-  `system_settings`.
+  `system_settings` na busca e no índice. A leitura de `requests` existe apenas
+  em `findProjectionSource`, usada por `publishRequestProjection` para
+  publicar/suprimir.
 - O índice MiniSearch é derivado da projeção: no boot ele é reconstruído fora do
   caminho da requisição; o poll de 30 s executa a varredura da janela e lê
-  mudanças desde o cursor com sobreposição de 5 min em `updated_at`.
+  mudanças desde o cursor da aplicação, com sobreposição de 5 min em
+  `updated_at`.
 - Linhas `suppressed`, com `is_publicly_listable = false` ou concluídas fora da
   janela são removidas do índice. O índice é sempre reconstruível a partir do
   banco.
