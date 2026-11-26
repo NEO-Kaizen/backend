@@ -4,7 +4,7 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { publishRequestProjection } from "../duplicates/projection.ts";
-import { concludedAtUpdate } from "../requests/concludedAt.ts";
+import { buildConcludedAtUpdate } from "../requests/concludedAt.ts";
 import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
@@ -299,7 +299,7 @@ async function updateRequestStatusId(
     .where({ request_id: requestId })
     .update({
       status_id: statusId,
-      ...concludedAtUpdate(trx, statusId),
+      ...buildConcludedAtUpdate(trx, statusId),
       updated_by: updatedBy,
       updated_at: trx.fn.now(),
     });

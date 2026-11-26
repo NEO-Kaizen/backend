@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   replayConcludedAt,
   resolveAuditEventStatusId,
-} from "../../src/modules/duplicates/backfillConcludedAt.ts";
+} from "../../src/modules/duplicates/concludedAtReplay.ts";
 
 const ENTRY_AT = new Date("2026-08-10T12:00:00.000Z");
 const EXIT_AT = new Date("2026-09-01T09:00:00.000Z");
@@ -16,13 +16,12 @@ const statusIdsByName = new Map([
 
 describe("replay de concluded_at pela Auditoria", () => {
   it("sem eventos devolve nulo e não inventa data", () => {
-    expect(replayConcludedAt([])).toEqual({ concludedAt: null, hasStatusEvent: false });
+    expect(replayConcludedAt([])).toEqual({ concludedAt: null });
   });
 
   it("entrada no Status 16 grava o occurred_at", () => {
     expect(replayConcludedAt([{ occurredAt: ENTRY_AT, statusId: 16 }])).toEqual({
       concludedAt: ENTRY_AT,
-      hasStatusEvent: true,
     });
   });
 
@@ -32,7 +31,7 @@ describe("replay de concluded_at pela Auditoria", () => {
         { occurredAt: ENTRY_AT, statusId: 16 },
         { occurredAt: EXIT_AT, statusId: 3 },
       ]),
-    ).toEqual({ concludedAt: null, hasStatusEvent: true });
+    ).toEqual({ concludedAt: null });
   });
 
   it("reentrada usa o occurred_at da última entrada", () => {
@@ -42,7 +41,7 @@ describe("replay de concluded_at pela Auditoria", () => {
         { occurredAt: EXIT_AT, statusId: 17 },
         { occurredAt: REENTRY_AT, statusId: 16 },
       ]),
-    ).toEqual({ concludedAt: REENTRY_AT, hasStatusEvent: true });
+    ).toEqual({ concludedAt: REENTRY_AT });
   });
 
   it("status_change/override resolvem o Status pelo nome", () => {

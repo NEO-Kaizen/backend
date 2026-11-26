@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { STATUS_IDS } from "../../shared/types/status.ts";
+import { isCompletedStatus } from "../../shared/types/status.ts";
 
 /**
  * `requests.concluded_at` acompanha o Status (issue #210): entra no Status 16
@@ -9,8 +9,11 @@ import { STATUS_IDS } from "../../shared/types/status.ts";
  * Use sempre na MESMA transação da mudança de Status, antes de
  * `publishRequestProjection`.
  */
-export function concludedAtUpdate(db: Knex, statusId: number): { concluded_at: Knex.Raw | null } {
+export function buildConcludedAtUpdate(
+  db: Knex,
+  statusId: number,
+): { concluded_at: Knex.Raw | null } {
   return {
-    concluded_at: statusId === STATUS_IDS.completed ? db.fn.now() : null,
+    concluded_at: isCompletedStatus(statusId) ? db.fn.now() : null,
   };
 }

@@ -35,11 +35,11 @@ export async function listCompletedRequestsMissingConcludedAt(
   trx?: Knex.Transaction,
 ): Promise<CompletedRequestCandidate[]> {
   const source = trx ?? db;
-  const rows = (await source("requests")
+  const rows: Record<string, unknown>[] = await source("requests")
     .where({ status_id: STATUS_IDS.completed })
     .whereNull("concluded_at")
     .orderBy("protocol", "asc")
-    .select("request_id", "protocol")) as Record<string, unknown>[];
+    .select("request_id", "protocol");
 
   return rows.map((row) => {
     const { request_id, protocol } = row;
@@ -52,12 +52,21 @@ export async function listCompletedRequestsMissingConcludedAt(
 
 export async function listStatusIdsByName(trx?: Knex.Transaction): Promise<Map<string, number>> {
   const source = trx ?? db;
-  const rows = (await source("statuses").select("status_id", "name")) as Array<{
-    status_id: number;
-    name: string;
-  }>;
+  const rows: Record<string, unknown>[] = await source("statuses").select("status_id", "name");
 
-  return new Map(rows.map((row) => [row.name, row.status_id]));
+  return new Map(
+    rows.map((row) => {
+      const { status_id, name } = row;
+      if (
+        typeof status_id !== "number" ||
+        !Number.isInteger(status_id) ||
+        typeof name !== "string"
+      ) {
+        throw new Error("Linha inválida em statuses para o backfill.");
+      }
+      return [name, status_id];
+    }),
+  );
 }
 
 /**
@@ -69,15 +78,12 @@ export async function listStatusAuditEvents(
   trx?: Knex.Transaction,
 ): Promise<StatusAuditEvent[]> {
   const source = trx ?? db;
-  const rows = (await source("audit_history")
+  const rows: Record<string, unknown>[] = await source("audit_history")
     .where({ entity_type: "request", entity_id: protocol })
     .whereIn("action_type", STATUS_AUDIT_ACTIONS)
     .orderBy("occurred_at", "asc")
     .orderBy("audit_id", "asc")
-    .select("action_type", "previous_value", "new_value", "occurred_at", "audit_id")) as Record<
-    string,
-    unknown
-  >[];
+    .select("action_type", "previous_value", "new_value", "occurred_at", "audit_id");
 
   return rows.map((row) => {
     const { action_type, previous_value, new_value, occurred_at, audit_id } = row;

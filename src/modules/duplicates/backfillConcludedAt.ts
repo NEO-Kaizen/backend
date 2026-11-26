@@ -14,9 +14,6 @@ import {
 } from "./concludedAtReplay.ts";
 import { publishRequestProjection } from "./projection.ts";
 
-export { replayConcludedAt, resolveAuditEventStatusId };
-export type { ConcludedAtReplayEvent, ConcludedAtReplayResult } from "./concludedAtReplay.ts";
-
 /**
  * Backfill de `requests.concluded_at` a partir da Auditoria (issue #210).
  *

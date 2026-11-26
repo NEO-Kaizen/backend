@@ -35,7 +35,7 @@ import type {
 } from "../DTOs/requests/RequestResponse.dto.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import { publishRequestProjection } from "../duplicates/projection.ts";
-import { concludedAtUpdate } from "./concludedAt.ts";
+import { buildConcludedAtUpdate } from "./concludedAt.ts";
 
 const INITIAL_STATUS = "Solicitação enviada";
 
@@ -812,7 +812,7 @@ export async function updateStatus(
     .where({ request_id: requestId })
     .update({
       status_id: statusId,
-      ...concludedAtUpdate(trx, statusId),
+      ...buildConcludedAtUpdate(trx, statusId),
       updated_by: updatedBy,
       updated_at: trx.fn.now(),
     });
@@ -944,7 +944,7 @@ export async function updateStatusById(
     .where({ request_id: requestId })
     .update({
       status_id: statusId,
-      ...concludedAtUpdate(trx, statusId),
+      ...buildConcludedAtUpdate(trx, statusId),
       updated_by: updatedBy,
       updated_at: trx.fn.now(),
     });

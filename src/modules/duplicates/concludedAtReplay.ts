@@ -1,4 +1,4 @@
-import { STATUS_IDS } from "../../shared/types/status.ts";
+import { isCompletedStatus } from "../../shared/types/status.ts";
 
 /**
  * Replay puro da Auditoria para o backfill de `requests.concluded_at`
@@ -15,7 +15,6 @@ export interface ConcludedAtReplayEvent {
 
 export interface ConcludedAtReplayResult {
   concludedAt: Date | null;
-  hasStatusEvent: boolean;
 }
 
 export function replayConcludedAt(
@@ -24,10 +23,10 @@ export function replayConcludedAt(
   let concludedAt: Date | null = null;
 
   for (const event of events) {
-    concludedAt = event.statusId === STATUS_IDS.completed ? event.occurredAt : null;
+    concludedAt = isCompletedStatus(event.statusId) ? event.occurredAt : null;
   }
 
-  return { concludedAt, hasStatusEvent: events.length > 0 };
+  return { concludedAt };
 }
 
 /** Evento mínimo da Auditoria que pode alterar o Status. */
@@ -65,8 +64,12 @@ function readTriageExitStatus(newValue: string | null): number | null {
     return null;
   }
 
-  if (typeof parsed !== "object" || parsed === null) return null;
+  if (!isRecord(parsed)) return null;
 
-  const exitStatus = (parsed as Record<string, unknown>).exitStatus;
+  const { exitStatus } = parsed;
   return typeof exitStatus === "number" && Number.isInteger(exitStatus) ? exitStatus : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

@@ -1,13 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
-import type { PublicationStatus, SuppressionReason } from "../../shared/types/duplicates.ts";
-import { STATUS_IDS } from "../../shared/types/status.ts";
+import {
+  isPublicationStatus,
+  type PublicationStatus,
+  type SuppressionReason,
+} from "../../shared/types/duplicates.ts";
+import { isCompletedStatus } from "../../shared/types/status.ts";
 import { getDuplicateCompletedWindowMonths } from "./duplicates.repository.ts";
 import { buildCompletedProjectionText } from "./redact.ts";
 import {
   buildCompletedRequestTemplate,
   buildOpenRequestTemplate,
   COMPLETED_REQUEST_PUBLIC_STATUS,
+  type PublicRequestTemplate,
 } from "./template.ts";
 
 /**
@@ -61,15 +66,6 @@ interface ProjectionValues {
   suppression_reason: SuppressionReason | null;
 }
 
-interface ProjectionTemplate {
-  title: string;
-  summary: string;
-  category: string;
-  status: string;
-  period: string;
-  redactionVersion: string;
-}
-
 /** Sinais de elegibilidade usados pela precedência de supressão. */
 export interface SuppressionSignals {
   statusIsActive: boolean;
@@ -87,7 +83,7 @@ function toSuppressionSignals(source: ProjectionSourceRow): SuppressionSignals {
   return {
     statusIsActive: source.status_is_active,
     statusIsTerminal: source.status_is_terminal,
-    statusIsCompleted: source.status_id === STATUS_IDS.completed,
+    statusIsCompleted: isCompletedStatus(source.status_id),
     handlesRestrictedInfo: source.handles_restricted_info,
     statusIsRestricted: source.status_is_restricted,
     hasConcludedAt: source.concluded_at !== null,
@@ -117,12 +113,93 @@ export function resolveSuppressionReason(input: SuppressionSignals): Suppression
   return null;
 }
 
+function isNullableDate(value: unknown): value is Date | null {
+  return value === null || value instanceof Date;
+}
+
+/**
+ * Valida a linha da base interna antes de montar o snapshot público. A coluna
+ * `is_within_window` vem calculada pelo PostgreSQL com o relógio do banco.
+ */
+function parseProjectionSourceRow(row: Record<string, unknown>): ProjectionSourceRow {
+  const {
+    request_id,
+    created_at,
+    title,
+    need_description,
+    problem_opportunity,
+    concluded_at,
+    is_within_window,
+    handles_restricted_info,
+    category_name,
+    category_is_publicly_listable,
+    status_id,
+    status_is_active,
+    status_is_terminal,
+    status_is_restricted,
+    status_is_duplicate_corpus_eligible,
+  } = row;
+
+  if (
+    typeof request_id !== "string" ||
+    !(created_at instanceof Date) ||
+    typeof title !== "string" ||
+    typeof need_description !== "string" ||
+    typeof problem_opportunity !== "string" ||
+    !isNullableDate(concluded_at) ||
+    typeof is_within_window !== "boolean" ||
+    !(handles_restricted_info === null || typeof handles_restricted_info === "boolean") ||
+    typeof category_name !== "string" ||
+    typeof category_is_publicly_listable !== "boolean" ||
+    typeof status_id !== "number" ||
+    typeof status_is_active !== "boolean" ||
+    typeof status_is_terminal !== "boolean" ||
+    typeof status_is_restricted !== "boolean" ||
+    typeof status_is_duplicate_corpus_eligible !== "boolean"
+  ) {
+    throw new Error("Linha inválida em requests para a projeção pública.");
+  }
+
+  return {
+    request_id,
+    created_at,
+    title,
+    need_description,
+    problem_opportunity,
+    concluded_at,
+    is_within_window,
+    handles_restricted_info,
+    category_name,
+    category_is_publicly_listable,
+    status_id,
+    status_is_active,
+    status_is_terminal,
+    status_is_restricted,
+    status_is_duplicate_corpus_eligible,
+  };
+}
+
+function parseExistingProjection(row: Record<string, unknown>): ExistingProjection {
+  const { public_id, publication_status, published_at, suppressed_at } = row;
+
+  if (
+    typeof public_id !== "string" ||
+    !isPublicationStatus(publication_status) ||
+    !isNullableDate(published_at) ||
+    !isNullableDate(suppressed_at)
+  ) {
+    throw new Error("Linha inválida em request_public_projections.");
+  }
+
+  return { public_id, publication_status, published_at, suppressed_at };
+}
+
 async function findProjectionSource(
   trx: Knex.Transaction,
   requestId: string,
   windowMonths: number,
 ): Promise<ProjectionSourceRow | undefined> {
-  const rows = (await trx("requests as r")
+  const rows: Record<string, unknown>[] = await trx("requests as r")
     .join("categories as c", "c.category_id", "r.category_id")
     .join("statuses as s", "s.status_id", "r.status_id")
     .where("r.request_id", requestId)
@@ -148,9 +225,10 @@ async function findProjectionSource(
         [windowMonths],
       ),
     )
-    .limit(1)) as ProjectionSourceRow[];
+    .limit(1);
 
-  return rows[0];
+  const row = rows[0];
+  return row ? parseProjectionSourceRow(row) : undefined;
 }
 
 /**
@@ -161,8 +239,8 @@ async function findProjectionSource(
 function buildProjectionTemplate(
   source: ProjectionSourceRow,
   suppressionReason: SuppressionReason | null,
-): ProjectionTemplate {
-  const isCompleted = source.status_id === STATUS_IDS.completed;
+): PublicRequestTemplate {
+  const isCompleted = isCompletedStatus(source.status_id);
 
   if (!isCompleted) {
     return buildOpenRequestTemplate({
@@ -219,11 +297,11 @@ export async function publishRequestProjection(
     source.category_is_publicly_listable && source.status_is_duplicate_corpus_eligible;
 
   const publicationStatus: PublicationStatus = suppressionReason ? "suppressed" : "published";
-  const existing = (await trx("request_public_projections")
+  const existingRow: Record<string, unknown> | undefined = await trx("request_public_projections")
     .where({ request_id: requestId })
     .forUpdate()
-    .first("public_id", "publication_status", "published_at", "suppressed_at")) as
-    ExistingProjection | undefined;
+    .first("public_id", "publication_status", "published_at", "suppressed_at");
+  const existing = existingRow ? parseExistingProjection(existingRow) : undefined;
 
   const now = new Date();
   const publishedAt =

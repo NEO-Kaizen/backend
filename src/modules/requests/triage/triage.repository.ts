@@ -3,7 +3,7 @@ import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import { publishRequestProjection } from "../../duplicates/projection.ts";
-import { concludedAtUpdate } from "../concludedAt.ts";
+import { buildConcludedAtUpdate } from "../concludedAt.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
 interface StatusRow {
@@ -187,7 +187,7 @@ export async function applyRequestOutcome(
     updated_by: updatedBy,
     updated_at: source.fn.now(),
     status_id: statusId,
-    ...concludedAtUpdate(source, statusId),
+    ...buildConcludedAtUpdate(source, statusId),
   };
 
   // Conclusão da triagem encerra a custódia do responsável (issue de

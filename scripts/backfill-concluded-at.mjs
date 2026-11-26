@@ -17,8 +17,8 @@ const dryRun = process.argv.includes("--dry-run");
 try {
   const report = await backfillConcludedAt({ dryRun });
   console.log(JSON.stringify(report, null, 2));
-} catch {
-  console.error("[backfill-concluded-at] falha ao executar o backfill");
+} catch (error) {
+  console.error("[backfill-concluded-at] falha ao executar o backfill", error);
   process.exitCode = 1;
 } finally {
   await db.destroy();
