@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **194**.
 - Tipos nomeados: **324** â€” 229 interfaces, 92 aliases `type`, 3 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1988** â€” 1491 variÃ¡veis, 247 parÃ¢metros e 250 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1993** â€” 1496 variÃ¡veis, 247 parÃ¢metros e 250 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **148**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -1448,7 +1448,7 @@ export interface DuplicateConfidenceConfig {
 
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
-#### L11 â€” interface PublicProjectionRow
+#### L18 â€” interface PublicProjectionRow
 
 ```ts
 export interface PublicProjectionRow {
@@ -1718,7 +1718,7 @@ export interface SimilarityIndex {
 
 ### [src/modules/duplicates/template.ts](../src/modules/duplicates/template.ts)
 
-#### L16 â€” interface OpenRequestTemplate
+#### L24 â€” interface OpenRequestTemplate
 
 ```ts
 export interface OpenRequestTemplate {
@@ -4321,18 +4321,18 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
-- L27 â€” variÃ¡vel: `PROJECTION_COLUMNS`
-- L44 â€” variÃ¡vel: `DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS`
-- L47 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
-- L71 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, public_concluded_at, updated_at, }`
-- L124 â€” variÃ¡vel: `source`
-- L137 â€” variÃ¡vel: `source`
-- L155 â€” variÃ¡vel: `source`
-- L156 â€” variÃ¡vel: `windowMonths`
-- L162 â€” parÃ¢metro: `builder`
-- L162 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L185 â€” variÃ¡vel: `source`
-- L214 â€” variÃ¡vel: `source`
+- L34 â€” variÃ¡vel: `PROJECTION_COLUMNS`
+- L51 â€” variÃ¡vel: `DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS`
+- L54 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
+- L78 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, public_concluded_at, updated_at, }`
+- L131 â€” variÃ¡vel: `source`
+- L144 â€” variÃ¡vel: `source`
+- L162 â€” variÃ¡vel: `source`
+- L163 â€” variÃ¡vel: `windowMonths`
+- L169 â€” parÃ¢metro: `builder`
+- L169 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L192 â€” variÃ¡vel: `source`
+- L226 â€” variÃ¡vel: `source`
 
 ### [src/modules/duplicates/duplicates.schema.ts](../src/modules/duplicates/duplicates.schema.ts)
 
@@ -4462,12 +4462,17 @@ interface GroupedIssues {
 - L12 â€” variÃ¡vel: `OPEN_REQUEST_REDACTION_VERSION`
 - L13 â€” variÃ¡vel: `COMPLETED_REQUEST_PUBLIC_STATUS`
 - L14 â€” variÃ¡vel: `COMPLETED_REQUEST_REDACTION_VERSION`
-- L30 â€” variÃ¡vel: `dateOnly`
-- L36 â€” variÃ¡vel: `[yearPart, monthPart]`
-- L37 â€” variÃ¡vel: `year`
-- L38 â€” variÃ¡vel: `month`
-- L51 â€” variÃ¡vel: `period`
-- L71 â€” variÃ¡vel: `period`
+- L18 â€” variÃ¡vel: `COMPLETED_TEMPLATE_TITLE_PREFIX`
+- L19 â€” variÃ¡vel: `COMPLETED_TEMPLATE_TITLE_SUFFIX`
+- L20 â€” variÃ¡vel: `COMPLETED_TEMPLATE_SUMMARY_PREFIX`
+- L21 â€” variÃ¡vel: `COMPLETED_TEMPLATE_SUMMARY_MIDDLE`
+- L22 â€” variÃ¡vel: `COMPLETED_TEMPLATE_SUMMARY_SUFFIX`
+- L38 â€” variÃ¡vel: `dateOnly`
+- L44 â€” variÃ¡vel: `[yearPart, monthPart]`
+- L45 â€” variÃ¡vel: `year`
+- L46 â€” variÃ¡vel: `month`
+- L59 â€” variÃ¡vel: `period`
+- L79 â€” variÃ¡vel: `period`
 
 ### [src/modules/internalNotes/internalNotes.controller.ts](../src/modules/internalNotes/internalNotes.controller.ts)
 

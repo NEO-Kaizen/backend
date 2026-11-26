@@ -13,6 +13,14 @@ export const OPEN_REQUEST_REDACTION_VERSION = "v1-open-template";
 export const COMPLETED_REQUEST_PUBLIC_STATUS = "Concluída";
 export const COMPLETED_REQUEST_REDACTION_VERSION = "v1-regex";
 
+// Partes compartilhadas com a varredura de expiração (SQL) para que o template
+// de fallback não divirja entre a publicação e a supressão.
+export const COMPLETED_TEMPLATE_TITLE_PREFIX = "Solicitação de ";
+export const COMPLETED_TEMPLATE_TITLE_SUFFIX = " concluída";
+export const COMPLETED_TEMPLATE_SUMMARY_PREFIX = "Solicitação concluída da categoria ";
+export const COMPLETED_TEMPLATE_SUMMARY_MIDDLE = ", registrada no período ";
+export const COMPLETED_TEMPLATE_SUMMARY_SUFFIX = ".";
+
 export interface OpenRequestTemplate {
   title: string;
   summary: string;
@@ -71,8 +79,8 @@ export function buildCompletedRequestTemplate(input: {
   const period = toSaoPauloQuarter(input.createdAt);
 
   return {
-    title: `Solicitação de ${input.category} concluída`,
-    summary: `Solicitação concluída da categoria ${input.category}, registrada no período ${period}.`,
+    title: `${COMPLETED_TEMPLATE_TITLE_PREFIX}${input.category}${COMPLETED_TEMPLATE_TITLE_SUFFIX}`,
+    summary: `${COMPLETED_TEMPLATE_SUMMARY_PREFIX}${input.category}${COMPLETED_TEMPLATE_SUMMARY_MIDDLE}${period}${COMPLETED_TEMPLATE_SUMMARY_SUFFIX}`,
     category: input.category,
     status: COMPLETED_REQUEST_PUBLIC_STATUS,
     period,

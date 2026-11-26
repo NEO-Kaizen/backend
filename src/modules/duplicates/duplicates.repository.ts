@@ -1,6 +1,13 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import type { PublicationStatus } from "../../shared/types/duplicates.ts";
+import {
+  COMPLETED_TEMPLATE_SUMMARY_MIDDLE,
+  COMPLETED_TEMPLATE_SUMMARY_PREFIX,
+  COMPLETED_TEMPLATE_SUMMARY_SUFFIX,
+  COMPLETED_TEMPLATE_TITLE_PREFIX,
+  COMPLETED_TEMPLATE_TITLE_SUFFIX,
+} from "./template.ts";
 
 /**
  * Leitura da projeção pública e da flag de duplicidade (issue #209).
@@ -130,8 +137,8 @@ export async function isDuplicateDetectionEnabled(trx?: Knex.Transaction): Promi
 }
 
 /**
- * Janela do corpus de concluídas em meses. O banco garante 1..36; a ausência
- * do singleton (ou da coluna em uma leitura antiga) cai para o padrão 3.
+ * Janela do corpus de concluídas em meses. O banco garante 1..36; a ausência do
+ * singleton cai para o padrão 3.
  */
 export async function getDuplicateCompletedWindowMonths(trx?: Knex.Transaction): Promise<number> {
   const source = trx ?? db;
@@ -192,10 +199,15 @@ export async function suppressExpiredCompletedProjections(
       publication_status: "suppressed",
       suppression_reason: "outside_window",
       suppressed_at: source.fn.now(),
-      public_title: source.raw(`'Solicitação de ' || public_category || ' concluída'`),
-      public_summary: source.raw(
-        `'Solicitação concluída da categoria ' || public_category || ', registrada no período ' || public_period || '.'`,
-      ),
+      public_title: source.raw("? || public_category || ?", [
+        COMPLETED_TEMPLATE_TITLE_PREFIX,
+        COMPLETED_TEMPLATE_TITLE_SUFFIX,
+      ]),
+      public_summary: source.raw("? || public_category || ? || public_period || ?", [
+        COMPLETED_TEMPLATE_SUMMARY_PREFIX,
+        COMPLETED_TEMPLATE_SUMMARY_MIDDLE,
+        COMPLETED_TEMPLATE_SUMMARY_SUFFIX,
+      ]),
       redaction_version: "v1-regex",
       version: source.raw("version + 1"),
       updated_at: source.fn.now(),

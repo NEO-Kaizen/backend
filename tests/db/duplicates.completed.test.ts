@@ -11,6 +11,7 @@ import {
   rebuildDuplicateIndex,
   resetDuplicateIndex,
 } from "../../src/modules/duplicates/indexLifecycle.ts";
+import { getDuplicateCompletedWindowMonths } from "../../src/modules/duplicates/duplicates.repository.ts";
 import { publishRequestProjection } from "../../src/modules/duplicates/projection.ts";
 import { toSaoPauloQuarter } from "../../src/modules/duplicates/template.ts";
 import type { DemandBlock } from "../../src/shared/types/requests.ts";
@@ -131,6 +132,12 @@ async function checkDuplicates(demand: DemandBlock) {
 }
 
 describe("DB — concluídas com texto tarjado e janela", () => {
+  it("usa a janela padrão 3 quando o singleton está ausente", async () => {
+    await testDb("system_settings").del();
+
+    await expect(getDuplicateCompletedWindowMonths()).resolves.toBe(3);
+  });
+
   it("conclusão via PATCH grava concluded_at e publica título/resumo tarjados", async () => {
     const created = await createRequest();
     await concludeByPatch(created.protocol);
