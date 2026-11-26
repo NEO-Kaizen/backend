@@ -33,9 +33,10 @@ sessão e sem receber JWT ou cookie novo.
   solicitações legadas sem vínculo, compara o e-mail normalizado. Sessão de
   perfil interno é recusada. Em `AUTHENTICATED`, sem sessão do Solicitante
   também é recusado.
-- **Pendências:** sessão de `Solicitante` compara nome e e-mail da conta;
-  sessão interna passa sem checagem de custódia; sem cookie, exige identidade
-  pública validada.
+- **Pendências:** a Posse segue a mesma regra do acompanhamento — vínculo por
+  `requests.requester_user_id`; em solicitações legadas sem vínculo, compara
+  nome e e-mail da conta. Sessão interna passa sem checagem de custódia; sem
+  cookie, exige identidade pública validada.
 
 ## Recorte do acompanhamento
 

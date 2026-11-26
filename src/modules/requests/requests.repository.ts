@@ -394,7 +394,7 @@ export async function findRequestsByRequesterEmail(
       protocol: "requests.protocol",
       process_name: "requests.process_name",
       priority: "priorities.level",
-      status: db.raw(`${PUBLIC_STATUS_SUMMARY_SQL} as status`),
+      status: db.raw(PUBLIC_STATUS_SUMMARY_SQL),
       assignee: "assignee_user.full_name",
       requester_name: "requesters.full_name",
       created_at: "requests.created_at",

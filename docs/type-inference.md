@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **177**.
 - Tipos nomeados: **329** â€” 219 interfaces, 108 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1922** â€” 1443 variÃ¡veis, 243 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1933** â€” 1452 variÃ¡veis, 244 parÃ¢metros e 237 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **132**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -722,6 +722,11 @@ export interface FindQueueParams extends QueueFilterQuery {
    * de mapeamento. `undefined` = sem restrição (perfis Gestor/Administrador).
    */
   scopedUserId?: number;
+  /**
+   * Custódia de `internal_note:read` aplicada somente à correspondência em
+   * notas. `undefined` = sem restrição (Gestor/Administrador e exportação CSV).
+   */
+  noteCustodianUserId?: number;
   limit: number;
   offset: number;
 }
@@ -1612,7 +1617,7 @@ export type PendingCaller = {
 export type PendingResponseActor = { id: number; email: string; role: string } | null;
 ```
 
-#### L361 â€” interface PendingItemResponseCommitInput
+#### L373 â€” interface PendingItemResponseCommitInput
 
 ```ts
 interface PendingItemResponseCommitInput {
@@ -1625,7 +1630,7 @@ interface PendingItemResponseCommitInput {
 }
 ```
 
-#### L370 â€” interface PendingItemResponseCommitResult
+#### L382 â€” interface PendingItemResponseCommitResult
 
 ```ts
 interface PendingItemResponseCommitResult {
@@ -1762,6 +1767,7 @@ export type MappingPayload = z.infer<typeof mappingPayloadSchema>;
 ```ts
 export interface QueueRepositoryFilters extends QueueFilterQuery {
   scopedUserId?: number;
+  noteCustodianUserId?: number;
 }
 ```
 
@@ -3802,11 +3808,12 @@ interface GroupedIssues {
 
 ### [src/database/conection.ts](../src/database/conection.ts)
 
-- L5 â€” variÃ¡vel: `db`
+- L10 â€” variÃ¡vel: `db`
 
 ### [src/docs/components/parameters.ts](../src/docs/components/parameters.ts)
 
 - L1 â€” variÃ¡vel: `protocolParam`
+- L9 â€” variÃ¡vel: `searchParam`
 
 ### [src/docs/components/responses.ts](../src/docs/components/responses.ts)
 
@@ -4573,73 +4580,74 @@ interface GroupedIssues {
 - L263 â€” variÃ¡vel: `professionalId`
 - L264 â€” variÃ¡vel: `requestProfessionalId`
 - L271 â€” variÃ¡vel: `request`
-- L275 â€” variÃ¡vel: `nameOk`
-- L276 â€” variÃ¡vel: `emailOk`
-- L286 â€” variÃ¡vel: `identity`
-- L288 â€” variÃ¡vel: `nameOk`
-- L289 â€” variÃ¡vel: `emailOk`
-- L300 â€” variÃ¡vel: `request`
-- L302 â€” variÃ¡vel: `rows`
-- L303 â€” variÃ¡vel: `items`
-- L312 â€” parÃ¢metro: `row`
-- L312 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L312 â€” variÃ¡vel: `openRow`
-- L313 â€” variÃ¡vel: `targetRow`
-- L314 â€” variÃ¡vel: `batchId`
-- L315 â€” variÃ¡vel: `requestAttachment`
-- L317 â€” parÃ¢metro: `row`
-- L317 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L343 â€” parÃ¢metro: `userId`
-- L343 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L351 â€” variÃ¡vel: `assigneeUserId`
-- L382 â€” parÃ¢metro: `trx`
-- L382 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L383 â€” variÃ¡vel: `result`
-- L392 â€” parÃ¢metro: `facts`
-- L392 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L400 â€” variÃ¡vel: `actorUserId`
-- L401 â€” variÃ¡vel: `audience`
-- L407 â€” variÃ¡vel: `committedNotifications`
-- L431 â€” variÃ¡vel: `request`
-- L433 â€” variÃ¡vel: `row`
-- L441 â€” variÃ¡vel: `type`
-- L451 â€” variÃ¡vel: `serialized`
-- L460 â€” variÃ¡vel: `response`
-- L473 â€” variÃ¡vel: `{ row: updated, committedNotifications }`
-- L486 â€” variÃ¡vel: `list`
-- L504 â€” variÃ¡vel: `request`
-- L506 â€” variÃ¡vel: `row`
-- L522 â€” variÃ¡vel: `[saved]`
-- L532 â€” variÃ¡vel: `err`
-- L572 â€” variÃ¡vel: `date`
-- L594 â€” variÃ¡vel: `nullableComplement`
-- L625 â€” variÃ¡vel: `request`
-- L630 â€” variÃ¡vel: `batchId`
-- L631 â€” variÃ¡vel: `batchRows`
-- L634 â€” parÃ¢metro: `row`
-- L634 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L634 â€” variÃ¡vel: `byId`
-- L636 â€” variÃ¡vel: `decision`
-- L637 â€” variÃ¡vel: `row`
-- L639 â€” variÃ¡vel: `status`
-- L651 â€” parÃ¢metro: `decision`
-- L651 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L655 â€” variÃ¡vel: `row`
-- L657 â€” variÃ¡vel: `fieldKey`
-- L666 â€” parÃ¢metro: `trx`
-- L666 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L666 â€” variÃ¡vel: `{ rows: decidedRows }`
-- L667 â€” variÃ¡vel: `{ rows: reviewedRows, actionAuditIds }`
-- L678 â€” parÃ¢metro: `facts`
+- L275 â€” variÃ¡vel: `requesterUserId`
+- L287 â€” variÃ¡vel: `nameOk`
+- L288 â€” variÃ¡vel: `emailOk`
+- L298 â€” variÃ¡vel: `identity`
+- L300 â€” variÃ¡vel: `nameOk`
+- L301 â€” variÃ¡vel: `emailOk`
+- L312 â€” variÃ¡vel: `request`
+- L314 â€” variÃ¡vel: `rows`
+- L315 â€” variÃ¡vel: `items`
+- L324 â€” parÃ¢metro: `row`
+- L324 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L324 â€” variÃ¡vel: `openRow`
+- L325 â€” variÃ¡vel: `targetRow`
+- L326 â€” variÃ¡vel: `batchId`
+- L327 â€” variÃ¡vel: `requestAttachment`
+- L329 â€” parÃ¢metro: `row`
+- L329 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L355 â€” parÃ¢metro: `userId`
+- L355 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L363 â€” variÃ¡vel: `assigneeUserId`
+- L394 â€” parÃ¢metro: `trx`
+- L394 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L395 â€” variÃ¡vel: `result`
+- L404 â€” parÃ¢metro: `facts`
+- L404 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L412 â€” variÃ¡vel: `actorUserId`
+- L413 â€” variÃ¡vel: `audience`
+- L419 â€” variÃ¡vel: `committedNotifications`
+- L443 â€” variÃ¡vel: `request`
+- L445 â€” variÃ¡vel: `row`
+- L453 â€” variÃ¡vel: `type`
+- L463 â€” variÃ¡vel: `serialized`
+- L472 â€” variÃ¡vel: `response`
+- L485 â€” variÃ¡vel: `{ row: updated, committedNotifications }`
+- L498 â€” variÃ¡vel: `list`
+- L516 â€” variÃ¡vel: `request`
+- L518 â€” variÃ¡vel: `row`
+- L534 â€” variÃ¡vel: `[saved]`
+- L544 â€” variÃ¡vel: `err`
+- L584 â€” variÃ¡vel: `date`
+- L606 â€” variÃ¡vel: `nullableComplement`
+- L637 â€” variÃ¡vel: `request`
+- L642 â€” variÃ¡vel: `batchId`
+- L643 â€” variÃ¡vel: `batchRows`
+- L646 â€” parÃ¢metro: `row`
+- L646 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L646 â€” variÃ¡vel: `byId`
+- L648 â€” variÃ¡vel: `decision`
+- L649 â€” variÃ¡vel: `row`
+- L651 â€” variÃ¡vel: `status`
+- L663 â€” parÃ¢metro: `decision`
+- L663 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L667 â€” variÃ¡vel: `row`
+- L669 â€” variÃ¡vel: `fieldKey`
+- L678 â€” parÃ¢metro: `trx`
 - L678 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L682 â€” variÃ¡vel: `notifications`
-- L685 â€” parÃ¢metro: `[action, auditId]`
-- L685 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L691 â€” variÃ¡vel: `mapped`
-- L701 â€” variÃ¡vel: `mode`
-- L706 â€” variÃ¡vel: `found`
-- L708 â€” variÃ¡vel: `nameOk`
-- L709 â€” variÃ¡vel: `emailOk`
+- L678 â€” variÃ¡vel: `{ rows: decidedRows }`
+- L679 â€” variÃ¡vel: `{ rows: reviewedRows, actionAuditIds }`
+- L690 â€” parÃ¢metro: `facts`
+- L690 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L694 â€” variÃ¡vel: `notifications`
+- L697 â€” parÃ¢metro: `[action, auditId]`
+- L697 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L703 â€” variÃ¡vel: `mapped`
+- L713 â€” variÃ¡vel: `mode`
+- L718 â€” variÃ¡vel: `found`
+- L720 â€” variÃ¡vel: `nameOk`
+- L721 â€” variÃ¡vel: `emailOk`
 
 ### [src/modules/portalConfig/portalConfig.controller.ts](../src/modules/portalConfig/portalConfig.controller.ts)
 
@@ -5067,11 +5075,14 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-- L14 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId }`
-- L17 â€” parÃ¢metro: `builder`
-- L17 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” parÃ¢metro: `builder`
-- L45 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L23 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId, noteCustodianUserId }`
+- L27 â€” variÃ¡vel: `searchPattern`
+- L29 â€” parÃ¢metro: `builder`
+- L29 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L36 â€” parÃ¢metro: `notesQuery`
+- L36 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” parÃ¢metro: `builder`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
@@ -5106,20 +5117,21 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.service.ts](../src/modules/queue/queue.service.ts)
 
-- L17 â€” variÃ¡vel: `resolveQueueScope`
-- L20 â€” variÃ¡vel: `userId`
-- L24 â€” variÃ¡vel: `getQueueMetricsService`
-- L35 â€” variÃ¡vel: `listQueueService`
-- L39 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
-- L40 â€” variÃ¡vel: `offset`
-- L42 â€” variÃ¡vel: `repoUnassigned`
-- L43 â€” variÃ¡vel: `repoAssigneeId`
-- L46 â€” variÃ¡vel: `[{ items, total }, assignees]`
-- L60 â€” variÃ¡vel: `totalPages`
-- L63 â€” variÃ¡vel: `effectivePage`
-- L65 â€” parÃ¢metro: `item`
-- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L65 â€” variÃ¡vel: `formattedData`
+- L18 â€” variÃ¡vel: `resolveAnalystUserId`
+- L21 â€” variÃ¡vel: `userId`
+- L25 â€” variÃ¡vel: `getQueueMetricsService`
+- L36 â€” variÃ¡vel: `listQueueService`
+- L40 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
+- L41 â€” variÃ¡vel: `offset`
+- L43 â€” variÃ¡vel: `repoUnassigned`
+- L44 â€” variÃ¡vel: `repoAssigneeId`
+- L46 â€” variÃ¡vel: `analystUserId`
+- L48 â€” variÃ¡vel: `[{ items, total }, assignees]`
+- L65 â€” variÃ¡vel: `totalPages`
+- L68 â€” variÃ¡vel: `effectivePage`
+- L70 â€” parÃ¢metro: `item`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” variÃ¡vel: `formattedData`
 
 ### [src/modules/reports/reports.controller.ts](../src/modules/reports/reports.controller.ts)
 
@@ -5745,8 +5757,8 @@ interface GroupedIssues {
 
 ### [src/shared/middleware/dualAuth.ts](../src/shared/middleware/dualAuth.ts)
 
-- L20 â€” variÃ¡vel: `hasCookie`
-- L27 â€” variÃ¡vel: `identity`
+- L24 â€” variÃ¡vel: `hasCookie`
+- L31 â€” variÃ¡vel: `identity`
 
 ### [src/shared/middleware/errorHandler.ts](../src/shared/middleware/errorHandler.ts)
 
@@ -5773,18 +5785,20 @@ interface GroupedIssues {
 
 ### [src/shared/middleware/upload.ts](../src/shared/middleware/upload.ts)
 
-- L5 â€” variÃ¡vel: `ALLOWED_MIMES`
-- L13 â€” variÃ¡vel: `MAX_FILE_SIZE_BYTES`
-- L14 â€” variÃ¡vel: `MAX_ATTACHMENT_COUNT`
-- L15 â€” variÃ¡vel: `MAX_FIELD_SIZE_BYTES`
-- L17 â€” variÃ¡vel: `upload`
-- L24 â€” parÃ¢metro: `_req`
-- L24 â€” parÃ¢metro: `cb`
-- L24 â€” parÃ¢metro: `file`
-- L24 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L35 â€” variÃ¡vel: `multerFields`
-- L49 â€” parÃ¢metro: `err`
-- L49 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L6 â€” variÃ¡vel: `ALLOWED_MIMES`
+- L14 â€” variÃ¡vel: `ALLOWED_EXTENSIONS`
+- L16 â€” variÃ¡vel: `MAX_FILE_SIZE_BYTES`
+- L17 â€” variÃ¡vel: `MAX_ATTACHMENT_COUNT`
+- L18 â€” variÃ¡vel: `MAX_FIELD_SIZE_BYTES`
+- L20 â€” variÃ¡vel: `upload`
+- L27 â€” parÃ¢metro: `_req`
+- L27 â€” parÃ¢metro: `cb`
+- L27 â€” parÃ¢metro: `file`
+- L27 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L28 â€” variÃ¡vel: `extension`
+- L43 â€” variÃ¡vel: `multerFields`
+- L57 â€” parÃ¢metro: `err`
+- L57 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/shared/middleware/uploadAssets.ts](../src/shared/middleware/uploadAssets.ts)
 
@@ -6036,7 +6050,10 @@ interface GroupedIssues {
 
 ### [src/shared/utils/requesterIdentity.ts](../src/shared/utils/requesterIdentity.ts)
 
-- L7 â€” variÃ¡vel: `obj`
+- L1 â€” variÃ¡vel: `EMAIL_PATTERN`
+- L9 â€” variÃ¡vel: `obj`
+- L12 â€” variÃ¡vel: `name`
+- L13 â€” variÃ¡vel: `email`
 
 ### [src/shared/utils/roleUtils.ts](../src/shared/utils/roleUtils.ts)
 
@@ -6192,7 +6209,7 @@ interface GroupedIssues {
 
 ### [src/shared/middleware/upload.ts](../src/shared/middleware/upload.ts)
 
-- L49 â€” parÃ¢metro: `err`
+- L57 â€” parÃ¢metro: `err`
 
 ### [src/shared/middleware/uploadAssets.ts](../src/shared/middleware/uploadAssets.ts)
 
