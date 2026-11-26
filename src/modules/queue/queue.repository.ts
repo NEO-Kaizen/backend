@@ -2,6 +2,7 @@ import db from "../../database/conection.ts";
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
 import { applyQueueFilters } from "./queue.filters.ts";
+import { applyQueueSort } from "./queue.sort.ts";
 
 /**
  * Status que contam como "em andamento" nas métricas da fila (Home/Fila).
@@ -99,22 +100,21 @@ export const findQueueRequests = async (
 
   const countQuery = baseQuery.clone().count("* as total").first();
 
-  const itemsQuery = baseQuery
-    .select(
-      "requests.protocol",
-      "requests.created_at as createdAt",
-      "requests.process_name as processName",
-      "priority_tbl.level as priority",
-      "status.name as status",
-      // Expor user_id como assigneeId conforme `docs/rules/assignment.md` (frontend usa user_id)
-      db.raw('assignee_user.user_id::text as "assigneeId"'),
-      "assignee_user.full_name as assignee",
-      "requester.full_name as requesterName",
-      "requester.corporate_email as requesterEmail",
-    )
-    .orderBy("requests.created_at", "desc")
-    .limit(limit)
-    .offset(offset);
+  const itemsQuery = baseQuery.select(
+    "requests.protocol",
+    "requests.created_at as createdAt",
+    "requests.process_name as processName",
+    "priority_tbl.level as priority",
+    "status.name as status",
+    // Expor user_id como assigneeId conforme `docs/rules/assignment.md` (frontend usa user_id)
+    db.raw('assignee_user.user_id::text as "assigneeId"'),
+    "assignee_user.full_name as assignee",
+    "requester.full_name as requesterName",
+    "requester.corporate_email as requesterEmail",
+  );
+
+  applyQueueSort(itemsQuery, params.sortBy, params.sortOrder);
+  itemsQuery.limit(limit).offset(offset);
 
   const [countResult, items] = await Promise.all([countQuery, itemsQuery]);
   const total = countResult ? Number(countResult.total) : 0;

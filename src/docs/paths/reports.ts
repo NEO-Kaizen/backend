@@ -1,4 +1,9 @@
-import { searchParam } from "../components/parameters.ts";
+import {
+  dateFromParam,
+  dateToParam,
+  departmentParam,
+  searchParam,
+} from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
 
 export default {
@@ -79,7 +84,8 @@ export default {
         "Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. " +
         "Datas no fuso `America/Sao_Paulo`.\n\n" +
         "`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; " +
-        "`unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`.",
+        "`unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. " +
+        "`dateFrom`/`dateTo` filtram a abertura e `department` filtra o departamento do solicitante; todos são combináveis com `search`.",
       operationId: "exportRequestsCsv",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -108,6 +114,9 @@ export default {
           required: false,
           schema: { type: "string", enum: ["true", "1", "false", "0"] },
         },
+        dateFromParam,
+        dateToParam,
+        departmentParam,
       ],
       responses: {
         "200": {

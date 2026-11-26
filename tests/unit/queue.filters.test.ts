@@ -162,4 +162,51 @@ describe("applyQueueFilters", () => {
       /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,
     );
   });
+
+  // Bordas reais de fuso/dia e o comportamento isolado de `dateTo` são
+  // verificados com banco em `tests/db/queue.http.test.ts`.
+  it("dateFrom e dateTo filtram created_at no dia comercial, com dateTo inclusivo", () => {
+    const { sql, bindings } = build({ dateFrom: "2026-11-01", dateTo: "2026-11-30" });
+
+    expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
+    expect(sql).toContain(
+      `"requests"."created_at" < ((?::date + INTERVAL '1 day')::timestamp AT TIME ZONE ?)`,
+    );
+    expect(bindings).toEqual([
+      "2026-11-01",
+      "America/Sao_Paulo",
+      "2026-11-30",
+      "America/Sao_Paulo",
+    ]);
+  });
+
+  it("department compara requesters.department de forma exata e case-insensitive", () => {
+    const { sql, bindings } = build({ department: "Desenvolvimento" });
+
+    expect(sql).toContain('lower("requester"."department") = lower(?)');
+    expect(bindings).toEqual(["Desenvolvimento"]);
+  });
+
+  it("data, departamento e busca entram juntos sem alterar o escopo do Analista", () => {
+    const { sql, bindings } = build({
+      search: "MAAT",
+      dateFrom: "2026-11-01",
+      department: "Desenvolvimento",
+      scopedUserId: 7,
+    });
+
+    expect(bindings).toEqual([
+      ...Array(6).fill("%MAAT%"),
+      "2026-11-01",
+      "America/Sao_Paulo",
+      "Desenvolvimento",
+      7,
+      7,
+    ]);
+    expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
+    expect(sql).toMatch(/and lower\("requester"\."department"\) = lower\(\?\)/);
+    expect(sql).toMatch(
+      /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,
+    );
+  });
 });

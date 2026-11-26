@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **177**.
-- Tipos nomeados: **329** â€” 219 interfaces, 108 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1933** â€” 1452 variÃ¡veis, 244 parÃ¢metros e 237 retornos de funÃ§Ãµes/mÃ©todos.
+- Arquivos-fonte analisados: **179**.
+- Tipos nomeados: **333** â€” 221 interfaces, 110 aliases `type`, 2 classes e 0 enums.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1944** â€” 1460 variÃ¡veis, 245 parÃ¢metros e 239 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **132**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
+- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **135**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -715,7 +715,7 @@ export interface MappingActor {
 #### L7 â€” interface FindQueueParams
 
 ```ts
-export interface FindQueueParams extends QueueFilterQuery {
+export interface FindQueueParams extends QueueFilterQuery, QueueSortQuery {
   /**
    * Escopo de visibilidade por usuário (issue #102). Quando definido, restringe
    * o resultado às solicitações em que o usuário é responsável — de triagem ou
@@ -1762,7 +1762,7 @@ export type MappingPayload = z.infer<typeof mappingPayloadSchema>;
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-#### L4 â€” interface QueueRepositoryFilters
+#### L5 â€” interface QueueRepositoryFilters
 
 ```ts
 export interface QueueRepositoryFilters extends QueueFilterQuery {
@@ -2299,6 +2299,17 @@ export type AuditEntry<
 
 ```ts
 export type FieldKey = (typeof FIELD_KEYS)[number];
+```
+
+### [src/shared/datetime/businessDay.ts](../src/shared/datetime/businessDay.ts)
+
+#### L6 â€” interface BusinessDayRange
+
+```ts
+export interface BusinessDayRange {
+  from?: string;
+  to?: string;
+}
 ```
 
 ### [src/shared/errors/AppError.ts](../src/shared/errors/AppError.ts)
@@ -3250,7 +3261,19 @@ export interface QueueMetricsResponse {
 export type QueuePriorityFilter = RequestPriority | "nenhum";
 ```
 
-#### L24 â€” interface QueueFilterQuery
+#### L32 â€” alias QueueSortBy
+
+```ts
+export type QueueSortBy = (typeof QUEUE_SORT_BY)[number];
+```
+
+#### L36 â€” alias QueueSortOrder
+
+```ts
+export type QueueSortOrder = (typeof QUEUE_SORT_ORDER)[number];
+```
+
+#### L39 â€” interface QueueFilterQuery
 
 ```ts
 export interface QueueFilterQuery {
@@ -3259,19 +3282,34 @@ export interface QueueFilterQuery {
   priority?: QueuePriorityFilter;
   assigneeId?: string | "unassigned";
   unassigned?: boolean;
+  /** Data inicial de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial. */
+  dateFrom?: string;
+  /** Data final de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial. */
+  dateTo?: string;
+  /** Departamento do solicitante, comparado de forma exata e case-insensitive. */
+  department?: string;
 }
 ```
 
-#### L33 â€” interface QueueQuery
+#### L54 â€” interface QueueSortQuery
 
 ```ts
-export interface QueueQuery extends QueueFilterQuery {
+export interface QueueSortQuery {
+  sortBy?: QueueSortBy;
+  sortOrder?: QueueSortOrder;
+}
+```
+
+#### L60 â€” interface QueueQuery
+
+```ts
+export interface QueueQuery extends QueueFilterQuery, QueueSortQuery {
   page: number;
   pageSize: number;
 }
 ```
 
-#### L38 â€” interface QueueAssignee
+#### L65 â€” interface QueueAssignee
 
 ```ts
 export interface QueueAssignee {
@@ -3280,7 +3318,7 @@ export interface QueueAssignee {
 }
 ```
 
-#### L43 â€” interface QueueItem
+#### L70 â€” interface QueueItem
 
 ```ts
 export interface QueueItem extends RequestSummary {
@@ -3289,7 +3327,7 @@ export interface QueueItem extends RequestSummary {
 }
 ```
 
-#### L48 â€” interface QueueResponse
+#### L75 â€” interface QueueResponse
 
 ```ts
 export interface QueueResponse extends PaginatedResponse<QueueItem> {
@@ -3812,8 +3850,13 @@ interface GroupedIssues {
 
 ### [src/docs/components/parameters.ts](../src/docs/components/parameters.ts)
 
-- L1 â€” variÃ¡vel: `protocolParam`
-- L9 â€” variÃ¡vel: `searchParam`
+- L3 â€” variÃ¡vel: `protocolParam`
+- L11 â€” variÃ¡vel: `searchParam`
+- L24 â€” variÃ¡vel: `dateFromParam`
+- L33 â€” variÃ¡vel: `dateToParam`
+- L42 â€” variÃ¡vel: `departmentParam`
+- L51 â€” variÃ¡vel: `sortByParam`
+- L63 â€” variÃ¡vel: `sortOrderParam`
 
 ### [src/docs/components/responses.ts](../src/docs/components/responses.ts)
 
@@ -5075,29 +5118,29 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-- L23 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, scopedUserId, noteCustodianUserId }`
-- L27 â€” variÃ¡vel: `searchPattern`
-- L29 â€” parÃ¢metro: `builder`
-- L29 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L36 â€” parÃ¢metro: `notesQuery`
-- L36 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L70 â€” parÃ¢metro: `builder`
-- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L26 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, dateFrom, dateTo, department, scopedUserId, noteCustodianUserId, }`
+- L40 â€” variÃ¡vel: `searchPattern`
+- L42 â€” parÃ¢metro: `builder`
+- L42 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L49 â€” parÃ¢metro: `notesQuery`
+- L49 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L89 â€” parÃ¢metro: `builder`
+- L89 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
-- L16 â€” variÃ¡vel: `IN_PROGRESS_STATUS_NAMES`
-- L24 â€” variÃ¡vel: `fetchQueueMetrics`
-- L25 â€” variÃ¡vel: `query`
-- L43 â€” parÃ¢metro: `builder`
-- L43 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L50 â€” variÃ¡vel: `result`
-- L57 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L76 â€” variÃ¡vel: `findQueueRequests`
-- L79 â€” variÃ¡vel: `{ limit, offset }`
-- L81 â€” variÃ¡vel: `baseQuery`
-- L100 â€” variÃ¡vel: `countQuery`
-- L102 â€” variÃ¡vel: `itemsQuery`
+- L17 â€” variÃ¡vel: `IN_PROGRESS_STATUS_NAMES`
+- L25 â€” variÃ¡vel: `fetchQueueMetrics`
+- L26 â€” variÃ¡vel: `query`
+- L44 â€” parÃ¢metro: `builder`
+- L44 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L51 â€” variÃ¡vel: `result`
+- L58 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L77 â€” variÃ¡vel: `findQueueRequests`
+- L80 â€” variÃ¡vel: `{ limit, offset }`
+- L82 â€” variÃ¡vel: `baseQuery`
+- L101 â€” variÃ¡vel: `countQuery`
+- L103 â€” variÃ¡vel: `itemsQuery`
 - L119 â€” variÃ¡vel: `[countResult, items]`
 - L120 â€” variÃ¡vel: `total`
 - L125 â€” variÃ¡vel: `fetchAllAssignees`
@@ -5109,11 +5152,15 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.schemas.ts](../src/modules/queue/queue.schemas.ts)
 
-- L5 â€” variÃ¡vel: `queueFilterShape`
-- L25 â€” parÃ¢metro: `value`
-- L25 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L38 â€” variÃ¡vel: `queueFilterQuerySchema`
-- L50 â€” variÃ¡vel: `queueQuerySchema`
+- L11 â€” variÃ¡vel: `queueFilterShape`
+- L31 â€” parÃ¢metro: `value`
+- L31 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L43 â€” variÃ¡vel: `queueSortShape`
+- L57 â€” retorno da funÃ§Ã£o: `applyQueueRefinements()`
+- L65 â€” parÃ¢metro: `filters`
+- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L72 â€” variÃ¡vel: `queueFilterQuerySchema`
+- L81 â€” variÃ¡vel: `queueQuerySchema`
 
 ### [src/modules/queue/queue.service.ts](../src/modules/queue/queue.service.ts)
 
@@ -5121,7 +5168,7 @@ interface GroupedIssues {
 - L21 â€” variÃ¡vel: `userId`
 - L25 â€” variÃ¡vel: `getQueueMetricsService`
 - L36 â€” variÃ¡vel: `listQueueService`
-- L40 â€” variÃ¡vel: `{ page, pageSize, search, status, priority, assigneeId, unassigned }`
+- L40 â€” variÃ¡vel: `{ page, pageSize, assigneeId, sortBy, sortOrder, ...queueFilters }`
 - L41 â€” variÃ¡vel: `offset`
 - L43 â€” variÃ¡vel: `repoUnassigned`
 - L44 â€” variÃ¡vel: `repoAssigneeId`
@@ -5133,6 +5180,10 @@ interface GroupedIssues {
 - L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L70 â€” variÃ¡vel: `formattedData`
 
+### [src/modules/queue/queue.sort.ts](../src/modules/queue/queue.sort.ts)
+
+- L10 â€” variÃ¡vel: `SORT_COLUMNS`
+
 ### [src/modules/reports/reports.controller.ts](../src/modules/reports/reports.controller.ts)
 
 - L9 â€” variÃ¡vel: `parsed`
@@ -5141,15 +5192,14 @@ interface GroupedIssues {
 
 ### [src/modules/reports/reports.repository.ts](../src/modules/reports/reports.repository.ts)
 
-- L8 â€” variÃ¡vel: `BUSINESS_TIME_ZONE`
 - L9 â€” variÃ¡vel: `OPENED_MONTH_SQL`
-- L112 â€” variÃ¡vel: `query`
-- L140 â€” variÃ¡vel: `query`
-- L159 â€” variÃ¡vel: `query`
-- L174 â€” variÃ¡vel: `query`
-- L188 â€” variÃ¡vel: `query`
-- L202 â€” variÃ¡vel: `[statuses, categories, priorities]`
-- L221 â€” variÃ¡vel: `query`
+- L103 â€” variÃ¡vel: `query`
+- L131 â€” variÃ¡vel: `query`
+- L150 â€” variÃ¡vel: `query`
+- L165 â€” variÃ¡vel: `query`
+- L179 â€” variÃ¡vel: `query`
+- L193 â€” variÃ¡vel: `[statuses, categories, priorities]`
+- L212 â€” variÃ¡vel: `query`
 
 ### [src/modules/reports/reports.router.ts](../src/modules/reports/reports.router.ts)
 
@@ -5157,15 +5207,14 @@ interface GroupedIssues {
 
 ### [src/modules/reports/reports.schema.ts](../src/modules/reports/reports.schema.ts)
 
-- L4 â€” variÃ¡vel: `optionalDate`
-- L5 â€” variÃ¡vel: `optionalId`
-- L7 â€” variÃ¡vel: `dashboardQuerySchema`
-- L17 â€” parÃ¢metro: `query`
-- L17 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L5 â€” variÃ¡vel: `optionalDate`
+- L6 â€” variÃ¡vel: `optionalId`
+- L8 â€” variÃ¡vel: `dashboardQuerySchema`
+- L18 â€” parÃ¢metro: `query`
+- L18 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/reports/reports.service.ts](../src/modules/reports/reports.service.ts)
 
-- L12 â€” variÃ¡vel: `BUSINESS_TIME_ZONE`
 - L13 â€” variÃ¡vel: `CSV_HEADERS`
 - L28 â€” variÃ¡vel: `dateTimeFormatter`
 - L38 â€” variÃ¡vel: `filenameDateFormatter`
@@ -5734,6 +5783,10 @@ interface GroupedIssues {
 - L162 â€” variÃ¡vel: `value`
 - L164 â€” variÃ¡vel: `date`
 
+### [src/shared/datetime/businessDay.ts](../src/shared/datetime/businessDay.ts)
+
+- L4 â€” variÃ¡vel: `BUSINESS_TIME_ZONE`
+
 ### [src/shared/errors/AppError.ts](../src/shared/errors/AppError.ts)
 
 - L5 â€” parÃ¢metro: `statusCode`
@@ -5970,6 +6023,11 @@ interface GroupedIssues {
 - L122 â€” variÃ¡vel: `STATUS_MODES`
 - L153 â€” variÃ¡vel: `PRIORITIZATION_CRITERIA`
 
+### [src/shared/types/queue.types.ts](../src/shared/types/queue.types.ts)
+
+- L24 â€” variÃ¡vel: `QUEUE_SORT_BY`
+- L35 â€” variÃ¡vel: `QUEUE_SORT_ORDER`
+
 ### [src/shared/types/requests.ts](../src/shared/types/requests.ts)
 
 - L10 â€” variÃ¡vel: `REQUEST_PRIORITIES`
@@ -6172,7 +6230,7 @@ interface GroupedIssues {
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
-- L50 â€” variÃ¡vel: `result`
+- L51 â€” variÃ¡vel: `result`
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 

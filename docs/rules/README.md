@@ -33,6 +33,7 @@ OpenAPI deve ser corrigida se descrever o comportamento errado.
 | [`reports.md`](reports.md)                             | Dashboard, métricas e exportação CSV                          |
 | [`notifications.md`](notifications.md)                 | Eventos, audiência, allowlist e entrega SSE                   |
 | [`public-tracking.md`](public-tracking.md)             | Modo de acesso, identidade do solicitante e anti-enumeração   |
+| [`request-search.md`](request-search.md)               | Busca por conteúdo, filtros de data/departamento e ordenação  |
 
 ## Decisões pendentes
 

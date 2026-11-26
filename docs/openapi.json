@@ -4061,7 +4061,7 @@
       "get": {
         "tags": ["Fila de atendimento"],
         "summary": "Listar fila de atendimento",
-        "description": "Listagem paginada da fila com busca e filtros. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
+        "description": "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
         "operationId": "getQueue",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4110,6 +4110,45 @@
             "required": false,
             "description": "`true`/`1` lista apenas sem responsável. Não pode ser combinado com `assigneeId` diferente de `unassigned`.",
             "schema": { "type": "string", "enum": ["true", "1", "false", "0"] }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": false,
+            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-01" }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": false,
+            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-30" }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "description": "Departamento do solicitante. Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
+            "schema": { "type": "string", "maxLength": 100, "example": "Desenvolvimento" }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "description": "Campo de ordenação. `status` segue a ordem do ciclo de vida e `priority` a gravidade (Crítica antes de Baixa em `desc`). O desempate é feito por `protocol` em ordem ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `requesterName`, `status`, `priority` ou `assignee`.",
+            "schema": {
+              "type": "string",
+              "enum": ["createdAt", "protocol", "requesterName", "status", "priority", "assignee"],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "required": false,
+            "description": "Direção da ordenação.",
+            "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" }
           }
         ],
         "responses": {
@@ -4912,7 +4951,7 @@
       "get": {
         "tags": ["Relatórios"],
         "summary": "Exportar solicitações em CSV",
-        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas no fuso `America/Sao_Paulo`.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`.",
+        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas no fuso `America/Sao_Paulo`.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `dateFrom`/`dateTo` filtram a abertura e `department` filtra o departamento do solicitante; todos são combináveis com `search`.",
         "operationId": "exportRequestsCsv",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4946,6 +4985,27 @@
             "in": "query",
             "required": false,
             "schema": { "type": "string", "enum": ["true", "1", "false", "0"] }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": false,
+            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-01" }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": false,
+            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial `America/Sao_Paulo`.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-30" }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "description": "Departamento do solicitante. Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
+            "schema": { "type": "string", "maxLength": 100, "example": "Desenvolvimento" }
           }
         ],
         "responses": {
