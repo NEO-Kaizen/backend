@@ -120,7 +120,8 @@ Armazena o catálogo de Status do Motor v4. Apenas parte dos Status é pública
 (`is_public = true`); os 17 valores semeados são a referência base, não uma
 lista fechada. A semântica das flags e modos (`is_core`, `is_public`,
 `is_terminal`, `is_restricted`, `is_paused`, `triage_mode`, `mapping_mode`)
-está em [`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md);
+está em [`Pausa de Status`](../rules/requests-lifecycle.md#pausa-de-status) e
+nas regras de [ciclo de vida](../rules/requests-lifecycle.md);
 esta seção descreve apenas o schema. O default de `is_active` passou a `true`
 na revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
 
