@@ -19,7 +19,7 @@ reportsRoutes.get(
 reportsRoutes.get(
   "/request/internal/:protocol/pdf",
   authMiddleware,
-  requireRole("Gestor", "Administrador"),
+  requireRole("Analista", "Gestor", "Administrador"),
   getReportPdfController,
 );
 

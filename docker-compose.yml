@@ -41,6 +41,7 @@ services:
       - "${PORT:-3000}:${PORT:-3000}"
     volumes:
       - ./src:/app/src
+      - ./assets:/app/assets:ro
       - ./migrations:/app/migrations
       - ./seeds:/app/seeds
       - ./knexfile.js:/app/knexfile.js

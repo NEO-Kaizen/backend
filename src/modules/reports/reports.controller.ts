@@ -17,7 +17,15 @@ export async function getReportPdfController(req: Request, res: Response) {
     throw new AppError(formatZodIssues(parsed.error, "params"), 400);
   }
 
-  const pdfBuffer = await getGenerateRequestPDF({ protocol: parsed.data.protocol });
+  const actorId = Number(req.user?.id);
+  if (!req.user || !Number.isInteger(actorId) || actorId <= 0) {
+    throw new AppError("Token inválido ou expirado", 401);
+  }
+
+  const pdfBuffer = await getGenerateRequestPDF(
+    { protocol: parsed.data.protocol },
+    { id: actorId, role: req.user.role },
+  );
 
   return res
     .status(200)
