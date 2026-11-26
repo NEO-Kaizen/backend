@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
 import type { PublicationStatus, SuppressionReason } from "../../shared/types/duplicates.ts";
 import { isCompletedStatus } from "../../shared/types/status.ts";
-import type { DuplicateCompletedWindow } from "../../shared/types/systemSettings.ts";
+import {
+  warnDuplicateCompletedWindowFallback,
+  type DuplicateCompletedWindow,
+} from "./completedWindow.ts";
 import {
   findExistingProjectionForUpdate,
   findProjectionSource,
@@ -149,7 +152,9 @@ export async function publishRequestProjection(
   requestId: string,
   window?: DuplicateCompletedWindow,
 ): Promise<void> {
-  const resolvedWindow = window ?? (await getDuplicateCompletedWindow(trx));
+  const resolvedWindow =
+    window ??
+    (await getDuplicateCompletedWindow({ trx, onFallback: warnDuplicateCompletedWindowFallback }));
   const source = await findProjectionSource(trx, requestId, resolvedWindow);
 
   // Solicitação removida fisicamente: não há o que projetar.

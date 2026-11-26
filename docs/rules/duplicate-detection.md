@@ -79,13 +79,17 @@ Antes de publicar, o título e o resumo passam pelo **gate de PII**: CPF, CNPJ
 dígitos, RG, CEP, placa antiga/Mercosul e sequências de 7+ dígitos. Os padrões
 aceitam separadores opcionais e duplos (espaço, ponto, hífen e, no CNPJ,
 barra), cobrem o CNPJ alfanumérico (`12.ABC.345/01DE-35`), detectam RG canônico
-com dígito verificador e reconhecem placa antiga/Mercosul em maiúsculas ou
-minúsculas (`ABC-1234`, `abc-1234`, `abc1d23`). RG de 8 dígitos exige contexto
-(`RG 12.345.678`); placa com espaço exige caixa alta (`ABC 1234`) ou contexto
-(`placa abc 1234`) para não casar anos, valores e unidades. O gate **não valida
-dígito verificador** de CPF/CNPJ: um número digitado com erro continua sendo PII
-e precisa cair para o template. O gate também é conservador com tokens de três
-letras colados a quatro dígitos: `ano2026`, por exemplo, cai para o template.
+com dígito verificador e RG de 8 dígitos no formato 2.3.3 mesmo sem rótulo
+(`12.345.678`, `12 345 678`, `12-345-678`). Placa antiga com hífen é detectada
+em maiúsculas ou minúsculas (`ABC-1234`, `abc-1234`); sem hífen, exige caixa
+alta (`ABC1234`). Mercosul é reconhecida em qualquer caixa (`abc1d23`). Placa
+com espaço exige caixa alta (`ABC 1234`) ou contexto (`placa abc 1234`) para não
+casar anos, valores e unidades; `ano2026` não é tratado como placa. O gate
+**não valida dígito verificador** de CPF/CNPJ: um número digitado com erro
+continua sendo PII e precisa cair para o template. Como o RG de 8 dígitos usa o
+formato 2.3.3, números nesse mesmo formato, como `10.000.000`, também caem para
+o template por conservadorismo; valores no formato 1.3.3 (`R$ 1.500.000`,
+`2.000.000 de registros`) não casam.
 
 É um gate, não mascaramento parcial: **qualquer match em qualquer um dos dois
 campos derruba os dois** para o template. Título ou resumo vazio após `trim()`

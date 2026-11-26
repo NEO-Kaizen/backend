@@ -2,13 +2,13 @@ import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import { isPublicationStatus, type PublicationStatus } from "../../shared/types/duplicates.ts";
 import {
-  createDuplicateCompletedWindowFallbackWarner,
   DEFAULT_DUPLICATE_COMPLETED_WINDOW,
   DUPLICATE_COMPLETED_WINDOW_MONTHS,
   parseDuplicateCompletedWindow,
+  warnDuplicateCompletedWindowFallback,
   type DuplicateCompletedWindow,
   type DuplicateCompletedWindowFallbackWarner,
-} from "../../shared/types/systemSettings.ts";
+} from "./completedWindow.ts";
 import {
   COMPLETED_REQUEST_TEMPLATE_VERSION,
   COMPLETED_SUMMARY_TEMPLATE,
@@ -304,20 +304,20 @@ export async function isDuplicateDetectionEnabled(trx?: Knex.Transaction): Promi
   return row?.duplicate_detection_enabled === true;
 }
 
-const warnCompletedWindowFallback = createDuplicateCompletedWindowFallbackWarner((message) =>
-  console.warn(message),
-);
+export interface GetDuplicateCompletedWindowOptions {
+  trx?: Knex.Transaction;
+  onFallback: DuplicateCompletedWindowFallbackWarner;
+}
 
 /**
  * Janela do corpus de concluídas. O CHECK da migration garante 1..36; singleton
- * ausente ou valor inválido cai para o padrão 3 com um aviso único por processo,
- * para um banco mal configurado não publicar em silêncio. O aviso é injetável
- * para os testes não dependerem de estado de módulo.
+ * ausente ou valor inválido cai para o padrão 3 com aviso explícito do
+ * chamador, para um banco mal configurado não publicar em silêncio.
  */
-export async function getDuplicateCompletedWindow(
-  trx?: Knex.Transaction,
-  onFallback: DuplicateCompletedWindowFallbackWarner = warnCompletedWindowFallback,
-): Promise<DuplicateCompletedWindow> {
+export async function getDuplicateCompletedWindow({
+  trx,
+  onFallback,
+}: GetDuplicateCompletedWindowOptions): Promise<DuplicateCompletedWindow> {
   const source = trx ?? db;
   const row: Record<string, unknown> | undefined = await source("system_settings")
     .where({ settings_id: 1 })
@@ -343,7 +343,10 @@ export async function listPublishedProjections(
   trx?: Knex.Transaction,
 ): Promise<PublicProjectionRow[]> {
   const source = trx ?? db;
-  const window = await getDuplicateCompletedWindow(trx);
+  const window = await getDuplicateCompletedWindow({
+    trx,
+    onFallback: warnDuplicateCompletedWindowFallback,
+  });
 
   const rows: Record<string, unknown>[] = await source("request_public_projections")
     .where(PUBLISHED_PROJECTION_FILTER)

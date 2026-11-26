@@ -11,21 +11,9 @@
  */
 import db from "../src/database/conection.ts";
 import { backfillConcludedAt } from "../src/modules/duplicates/backfillConcludedAt.ts";
+import { describeFailure } from "../src/shared/utils/describeFailure.ts";
 
 const dryRun = process.argv.includes("--dry-run");
-
-/**
- * Loga a causa sem stack nem SQL cru. O relatório é a saída esperada do CLI;
- * a mensagem sanitizada só ajuda a diagnosticar a falha na borda.
- */
-function describeFailure(error) {
-  if (!(error instanceof Error)) return "erro desconhecido";
-
-  const message = error.message.replace(/\s+/g, " ").trim();
-  if (!message) return error.name;
-
-  return message.length > 500 ? `${message.slice(0, 497)}...` : message;
-}
 
 try {
   const report = await backfillConcludedAt({ dryRun });

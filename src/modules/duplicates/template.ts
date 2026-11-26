@@ -17,23 +17,24 @@ export const COMPLETED_REQUEST_REDACTION_VERSION = "v1-regex";
 export const COMPLETED_REQUEST_TEMPLATE_VERSION = "v1-template";
 
 /**
- * Partes do template de concluída compartilhadas entre a materialização em TS
- * e o SQL da supressão em massa. As listas abaixo são a fonte única da
- * estrutura e da ordem; o repository só traduz `field` para a coluna.
- */
-export type CompletedTemplateField = "category" | "period";
-
-export type CompletedTemplatePart =
-  { readonly literal: string } | { readonly field: CompletedTemplateField };
-
-/**
  * Tradução única de cada campo do template para a coluna do snapshot público.
- * A materialização em TS usa o valor; a expressão SQL da supressão usa a coluna.
+ * O mapa também define os campos válidos: a materialização em TS usa o valor e
+ * a expressão SQL da supressão usa a coluna.
  */
 export const COMPLETED_TEMPLATE_COLUMNS = {
   category: "public_category",
   period: "public_period",
-} as const satisfies Record<CompletedTemplateField, string>;
+} as const;
+
+export type CompletedTemplateField = keyof typeof COMPLETED_TEMPLATE_COLUMNS;
+
+/**
+ * Partes do template de concluída compartilhadas entre a materialização em TS
+ * e o SQL da supressão em massa. As listas abaixo são a fonte única da
+ * estrutura e da ordem; o repository só traduz `field` para a coluna.
+ */
+export type CompletedTemplatePart =
+  { readonly literal: string } | { readonly field: CompletedTemplateField };
 
 export const COMPLETED_TITLE_TEMPLATE = [
   { literal: "Solicitação de " },
@@ -60,7 +61,7 @@ export interface PublicRequestTemplate {
 
 function materializeCompletedTemplate(
   parts: readonly CompletedTemplatePart[],
-  values: { category: string; period: string },
+  values: Record<CompletedTemplateField, string>,
 ): string {
   return parts.map((part) => ("field" in part ? values[part.field] : part.literal)).join("");
 }

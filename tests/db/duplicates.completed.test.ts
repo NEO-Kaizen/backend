@@ -12,7 +12,7 @@ import {
   resetDuplicateIndex,
 } from "../../src/modules/duplicates/indexLifecycle.ts";
 import { getDuplicateCompletedWindow } from "../../src/modules/duplicates/duplicates.repository.ts";
-import { parseDuplicateCompletedWindow } from "../../src/shared/types/systemSettings.ts";
+import { parseDuplicateCompletedWindow } from "../../src/modules/duplicates/completedWindow.ts";
 import { publishRequestProjection } from "../../src/modules/duplicates/projection.ts";
 import { toSaoPauloQuarter } from "../../src/modules/duplicates/template.ts";
 import { updateStatusById } from "../../src/modules/requests/requests.repository.ts";
@@ -142,7 +142,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
 
     const onFallback = vi.fn();
 
-    await expect(getDuplicateCompletedWindow(undefined, onFallback)).resolves.toEqual({
+    await expect(getDuplicateCompletedWindow({ onFallback })).resolves.toEqual({
       months: 3,
     });
     expect(onFallback).toHaveBeenCalledOnce();

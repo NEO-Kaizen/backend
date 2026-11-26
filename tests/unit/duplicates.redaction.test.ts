@@ -54,6 +54,9 @@ describe("gate de PII do texto de concluídas", () => {
     ["celular sem DDD", "99999-8888"],
     ["RG", "12.345.678-9"],
     ["RG com X", "12.345.678-X"],
+    ["RG de 8 dígitos", "12.345.678"],
+    ["RG de 8 dígitos com espaço", "12 345 678"],
+    ["RG de 8 dígitos com hífen", "12-345-678"],
     ["RG contextual de 8 dígitos", "RG 12.345.678"],
     ["RG contextual com espaços", "RG: 12 345 678"],
     ["CEP", "01310-100"],
@@ -63,7 +66,6 @@ describe("gate de PII do texto de concluídas", () => {
     ["placa antiga sem hífen", "ABC1234"],
     ["placa Mercosul", "ABC1D23"],
     ["placa antiga minúscula", "abc-1234"],
-    ["placa antiga sem hífen minúscula", "abc1234"],
     ["placa Mercosul minúscula", "abc1d23"],
     ["placa antiga com espaço em caixa alta", "ABC 1234"],
     ["placa Mercosul com espaço em caixa alta", "ABC 1D23"],
@@ -85,8 +87,7 @@ describe("gate de PII do texto de concluídas", () => {
     ["valor em reais", "R$ 1.500.000"],
     ["milhões de registros", "2.000.000 de registros"],
     ["telefone 0800", "0800 123 4567"],
-    ["RG de 8 dígitos sem contexto", "12.345.678"],
-    ["RG espaçado sem contexto", "12 345 678"],
+    ["token de três letras colado a quatro dígitos", "ano2026"],
     ["número curto", "12345"],
   ])("não trata %s como PII", (_label, text) => {
     expect(containsPersonalData(`Texto com ${text} no meio.`)).toBe(false);

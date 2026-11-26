@@ -4,62 +4,6 @@ import type { SolicitationMode } from "./portalConfig.ts";
 export type PortalSolicitationMode = SolicitationMode;
 
 /**
- * Intervalo e padrão da janela do corpus de concluídas (issue #210). O CHECK da
- * migration `20261126120100_add_duplicate_completed_window.js` mantém o mesmo
- * intervalo fixo no banco; estes valores são o default da leitura.
- */
-export const DUPLICATE_COMPLETED_WINDOW_MONTHS = {
-  min: 1,
-  max: 36,
-  default: 3,
-} as const;
-
-/**
- * Janela do corpus de concluídas já validada contra o intervalo do banco.
- * Carregar o valor como tipo de domínio evita que um `number` qualquer
- * atravesse publicação, varredura e backfill sem passar pela validação.
- */
-export interface DuplicateCompletedWindow {
-  readonly months: number;
-}
-
-export const DEFAULT_DUPLICATE_COMPLETED_WINDOW: DuplicateCompletedWindow = {
-  months: DUPLICATE_COMPLETED_WINDOW_MONTHS.default,
-};
-
-/** Converte o valor lido do banco para a janela; `null` quando inválido. */
-export function parseDuplicateCompletedWindow(value: unknown): DuplicateCompletedWindow | null {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    value < DUPLICATE_COMPLETED_WINDOW_MONTHS.min ||
-    value > DUPLICATE_COMPLETED_WINDOW_MONTHS.max
-  ) {
-    return null;
-  }
-
-  return { months: value };
-}
-
-export type DuplicateCompletedWindowFallbackWarner = (message: string) => void;
-
-/**
- * Cria um aviso de fallback que dispara no máximo uma vez por processo. O
- * estado fica encapsulado na closure e pode ser injetado em testes.
- */
-export function createDuplicateCompletedWindowFallbackWarner(
-  warn: DuplicateCompletedWindowFallbackWarner,
-): DuplicateCompletedWindowFallbackWarner {
-  let hasWarned = false;
-
-  return (message) => {
-    if (hasWarned) return;
-    hasWarned = true;
-    warn(message);
-  };
-}
-
-/**
  * Linha da tabela `system_settings` — configuração global singleton (regras em
  * `docs/rules/portal-config.md`).
  *

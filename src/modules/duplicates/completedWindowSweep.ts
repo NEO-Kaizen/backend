@@ -1,4 +1,5 @@
 import db from "../../database/conection.ts";
+import { warnDuplicateCompletedWindowFallback } from "./completedWindow.ts";
 import {
   getDuplicateCompletedWindow,
   listSuppressedCompletedWithinWindow,
@@ -24,7 +25,9 @@ import { publishRequestProjection } from "./projection.ts";
 export const SWEEP_BATCH_SIZE = 50;
 
 export async function sweepCompletedWindow(): Promise<void> {
-  const window = await getDuplicateCompletedWindow();
+  const window = await getDuplicateCompletedWindow({
+    onFallback: warnDuplicateCompletedWindowFallback,
+  });
   await suppressCompletedOutsideWindow(window);
 
   const candidates = await listSuppressedCompletedWithinWindow(window);

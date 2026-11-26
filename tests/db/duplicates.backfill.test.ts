@@ -10,10 +10,35 @@ import { closeTestDb, resetTestDb, testDb } from "../helpers/testDb.ts";
 import { backfillConcludedAt } from "../../src/modules/duplicates/backfillConcludedAt.ts";
 import type { CreateRequestResponse } from "../../src/modules/DTOs/requests/RequestResponse.dto.ts";
 
+const backfillHooks = vi.hoisted(() => ({
+  afterCandidatesLoaded: undefined as (() => Promise<void>) | undefined,
+}));
+
 vi.mock("../../src/database/conection.ts", async () => {
   const { testDb } = await import("../helpers/testDb.ts");
   return { default: testDb };
 });
+
+vi.mock(
+  "../../src/modules/duplicates/backfillConcludedAt.repository.ts",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("../../src/modules/duplicates/backfillConcludedAt.repository.ts")
+      >();
+
+    return {
+      ...actual,
+      listCompletedRequestsMissingConcludedAt: async () => {
+        const candidates = await actual.listCompletedRequestsMissingConcludedAt();
+        const hook = backfillHooks.afterCandidatesLoaded;
+        backfillHooks.afterCandidatesLoaded = undefined;
+        if (hook) await hook();
+        return candidates;
+      },
+    };
+  },
+);
 
 const OCCURRED_AT = new Date("2026-09-15T12:00:00.000Z");
 const LEGACY_UPDATED_AT = new Date("2020-01-01T00:00:00.000Z");
@@ -25,6 +50,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  backfillHooks.afterCandidatesLoaded = undefined;
   await resetTestDb();
   await testDb("system_settings")
     .where({ settings_id: 1 })
@@ -315,50 +341,24 @@ describe("DB — backfill de concluded_at pela Auditoria", () => {
       newValue: "Concluído",
     });
 
-    // Segura a linha e muda o Status sem commit: a leitura de candidatas ainda
-    // enxerga o 16, mas o UPDATE do backfill encontra o novo Status depois.
-    const blocker = await testDb.transaction();
+    // Hook determinístico na fronteira do repository: a leitura de candidatas
+    // ainda enxerga o 16, mas o UPDATE do backfill encontra o novo Status.
+    backfillHooks.afterCandidatesLoaded = async () => {
+      await testDb("requests").where({ protocol: created.protocol }).update({ status_id: 13 });
+    };
 
-    try {
-      await blocker("requests").where({ protocol: created.protocol }).forUpdate().first();
-      await blocker("requests").where({ protocol: created.protocol }).update({ status_id: 13 });
+    const report = await backfillConcludedAt();
 
-      const pendingReport = backfillConcludedAt();
-
-      // O UPDATE do backfill fica bloqueado na linha até o commit do blocker.
-      await vi.waitFor(
-        async () => {
-          const blocked = await testDb("pg_stat_activity")
-            .whereRaw("datname = current_database()")
-            .whereRaw("pid <> pg_backend_pid()")
-            .where({ wait_event_type: "Lock", state: "active" })
-            .whereRaw("query ILIKE 'update%requests%'")
-            .first("pid");
-
-          expect(blocked).toBeDefined();
-        },
-        { timeout: 10_000, interval: 50 },
-      );
-
-      await blocker.commit();
-      const report = await pendingReport;
-
-      expect(report).toEqual({
-        dryRun: false,
-        scanned: 1,
-        updated: [],
-        withoutEvent: [],
-        skipped: [created.protocol],
-      });
-      await expect(requestRow(created.protocol)).resolves.toMatchObject({
-        status_id: 13,
-        concluded_at: null,
-      });
-    } catch (error) {
-      if (!blocker.isCompleted()) {
-        await blocker.rollback();
-      }
-      throw error;
-    }
+    expect(report).toEqual({
+      dryRun: false,
+      scanned: 1,
+      updated: [],
+      withoutEvent: [],
+      skipped: [created.protocol],
+    });
+    await expect(requestRow(created.protocol)).resolves.toMatchObject({
+      status_id: 13,
+      concluded_at: null,
+    });
   });
 });
