@@ -304,4 +304,61 @@ describe("DB — backfill de concluded_at pela Auditoria", () => {
       concluded_at: null,
     });
   });
+
+  it("marca como skipped quando o Status muda entre a leitura e o update", async () => {
+    const created = await createRequest();
+    await markCompletedWithoutConcludedAt(created.protocol);
+    await insertStatusAudit({
+      protocol: created.protocol,
+      actionType: "request.status_change",
+      previousValue: "Em triagem",
+      newValue: "Concluído",
+    });
+
+    // Segura a linha e muda o Status sem commit: a leitura de candidatas ainda
+    // enxerga o 16, mas o UPDATE do backfill encontra o novo Status depois.
+    const blocker = await testDb.transaction();
+
+    try {
+      await blocker("requests").where({ protocol: created.protocol }).forUpdate().first();
+      await blocker("requests").where({ protocol: created.protocol }).update({ status_id: 13 });
+
+      const pendingReport = backfillConcludedAt();
+
+      // O UPDATE do backfill fica bloqueado na linha até o commit do blocker.
+      await vi.waitFor(
+        async () => {
+          const blocked = await testDb("pg_stat_activity")
+            .whereRaw("datname = current_database()")
+            .whereRaw("pid <> pg_backend_pid()")
+            .where({ wait_event_type: "Lock", state: "active" })
+            .whereRaw("query ILIKE 'update%requests%'")
+            .first("pid");
+
+          expect(blocked).toBeDefined();
+        },
+        { timeout: 10_000, interval: 50 },
+      );
+
+      await blocker.commit();
+      const report = await pendingReport;
+
+      expect(report).toEqual({
+        dryRun: false,
+        scanned: 1,
+        updated: [],
+        withoutEvent: [],
+        skipped: [created.protocol],
+      });
+      await expect(requestRow(created.protocol)).resolves.toMatchObject({
+        status_id: 13,
+        concluded_at: null,
+      });
+    } catch (error) {
+      if (!blocker.isCompleted()) {
+        await blocker.rollback();
+      }
+      throw error;
+    }
+  });
 });

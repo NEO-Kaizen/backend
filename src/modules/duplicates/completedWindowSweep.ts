@@ -1,6 +1,6 @@
 import db from "../../database/conection.ts";
 import {
-  getDuplicateCompletedWindowMonths,
+  getDuplicateCompletedWindow,
   listSuppressedCompletedWithinWindow,
   suppressCompletedOutsideWindow,
 } from "./duplicates.repository.ts";
@@ -24,17 +24,17 @@ import { publishRequestProjection } from "./projection.ts";
 export const SWEEP_BATCH_SIZE = 50;
 
 export async function sweepCompletedWindow(): Promise<void> {
-  const windowMonths = await getDuplicateCompletedWindowMonths();
-  await suppressCompletedOutsideWindow(windowMonths);
+  const window = await getDuplicateCompletedWindow();
+  await suppressCompletedOutsideWindow(window);
 
-  const candidates = await listSuppressedCompletedWithinWindow(windowMonths);
+  const candidates = await listSuppressedCompletedWithinWindow(window);
 
   for (let start = 0; start < candidates.length; start += SWEEP_BATCH_SIZE) {
     const batch = candidates.slice(start, start + SWEEP_BATCH_SIZE);
 
     await db.transaction(async (trx) => {
       for (const requestId of batch) {
-        await publishRequestProjection(trx, requestId, windowMonths);
+        await publishRequestProjection(trx, requestId, window);
       }
     });
   }

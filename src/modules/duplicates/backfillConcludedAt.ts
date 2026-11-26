@@ -1,4 +1,6 @@
+import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import type { DuplicateCompletedWindow } from "../../shared/types/systemSettings.ts";
 import {
   listCompletedRequestsMissingConcludedAt,
   listStatusAuditEventsForProtocols,
@@ -12,7 +14,7 @@ import {
   resolveAuditEventStatusId,
   type ConcludedAtReplayResult,
 } from "./concludedAtReplay.ts";
-import { getDuplicateCompletedWindowMonths } from "./duplicates.repository.ts";
+import { getDuplicateCompletedWindow } from "./duplicates.repository.ts";
 import { publishRequestProjection } from "./projection.ts";
 
 /**
@@ -26,7 +28,8 @@ import { publishRequestProjection } from "./projection.ts";
  *
  * O processamento é em lotes de `BACKFILL_BATCH_SIZE`, com uma transação por
  * lote e uma única leitura de Auditoria por `whereIn`. A janela é lida uma vez
- * e reaproveitada em todas as publicações do lote.
+ * e reaproveitada em todas as publicações do lote. As contagens do lote só
+ * entram no relatório depois que a transação commita.
  */
 export const BACKFILL_BATCH_SIZE = 100;
 
@@ -45,6 +48,16 @@ export interface BackfillConcludedAtReport {
   skipped: string[];
 }
 
+interface BackfillBatchOutcome {
+  updated: string[];
+  withoutEvent: string[];
+  skipped: string[];
+}
+
+function createBatchOutcome(): BackfillBatchOutcome {
+  return { updated: [], withoutEvent: [], skipped: [] };
+}
+
 function replayFromEvents(
   events: readonly StatusAuditEvent[],
   statusIdsByName: ReadonlyMap<string, number>,
@@ -55,6 +68,85 @@ function replayFromEvents(
   });
 
   return replayConcludedAt(replayEvents);
+}
+
+/**
+ * Ponto comum entre o dry-run e o processamento real: resolve a conclusão
+ * vigente de uma candidata a partir dos eventos já carregados do lote.
+ */
+function resolveCandidateConclusion(
+  candidate: CompletedRequestCandidate,
+  eventsByProtocol: ReadonlyMap<string, StatusAuditEvent[]>,
+  statusIdsByName: ReadonlyMap<string, number>,
+): { protocol: string; concludedAt: Date | null } {
+  const replay = replayFromEvents(eventsByProtocol.get(candidate.protocol) ?? [], statusIdsByName);
+
+  return { protocol: candidate.protocol, concludedAt: replay.concludedAt };
+}
+
+function classifyDryRunBatch(
+  batch: readonly CompletedRequestCandidate[],
+  eventsByProtocol: ReadonlyMap<string, StatusAuditEvent[]>,
+  statusIdsByName: ReadonlyMap<string, number>,
+): BackfillBatchOutcome {
+  const outcome = createBatchOutcome();
+
+  for (const candidate of batch) {
+    const { protocol, concludedAt } = resolveCandidateConclusion(
+      candidate,
+      eventsByProtocol,
+      statusIdsByName,
+    );
+
+    if (concludedAt) {
+      outcome.updated.push(protocol);
+    } else {
+      outcome.withoutEvent.push(protocol);
+    }
+  }
+
+  return outcome;
+}
+
+async function processBackfillBatch(
+  trx: Knex.Transaction,
+  batch: readonly CompletedRequestCandidate[],
+  eventsByProtocol: ReadonlyMap<string, StatusAuditEvent[]>,
+  statusIdsByName: ReadonlyMap<string, number>,
+  window: DuplicateCompletedWindow,
+): Promise<BackfillBatchOutcome> {
+  const outcome = createBatchOutcome();
+
+  for (const candidate of batch) {
+    const { protocol, concludedAt } = resolveCandidateConclusion(
+      candidate,
+      eventsByProtocol,
+      statusIdsByName,
+    );
+
+    if (!concludedAt) {
+      outcome.withoutEvent.push(protocol);
+      continue;
+    }
+
+    const didUpdate = await setConcludedAtIfMissing(trx, candidate.request_id, concludedAt);
+
+    if (!didUpdate) {
+      outcome.skipped.push(protocol);
+      continue;
+    }
+
+    await publishRequestProjection(trx, candidate.request_id, window);
+    outcome.updated.push(protocol);
+  }
+
+  return outcome;
+}
+
+function mergeBatchOutcome(report: BackfillConcludedAtReport, outcome: BackfillBatchOutcome): void {
+  report.updated.push(...outcome.updated);
+  report.withoutEvent.push(...outcome.withoutEvent);
+  report.skipped.push(...outcome.skipped);
 }
 
 export async function backfillConcludedAt(
@@ -73,7 +165,7 @@ export async function backfillConcludedAt(
   if (candidates.length === 0) return report;
 
   const statusIdsByName = await listStatusIdsByName();
-  const windowMonths = await getDuplicateCompletedWindowMonths();
+  const window = await getDuplicateCompletedWindow();
 
   for (let start = 0; start < candidates.length; start += BACKFILL_BATCH_SIZE) {
     const batch = candidates.slice(start, start + BACKFILL_BATCH_SIZE);
@@ -81,60 +173,17 @@ export async function backfillConcludedAt(
 
     if (dryRun) {
       const eventsByProtocol = await listStatusAuditEventsForProtocols(protocols);
-      recordDryRunBatch(batch, eventsByProtocol, statusIdsByName, report);
+      mergeBatchOutcome(report, classifyDryRunBatch(batch, eventsByProtocol, statusIdsByName));
       continue;
     }
 
-    await db.transaction(async (trx) => {
+    const outcome = await db.transaction(async (trx) => {
       const eventsByProtocol = await listStatusAuditEventsForProtocols(protocols, trx);
-
-      for (const candidate of batch) {
-        const replay = replayFromEvents(
-          eventsByProtocol.get(candidate.protocol) ?? [],
-          statusIdsByName,
-        );
-
-        if (!replay.concludedAt) {
-          report.withoutEvent.push(candidate.protocol);
-          continue;
-        }
-
-        const didUpdate = await setConcludedAtIfMissing(
-          trx,
-          candidate.request_id,
-          replay.concludedAt,
-        );
-
-        if (!didUpdate) {
-          report.skipped.push(candidate.protocol);
-          continue;
-        }
-
-        await publishRequestProjection(trx, candidate.request_id, windowMonths);
-        report.updated.push(candidate.protocol);
-      }
+      return processBackfillBatch(trx, batch, eventsByProtocol, statusIdsByName, window);
     });
+
+    mergeBatchOutcome(report, outcome);
   }
 
   return report;
-}
-
-function recordDryRunBatch(
-  batch: readonly CompletedRequestCandidate[],
-  eventsByProtocol: ReadonlyMap<string, StatusAuditEvent[]>,
-  statusIdsByName: ReadonlyMap<string, number>,
-  report: BackfillConcludedAtReport,
-): void {
-  for (const candidate of batch) {
-    const replay = replayFromEvents(
-      eventsByProtocol.get(candidate.protocol) ?? [],
-      statusIdsByName,
-    );
-
-    if (replay.concludedAt) {
-      report.updated.push(candidate.protocol);
-    } else {
-      report.withoutEvent.push(candidate.protocol);
-    }
-  }
 }

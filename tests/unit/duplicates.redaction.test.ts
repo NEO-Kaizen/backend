@@ -62,8 +62,16 @@ describe("gate de PII do texto de concluídas", () => {
     ["placa antiga", "ABC-1234"],
     ["placa antiga sem hífen", "ABC1234"],
     ["placa Mercosul", "ABC1D23"],
+    ["placa antiga minúscula", "abc-1234"],
+    ["placa antiga sem hífen minúscula", "abc1234"],
+    ["placa Mercosul minúscula", "abc1d23"],
+    ["placa antiga com espaço em caixa alta", "ABC 1234"],
+    ["placa Mercosul com espaço em caixa alta", "ABC 1D23"],
     ["placa antiga com espaço e contexto", "placa ABC 1234"],
+    ["placa antiga minúscula com contexto", "placa abc 1234"],
     ["veículo com placa espaçada", "veículo ABC 1234"],
+    ["veículo com placa Mercosul espaçada", "veículo ABC 1D23"],
+    ["veículo com placa Mercosul minúscula", "veículo abc1d23"],
     ["sequência longa de dígitos", "12345678901"],
   ])("detecta %s", (_label, pii) => {
     expect(containsPersonalData(`Texto com ${pii} no meio.`)).toBe(true);

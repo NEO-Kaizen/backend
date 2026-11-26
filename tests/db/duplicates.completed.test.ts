@@ -11,7 +11,8 @@ import {
   rebuildDuplicateIndex,
   resetDuplicateIndex,
 } from "../../src/modules/duplicates/indexLifecycle.ts";
-import { getDuplicateCompletedWindowMonths } from "../../src/modules/duplicates/duplicates.repository.ts";
+import { getDuplicateCompletedWindow } from "../../src/modules/duplicates/duplicates.repository.ts";
+import { parseDuplicateCompletedWindow } from "../../src/shared/types/systemSettings.ts";
 import { publishRequestProjection } from "../../src/modules/duplicates/projection.ts";
 import { toSaoPauloQuarter } from "../../src/modules/duplicates/template.ts";
 import { updateStatusById } from "../../src/modules/requests/requests.repository.ts";
@@ -114,13 +115,16 @@ async function backdateConclusion(protocol: string, monthsAgo: number): Promise<
     });
 }
 
-async function publishWithWindow(protocol: string, windowMonths: number): Promise<void> {
+async function publishWithWindow(protocol: string, months: number): Promise<void> {
+  const window = parseDuplicateCompletedWindow(months);
+  if (!window) throw new Error(`Janela inválida no teste: ${months}`);
+
   const request = await requestRow(protocol);
   await testDb.transaction(async (trx) => {
     await trx("system_settings")
       .where({ settings_id: 1 })
-      .update({ duplicate_completed_window_months: windowMonths });
-    await publishRequestProjection(trx, request.request_id);
+      .update({ duplicate_completed_window_months: months });
+    await publishRequestProjection(trx, request.request_id, window);
   });
 }
 
@@ -136,7 +140,12 @@ describe("DB — concluídas com texto tarjado e janela", () => {
   it("usa a janela padrão 3 quando o singleton está ausente", async () => {
     await testDb("system_settings").del();
 
-    await expect(getDuplicateCompletedWindowMonths()).resolves.toBe(3);
+    const onFallback = vi.fn();
+
+    await expect(getDuplicateCompletedWindow(undefined, onFallback)).resolves.toEqual({
+      months: 3,
+    });
+    expect(onFallback).toHaveBeenCalledOnce();
   });
 
   it("conclusão via PATCH grava concluded_at e publica título/resumo tarjados", async () => {

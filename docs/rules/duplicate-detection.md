@@ -78,11 +78,14 @@ Antes de publicar, o título e o resumo passam pelo **gate de PII**: CPF, CNPJ
 (numérico e alfanumérico), e-mail, telefone com DDD/`+55` ou celular de 9
 dígitos, RG, CEP, placa antiga/Mercosul e sequências de 7+ dígitos. Os padrões
 aceitam separadores opcionais e duplos (espaço, ponto, hífen e, no CNPJ,
-barra), cobrem o CNPJ alfanumérico (`12.ABC.345/01DE-35`) e detectam RG
-canônico com dígito verificador; RG de 8 dígitos e placa antiga com espaço
-exigem contexto (`RG 12.345.678`, `placa ABC 1234`) para não casar anos, valores
-e unidades. O gate **não valida dígito verificador** de CPF/CNPJ: um número
-digitado com erro continua sendo PII e precisa cair para o template.
+barra), cobrem o CNPJ alfanumérico (`12.ABC.345/01DE-35`), detectam RG canônico
+com dígito verificador e reconhecem placa antiga/Mercosul em maiúsculas ou
+minúsculas (`ABC-1234`, `abc-1234`, `abc1d23`). RG de 8 dígitos exige contexto
+(`RG 12.345.678`); placa com espaço exige caixa alta (`ABC 1234`) ou contexto
+(`placa abc 1234`) para não casar anos, valores e unidades. O gate **não valida
+dígito verificador** de CPF/CNPJ: um número digitado com erro continua sendo PII
+e precisa cair para o template. O gate também é conservador com tokens de três
+letras colados a quatro dígitos: `ano2026`, por exemplo, cai para o template.
 
 É um gate, não mascaramento parcial: **qualquer match em qualquer um dos dois
 campos derruba os dois** para o template. Título ou resumo vazio após `trim()`
@@ -117,7 +120,7 @@ A varredura da janela roda nos dois sentidos e não depende só da publicação:
 - `listPublishedProjections` ainda filtra concluídas fora da janela, cobrindo a
   defasagem entre a mudança da configuração e o próximo ciclo.
 
-No sentido de encolhimento, `suppressCompletedOutsideWindow(windowMonths)` marca
+No sentido de encolhimento, `suppressCompletedOutsideWindow(window)` marca
 `publication_status = 'suppressed'`, `suppression_reason = 'outside_window'`,
 `suppressed_at = now()`, substitui o texto pelo template (`v1-template`, gerado
 a partir das mesmas partes do template em TS) e incrementa

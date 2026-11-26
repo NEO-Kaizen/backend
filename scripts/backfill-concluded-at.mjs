@@ -14,12 +14,24 @@ import { backfillConcludedAt } from "../src/modules/duplicates/backfillConcluded
 
 const dryRun = process.argv.includes("--dry-run");
 
+/**
+ * Loga a causa sem stack nem SQL cru. O relatório é a saída esperada do CLI;
+ * a mensagem sanitizada só ajuda a diagnosticar a falha na borda.
+ */
+function describeFailure(error) {
+  if (!(error instanceof Error)) return "erro desconhecido";
+
+  const message = error.message.replace(/\s+/g, " ").trim();
+  if (!message) return error.name;
+
+  return message.length > 500 ? `${message.slice(0, 497)}...` : message;
+}
+
 try {
   const report = await backfillConcludedAt({ dryRun });
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
-  const errorName = error instanceof Error ? error.name : "erro desconhecido";
-  console.error(`[backfill-concluded-at] falha ao executar o backfill (${errorName})`);
+  console.error(`[backfill-concluded-at] falha ao executar o backfill (${describeFailure(error)})`);
   process.exitCode = 1;
 } finally {
   await db.destroy();

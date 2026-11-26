@@ -36,11 +36,17 @@ const PII_PATTERNS: readonly RegExp[] = [
   /\bRG\s*:?\s*\d{1,2}\s*[.-]?\s*\d{3}\s*[.-]?\s*\d{3}\s*[.-]?\s*[\dXx]?\b/i,
   // CEP com separadores opcionais.
   /\b\d{5}\s*[.-]?\s*\d{3}\b/,
-  // Placa antiga e Mercosul em formato canônico. A variante com espaço exige
-  // contexto; sem isso, "no ano 2026" e "com 2026 clientes" cairiam no gate.
-  /\b[A-Z]{3}-?\d{4}\b/,
-  /\b[A-Z]{3}-?\d[A-Z]\d{2}\b/,
+  // Placa antiga e Mercosul em formato canônico, sem depender de caixa. Um
+  // token de três letras colado a quatro dígitos cai aqui mesmo sem ser placa
+  // ("ano2026"); o gate é conservador e usa o template.
+  /\b[A-Z]{3}-?\d{4}\b/i,
+  /\b[A-Z]{3}-?\d[A-Z]\d{2}\b/i,
+  // Placa com espaço: em caixa alta basta o formato; em minúsculas exige o
+  // contexto abaixo para não casar "no ano 2026" nem "com 2026 clientes".
+  /\b[A-Z]{3}\s\d{4}\b/,
+  /\b[A-Z]{3}\s\d[A-Z]\d{2}\b/,
   /\b(?:placa|ve[íi]culo)\s*:?\s*[A-Z]{3}\s\d{4}\b/i,
+  /\b(?:placa|ve[íi]culo)\s*:?\s*[A-Z]{3}\s\d[A-Z]\d{2}\b/i,
   // Sequência longa de dígitos (CPF/CNPJ/CEP/telefone sem máscara etc.).
   /\b\d{7,}\b/,
 ];

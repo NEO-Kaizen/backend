@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
 import type { PublicationStatus, SuppressionReason } from "../../shared/types/duplicates.ts";
 import { isCompletedStatus } from "../../shared/types/status.ts";
+import type { DuplicateCompletedWindow } from "../../shared/types/systemSettings.ts";
 import {
   findExistingProjectionForUpdate,
   findProjectionSource,
-  getDuplicateCompletedWindowMonths,
+  getDuplicateCompletedWindow,
   type ProjectionSourceRow,
 } from "./duplicates.repository.ts";
 import { buildCompletedProjectionText } from "./redact.ts";
@@ -140,16 +141,16 @@ function buildProjectionText(
  * Cria ou atualiza a projeção de uma Solicitação. Deve rodar na MESMA
  * transação da criação, edição, transição de Status ou desfecho da Triagem.
  *
- * `windowMonths` permite que backfill e varredura leiam a configuração uma vez
- * por lote; sem ele, a janela é lida nesta chamada.
+ * `window` permite que backfill e varredura leiam a configuração uma vez por
+ * lote; sem ele, a janela é lida nesta chamada.
  */
 export async function publishRequestProjection(
   trx: Knex.Transaction,
   requestId: string,
-  windowMonths?: number,
+  window?: DuplicateCompletedWindow,
 ): Promise<void> {
-  const resolvedWindowMonths = windowMonths ?? (await getDuplicateCompletedWindowMonths(trx));
-  const source = await findProjectionSource(trx, requestId, resolvedWindowMonths);
+  const resolvedWindow = window ?? (await getDuplicateCompletedWindow(trx));
+  const source = await findProjectionSource(trx, requestId, resolvedWindow);
 
   // Solicitação removida fisicamente: não há o que projetar.
   if (!source) return;

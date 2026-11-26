@@ -123,16 +123,16 @@ internos.
 `sweepCompletedWindow()` roda antes de cada poll e de cada rebuild. Ela
 reconcilia nos dois sentidos:
 
-1. `suppressCompletedOutsideWindow(windowMonths)` atualiza somente projeções
+1. `suppressCompletedOutsideWindow(window)` atualiza somente projeções
    `published` e listáveis com
    `public_concluded_at < now() - make_interval(months => ?)`, gravando
    `publication_status = 'suppressed'`, `suppression_reason = 'outside_window'`,
    `suppressed_at = now()`, o template de concluída (`v1-template`) e
    `version + 1`.
-2. `listSuppressedCompletedWithinWindow(windowMonths)` busca linhas
+2. `listSuppressedCompletedWithinWindow(window)` busca linhas
    `suppressed`/`outside_window` com
    `public_concluded_at >= now() - make_interval(months => ?)` e republica em
-   lotes de até 50, com uma transação por lote e `windowMonths` passado para
+   lotes de até 50, com uma transação por lote e a janela passada para
    `publishRequestProjection`. A publicação relê `requests` e reavalia todas as
    regras, regenerando ou mantendo a supressão.
 
@@ -143,13 +143,14 @@ defasagem entre a mudança da configuração e a varredura.
 
 `backfillConcludedAt` lê candidatos com `status_id = 16 AND concluded_at IS NULL`
 e a Auditoria dos protocolos do lote em uma única consulta `whereIn`. Processa
-em lotes de 100, com uma transação por lote e `windowMonths` lido uma vez. O
-update usa a mesma condição, preserva `updated_at`/`updated_by` e republica a
-projeção na mesma transação. O relatório tem `updated`, `withoutEvent` e
-`skipped` (Status alterado entre a leitura e o update), fechando
-`scanned = updated + withoutEvent + skipped`. O CLI
-(`npm run backfill:concluded-at`) aceita `--dry-run` e imprime o relatório JSON.
-Concluídas sem evento de entrada vigente não recebem data e não ganham projeção.
+em lotes de 100, com uma transação por lote e a janela lida uma vez. O update
+usa a mesma condição, preserva `updated_at`/`updated_by` e republica a projeção
+na mesma transação. O relatório tem `updated`, `withoutEvent` e `skipped`
+(Status alterado entre a leitura e o update), fechando
+`scanned = updated + withoutEvent + skipped`; as contagens de um lote só entram
+no relatório depois do commit. O CLI (`npm run backfill:concluded-at`) aceita
+`--dry-run` e imprime o relatório JSON. Concluídas sem evento de entrada vigente
+não recebem data e não ganham projeção.
 
 ## Leitura e índice
 

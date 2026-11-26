@@ -1,10 +1,18 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import { isPublicationStatus, type PublicationStatus } from "../../shared/types/duplicates.ts";
-import { DUPLICATE_COMPLETED_WINDOW_MONTHS } from "../../shared/types/systemSettings.ts";
+import {
+  createDuplicateCompletedWindowFallbackWarner,
+  DEFAULT_DUPLICATE_COMPLETED_WINDOW,
+  DUPLICATE_COMPLETED_WINDOW_MONTHS,
+  parseDuplicateCompletedWindow,
+  type DuplicateCompletedWindow,
+  type DuplicateCompletedWindowFallbackWarner,
+} from "../../shared/types/systemSettings.ts";
 import {
   COMPLETED_REQUEST_TEMPLATE_VERSION,
   COMPLETED_SUMMARY_TEMPLATE,
+  COMPLETED_TEMPLATE_COLUMNS,
   COMPLETED_TITLE_TEMPLATE,
   type CompletedTemplatePart,
 } from "./template.ts";
@@ -239,7 +247,7 @@ function parseExistingProjection(row: Record<string, unknown>): ExistingProjecti
 export async function findProjectionSource(
   trx: Knex.Transaction,
   requestId: string,
-  windowMonths: number,
+  window: DuplicateCompletedWindow,
 ): Promise<ProjectionSourceRow | undefined> {
   const rows: Record<string, unknown>[] = await trx("requests as r")
     .join("categories as c", "c.category_id", "r.category_id")
@@ -264,7 +272,7 @@ export async function findProjectionSource(
     .select(
       trx.raw(
         "(r.concluded_at IS NOT NULL AND r.concluded_at >= now() - make_interval(months => ?)) as is_within_window",
-        [windowMonths],
+        [window.months],
       ),
     )
     .limit(1);
@@ -296,37 +304,34 @@ export async function isDuplicateDetectionEnabled(trx?: Knex.Transaction): Promi
   return row?.duplicate_detection_enabled === true;
 }
 
-let hasWarnedCompletedWindowFallback = false;
+const warnCompletedWindowFallback = createDuplicateCompletedWindowFallbackWarner((message) =>
+  console.warn(message),
+);
 
 /**
- * Janela do corpus de concluídas em meses. O CHECK da migration garante 1..36;
- * singleton ausente ou valor inválido cai para o padrão 3 com um aviso único
- * por processo, para um banco mal configurado não publicar em silêncio.
+ * Janela do corpus de concluídas. O CHECK da migration garante 1..36; singleton
+ * ausente ou valor inválido cai para o padrão 3 com um aviso único por processo,
+ * para um banco mal configurado não publicar em silêncio. O aviso é injetável
+ * para os testes não dependerem de estado de módulo.
  */
-export async function getDuplicateCompletedWindowMonths(trx?: Knex.Transaction): Promise<number> {
+export async function getDuplicateCompletedWindow(
+  trx?: Knex.Transaction,
+  onFallback: DuplicateCompletedWindowFallbackWarner = warnCompletedWindowFallback,
+): Promise<DuplicateCompletedWindow> {
   const source = trx ?? db;
   const row: Record<string, unknown> | undefined = await source("system_settings")
     .where({ settings_id: 1 })
     .first("duplicate_completed_window_months");
 
-  const windowMonths = row?.duplicate_completed_window_months;
-  if (
-    typeof windowMonths === "number" &&
-    Number.isInteger(windowMonths) &&
-    windowMonths >= DUPLICATE_COMPLETED_WINDOW_MONTHS.min &&
-    windowMonths <= DUPLICATE_COMPLETED_WINDOW_MONTHS.max
-  ) {
-    return windowMonths;
-  }
+  const window = parseDuplicateCompletedWindow(row?.duplicate_completed_window_months);
 
-  if (!hasWarnedCompletedWindowFallback) {
-    hasWarnedCompletedWindowFallback = true;
-    console.warn(
-      `[duplicates] duplicate_completed_window_months ausente ou fora de ${DUPLICATE_COMPLETED_WINDOW_MONTHS.min}..${DUPLICATE_COMPLETED_WINDOW_MONTHS.max}; usando ${DUPLICATE_COMPLETED_WINDOW_MONTHS.default}.`,
-    );
-  }
+  if (window) return window;
 
-  return DUPLICATE_COMPLETED_WINDOW_MONTHS.default;
+  onFallback(
+    `[duplicates] duplicate_completed_window_months ausente ou fora de ${DUPLICATE_COMPLETED_WINDOW_MONTHS.min}..${DUPLICATE_COMPLETED_WINDOW_MONTHS.max}; usando ${DUPLICATE_COMPLETED_WINDOW_MONTHS.default}.`,
+  );
+
+  return DEFAULT_DUPLICATE_COMPLETED_WINDOW;
 }
 
 /**
@@ -338,14 +343,14 @@ export async function listPublishedProjections(
   trx?: Knex.Transaction,
 ): Promise<PublicProjectionRow[]> {
   const source = trx ?? db;
-  const windowMonths = await getDuplicateCompletedWindowMonths(trx);
+  const window = await getDuplicateCompletedWindow(trx);
 
   const rows: Record<string, unknown>[] = await source("request_public_projections")
     .where(PUBLISHED_PROJECTION_FILTER)
     .andWhere((builder) => {
       builder
         .whereNull("public_concluded_at")
-        .orWhereRaw("public_concluded_at >= now() - make_interval(months => ?)", [windowMonths]);
+        .orWhereRaw("public_concluded_at >= now() - make_interval(months => ?)", [window.months]);
     })
     .orderBy("updated_at", "asc")
     .select(...PROJECTION_COLUMNS);
@@ -371,7 +376,7 @@ function buildTemplateExpression(
       continue;
     }
 
-    fragments.push(part.field === "category" ? "public_category" : "public_period");
+    fragments.push(COMPLETED_TEMPLATE_COLUMNS[part.field]);
   }
 
   return source.raw(fragments.join(" || "), bindings);
@@ -386,7 +391,7 @@ function buildTemplateExpression(
  * O relógio é o do banco (`now()`), o mesmo usado na publicação.
  */
 export async function suppressCompletedOutsideWindow(
-  windowMonths: number,
+  window: DuplicateCompletedWindow,
   trx?: Knex.Transaction,
 ): Promise<number> {
   const source = trx ?? db;
@@ -394,7 +399,7 @@ export async function suppressCompletedOutsideWindow(
   return source("request_public_projections")
     .where(PUBLISHED_PROJECTION_FILTER)
     .whereNotNull("public_concluded_at")
-    .whereRaw("public_concluded_at < now() - make_interval(months => ?)", [windowMonths])
+    .whereRaw("public_concluded_at < now() - make_interval(months => ?)", [window.months])
     .update({
       publication_status: "suppressed",
       suppression_reason: "outside_window",
@@ -414,7 +419,7 @@ export async function suppressCompletedOutsideWindow(
  * `requests` e reavalia todas as regras.
  */
 export async function listSuppressedCompletedWithinWindow(
-  windowMonths: number,
+  window: DuplicateCompletedWindow,
   trx?: Knex.Transaction,
 ): Promise<string[]> {
   const source = trx ?? db;
@@ -424,7 +429,7 @@ export async function listSuppressedCompletedWithinWindow(
       suppression_reason: "outside_window",
     })
     .whereNotNull("public_concluded_at")
-    .whereRaw("public_concluded_at >= now() - make_interval(months => ?)", [windowMonths])
+    .whereRaw("public_concluded_at >= now() - make_interval(months => ?)", [window.months])
     .orderBy("updated_at", "asc")
     .select("request_id");
 

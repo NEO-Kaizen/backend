@@ -21,8 +21,19 @@ export const COMPLETED_REQUEST_TEMPLATE_VERSION = "v1-template";
  * e o SQL da supressão em massa. As listas abaixo são a fonte única da
  * estrutura e da ordem; o repository só traduz `field` para a coluna.
  */
+export type CompletedTemplateField = "category" | "period";
+
 export type CompletedTemplatePart =
-  { readonly literal: string } | { readonly field: "category" | "period" };
+  { readonly literal: string } | { readonly field: CompletedTemplateField };
+
+/**
+ * Tradução única de cada campo do template para a coluna do snapshot público.
+ * A materialização em TS usa o valor; a expressão SQL da supressão usa a coluna.
+ */
+export const COMPLETED_TEMPLATE_COLUMNS = {
+  category: "public_category",
+  period: "public_period",
+} as const satisfies Record<CompletedTemplateField, string>;
 
 export const COMPLETED_TITLE_TEMPLATE = [
   { literal: "Solicitação de " },
