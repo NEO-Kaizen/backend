@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **195**.
-- Tipos nomeados: **323** â€” 228 interfaces, 92 aliases `type`, 3 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **2002** â€” 1502 variÃ¡veis, 249 parÃ¢metros e 251 retornos de funÃ§Ãµes/mÃ©todos.
+- Arquivos-fonte analisados: **196**.
+- Tipos nomeados: **324** â€” 228 interfaces, 93 aliases `type`, 3 classes e 0 enums.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **2017** â€” 1515 variÃ¡veis, 250 parÃ¢metros e 252 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **149**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
+- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **151**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -1354,7 +1354,7 @@ export interface ChangeUserStatusResponse {
 
 ### [src/modules/duplicates/backfillConcludedAt.repository.ts](../src/modules/duplicates/backfillConcludedAt.repository.ts)
 
-#### L12 â€” interface CompletedRequestCandidate
+#### L17 â€” interface CompletedRequestCandidate
 
 ```ts
 export interface CompletedRequestCandidate {
@@ -1363,14 +1363,7 @@ export interface CompletedRequestCandidate {
 }
 ```
 
-#### L17 â€” alias StatusAuditAction
-
-```ts
-export type StatusAuditAction =
-  "request.status_change" | "request.override_status_admin" | "request.triage";
-```
-
-#### L20 â€” interface StatusAuditEvent
+#### L22 â€” interface StatusAuditEvent
 
 ```ts
 export interface StatusAuditEvent {
@@ -1384,7 +1377,7 @@ export interface StatusAuditEvent {
 
 ### [src/modules/duplicates/backfillConcludedAt.ts](../src/modules/duplicates/backfillConcludedAt.ts)
 
-#### L26 â€” interface BackfillConcludedAtOptions
+#### L33 â€” interface BackfillConcludedAtOptions
 
 ```ts
 export interface BackfillConcludedAtOptions {
@@ -1392,7 +1385,7 @@ export interface BackfillConcludedAtOptions {
 }
 ```
 
-#### L30 â€” interface BackfillConcludedAtReport
+#### L37 â€” interface BackfillConcludedAtReport
 
 ```ts
 export interface BackfillConcludedAtReport {
@@ -1402,12 +1395,14 @@ export interface BackfillConcludedAtReport {
   updated: string[];
   /** Concluídas sem evento de entrada vigente; nenhuma projeção é criada. */
   withoutEvent: string[];
+  /** Candidatas cujo Status deixou de ser 16 entre a leitura e o update. */
+  skipped: string[];
 }
 ```
 
 ### [src/modules/duplicates/concludedAtReplay.ts](../src/modules/duplicates/concludedAtReplay.ts)
 
-#### L11 â€” interface ConcludedAtReplayEvent
+#### L12 â€” interface ConcludedAtReplayEvent
 
 ```ts
 export interface ConcludedAtReplayEvent {
@@ -1416,7 +1411,7 @@ export interface ConcludedAtReplayEvent {
 }
 ```
 
-#### L16 â€” interface ConcludedAtReplayResult
+#### L17 â€” interface ConcludedAtReplayResult
 
 ```ts
 export interface ConcludedAtReplayResult {
@@ -1424,11 +1419,11 @@ export interface ConcludedAtReplayResult {
 }
 ```
 
-#### L33 â€” interface AuditEventForReplay
+#### L34 â€” interface AuditEventForReplay
 
 ```ts
 export interface AuditEventForReplay {
-  action_type: "request.status_change" | "request.override_status_admin" | "request.triage";
+  action_type: StatusAuditAction;
   new_value: string | null;
 }
 ```
@@ -1447,7 +1442,7 @@ export interface DuplicateConfidenceConfig {
 
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
-#### L19 â€” interface PublicProjectionRow
+#### L21 â€” interface PublicProjectionRow
 
 ```ts
 export interface PublicProjectionRow {
@@ -1464,6 +1459,39 @@ export interface PublicProjectionRow {
   version: number;
   public_concluded_at: Date | null;
   updated_at: Date;
+}
+```
+
+#### L38 â€” interface ProjectionSourceRow
+
+```ts
+export interface ProjectionSourceRow {
+  request_id: string;
+  created_at: Date;
+  title: string;
+  need_description: string;
+  problem_opportunity: string;
+  concluded_at: Date | null;
+  is_within_window: boolean;
+  handles_restricted_info: boolean | null;
+  category_name: string;
+  category_is_publicly_listable: boolean;
+  status_id: number;
+  status_is_active: boolean;
+  status_is_terminal: boolean;
+  status_is_restricted: boolean;
+  status_is_duplicate_corpus_eligible: boolean;
+}
+```
+
+#### L56 â€” interface ExistingProjection
+
+```ts
+export interface ExistingProjection {
+  public_id: string;
+  publication_status: PublicationStatus;
+  published_at: Date | null;
+  suppressed_at: Date | null;
 }
 ```
 
@@ -1486,7 +1514,7 @@ export interface IndexPollerOptions {
    * Reconciliação da janela de conclusão (issue #210), executada antes de ler
    * a projeção. Falha nela é tratada como falha do poll: o cursor não avança.
    */
-  sweepCompletedWindow?: () => Promise<void>;
+  sweepCompletedWindow: () => Promise<void>;
   readAll: () => Promise<readonly SimilarityDocument[]>;
   readChanges: (since: Date) => Promise<readonly IndexPollChange[]>;
   apply: (document: SimilarityDocument) => void;
@@ -1595,40 +1623,7 @@ export class MiniSearchIndex implements SimilarityIndex {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-#### L28 â€” interface ProjectionSourceRow
-
-```ts
-interface ProjectionSourceRow {
-  request_id: string;
-  created_at: Date;
-  title: string;
-  need_description: string;
-  problem_opportunity: string;
-  concluded_at: Date | null;
-  is_within_window: boolean;
-  handles_restricted_info: boolean | null;
-  category_name: string;
-  category_is_publicly_listable: boolean;
-  status_id: number;
-  status_is_active: boolean;
-  status_is_terminal: boolean;
-  status_is_restricted: boolean;
-  status_is_duplicate_corpus_eligible: boolean;
-}
-```
-
-#### L46 â€” interface ExistingProjection
-
-```ts
-interface ExistingProjection {
-  public_id: string;
-  publication_status: PublicationStatus;
-  published_at: Date | null;
-  suppressed_at: Date | null;
-}
-```
-
-#### L53 â€” interface ProjectionValues
+#### L30 â€” interface ProjectionValues
 
 ```ts
 interface ProjectionValues {
@@ -1642,13 +1637,13 @@ interface ProjectionValues {
   is_publicly_listable: boolean;
   redaction_version: string;
   public_concluded_at: Date | null;
-  published_at: Date | null;
-  suppressed_at: Date | null;
+  published_at: Date | Knex.Raw | null;
+  suppressed_at: Date | Knex.Raw | null;
   suppression_reason: SuppressionReason | null;
 }
 ```
 
-#### L70 â€” interface SuppressionSignals
+#### L47 â€” interface SuppressionSignals
 
 ```ts
 export interface SuppressionSignals {
@@ -1666,7 +1661,7 @@ export interface SuppressionSignals {
 
 ### [src/modules/duplicates/redact.ts](../src/modules/duplicates/redact.ts)
 
-#### L38 â€” interface CompletedProjectionText
+#### L53 â€” interface CompletedProjectionText
 
 ```ts
 export interface CompletedProjectionText {
@@ -1676,7 +1671,7 @@ export interface CompletedProjectionText {
 }
 ```
 
-#### L44 â€” interface CompletedProjectionTextInput
+#### L59 â€” interface CompletedProjectionTextInput
 
 ```ts
 export interface CompletedProjectionTextInput {
@@ -1703,7 +1698,14 @@ export interface SimilarityIndex {
 
 ### [src/modules/duplicates/template.ts](../src/modules/duplicates/template.ts)
 
-#### L24 â€” interface PublicRequestTemplate
+#### L24 â€” alias CompletedTemplatePart
+
+```ts
+export type CompletedTemplatePart =
+  { readonly literal: string } | { readonly field: "category" | "period" };
+```
+
+#### L41 â€” interface PublicRequestTemplate
 
 ```ts
 export interface PublicRequestTemplate {
@@ -2365,7 +2367,7 @@ interface TriageRow {
 }
 ```
 
-#### L224 â€” interface TriageAuditContext
+#### L222 â€” interface TriageAuditContext
 
 ```ts
 export interface TriageAuditContext {
@@ -2548,6 +2550,14 @@ export type AuditEntry<
   E extends AuditEntityType = AuditEntityType,
   A extends ComposedAuditAction<E> = ComposedAuditAction<E>,
 > = AuditEntryBase & { entityType: E; actionType: A };
+```
+
+### [src/shared/audit/statusAuditActions.ts](../src/shared/audit/statusAuditActions.ts)
+
+#### L13 â€” alias StatusAuditAction
+
+```ts
+export type StatusAuditAction = (typeof STATUS_AUDIT_ACTIONS)[number];
 ```
 
 ### [src/shared/catalog/fieldCatalog.ts](../src/shared/catalog/fieldCatalog.ts)
@@ -3646,7 +3656,7 @@ export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
 export type PortalSolicitationMode = SolicitationMode;
 ```
 
-#### L20 â€” interface SystemSettingsRow
+#### L31 â€” interface SystemSettingsRow
 
 ```ts
 export interface SystemSettingsRow {
@@ -4241,52 +4251,64 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/backfillConcludedAt.repository.ts](../src/modules/duplicates/backfillConcludedAt.repository.ts)
 
-- L37 â€” variÃ¡vel: `source`
-- L44 â€” parÃ¢metro: `row`
-- L44 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” variÃ¡vel: `{ request_id, protocol }`
-- L54 â€” variÃ¡vel: `source`
-- L58 â€” parÃ¢metro: `row`
-- L58 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L59 â€” variÃ¡vel: `{ status_id, name }`
+- L33 â€” variÃ¡vel: `source`
+- L40 â€” parÃ¢metro: `row`
+- L40 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L41 â€” variÃ¡vel: `{ request_id, protocol }`
+- L50 â€” variÃ¡vel: `source`
+- L54 â€” parÃ¢metro: `row`
+- L54 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L55 â€” variÃ¡vel: `{ status_id, name }`
 - L80 â€” variÃ¡vel: `source`
-- L88 â€” parÃ¢metro: `row`
-- L88 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L89 â€” variÃ¡vel: `{ action_type, previous_value, new_value, occurred_at, audit_id }`
-- L112 â€” parÃ¢metro: `action`
-- L112 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L124 â€” variÃ¡vel: `updatedRows`
+- L89 â€” variÃ¡vel: `eventsByProtocol`
+- L91 â€” variÃ¡vel: `row`
+- L92 â€” variÃ¡vel: `{ entity_id }`
+- L97 â€” variÃ¡vel: `event`
+- L98 â€” variÃ¡vel: `events`
+- L111 â€” variÃ¡vel: `{ action_type, previous_value, new_value, occurred_at, audit_id }`
+- L141 â€” variÃ¡vel: `updatedRows`
 
 ### [src/modules/duplicates/backfillConcludedAt.ts](../src/modules/duplicates/backfillConcludedAt.ts)
 
-- L44 â€” variÃ¡vel: `events`
-- L45 â€” parÃ¢metro: `event`
-- L45 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” variÃ¡vel: `replayEvents`
-- L46 â€” variÃ¡vel: `statusId`
-- L56 â€” variÃ¡vel: `dryRun`
-- L57 â€” variÃ¡vel: `candidates`
-- L67 â€” variÃ¡vel: `statusIdsByName`
-- L69 â€” variÃ¡vel: `candidate`
-- L71 â€” variÃ¡vel: `replay`
-- L80 â€” parÃ¢metro: `trx`
+- L31 â€” variÃ¡vel: `BACKFILL_BATCH_SIZE`
+- L52 â€” parÃ¢metro: `event`
+- L52 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L52 â€” variÃ¡vel: `replayEvents`
+- L53 â€” variÃ¡vel: `statusId`
+- L63 â€” variÃ¡vel: `dryRun`
+- L64 â€” variÃ¡vel: `candidates`
+- L75 â€” variÃ¡vel: `statusIdsByName`
+- L76 â€” variÃ¡vel: `windowMonths`
+- L78 â€” variÃ¡vel: `start`
+- L79 â€” variÃ¡vel: `batch`
+- L80 â€” parÃ¢metro: `candidate`
 - L80 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L80 â€” variÃ¡vel: `outcome`
-- L81 â€” variÃ¡vel: `replay`
-- L87 â€” variÃ¡vel: `didUpdate`
+- L80 â€” variÃ¡vel: `protocols`
+- L83 â€” variÃ¡vel: `eventsByProtocol`
+- L88 â€” parÃ¢metro: `trx`
+- L88 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L89 â€” variÃ¡vel: `eventsByProtocol`
+- L91 â€” variÃ¡vel: `candidate`
+- L92 â€” variÃ¡vel: `replay`
+- L102 â€” variÃ¡vel: `didUpdate`
+- L128 â€” variÃ¡vel: `candidate`
+- L129 â€” variÃ¡vel: `replay`
 
 ### [src/modules/duplicates/completedWindowSweep.ts](../src/modules/duplicates/completedWindowSweep.ts)
 
-- L22 â€” variÃ¡vel: `windowMonths`
-- L25 â€” variÃ¡vel: `candidates`
-- L27 â€” variÃ¡vel: `requestId`
-- L28 â€” parÃ¢metro: `trx`
-- L28 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L24 â€” variÃ¡vel: `SWEEP_BATCH_SIZE`
+- L27 â€” variÃ¡vel: `windowMonths`
+- L30 â€” variÃ¡vel: `candidates`
+- L32 â€” variÃ¡vel: `start`
+- L33 â€” variÃ¡vel: `batch`
+- L35 â€” parÃ¢metro: `trx`
+- L35 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L36 â€” variÃ¡vel: `requestId`
 
 ### [src/modules/duplicates/concludedAtReplay.ts](../src/modules/duplicates/concludedAtReplay.ts)
 
-- L25 â€” variÃ¡vel: `event`
-- L69 â€” variÃ¡vel: `{ exitStatus }`
+- L26 â€” variÃ¡vel: `event`
+- L70 â€” variÃ¡vel: `{ exitStatus }`
 
 ### [src/modules/duplicates/confidence.ts](../src/modules/duplicates/confidence.ts)
 
@@ -4312,25 +4334,27 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
-- L35 â€” variÃ¡vel: `PROJECTION_COLUMNS`
-- L52 â€” variÃ¡vel: `DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS`
-- L53 â€” variÃ¡vel: `MIN_DUPLICATE_COMPLETED_WINDOW_MONTHS`
-- L54 â€” variÃ¡vel: `MAX_DUPLICATE_COMPLETED_WINDOW_MONTHS`
-- L57 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
-- L77 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, public_concluded_at, updated_at, }`
-- L130 â€” variÃ¡vel: `source`
-- L143 â€” variÃ¡vel: `source`
-- L148 â€” variÃ¡vel: `windowMonths`
-- L165 â€” variÃ¡vel: `source`
-- L166 â€” variÃ¡vel: `windowMonths`
-- L170 â€” parÃ¢metro: `builder`
-- L170 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L193 â€” variÃ¡vel: `source`
-- L228 â€” variÃ¡vel: `source`
-- L239 â€” parÃ¢metro: `row`
-- L239 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L240 â€” variÃ¡vel: `{ request_id }`
-- L257 â€” variÃ¡vel: `source`
+- L63 â€” variÃ¡vel: `PROJECTION_COLUMNS`
+- L80 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
+- L104 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, public_concluded_at, updated_at, }`
+- L163 â€” variÃ¡vel: `{ request_id, created_at, title, need_description, problem_opportunity, concluded_at, is_within_window, handles_restricted_info, category_name, category_is_publicly_listable, status_id, status_is_active, status_is_terminal, status_is_restricted, status_is_duplicate_corpus_eligible, }`
+- L221 â€” variÃ¡vel: `{ public_id, publication_status, published_at, suppressed_at }`
+- L272 â€” variÃ¡vel: `row`
+- L291 â€” variÃ¡vel: `source`
+- L299 â€” variÃ¡vel: `hasWarnedCompletedWindowFallback`
+- L307 â€” variÃ¡vel: `source`
+- L312 â€” variÃ¡vel: `windowMonths`
+- L340 â€” variÃ¡vel: `source`
+- L341 â€” variÃ¡vel: `windowMonths`
+- L345 â€” parÃ¢metro: `builder`
+- L345 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L367 â€” variÃ¡vel: `part`
+- L392 â€” variÃ¡vel: `source`
+- L420 â€” variÃ¡vel: `source`
+- L431 â€” parÃ¢metro: `row`
+- L431 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L432 â€” variÃ¡vel: `{ request_id }`
+- L449 â€” variÃ¡vel: `source`
 
 ### [src/modules/duplicates/duplicates.schema.ts](../src/modules/duplicates/duplicates.schema.ts)
 
@@ -4413,21 +4437,18 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-- L125 â€” variÃ¡vel: `{ request_id, created_at, title, need_description, problem_opportunity, concluded_at, is_within_window, handles_restricted_info, category_name, category_is_publicly_listable, status_id, status_is_active, status_is_terminal, status_is_restricted, status_is_duplicate_corpus_eligible, }`
-- L183 â€” variÃ¡vel: `{ public_id, publication_status, published_at, suppressed_at }`
-- L230 â€” variÃ¡vel: `row`
-- L243 â€” variÃ¡vel: `isCompleted`
-- L252 â€” variÃ¡vel: `fallback`
-- L261 â€” variÃ¡vel: `redacted`
-- L287 â€” variÃ¡vel: `windowMonths`
-- L288 â€” variÃ¡vel: `source`
-- L293 â€” variÃ¡vel: `suppressionReason`
-- L294 â€” variÃ¡vel: `template`
-- L296 â€” variÃ¡vel: `isPubliclyListable`
-- L304 â€” variÃ¡vel: `existing`
-- L306 â€” variÃ¡vel: `now`
-- L307 â€” variÃ¡vel: `publishedAt`
-- L311 â€” variÃ¡vel: `suppressedAt`
+- L103 â€” variÃ¡vel: `isCompleted`
+- L112 â€” variÃ¡vel: `fallback`
+- L121 â€” variÃ¡vel: `redacted`
+- L151 â€” variÃ¡vel: `resolvedWindowMonths`
+- L152 â€” variÃ¡vel: `source`
+- L157 â€” variÃ¡vel: `suppressionReason`
+- L158 â€” variÃ¡vel: `template`
+- L160 â€” variÃ¡vel: `isPubliclyListable`
+- L164 â€” variÃ¡vel: `existing`
+- L169 â€” variÃ¡vel: `now`
+- L170 â€” variÃ¡vel: `publishedAt`
+- L174 â€” variÃ¡vel: `suppressedAt`
 
 ### [src/modules/duplicates/query.ts](../src/modules/duplicates/query.ts)
 
@@ -4441,13 +4462,13 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/redact.ts](../src/modules/duplicates/redact.ts)
 
-- L35 â€” parÃ¢metro: `pattern`
-- L35 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L60 â€” variÃ¡vel: `title`
-- L61 â€” variÃ¡vel: `summary`
-- L62 â€” parÃ¢metro: `part`
-- L62 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L66 â€” variÃ¡vel: `template`
+- L50 â€” parÃ¢metro: `pattern`
+- L50 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L75 â€” variÃ¡vel: `title`
+- L76 â€” variÃ¡vel: `summary`
+- L77 â€” parÃ¢metro: `part`
+- L77 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L86 â€” variÃ¡vel: `template`
 
 ### [src/modules/duplicates/similarityIndex.ts](../src/modules/duplicates/similarityIndex.ts)
 
@@ -4458,18 +4479,19 @@ interface GroupedIssues {
 - L11 â€” variÃ¡vel: `OPEN_REQUEST_PUBLIC_STATUS`
 - L12 â€” variÃ¡vel: `OPEN_REQUEST_REDACTION_VERSION`
 - L13 â€” variÃ¡vel: `COMPLETED_REQUEST_PUBLIC_STATUS`
-- L14 â€” variÃ¡vel: `COMPLETED_REQUEST_REDACTION_VERSION`
-- L18 â€” variÃ¡vel: `COMPLETED_TEMPLATE_TITLE_PREFIX`
-- L19 â€” variÃ¡vel: `COMPLETED_TEMPLATE_TITLE_SUFFIX`
-- L20 â€” variÃ¡vel: `COMPLETED_TEMPLATE_SUMMARY_PREFIX`
-- L21 â€” variÃ¡vel: `COMPLETED_TEMPLATE_SUMMARY_MIDDLE`
-- L22 â€” variÃ¡vel: `COMPLETED_TEMPLATE_SUMMARY_SUFFIX`
-- L38 â€” variÃ¡vel: `dateOnly`
-- L44 â€” variÃ¡vel: `[yearPart, monthPart]`
-- L45 â€” variÃ¡vel: `year`
-- L46 â€” variÃ¡vel: `month`
-- L59 â€” variÃ¡vel: `period`
-- L79 â€” variÃ¡vel: `period`
+- L15 â€” variÃ¡vel: `COMPLETED_REQUEST_REDACTION_VERSION`
+- L17 â€” variÃ¡vel: `COMPLETED_REQUEST_TEMPLATE_VERSION`
+- L27 â€” variÃ¡vel: `COMPLETED_TITLE_TEMPLATE`
+- L33 â€” variÃ¡vel: `COMPLETED_SUMMARY_TEMPLATE`
+- L54 â€” parÃ¢metro: `part`
+- L54 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L62 â€” variÃ¡vel: `dateOnly`
+- L68 â€” variÃ¡vel: `[yearPart, monthPart]`
+- L69 â€” variÃ¡vel: `year`
+- L70 â€” variÃ¡vel: `month`
+- L83 â€” variÃ¡vel: `period`
+- L104 â€” variÃ¡vel: `period`
+- L105 â€” variÃ¡vel: `values`
 
 ### [src/modules/internalNotes/internalNotes.controller.ts](../src/modules/internalNotes/internalNotes.controller.ts)
 
@@ -5750,10 +5772,9 @@ interface GroupedIssues {
 - L124 â€” variÃ¡vel: `row`
 - L154 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L165 â€” variÃ¡vel: `raw`
-- L184 â€” variÃ¡vel: `source`
-- L214 â€” variÃ¡vel: `updatedRows`
-- L282 â€” parÃ¢metro: `trx`
-- L282 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L212 â€” variÃ¡vel: `updatedRows`
+- L280 â€” parÃ¢metro: `trx`
+- L280 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/requests/triage/triage.router.ts](../src/modules/requests/triage/triage.router.ts)
 
@@ -5972,6 +5993,12 @@ interface GroupedIssues {
 - L66 â€” variÃ¡vel: `rows`
 - L81 â€” variÃ¡vel: `row`
 
+### [src/shared/audit/statusAuditActions.ts](../src/shared/audit/statusAuditActions.ts)
+
+- L7 â€” variÃ¡vel: `STATUS_AUDIT_ACTIONS`
+- L16 â€” parÃ¢metro: `action`
+- L16 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+
 ### [src/shared/catalog/fieldCatalog.ts](../src/shared/catalog/fieldCatalog.ts)
 
 - L6 â€” variÃ¡vel: `FIELD_KEYS`
@@ -6177,6 +6204,10 @@ interface GroupedIssues {
 
 - L10 â€” variÃ¡vel: `STATUS_IDS`
 - L28 â€” variÃ¡vel: `CORE_STATUS_IDS`
+
+### [src/shared/types/systemSettings.ts](../src/shared/types/systemSettings.ts)
+
+- L11 â€” variÃ¡vel: `DUPLICATE_COMPLETED_WINDOW_MONTHS`
 
 ### [src/shared/types/systemTheme.ts](../src/shared/types/systemTheme.ts)
 
