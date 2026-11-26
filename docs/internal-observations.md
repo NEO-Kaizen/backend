@@ -528,11 +528,7 @@ página** (D-N9).
       "id": "2",
       "content": "A área responsável foi acionada e deve retornar até o fim do dia.",
       "createdAt": "2026-09-18T16:20:00.000Z",
-      "author": {
-        "id": "2",
-        "name": "Marcos Lima",
-        "profile": { "id": "4", "name": "Visualizador" }
-      }
+      "author": { "id": "2", "name": "Marcos Lima", "profile": { "id": "4", "name": "Gestor" } }
     },
     {
       "type": "event",

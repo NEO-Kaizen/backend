@@ -172,6 +172,11 @@ export async function seed(knex) {
       },
     ])
     .onConflict("user_id")
+    // Mantém intactas as linhas de um banco já semeado. Usuários 103/106/111
+    // criados antes do rename do Perfil-base conservam o full_name e o email
+    // antigos (`gestor_*`); os emails `visualizador_*` acima só valem para
+    // banco zerado. Para conferir esse login, recrie o banco de
+    // desenvolvimento antes de rodar as seeds.
     .ignore();
 
   await knex.raw(
