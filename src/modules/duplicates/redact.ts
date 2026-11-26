@@ -12,18 +12,20 @@ import { buildCompletedRequestTemplate, COMPLETED_REQUEST_REDACTION_VERSION } fr
 const PII_PATTERNS: readonly RegExp[] = [
   // E-mail.
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
-  // CPF com máscara. O CPF sem máscara é coberto pela sequência longa.
-  /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/,
-  // CNPJ com máscara. O CNPJ sem máscara é coberto pela sequência longa.
-  /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/,
+  // CPF com separadores opcionais (ponto, hífen ou espaço).
+  /\b\d{3}[\s.-]?\d{3}[\s.-]?\d{3}[\s.-]?\d{2}\b/,
+  // CNPJ com separadores opcionais (ponto, barra, hífen ou espaço).
+  /\b\d{2}[\s./-]?\d{3}[\s./-]?\d{3}[\s./-]?\d{4}[\s./-]?\d{2}\b/,
   // Telefone brasileiro com DDD opcional e +55 opcional.
   /(?:\+?55[\s.-]?)?(?:\(?\d{2}\)?[\s.-]?)?9?\d{4}[\s.-]?\d{4}\b/,
-  // RG com máscara (o dígito verificador pode ser X).
-  /\b\d{1,2}\.\d{3}\.\d{3}-?[\dXx]\b/,
-  // CEP com máscara. O CEP sem máscara é coberto pela sequência longa.
-  /\b\d{5}-\d{3}\b/,
-  // Placa antiga e Mercosul, com ou sem hífen.
-  /\b[A-Z]{3}-?\d{4}\b|\b[A-Z]{3}\d[A-Z]\d{2}\b/i,
+  // RG canônico, com dígito verificador numérico ou X.
+  /\b\d{1,2}[\s.-]?\d{3}[\s.-]?\d{3}[\s.-]?[\dXx]\b/,
+  // RG de 8 dígitos sem dígito verificador.
+  /\b\d{1,2}[\s.-]?\d{3}[\s.-]?\d{3}\b/,
+  // CEP com separadores opcionais.
+  /\b\d{5}[\s.-]?\d{3}\b/,
+  // Placa antiga e Mercosul, com separadores opcionais.
+  /\b[A-Z]{3}[\s.-]?\d{4}\b|\b[A-Z]{3}[\s.-]?\d[\s.-]?[A-Z][\s.-]?\d{2}\b/i,
   // Sequência longa de dígitos (CPF/CNPJ/CEP/telefone sem máscara etc.).
   /\b\d{7,}\b/,
 ];
@@ -37,7 +39,6 @@ export interface CompletedProjectionText {
   title: string;
   summary: string;
   redactionVersion: string;
-  usedFallback: boolean;
 }
 
 export interface CompletedProjectionTextInput {
@@ -71,7 +72,6 @@ export function buildCompletedProjectionText(
       title: template.title,
       summary: template.summary,
       redactionVersion: COMPLETED_REQUEST_REDACTION_VERSION,
-      usedFallback: true,
     };
   }
 
@@ -79,6 +79,5 @@ export function buildCompletedProjectionText(
     title,
     summary,
     redactionVersion: COMPLETED_REQUEST_REDACTION_VERSION,
-    usedFallback: false,
   };
 }
