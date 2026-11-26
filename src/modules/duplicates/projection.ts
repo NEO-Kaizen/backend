@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
-import {
-  isPublicationStatus,
-  type PublicationStatus,
-  type SuppressionReason,
-} from "../../shared/types/duplicates.ts";
+import type { PublicationStatus, SuppressionReason } from "../../shared/types/duplicates.ts";
 import { isCompletedStatus } from "../../shared/types/status.ts";
-import { getDuplicateCompletedWindowMonths } from "./duplicates.repository.ts";
+import {
+  findExistingProjectionForUpdate,
+  findProjectionSource,
+  getDuplicateCompletedWindowMonths,
+  type ProjectionSourceRow,
+} from "./duplicates.repository.ts";
 import { buildCompletedProjectionText } from "./redact.ts";
 import {
   buildCompletedRequestTemplate,
@@ -20,36 +21,12 @@ import {
  * concluídas na issue #210).
  *
  * A linha é sempre criada ou atualizada — publicada ou suprimida — dentro da
- * transação que alterou a Solicitação. A busca nunca lê `requests`; este
- * módulo é o único que monta o snapshot público a partir da base interna.
+ * transação que alterou a Solicitação. A busca e o parse da linha interna
+ * vivem no repository; este módulo decide a supressão, monta o texto público e
+ * grava a linha.
  *
  * Regras em `docs/rules/duplicate-detection.md`.
  */
-interface ProjectionSourceRow {
-  request_id: string;
-  created_at: Date;
-  title: string;
-  need_description: string;
-  problem_opportunity: string;
-  concluded_at: Date | null;
-  is_within_window: boolean;
-  handles_restricted_info: boolean | null;
-  category_name: string;
-  category_is_publicly_listable: boolean;
-  status_id: number;
-  status_is_active: boolean;
-  status_is_terminal: boolean;
-  status_is_restricted: boolean;
-  status_is_duplicate_corpus_eligible: boolean;
-}
-
-interface ExistingProjection {
-  public_id: string;
-  publication_status: PublicationStatus;
-  published_at: Date | null;
-  suppressed_at: Date | null;
-}
-
 interface ProjectionValues {
   public_id: string;
   public_title: string;
@@ -61,8 +38,8 @@ interface ProjectionValues {
   is_publicly_listable: boolean;
   redaction_version: string;
   public_concluded_at: Date | null;
-  published_at: Date | null;
-  suppressed_at: Date | null;
+  published_at: Date | Knex.Raw | null;
+  suppressed_at: Date | Knex.Raw | null;
   suppression_reason: SuppressionReason | null;
 }
 
@@ -113,130 +90,13 @@ export function resolveSuppressionReason(input: SuppressionSignals): Suppression
   return null;
 }
 
-function isNullableDate(value: unknown): value is Date | null {
-  return value === null || value instanceof Date;
-}
-
-/**
- * Valida a linha da base interna antes de montar o snapshot público. A coluna
- * `is_within_window` vem calculada pelo PostgreSQL com o relógio do banco.
- */
-function parseProjectionSourceRow(row: Record<string, unknown>): ProjectionSourceRow {
-  const {
-    request_id,
-    created_at,
-    title,
-    need_description,
-    problem_opportunity,
-    concluded_at,
-    is_within_window,
-    handles_restricted_info,
-    category_name,
-    category_is_publicly_listable,
-    status_id,
-    status_is_active,
-    status_is_terminal,
-    status_is_restricted,
-    status_is_duplicate_corpus_eligible,
-  } = row;
-
-  if (
-    typeof request_id !== "string" ||
-    !(created_at instanceof Date) ||
-    typeof title !== "string" ||
-    typeof need_description !== "string" ||
-    typeof problem_opportunity !== "string" ||
-    !isNullableDate(concluded_at) ||
-    typeof is_within_window !== "boolean" ||
-    !(handles_restricted_info === null || typeof handles_restricted_info === "boolean") ||
-    typeof category_name !== "string" ||
-    typeof category_is_publicly_listable !== "boolean" ||
-    typeof status_id !== "number" ||
-    typeof status_is_active !== "boolean" ||
-    typeof status_is_terminal !== "boolean" ||
-    typeof status_is_restricted !== "boolean" ||
-    typeof status_is_duplicate_corpus_eligible !== "boolean"
-  ) {
-    throw new Error("Linha inválida em requests para a projeção pública.");
-  }
-
-  return {
-    request_id,
-    created_at,
-    title,
-    need_description,
-    problem_opportunity,
-    concluded_at,
-    is_within_window,
-    handles_restricted_info,
-    category_name,
-    category_is_publicly_listable,
-    status_id,
-    status_is_active,
-    status_is_terminal,
-    status_is_restricted,
-    status_is_duplicate_corpus_eligible,
-  };
-}
-
-function parseExistingProjection(row: Record<string, unknown>): ExistingProjection {
-  const { public_id, publication_status, published_at, suppressed_at } = row;
-
-  if (
-    typeof public_id !== "string" ||
-    !isPublicationStatus(publication_status) ||
-    !isNullableDate(published_at) ||
-    !isNullableDate(suppressed_at)
-  ) {
-    throw new Error("Linha inválida em request_public_projections.");
-  }
-
-  return { public_id, publication_status, published_at, suppressed_at };
-}
-
-async function findProjectionSource(
-  trx: Knex.Transaction,
-  requestId: string,
-  windowMonths: number,
-): Promise<ProjectionSourceRow | undefined> {
-  const rows: Record<string, unknown>[] = await trx("requests as r")
-    .join("categories as c", "c.category_id", "r.category_id")
-    .join("statuses as s", "s.status_id", "r.status_id")
-    .where("r.request_id", requestId)
-    .select({
-      request_id: "r.request_id",
-      created_at: "r.created_at",
-      title: "r.title",
-      need_description: "r.need_description",
-      problem_opportunity: "r.problem_opportunity",
-      concluded_at: "r.concluded_at",
-      handles_restricted_info: "r.handles_restricted_info",
-      category_name: "c.name",
-      category_is_publicly_listable: "c.is_publicly_listable",
-      status_id: "s.status_id",
-      status_is_active: "s.is_active",
-      status_is_terminal: "s.is_terminal",
-      status_is_restricted: "s.is_restricted",
-      status_is_duplicate_corpus_eligible: "s.is_duplicate_corpus_eligible",
-    })
-    .select(
-      trx.raw(
-        "(r.concluded_at IS NOT NULL AND r.concluded_at >= now() - make_interval(months => ?)) as is_within_window",
-        [windowMonths],
-      ),
-    )
-    .limit(1);
-
-  const row = rows[0];
-  return row ? parseProjectionSourceRow(row) : undefined;
-}
-
 /**
  * Texto público da projeção. Aberta usa o template sem texto livre. Concluída
- * usa título + descrição/problema com o gate de PII; qualquer supressão usa o
- * template de concluída — a linha suprimida nunca guarda texto livre.
+ * usa título + descrição/problema com o gate de PII; PII, texto vazio ou
+ * qualquer supressão usam o template de concluída — a linha suprimida nunca
+ * guarda texto livre.
  */
-function buildProjectionTemplate(
+function buildProjectionText(
   source: ProjectionSourceRow,
   suppressionReason: SuppressionReason | null,
 ): PublicRequestTemplate {
@@ -279,31 +139,34 @@ function buildProjectionTemplate(
 /**
  * Cria ou atualiza a projeção de uma Solicitação. Deve rodar na MESMA
  * transação da criação, edição, transição de Status ou desfecho da Triagem.
+ *
+ * `windowMonths` permite que backfill e varredura leiam a configuração uma vez
+ * por lote; sem ele, a janela é lida nesta chamada.
  */
 export async function publishRequestProjection(
   trx: Knex.Transaction,
   requestId: string,
+  windowMonths?: number,
 ): Promise<void> {
-  const windowMonths = await getDuplicateCompletedWindowMonths(trx);
-  const source = await findProjectionSource(trx, requestId, windowMonths);
+  const resolvedWindowMonths = windowMonths ?? (await getDuplicateCompletedWindowMonths(trx));
+  const source = await findProjectionSource(trx, requestId, resolvedWindowMonths);
 
   // Solicitação removida fisicamente: não há o que projetar.
   if (!source) return;
 
   const suppressionReason = resolveSuppressionReason(toSuppressionSignals(source));
-  const template = buildProjectionTemplate(source, suppressionReason);
+  const template = buildProjectionText(source, suppressionReason);
 
   const isPubliclyListable =
     source.category_is_publicly_listable && source.status_is_duplicate_corpus_eligible;
 
   const publicationStatus: PublicationStatus = suppressionReason ? "suppressed" : "published";
-  const existingRow: Record<string, unknown> | undefined = await trx("request_public_projections")
-    .where({ request_id: requestId })
-    .forUpdate()
-    .first("public_id", "publication_status", "published_at", "suppressed_at");
-  const existing = existingRow ? parseExistingProjection(existingRow) : undefined;
+  const existing = await findExistingProjectionForUpdate(trx, requestId);
 
-  const now = new Date();
+  // `published_at`/`suppressed_at` usam o relógio do banco, o mesmo de
+  // `public_concluded_at` e da varredura. O cursor do poll usa o relógio da
+  // aplicação com sobreposição de 5 min (`DUPLICATE_INDEX_OVERLAP_MS`).
+  const now = trx.fn.now();
   const publishedAt =
     publicationStatus === "published"
       ? (existing?.published_at ?? now)
@@ -332,8 +195,7 @@ export async function publishRequestProjection(
   };
 
   if (!existing) {
-    // `created_at` e `updated_at` usam o relógio do banco (default da migration),
-    // que é o mesmo relógio lido pelo cursor do poll.
+    // `created_at` e `updated_at` usam o relógio do banco (default da migration).
     await trx("request_public_projections").insert({
       request_id: requestId,
       ...values,

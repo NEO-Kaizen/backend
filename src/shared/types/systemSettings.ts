@@ -4,6 +4,17 @@ import type { SolicitationMode } from "./portalConfig.ts";
 export type PortalSolicitationMode = SolicitationMode;
 
 /**
+ * Intervalo e padrão da janela do corpus de concluídas (issue #210). O CHECK da
+ * migration `20261126120100_add_duplicate_completed_window.js` mantém o mesmo
+ * intervalo fixo no banco; estes valores são o default da leitura.
+ */
+export const DUPLICATE_COMPLETED_WINDOW_MONTHS = {
+  min: 1,
+  max: 36,
+  default: 3,
+} as const;
+
+/**
  * Linha da tabela `system_settings` — configuração global singleton (regras em
  * `docs/rules/portal-config.md`).
  *

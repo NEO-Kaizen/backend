@@ -11,15 +11,32 @@ import { toSaoPauloDateOnly } from "../../shared/utils/date.ts";
 export const OPEN_REQUEST_PUBLIC_STATUS = "Em andamento";
 export const OPEN_REQUEST_REDACTION_VERSION = "v1-open-template";
 export const COMPLETED_REQUEST_PUBLIC_STATUS = "Concluída";
+/** Texto livre de concluída que passou pelo gate de PII. */
 export const COMPLETED_REQUEST_REDACTION_VERSION = "v1-regex";
+/** Fallback de PII/texto vazio e qualquer linha de concluída suprimida. */
+export const COMPLETED_REQUEST_TEMPLATE_VERSION = "v1-template";
 
-// Partes compartilhadas com a varredura da janela (SQL) para que o template de
-// fallback não divirja entre a publicação e a supressão.
-export const COMPLETED_TEMPLATE_TITLE_PREFIX = "Solicitação de ";
-export const COMPLETED_TEMPLATE_TITLE_SUFFIX = " concluída";
-export const COMPLETED_TEMPLATE_SUMMARY_PREFIX = "Solicitação concluída da categoria ";
-export const COMPLETED_TEMPLATE_SUMMARY_MIDDLE = ", registrada no período ";
-export const COMPLETED_TEMPLATE_SUMMARY_SUFFIX = ".";
+/**
+ * Partes do template de concluída compartilhadas entre a materialização em TS
+ * e o SQL da supressão em massa. As listas abaixo são a fonte única da
+ * estrutura e da ordem; o repository só traduz `field` para a coluna.
+ */
+export type CompletedTemplatePart =
+  { readonly literal: string } | { readonly field: "category" | "period" };
+
+export const COMPLETED_TITLE_TEMPLATE = [
+  { literal: "Solicitação de " },
+  { field: "category" },
+  { literal: " concluída" },
+] as const satisfies readonly CompletedTemplatePart[];
+
+export const COMPLETED_SUMMARY_TEMPLATE = [
+  { literal: "Solicitação concluída da categoria " },
+  { field: "category" },
+  { literal: ", registrada no período " },
+  { field: "period" },
+  { literal: "." },
+] as const satisfies readonly CompletedTemplatePart[];
 
 export interface PublicRequestTemplate {
   title: string;
@@ -28,6 +45,13 @@ export interface PublicRequestTemplate {
   status: string;
   period: string;
   redactionVersion: string;
+}
+
+function materializeCompletedTemplate(
+  parts: readonly CompletedTemplatePart[],
+  values: { category: string; period: string },
+): string {
+  return parts.map((part) => ("field" in part ? values[part.field] : part.literal)).join("");
 }
 
 /**
@@ -70,20 +94,22 @@ export function buildOpenRequestTemplate(input: {
 
 /**
  * Template de fallback de uma Solicitação concluída (issue #210): usado quando
- * o texto livre não passa no gate de PII ou quando a linha está suprimida.
+ * o texto livre não passa no gate de PII, fica vazio ou quando a linha está
+ * suprimida.
  */
 export function buildCompletedRequestTemplate(input: {
   category: string;
   createdAt: Date | string;
 }): PublicRequestTemplate {
   const period = toSaoPauloQuarter(input.createdAt);
+  const values = { category: input.category, period };
 
   return {
-    title: `${COMPLETED_TEMPLATE_TITLE_PREFIX}${input.category}${COMPLETED_TEMPLATE_TITLE_SUFFIX}`,
-    summary: `${COMPLETED_TEMPLATE_SUMMARY_PREFIX}${input.category}${COMPLETED_TEMPLATE_SUMMARY_MIDDLE}${period}${COMPLETED_TEMPLATE_SUMMARY_SUFFIX}`,
+    title: materializeCompletedTemplate(COMPLETED_TITLE_TEMPLATE, values),
+    summary: materializeCompletedTemplate(COMPLETED_SUMMARY_TEMPLATE, values),
     category: input.category,
     status: COMPLETED_REQUEST_PUBLIC_STATUS,
     period,
-    redactionVersion: COMPLETED_REQUEST_REDACTION_VERSION,
+    redactionVersion: COMPLETED_REQUEST_TEMPLATE_VERSION,
   };
 }
