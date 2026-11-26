@@ -79,8 +79,8 @@ Exemplo ilustrativo:
 
 ### Erros
 
-| Código | Situação                                    |
-| ------ | ------------------------------------------- |
-| 400    | Filtro inválido ou intervalo invertido      |
-| 401    | Sessão ausente ou inválida                  |
-| 403    | Perfil diferente de Gestor ou Administrador |
+| Código | Situação                               |
+| ------ | -------------------------------------- |
+| 400    | Filtro inválido ou intervalo invertido |
+| 401    | Sessão ausente ou inválida             |
+| 403    | Sem permissão `reports:read`           |

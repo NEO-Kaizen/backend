@@ -8,7 +8,7 @@ export interface FindQueueParams extends QueueFilterQuery {
   /**
    * Escopo de visibilidade por usuário (issue #102). Quando definido, restringe
    * o resultado às solicitações em que o usuário é responsável — de triagem ou
-   * de mapeamento. `undefined` = sem restrição (perfis Gestor/Administrador).
+   * de mapeamento. `undefined` = sem restrição (`queue:read` em `all`).
    */
   scopedUserId?: number;
   limit: number;

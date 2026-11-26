@@ -140,7 +140,7 @@ HTTP/1.1 403 Forbidden
   (ex.: tabela de sessões/tokens) — fora deste contrato.
 - O filtro de `admins` normaliza `profiles.name` com `LOWER()`, para funcionar
   com o rótulo de exibição `Administrador` e variações de caixa. A seed usa os
-  rótulos `Solicitante`, `Analista`, `Administrador` e `Gestor`.
+  rótulos `Solicitante`, `Analista`, `Administrador` e `Visualizador`.
 - O exemplo dos critérios de aceite da Issue #77 indica `admins: 1`
   (ilustrativo); o valor real pós-seed é **3** (users 102, 109 e 115). O
   contrato e as evidências usam os valores reais de banco como fonte da verdade.
