@@ -20,20 +20,20 @@ OpenAPI deve ser corrigida se descrever o comportamento errado.
 
 ## Índice
 
-| Documento                                              | Cobre                                                         |
-| ------------------------------------------------------ | ------------------------------------------------------------- |
-| [`requests-lifecycle.md`](requests-lifecycle.md)       | Ciclo de vida da solicitação, catálogo de Status e transições |
-| [`triage.md`](triage.md)                               | Triagem sequencial, campos condicionais e status de saída     |
-| [`assignment.md`](assignment.md)                       | Responsável de triagem, designado de mapeamento e RN-010      |
-| [`pending-items.md`](pending-items.md)                 | Pendências por campo, respostas, revisão e anexos             |
-| [`internal-observations.md`](internal-observations.md) | Linha do tempo de notas/eventos e checkpoint de leitura       |
-| [`audit-trail.md`](audit-trail.md)                     | Auditoria append-only, catálogo e origens                     |
-| [`portal-config.md`](portal-config.md)                 | Configuração do portal, categorias, status e assets           |
-| [`users-and-profiles.md`](users-and-profiles.md)       | Extensões de solicitante/profissional e autoatendimento       |
-| [`reports.md`](reports.md)                             | Dashboard, métricas e exportação CSV                          |
-| [`notifications.md`](notifications.md)                 | Eventos, audiência, allowlist e entrega SSE                   |
-| [`public-tracking.md`](public-tracking.md)             | Modo de acesso, identidade do solicitante e anti-enumeração   |
-| [`duplicate-detection.md`](duplicate-detection.md)     | Alerta de duplicidade, corpus público, template e confiança   |
+| Documento                                              | Cobre                                                            |
+| ------------------------------------------------------ | ---------------------------------------------------------------- |
+| [`requests-lifecycle.md`](requests-lifecycle.md)       | Ciclo de vida da solicitação, catálogo de Status e transições    |
+| [`triage.md`](triage.md)                               | Triagem sequencial, campos condicionais e status de saída        |
+| [`assignment.md`](assignment.md)                       | Responsável de triagem, designado de mapeamento e RN-010         |
+| [`pending-items.md`](pending-items.md)                 | Pendências por campo, respostas, revisão e anexos                |
+| [`internal-observations.md`](internal-observations.md) | Linha do tempo de notas/eventos e checkpoint de leitura          |
+| [`audit-trail.md`](audit-trail.md)                     | Auditoria append-only, catálogo e origens                        |
+| [`portal-config.md`](portal-config.md)                 | Configuração do portal, categorias, status e assets              |
+| [`users-and-profiles.md`](users-and-profiles.md)       | Extensões de solicitante/profissional e autoatendimento          |
+| [`reports.md`](reports.md)                             | Dashboard, métricas e exportação CSV                             |
+| [`notifications.md`](notifications.md)                 | Eventos, audiência, allowlist e entrega SSE                      |
+| [`public-tracking.md`](public-tracking.md)             | Modo de acesso, identidade do solicitante e anti-enumeração      |
+| [`duplicate-detection.md`](duplicate-detection.md)     | Alerta de duplicidade, corpus, texto tarjado, janela e confiança |
 
 ## Decisões pendentes
 
