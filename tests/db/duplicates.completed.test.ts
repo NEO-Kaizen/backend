@@ -14,6 +14,7 @@ import {
 import { getDuplicateCompletedWindowMonths } from "../../src/modules/duplicates/duplicates.repository.ts";
 import { publishRequestProjection } from "../../src/modules/duplicates/projection.ts";
 import { toSaoPauloQuarter } from "../../src/modules/duplicates/template.ts";
+import { updateStatusById } from "../../src/modules/requests/requests.repository.ts";
 import type { DemandBlock } from "../../src/shared/types/requests.ts";
 import type { CreateRequestPayload } from "../../src/modules/DTOs/requests/RequestRequests.dto.ts";
 import type { CreateRequestResponse } from "../../src/modules/DTOs/requests/RequestResponse.dto.ts";
@@ -240,6 +241,45 @@ describe("DB — concluídas com texto tarjado e janela", () => {
     });
   });
 
+  it("reaplicar o Status 16 preserva concluded_at", async () => {
+    const created = await createRequest();
+    await concludeByPatch(created.protocol);
+
+    const request = await requestRow(created.protocol);
+    const original = new Date("2026-09-01T10:00:00.000Z");
+    await testDb("requests")
+      .where({ request_id: request.request_id })
+      .update({ concluded_at: original });
+
+    await testDb.transaction(async (trx) => {
+      await updateStatusById(trx, request.request_id, 16, "admin@neo.com");
+    });
+
+    await expect(requestRow(created.protocol)).resolves.toMatchObject({
+      status_id: 16,
+      concluded_at: original,
+    });
+  });
+
+  it("reaplicar o Status 16 preenche concluded_at legado nulo", async () => {
+    const created = await createRequest();
+    await concludeByPatch(created.protocol);
+
+    const request = await requestRow(created.protocol);
+    await testDb("requests")
+      .where({ request_id: request.request_id })
+      .update({ concluded_at: null });
+
+    await testDb.transaction(async (trx) => {
+      await updateStatusById(trx, request.request_id, 16, "admin@neo.com");
+    });
+
+    await expect(requestRow(created.protocol)).resolves.toMatchObject({
+      status_id: 16,
+      concluded_at: expect.any(Date),
+    });
+  });
+
   it("concluída fora da janela é suprimida com template", async () => {
     const created = await createRequest();
     await concludeByPatch(created.protocol);
@@ -254,7 +294,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
       public_title: "Solicitação de Automação concluída",
       public_summary: `Solicitação concluída da categoria Automação, registrada no período ${projection.public_period}.`,
       public_status: "Concluída",
-      redaction_version: "v1-regex",
+      redaction_version: "v1-template",
     });
     expect(projection.public_concluded_at).toBeInstanceOf(Date);
 
@@ -311,6 +351,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
       publication_status: "suppressed",
       suppression_reason: "outside_window",
       public_title: "Solicitação de Automação concluída",
+      redaction_version: "v1-template",
     });
     expect((await checkDuplicates(DEMAND)).items).toHaveLength(0);
   });
@@ -340,6 +381,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
       public_summary:
         "Descrição detalhada do processo e do problema.\n\nProcesso manual e sujeito a erros.",
       public_status: "Concluída",
+      redaction_version: "v1-regex",
     });
 
     const body = await checkDuplicates(DEMAND);
@@ -373,6 +415,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
       publication_status: "suppressed",
       suppression_reason: "restricted_request",
       public_title: "Solicitação de Automação concluída",
+      redaction_version: "v1-template",
     });
     expect((await checkDuplicates(DEMAND)).items).toHaveLength(0);
   });
@@ -474,7 +517,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
       public_title: "Solicitação de Automação concluída",
       public_summary: `Solicitação concluída da categoria Automação, registrada no período ${projection.public_period}.`,
       public_status: "Concluída",
-      redaction_version: "v1-regex",
+      redaction_version: "v1-template",
     });
     expect(projectionJson).not.toContain(canary);
     expect(projectionJson).not.toContain(cpf);

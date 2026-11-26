@@ -179,15 +179,13 @@ export async function applyRequestOutcome(
   expectedStatusId: number,
   updatedBy: string,
   releaseAssignee: boolean,
-  trx?: Knex.Transaction,
+  trx: Knex.Transaction,
 ): Promise<void> {
-  const source = trx ?? db;
-
   const updates: Record<string, unknown> = {
     updated_by: updatedBy,
-    updated_at: source.fn.now(),
+    updated_at: trx.fn.now(),
     status_id: statusId,
-    ...buildConcludedAtUpdate(source, statusId),
+    ...buildConcludedAtUpdate(trx, statusId),
   };
 
   // Conclusão da triagem encerra a custódia do responsável (issue de
@@ -204,14 +202,14 @@ export async function applyRequestOutcome(
     }
     updates.last_public_status_id = statusId;
     updates.last_technical_message = lastTechnicalMessage;
-    updates.last_external_update_at = source.fn.now();
+    updates.last_external_update_at = trx.fn.now();
   }
 
   if (categoryId !== null) {
     updates.category_id = categoryId;
   }
 
-  const updatedRows = await source("requests")
+  const updatedRows = await trx("requests")
     .where({ protocol })
     .andWhere("status_id", expectedStatusId)
     .update(updates);
