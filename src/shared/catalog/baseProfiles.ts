@@ -101,8 +101,8 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
   },
   {
     // Coluna "Visualizador" da matriz: leitura de todas as linhas e escrita de
-    // Nota interna. A renomeação para Visualizador continua no ticket 12.
-    profileName: "Gestor",
+    // Nota interna.
+    profileName: "Visualizador",
     isRoot: false,
     isAssignableTriage: false,
     isAssignableMapping: false,

@@ -48,7 +48,7 @@ export async function seed(knex) {
     },
     {
       professional_id: "650e8400-e29b-41d4-a716-446655440006",
-      user_id: 103, // Gestor Teste
+      user_id: 103, // Visualizador Teste
       job_title: "Consultor de Indicadores",
       specialties: "Indicadores, Métricas, OKRs",
       attended_category_ids: "3,9",
@@ -57,7 +57,7 @@ export async function seed(knex) {
     },
     {
       professional_id: "650e8400-e29b-41d4-a716-446655440007",
-      user_id: 106, // Ana Gestora
+      user_id: 106, // Ana Visualizadora
       job_title: "Especialista em Padronização",
       specialties: "Procedimentos, Modelos, Governança",
       attended_category_ids: "6,7",
@@ -66,7 +66,7 @@ export async function seed(knex) {
     },
     {
       professional_id: "650e8400-e29b-41d4-a716-446655440008",
-      user_id: 111, // Elisa Gestora
+      user_id: 111, // Elisa Visualizadora
       job_title: "Especialista em Viabilidade",
       specialties: "Pesquisa de viabilidade, Estimativas",
       attended_category_ids: "9",

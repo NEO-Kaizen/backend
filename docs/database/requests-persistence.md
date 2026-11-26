@@ -408,7 +408,7 @@ observações).
   por usuário autenticado referencia `users.user_id` (coluna anulável, issue #53).
   O snapshot público dos dados continua em `requesters`; a conta é a propriedade
   verificável. Qualquer Perfil autenticado pode solicitar (`Solicitante`,
-  `Analista`, `Gestor`, `Administrador`) — não há restrição de Perfil no banco. A
+  `Analista`, `Visualizador`, `Administrador`) — não há restrição de Perfil no banco. A
   coincidência de e-mail entre conta e snapshot é invariante da aplicação, não do
   banco. Não há `UNIQUE`: um usuário pode possuir múltiplas solicitações.
 - **Exclusão de usuário:** `requester_user_id` usa `ON DELETE SET NULL` — apagar
