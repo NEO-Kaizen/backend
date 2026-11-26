@@ -75,9 +75,11 @@ Dentro da janela, a concluída entra com:
 - `redaction_version`: `v1-regex`.
 
 Antes de publicar, o título e o resumo passam pelo **gate de PII**: CPF, CNPJ,
-e-mail, telefone, RG, CEP, placa antiga/Mercosul e sequências de 7+ dígitos. É um
-gate, não mascaramento parcial: **qualquer match em qualquer um dos dois campos
-derruba os dois** para o template:
+e-mail, telefone, RG, CEP, placa antiga/Mercosul e sequências de 7+ dígitos. Os
+padrões aceitam separadores opcionais (espaço, ponto, hífen e, no CNPJ, barra) e
+cobrem o RG de 8 dígitos sem dígito verificador. É um gate, não mascaramento
+parcial: **qualquer match em qualquer um dos dois campos derruba os dois** para
+o template:
 
 - `title`: `Solicitação de <categoria> concluída`
 - `summary`: `Solicitação concluída da categoria <categoria>, registrada no período <YYYY-Qn>.`
@@ -97,18 +99,27 @@ janela e da varredura; ele **não** entra no DTO.
 (INTEGER, padrão 3, CHECK 1..36). A comparação usa o relógio do banco:
 `concluded_at >= now() - make_interval(months => ?)`.
 
-A expiração não depende só da publicação:
+A varredura da janela roda nos dois sentidos e não depende só da publicação:
 
-- o **poll de 30 s** executa a varredura antes de ler mudanças;
-- o **rebuild** do índice executa a varredura antes de listar a projeção;
+- o **poll de 30 s** executa `sweepCompletedWindow()` antes de ler mudanças;
+- o **rebuild** do índice executa a mesma varredura antes de listar a projeção;
 - `listPublishedProjections` ainda filtra concluídas fora da janela, cobrindo a
   defasagem entre a mudança da configuração e o próximo ciclo.
 
-A varredura marca `publication_status = 'suppressed'`,
-`suppression_reason = 'outside_window'`, `suppressed_at = now()`, substitui o
-texto pelo template e incrementa `version`/`updated_at`. Aumentar a janela não
-republica sozinho: isso é responsabilidade da #212, que deve considerar o Status
-16 ligado e regenerar as concluídas suprimidas.
+No sentido de encolhimento, `suppressCompletedOutsideWindow(windowMonths)` marca
+`publication_status = 'suppressed'`, `suppression_reason = 'outside_window'`,
+`suppressed_at = now()`, substitui o texto pelo template e incrementa
+`version`/`updated_at` apenas nas publicadas e listáveis fora da janela.
+
+No sentido de crescimento, a varredura busca linhas
+`suppressed`/`outside_window` cuja conclusão voltou a ficar dentro da janela e
+roda `publishRequestProjection` em transação para cada uma. A publicação relê
+`requests` e reavalia **todas** as regras — restrição, Categoria, Status,
+`concluded_at` e gate de PII —, regenerando o texto tarjado. Uma linha
+suprimida por restrição não é republicada só porque a janela aumentou.
+
+A #212 continua responsável por editar e auditar a configuração e por preservar
+o Status 16 ligado na allowlist.
 
 ### Backfill de `concluded_at`
 
@@ -182,8 +193,8 @@ projeção está no
   requisição**. Enquanto não estiver pronto, a busca degrada para vazio.
 - Um poll de 30 s lê somente a projeção, com sobreposição de 5 min em
   `updated_at` para cobrir commits atrasados. Antes de ler, ele executa a
-  varredura de expiração da janela. Falha de build/poll/varredura não derruba o
-  servidor e não loga texto de consulta.
+  varredura da janela. Falha de build/poll/varredura não derruba o servidor e
+  não loga texto de consulta.
 - Flag desligada limpa o índice e não o constrói.
 
 ## Regra de confiança

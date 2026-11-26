@@ -61,8 +61,8 @@ Aviso ao solicitante, ao concluir a aba de Demanda, de que existem solicitaçõe
 _Evitar_: sugestão, aviso de duplicata, alerta de similaridade.
 
 **Janela de conclusão**:
-Período configurável (1 a 36 meses, padrão 3) em que uma solicitação concluída continua no corpus do alerta após a conclusão. Fora da janela, a solicitação é suprimida do corpus.
-_Evitar_: validade, retenção, prazo de expiração.
+Período configurável (1 a 36 meses, padrão 3) em que uma solicitação concluída continua no corpus do alerta após a conclusão. Fora da janela, a solicitação é suprimida do corpus; ampliar a janela pode trazê-la de volta, sempre com reavaliação das regras de publicação.
+_Evitar_: validade, retenção.
 
 **Texto tarjado**:
 Título e resumo de uma solicitação concluída publicados no alerta depois do gate de PII. Se houver suspeita de dado pessoal, os dois campos caem para o template e o texto bruto não é publicado.

@@ -78,6 +78,8 @@ retrato público. O protocolo é gerado na criação e não é reutilizado.
   da projeção pública de duplicidade;
 - reabrir uma solicitação concluída limpa a data e o corpus volta ao template de
   aberta;
+- a varredura da janela pode republicar uma concluída que voltou para dentro da
+  janela, mas sempre relê a Solicitação e reavalia todas as regras;
 - `updated_at` e `last_external_update_at` não substituem essa data. O backfill
   da issue #210 reconstrói a sequência pela Auditoria e relata concluídas sem
   evento, sem inventar data.

@@ -54,11 +54,15 @@ pública; o endpoint nunca consulta `requests`.
 - `idx_request_public_projections_published_concluded` parcial em
   `(publication_status, is_publicly_listable, public_concluded_at)`
   `WHERE publication_status = 'published' AND is_publicly_listable = TRUE` —
-  listagem de publicadas e varredura de concluídas fora da janela.
+  listagem de publicadas e supressão de concluídas fora da janela.
+- `idx_request_public_projections_suppressed_outside_window` parcial em
+  `(public_concluded_at)`
+  `WHERE publication_status = 'suppressed' AND suppression_reason = 'outside_window'`
+  — reconciliação de linhas que voltaram para dentro da janela.
 - `public_period` usa o formato `YYYY-Qn`; o trimestre é calculado pelo fuso
   `America/Sao_Paulo` no momento da publicação.
 - `public_concluded_at` é cópia de `requests.concluded_at` no momento da
-  publicação. Ele existe só para a janela e a expiração; o DTO expõe apenas as
+  publicação. Ele existe só para a janela e a varredura; o DTO expõe apenas as
   seis chaves públicas.
 
 ## Colunas de configuração
@@ -111,13 +115,22 @@ Os hooks ficam em criação, transição de Status (Motor e RN-010), conclusão 
 mapeamento, triagem, pendências/revisão de campos e atualização dos blocos
 internos.
 
-### Expiração da janela
+### Varredura da janela
 
-`suppressExpiredCompletedProjections(windowMonths)` roda antes de cada poll e
-de cada rebuild. Ela atualiza somente projeções `published` com
-`public_concluded_at < now() - make_interval(months => ?)`, gravando
-`publication_status = 'suppressed'`, `suppression_reason = 'outside_window'`,
-`suppressed_at = now()`, o template de concluída e `version + 1`.
+`sweepCompletedWindow()` roda antes de cada poll e de cada rebuild. Ela
+reconcilia nos dois sentidos:
+
+1. `suppressCompletedOutsideWindow(windowMonths)` atualiza somente projeções
+   `published` e listáveis com
+   `public_concluded_at < now() - make_interval(months => ?)`, gravando
+   `publication_status = 'suppressed'`, `suppression_reason = 'outside_window'`,
+   `suppressed_at = now()`, o template de concluída e `version + 1`.
+2. `listSuppressedCompletedWithinWindow(windowMonths)` busca linhas
+   `suppressed`/`outside_window` com
+   `public_concluded_at >= now() - make_interval(months => ?)` e, para cada uma,
+   roda `publishRequestProjection` em transação. A publicação relê `requests` e
+   reavalia todas as regras, regenerando ou mantendo a supressão.
+
 `listPublishedProjections` também filtra a janela, como proteção contra a
 defasagem entre a mudança da configuração e a varredura.
 
@@ -134,7 +147,7 @@ Concluídas sem evento de entrada vigente não recebem data e não ganham proje�
 - O repository da duplicidade lê apenas `request_public_projections` e
   `system_settings`.
 - O índice MiniSearch é derivado da projeção: no boot ele é reconstruído fora do
-  caminho da requisição; o poll de 30 s executa a varredura de expiração e lê
+  caminho da requisição; o poll de 30 s executa a varredura da janela e lê
   mudanças desde o cursor com sobreposição de 5 min em `updated_at`.
 - Linhas `suppressed`, com `is_publicly_listable = false` ou concluídas fora da
   janela são removidas do índice. O índice é sempre reconstruível a partir do
@@ -150,5 +163,4 @@ elegível desde a #210. Os testes `db` sobem apenas `app.ts` e chamam
 ## Fora do escopo
 
 - Administração da flag/janela/allowlists e auditoria (issue #212).
-- Republicação automática ao AUMENTAR a janela (issue #212).
 - `GET /requests/:protocol/duplicates` (issue #211).
