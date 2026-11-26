@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **175**.
 - Tipos nomeados: **302** â€” 210 interfaces, 89 aliases `type`, 3 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1902** â€” 1425 variÃ¡veis, 241 parÃ¢metros e 236 retornos de funÃ§Ãµes/mÃ©todos.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1910** â€” 1429 variÃ¡veis, 243 parÃ¢metros e 238 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
 - Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **133**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -62,10 +62,11 @@ export interface StatusRow {
   status_id: number;
   name: string;
   is_paused: boolean;
+  is_terminal: boolean;
 }
 ```
 
-#### L23 â€” interface AuditHistoryDetailRow
+#### L24 â€” interface AuditHistoryDetailRow
 
 ```ts
 interface AuditHistoryDetailRow {
@@ -145,12 +146,13 @@ export interface StatusTimeCalculationInput {
   currentStatusId?: number;
   currentIsTerminal: boolean;
   pausedStatusIds: readonly number[];
+  terminalStatusIds: readonly number[];
   transitions: readonly StatusTimeTransition[];
   now: Date;
 }
 ```
 
-#### L42 â€” class StatusTimeHistoryDivergenceError
+#### L43 â€” class StatusTimeHistoryDivergenceError
 
 ```ts
 export class StatusTimeHistoryDivergenceError extends Error {
@@ -3612,15 +3614,15 @@ interface GroupedIssues {
 - L35 â€” variÃ¡vel: `AuditHistoryListResponse`
 - L49 â€” variÃ¡vel: `AuditHistoryDetail`
 - L98 â€” variÃ¡vel: `StatusTimeInterval`
-- L129 â€” variÃ¡vel: `StatusTimeByStatus`
-- L140 â€” variÃ¡vel: `StatusTimeResponse`
+- L148 â€” variÃ¡vel: `StatusTimeByStatus`
+- L177 â€” variÃ¡vel: `StatusTimeResponse`
 
 ### [src/docs/schemas/auditHistory.ts](../src/docs/schemas/auditHistory.ts)
 
-- L1 â€” variÃ¡vel: `AuditActor`
-- L11 â€” variÃ¡vel: `AuditHistorySummary`
-- L29 â€” variÃ¡vel: `AuditHistoryListResponse`
-- L40 â€” variÃ¡vel: `AuditHistoryDetail`
+- L3 â€” variÃ¡vel: `AuditActor`
+- L13 â€” variÃ¡vel: `AuditHistorySummary`
+- L35 â€” variÃ¡vel: `AuditHistoryListResponse`
+- L46 â€” variÃ¡vel: `AuditHistoryDetail`
 
 ### [src/docs/schemas/auth.ts](../src/docs/schemas/auth.ts)
 
@@ -3689,15 +3691,15 @@ interface GroupedIssues {
 - L194 â€” variÃ¡vel: `portalStatusPatchRequired`
 - L207 â€” variÃ¡vel: `portalStatusPatchProperties`
 - L224 â€” variÃ¡vel: `PortalStatus`
-- L241 â€” variÃ¡vel: `PortalStatusPatch`
-- L252 â€” variÃ¡vel: `PrioritizationWeights`
-- L284 â€” variÃ¡vel: `PortalConfig`
-- L318 â€” variÃ¡vel: `PortalAccessPatchBody`
-- L331 â€” variÃ¡vel: `PortalIdentityPatchBody`
-- L345 â€” variÃ¡vel: `PortalThemePatchBody`
-- L354 â€” variÃ¡vel: `PortalCategoriesPatchBody`
-- L368 â€” variÃ¡vel: `PortalStatusesPatchBody`
-- L382 â€” variÃ¡vel: `PortalPrioritizationWeightsPatchBody`
+- L254 â€” variÃ¡vel: `PortalStatusPatch`
+- L265 â€” variÃ¡vel: `PrioritizationWeights`
+- L297 â€” variÃ¡vel: `PortalConfig`
+- L331 â€” variÃ¡vel: `PortalAccessPatchBody`
+- L344 â€” variÃ¡vel: `PortalIdentityPatchBody`
+- L358 â€” variÃ¡vel: `PortalThemePatchBody`
+- L367 â€” variÃ¡vel: `PortalCategoriesPatchBody`
+- L381 â€” variÃ¡vel: `PortalStatusesPatchBody`
+- L395 â€” variÃ¡vel: `PortalPrioritizationWeightsPatchBody`
 
 ### [src/docs/schemas/prioritization.ts](../src/docs/schemas/prioritization.ts)
 
@@ -3822,19 +3824,19 @@ interface GroupedIssues {
 
 ### [src/modules/auditHistory/auditHistory.repository.ts](../src/modules/auditHistory/auditHistory.repository.ts)
 
-- L44 â€” variÃ¡vel: `query`
-- L60 â€” variÃ¡vel: `totalRow`
-- L61 â€” parÃ¢metro: `builder`
-- L61 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L68 â€” variÃ¡vel: `total`
-- L70 â€” variÃ¡vel: `page`
-- L71 â€” variÃ¡vel: `limit`
-- L72 â€” variÃ¡vel: `offset`
-- L73 â€” variÃ¡vel: `items`
-- L135 â€” parÃ¢metro: `rows`
-- L135 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L141 â€” parÃ¢metro: `rows`
-- L141 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L45 â€” variÃ¡vel: `query`
+- L61 â€” variÃ¡vel: `totalRow`
+- L62 â€” parÃ¢metro: `builder`
+- L62 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L69 â€” variÃ¡vel: `total`
+- L71 â€” variÃ¡vel: `page`
+- L72 â€” variÃ¡vel: `limit`
+- L73 â€” variÃ¡vel: `offset`
+- L74 â€” variÃ¡vel: `items`
+- L136 â€” parÃ¢metro: `rows`
+- L136 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L142 â€” parÃ¢metro: `rows`
+- L142 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/auditHistory/auditHistory.router.ts](../src/modules/auditHistory/auditHistory.router.ts)
 
@@ -3879,46 +3881,54 @@ interface GroupedIssues {
 - L131 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 - L132 â€” parÃ¢metro: `status`
 - L132 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L134 â€” variÃ¡vel: `chronologicalRows`
-- L137 â€” variÃ¡vel: `row`
-- L140 â€” variÃ¡vel: `statusTransition`
-- L154 â€” variÃ¡vel: `occurredAt`
-- L171 â€” variÃ¡vel: `openedAt`
-- L177 â€” parÃ¢metro: `row`
-- L177 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L177 â€” variÃ¡vel: `earliestAuditRow`
-- L180 â€” variÃ¡vel: `previousStatus`
-- L186 â€” variÃ¡vel: `currentStatus`
-- L190 â€” variÃ¡vel: `initialStatus`
-- L211 â€” variÃ¡vel: `error`
-- L227 â€” variÃ¡vel: `isManagerLike`
-- L239 â€” variÃ¡vel: `isAssignee`
-- L241 â€” variÃ¡vel: `isMappingAssignee`
-- L266 â€” variÃ¡vel: `request`
-- L268 â€” variÃ¡vel: `calculatedAt`
-- L269 â€” variÃ¡vel: `summary`
-- L290 â€” variÃ¡vel: `request`
-- L292 â€” variÃ¡vel: `rows`
-- L293 â€” parÃ¢metro: `row`
-- L293 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L133 â€” variÃ¡vel: `terminalStatusIds`
+- L134 â€” parÃ¢metro: `status`
+- L134 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L135 â€” parÃ¢metro: `status`
+- L135 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L137 â€” variÃ¡vel: `chronologicalRows`
+- L140 â€” variÃ¡vel: `row`
+- L143 â€” variÃ¡vel: `statusTransition`
+- L157 â€” variÃ¡vel: `occurredAt`
+- L174 â€” variÃ¡vel: `openedAt`
+- L180 â€” parÃ¢metro: `row`
+- L180 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L180 â€” variÃ¡vel: `earliestAuditRow`
+- L183 â€” variÃ¡vel: `previousStatus`
+- L189 â€” variÃ¡vel: `currentStatus`
+- L193 â€” variÃ¡vel: `initialStatus`
+- L215 â€” variÃ¡vel: `error`
+- L231 â€” variÃ¡vel: `isManagerLike`
+- L243 â€” variÃ¡vel: `isAssignee`
+- L245 â€” variÃ¡vel: `isMappingAssignee`
+- L270 â€” variÃ¡vel: `request`
+- L272 â€” variÃ¡vel: `calculatedAt`
+- L273 â€” variÃ¡vel: `summary`
+- L294 â€” variÃ¡vel: `request`
+- L296 â€” variÃ¡vel: `rows`
+- L297 â€” parÃ¢metro: `row`
+- L297 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/auditHistory/statusTime.ts](../src/modules/auditHistory/statusTime.ts)
 
-- L54 â€” variÃ¡vel: `pausedStatusIds`
-- L56 â€” variÃ¡vel: `status`
-- L57 â€” variÃ¡vel: `statusId`
-- L58 â€” variÃ¡vel: `enteredAt`
-- L60 â€” variÃ¡vel: `transition`
-- L63 â€” variÃ¡vel: `duration`
-- L64 â€” variÃ¡vel: `isPaused`
-- L90 â€” variÃ¡vel: `currentEnd`
-- L95 â€” variÃ¡vel: `currentDuration`
-- L96 â€” variÃ¡vel: `currentIsPaused`
-- L107 â€” variÃ¡vel: `totalActiveMilliseconds`
-- L108 â€” variÃ¡vel: `totalPausedMilliseconds`
-- L109 â€” variÃ¡vel: `totalsByStatus`
-- L114 â€” variÃ¡vel: `interval`
-- L117 â€” variÃ¡vel: `total`
+- L55 â€” variÃ¡vel: `pausedStatusIds`
+- L56 â€” variÃ¡vel: `terminalStatusIds`
+- L58 â€” variÃ¡vel: `status`
+- L59 â€” variÃ¡vel: `statusId`
+- L60 â€” variÃ¡vel: `enteredAt`
+- L62 â€” variÃ¡vel: `transition`
+- L65 â€” variÃ¡vel: `isTerminal`
+- L66 â€” variÃ¡vel: `duration`
+- L67 â€” variÃ¡vel: `isPaused`
+- L93 â€” variÃ¡vel: `currentIsTerminal`
+- L95 â€” variÃ¡vel: `currentEnd`
+- L100 â€” variÃ¡vel: `currentDuration`
+- L101 â€” variÃ¡vel: `currentIsPaused`
+- L112 â€” variÃ¡vel: `totalActiveMilliseconds`
+- L113 â€” variÃ¡vel: `totalPausedMilliseconds`
+- L114 â€” variÃ¡vel: `totalsByStatus`
+- L119 â€” variÃ¡vel: `interval`
+- L122 â€” variÃ¡vel: `total`
 
 ### [src/modules/auth/auth.controller.ts](../src/modules/auth/auth.controller.ts)
 
