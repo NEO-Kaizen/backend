@@ -10,6 +10,8 @@ import { toSaoPauloDateOnly } from "../../shared/utils/date.ts";
  */
 export const OPEN_REQUEST_PUBLIC_STATUS = "Em andamento";
 export const OPEN_REQUEST_REDACTION_VERSION = "v1-open-template";
+export const COMPLETED_REQUEST_PUBLIC_STATUS = "Concluída";
+export const COMPLETED_REQUEST_REDACTION_VERSION = "v1-regex";
 
 export interface OpenRequestTemplate {
   title: string;
@@ -55,5 +57,25 @@ export function buildOpenRequestTemplate(input: {
     status: OPEN_REQUEST_PUBLIC_STATUS,
     period,
     redactionVersion: OPEN_REQUEST_REDACTION_VERSION,
+  };
+}
+
+/**
+ * Template de fallback de uma Solicitação concluída (issue #210): usado quando
+ * o texto livre não passa no gate de PII ou quando a linha está suprimida.
+ */
+export function buildCompletedRequestTemplate(input: {
+  category: string;
+  createdAt: Date | string;
+}): OpenRequestTemplate {
+  const period = toSaoPauloQuarter(input.createdAt);
+
+  return {
+    title: `Solicitação de ${input.category} concluída`,
+    summary: `Solicitação concluída da categoria ${input.category}, registrada no período ${period}.`,
+    category: input.category,
+    status: COMPLETED_REQUEST_PUBLIC_STATUS,
+    period,
+    redactionVersion: COMPLETED_REQUEST_REDACTION_VERSION,
   };
 }

@@ -23,6 +23,7 @@ export interface SystemSettingsRow {
   solicitation_mode: SolicitationMode;
   protocol_mask: string;
   duplicate_detection_enabled: boolean;
+  duplicate_completed_window_months: number;
   theme_id: number | null;
   logo_light_url: string | null;
   logo_dark_url: string | null;

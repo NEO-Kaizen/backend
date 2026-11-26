@@ -196,7 +196,9 @@ describe("DB — projeção pública e Alerta de duplicidade", () => {
     const statusCases = [
       { statusId: 10, reason: "ineligible_status" },
       { statusId: 13, reason: "ineligible_status" },
-      { statusId: 16, reason: "terminal_status" },
+      // O 16 é terminal, mas é elegível desde a #210; sem `concluded_at`, a
+      // linha cai em `missing_concluded_at` (e não em `terminal_status`).
+      { statusId: 16, reason: "missing_concluded_at" },
       { statusId: 17, reason: "terminal_status" },
     ] as const;
 

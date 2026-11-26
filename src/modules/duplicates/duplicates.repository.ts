@@ -20,6 +20,7 @@ export interface PublicProjectionRow {
   is_publicly_listable: boolean;
   redaction_version: string;
   version: number;
+  public_concluded_at: Date | null;
   updated_at: Date;
 }
 
@@ -35,8 +36,12 @@ const PROJECTION_COLUMNS = [
   "is_publicly_listable",
   "redaction_version",
   "version",
+  "public_concluded_at",
   "updated_at",
 ] as const;
+
+/** Janela padrão do corpus de concluídas, em meses (issue #210). */
+export const DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS = 3;
 
 /** Filtro único de publicação; espelha `isPublishedProjection`. */
 export const PUBLISHED_PROJECTION_FILTER = {
@@ -75,6 +80,7 @@ function parsePublicProjectionRow(row: Record<string, unknown>): PublicProjectio
     is_publicly_listable,
     redaction_version,
     version,
+    public_concluded_at,
     updated_at,
   } = row;
 
@@ -90,6 +96,7 @@ function parsePublicProjectionRow(row: Record<string, unknown>): PublicProjectio
     typeof is_publicly_listable !== "boolean" ||
     typeof redaction_version !== "string" ||
     typeof version !== "number" ||
+    !(public_concluded_at === null || public_concluded_at instanceof Date) ||
     !(updated_at instanceof Date)
   ) {
     throw new Error("Linha inválida em request_public_projections.");
@@ -107,6 +114,7 @@ function parsePublicProjectionRow(row: Record<string, unknown>): PublicProjectio
     is_publicly_listable,
     redaction_version,
     version,
+    public_concluded_at,
     updated_at,
   };
 }
@@ -121,17 +129,77 @@ export async function isDuplicateDetectionEnabled(trx?: Knex.Transaction): Promi
   return row?.duplicate_detection_enabled === true;
 }
 
+/**
+ * Janela do corpus de concluídas em meses. O banco garante 1..36; a ausência
+ * do singleton (ou da coluna em uma leitura antiga) cai para o padrão 3.
+ */
+export async function getDuplicateCompletedWindowMonths(trx?: Knex.Transaction): Promise<number> {
+  const source = trx ?? db;
+  const row: { duplicate_completed_window_months: number } | undefined = await source(
+    "system_settings",
+  )
+    .where({ settings_id: 1 })
+    .first("duplicate_completed_window_months");
+
+  return row?.duplicate_completed_window_months ?? DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS;
+}
+
+/**
+ * Somente projeções publicadas e listáveis entram no índice. Concluídas ainda
+ * são filtradas pela janela: a varredura marca `suppressed`, mas o filtro
+ * protege contra defasagem entre a mudança da janela e o próximo poll/rebuild.
+ */
 export async function listPublishedProjections(
   trx?: Knex.Transaction,
 ): Promise<PublicProjectionRow[]> {
   const source = trx ?? db;
+  const windowMonths = trx
+    ? await getDuplicateCompletedWindowMonths(trx)
+    : await getDuplicateCompletedWindowMonths();
 
   const rows: Record<string, unknown>[] = await source("request_public_projections")
     .where(PUBLISHED_PROJECTION_FILTER)
+    .andWhere((builder) => {
+      builder
+        .whereNull("public_concluded_at")
+        .orWhereRaw("public_concluded_at >= now() - make_interval(months => ?)", [windowMonths]);
+    })
     .orderBy("updated_at", "asc")
     .select(...PROJECTION_COLUMNS);
 
   return rows.map(parsePublicProjectionRow);
+}
+
+/**
+ * Varredura de expiração da janela (issue #210): concluídas publicadas fora da
+ * janela viram `suppressed`/`outside_window`. O texto livre é substituído pelo
+ * template de concluída na mesma escrita, para que uma linha suprimida nunca
+ * preserve texto que deixou de ser publicável.
+ *
+ * O relógio é o do banco (`now()`), o mesmo usado na publicação.
+ */
+export async function suppressExpiredCompletedProjections(
+  windowMonths: number,
+  trx?: Knex.Transaction,
+): Promise<number> {
+  const source = trx ?? db;
+
+  return source("request_public_projections")
+    .where({ publication_status: "published" })
+    .whereNotNull("public_concluded_at")
+    .whereRaw("public_concluded_at < now() - make_interval(months => ?)", [windowMonths])
+    .update({
+      publication_status: "suppressed",
+      suppression_reason: "outside_window",
+      suppressed_at: source.fn.now(),
+      public_title: source.raw(`'Solicitação de ' || public_category || ' concluída'`),
+      public_summary: source.raw(
+        `'Solicitação concluída da categoria ' || public_category || ', registrada no período ' || public_period || '.'`,
+      ),
+      redaction_version: "v1-regex",
+      version: source.raw("version + 1"),
+      updated_at: source.fn.now(),
+    });
 }
 
 /**

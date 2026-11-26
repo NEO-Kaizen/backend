@@ -10,6 +10,8 @@ export type SuppressionReason =
   | "terminal_status"
   | "restricted_request"
   | "restricted_status"
+  | "missing_concluded_at"
+  | "outside_window"
   | "ineligible_category"
   | "ineligible_status";
 
