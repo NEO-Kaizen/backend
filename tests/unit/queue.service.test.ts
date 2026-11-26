@@ -70,6 +70,33 @@ describe("listQueueService — custódia da busca por notas", () => {
       expect.objectContaining({ scopedUserId: 0, noteCustodianUserId: 0 }),
     );
   });
+
+  it("repassa filtros de data/departamento e ordenação ao repositório", async () => {
+    await listQueueService(
+      {
+        page: 2,
+        pageSize: 5,
+        dateFrom: "2026-11-01",
+        dateTo: "2026-11-30",
+        department: "Desenvolvimento",
+        sortBy: "protocol",
+        sortOrder: "asc",
+      },
+      makeActor("Gestor"),
+    );
+
+    expect(repository.findQueueRequests).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dateFrom: "2026-11-01",
+        dateTo: "2026-11-30",
+        department: "Desenvolvimento",
+        sortBy: "protocol",
+        sortOrder: "asc",
+        limit: 5,
+        offset: 5,
+      }),
+    );
+  });
 });
 
 describe("getQueueMetricsService — mesmo recorte da fila", () => {

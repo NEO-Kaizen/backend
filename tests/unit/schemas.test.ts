@@ -4,7 +4,7 @@ import {
   optionalText,
   requiredText,
 } from "../../src/shared/validation/fieldSchemas.ts";
-import { queueQuerySchema } from "../../src/modules/queue/queue.schemas.ts";
+import { queueFilterQuerySchema, queueQuerySchema } from "../../src/modules/queue/queue.schemas.ts";
 import { evaluateScoreSchema } from "../../src/modules/prioritization/prioritization.schema.ts";
 import {
   updateCategoriesSchema,
@@ -66,6 +66,65 @@ describe("queueQuerySchema", () => {
     expect(
       queueQuerySchema.safeParse({ page: "1", pageSize: "10", priority: "Altíssima" }).success,
     ).toBe(false);
+  });
+
+  it("aceita datas e departamento válidos e recusa intervalo invertido", () => {
+    const valid = queueQuerySchema.safeParse({
+      page: "1",
+      pageSize: "10",
+      dateFrom: "2026-11-01",
+      dateTo: "2026-11-30",
+      department: "Desenvolvimento",
+    });
+    expect(valid.success).toBe(true);
+    if (valid.success) {
+      expect(valid.data).toMatchObject({
+        dateFrom: "2026-11-01",
+        dateTo: "2026-11-30",
+        department: "Desenvolvimento",
+      });
+    }
+
+    expect(
+      queueQuerySchema.safeParse({
+        page: "1",
+        pageSize: "10",
+        dateFrom: "2026-12-01",
+        dateTo: "2026-11-30",
+      }).success,
+    ).toBe(false);
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", dateFrom: "2026-13-01" }).success,
+    ).toBe(false);
+  });
+
+  it("recusa campo e direção de ordenação fora do contrato", () => {
+    expect(
+      queueQuerySchema.safeParse({
+        page: "1",
+        pageSize: "10",
+        sortBy: "createdAt",
+        sortOrder: "asc",
+      }).success,
+    ).toBe(true);
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", sortBy: "requests.created_at" })
+        .success,
+    ).toBe(false);
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", sortOrder: "lateral" }).success,
+    ).toBe(false);
+  });
+
+  it("exportação CSV aceita os filtros compartilhados, mas não parâmetros de paginação", () => {
+    expect(
+      queueFilterQuerySchema.safeParse({
+        search: "MAAT",
+        dateFrom: "2026-11-01",
+        department: "Desenvolvimento",
+      }).success,
+    ).toBe(true);
+    expect(queueFilterQuerySchema.safeParse({ page: "1" }).success).toBe(false);
   });
 });
 

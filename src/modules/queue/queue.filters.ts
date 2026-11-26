@@ -1,6 +1,9 @@
 import type { Knex } from "knex";
 import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 
+/** Mesmo dia comercial usado pelo dashboard para filtros de abertura. */
+const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
+
 export interface QueueRepositoryFilters extends QueueFilterQuery {
   scopedUserId?: number;
   noteCustodianUserId?: number;
@@ -17,11 +20,23 @@ export interface QueueRepositoryFilters extends QueueFilterQuery {
  * Dois limites são distintos: `scopedUserId` é o escopo da fila (triagem ou
  * mapeamento); `noteCustodianUserId` é a custódia de `internal_note:read` e
  * vale somente para a correspondência em notas. O responsável de mapeamento
- * amplia a fila, mas não amplia a busca por nota.
+ * amplia a fila, mas não amplia a busca por nota. Os filtros de data e
+ * departamento (issue #215) entram no mesmo conjunto e, portanto, também
+ * valem para a exportação CSV.
  */
 export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueRepositoryFilters): void {
-  const { search, status, priority, assigneeId, unassigned, scopedUserId, noteCustodianUserId } =
-    filters;
+  const {
+    search,
+    status,
+    priority,
+    assigneeId,
+    unassigned,
+    dateFrom,
+    dateTo,
+    department,
+    scopedUserId,
+    noteCustodianUserId,
+  } = filters;
 
   if (search) {
     const searchPattern = `%${search}%`;
@@ -45,6 +60,25 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
           }
         });
     });
+  }
+
+  if (dateFrom) {
+    query.whereRaw(`"requests"."created_at" >= (?::date AT TIME ZONE ?)`, [
+      dateFrom,
+      BUSINESS_TIME_ZONE,
+    ]);
+  }
+
+  if (dateTo) {
+    // Intervalo semiaberto: `dateTo` é inclusivo mesmo para registros no fim do dia.
+    query.whereRaw(`"requests"."created_at" < ((?::date + INTERVAL '1 day') AT TIME ZONE ?)`, [
+      dateTo,
+      BUSINESS_TIME_ZONE,
+    ]);
+  }
+
+  if (department) {
+    query.whereRaw(`lower("requester"."department") = lower(?)`, [department]);
   }
 
   if (status) query.andWhere("status.name", status);

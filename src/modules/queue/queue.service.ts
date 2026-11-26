@@ -37,7 +37,20 @@ export const listQueueService = async (
   filters: QueueQuery,
   actor?: AuthenticatedUser,
 ): Promise<QueueResponse> => {
-  const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
+  const {
+    page,
+    pageSize,
+    search,
+    status,
+    priority,
+    assigneeId,
+    unassigned,
+    dateFrom,
+    dateTo,
+    department,
+    sortBy,
+    sortOrder,
+  } = filters;
   const offset = (page - 1) * pageSize;
 
   const repoUnassigned = Boolean(unassigned || assigneeId === "unassigned");
@@ -52,6 +65,11 @@ export const listQueueService = async (
       priority,
       assigneeId: repoAssigneeId,
       unassigned: repoUnassigned,
+      dateFrom,
+      dateTo,
+      department,
+      sortBy,
+      sortOrder,
       // Escopo da fila e custódia da nota são regras diferentes, mas para o
       // Analista usam o mesmo vínculo corrente com a solicitação.
       scopedUserId: analystUserId,
