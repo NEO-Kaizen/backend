@@ -2,7 +2,9 @@
  * RF16 (issue #210) — janela de conclusão e data pública da conclusão.
  *
  * - `system_settings.duplicate_completed_window_months` (1..36, padrão 3)
- *   define por quanto tempo uma Solicitação concluída continua no corpus.
+ *   define por quanto tempo uma Solicitação concluída continua no corpus. O
+ *   intervalo é fixo: o CHECK abaixo é a fonte no banco e o default 3 da
+ *   leitura em `src/shared/types/systemSettings.ts` espelha este valor.
  * - `request_public_projections.public_concluded_at` guarda a conclusão
  *   efetiva usada na varredura da janela. É interno: não entra no DTO.
  * - Os índices parciais cobrem a leitura de publicadas, a supressão fora da
