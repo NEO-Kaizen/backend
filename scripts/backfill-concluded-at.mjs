@@ -18,7 +18,8 @@ try {
   const report = await backfillConcludedAt({ dryRun });
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
-  console.error("[backfill-concluded-at] falha ao executar o backfill", error);
+  const errorName = error instanceof Error ? error.name : "erro desconhecido";
+  console.error(`[backfill-concluded-at] falha ao executar o backfill (${errorName})`);
   process.exitCode = 1;
 } finally {
   await db.destroy();

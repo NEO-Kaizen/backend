@@ -1,3 +1,4 @@
+import type { StatusAuditAction } from "../../shared/audit/statusAuditActions.ts";
 import { isCompletedStatus } from "../../shared/types/status.ts";
 
 /**
@@ -31,7 +32,7 @@ export function replayConcludedAt(
 
 /** Evento mínimo da Auditoria que pode alterar o Status. */
 export interface AuditEventForReplay {
-  action_type: "request.status_change" | "request.override_status_admin" | "request.triage";
+  action_type: StatusAuditAction;
   new_value: string | null;
 }
 

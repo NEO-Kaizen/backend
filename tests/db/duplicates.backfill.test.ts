@@ -105,6 +105,7 @@ describe("DB — backfill de concluded_at pela Auditoria", () => {
       scanned: 1,
       updated: [created.protocol],
       withoutEvent: [],
+      skipped: [],
     });
 
     const request = await requestRow(created.protocol);
@@ -162,9 +163,53 @@ describe("DB — backfill de concluded_at pela Auditoria", () => {
       scanned: 0,
       updated: [],
       withoutEvent: [],
+      skipped: [],
     });
     await expect(requestRow(created.protocol)).resolves.toMatchObject({
       concluded_at: OCCURRED_AT,
+    });
+  });
+
+  it("processa candidatas do mesmo lote com eventos agrupados por protocolo", async () => {
+    const first = await createRequest();
+    const second = await createRequest();
+    await markCompletedWithoutConcludedAt(first.protocol);
+    await markCompletedWithoutConcludedAt(second.protocol);
+
+    const firstOccurredAt = new Date("2026-08-10T10:00:00.000Z");
+    const secondOccurredAt = new Date("2026-08-20T10:00:00.000Z");
+
+    await insertStatusAudit({
+      protocol: first.protocol,
+      actionType: "request.status_change",
+      previousValue: "Em triagem",
+      newValue: "Concluído",
+      occurredAt: firstOccurredAt,
+    });
+    await insertStatusAudit({
+      protocol: second.protocol,
+      actionType: "request.status_change",
+      previousValue: "Em triagem",
+      newValue: "Concluído",
+      occurredAt: secondOccurredAt,
+    });
+
+    const report = await backfillConcludedAt();
+
+    expect(report.scanned).toBe(2);
+    expect(report.updated).toHaveLength(2);
+    expect(report.updated).toEqual(expect.arrayContaining([first.protocol, second.protocol]));
+    expect(report.withoutEvent).toEqual([]);
+    expect(report.skipped).toEqual([]);
+    expect(report.scanned).toBe(
+      report.updated.length + report.withoutEvent.length + report.skipped.length,
+    );
+
+    await expect(requestRow(first.protocol)).resolves.toMatchObject({
+      concluded_at: firstOccurredAt,
+    });
+    await expect(requestRow(second.protocol)).resolves.toMatchObject({
+      concluded_at: secondOccurredAt,
     });
   });
 
@@ -186,6 +231,7 @@ describe("DB — backfill de concluded_at pela Auditoria", () => {
       scanned: 1,
       updated: [created.protocol],
       withoutEvent: [],
+      skipped: [],
     });
     await expect(requestRow(created.protocol)).resolves.toMatchObject({
       concluded_at: null,
@@ -211,6 +257,7 @@ describe("DB — backfill de concluded_at pela Auditoria", () => {
       scanned: 1,
       updated: [],
       withoutEvent: [created.protocol],
+      skipped: [],
     });
     await expect(requestRow(created.protocol)).resolves.toMatchObject({
       concluded_at: null,

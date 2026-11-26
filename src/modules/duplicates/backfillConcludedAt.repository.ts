@@ -1,5 +1,10 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import {
+  isStatusAuditAction,
+  STATUS_AUDIT_ACTIONS,
+  type StatusAuditAction,
+} from "../../shared/audit/statusAuditActions.ts";
 import { STATUS_IDS } from "../../shared/types/status.ts";
 
 /**
@@ -14,9 +19,6 @@ export interface CompletedRequestCandidate {
   protocol: string;
 }
 
-export type StatusAuditAction =
-  "request.status_change" | "request.override_status_admin" | "request.triage";
-
 export interface StatusAuditEvent {
   action_type: StatusAuditAction;
   previous_value: string | null;
@@ -24,12 +26,6 @@ export interface StatusAuditEvent {
   occurred_at: Date;
   audit_id: string;
 }
-
-const STATUS_AUDIT_ACTIONS: readonly StatusAuditAction[] = [
-  "request.status_change",
-  "request.override_status_admin",
-  "request.triage",
-];
 
 export async function listCompletedRequestsMissingConcludedAt(
   trx?: Knex.Transaction,
@@ -70,46 +66,67 @@ export async function listStatusIdsByName(trx?: Knex.Transaction): Promise<Map<s
 }
 
 /**
- * Eventos que podem mudar o Status, em ordem de acontecimento. O desempate por
- * `audit_id` preserva a ordem de eventos gravados no mesmo instante.
+ * Eventos de Status de um lote de protocolos, agrupados por `entity_id`. Uma
+ * única consulta `whereIn` evita uma leitura de Auditoria por candidata. O
+ * desempate por `audit_id` preserva a ordem de eventos gravados no mesmo
+ * instante.
  */
-export async function listStatusAuditEvents(
-  protocol: string,
+export async function listStatusAuditEventsForProtocols(
+  protocols: readonly string[],
   trx?: Knex.Transaction,
-): Promise<StatusAuditEvent[]> {
+): Promise<Map<string, StatusAuditEvent[]>> {
+  if (protocols.length === 0) return new Map();
+
   const source = trx ?? db;
   const rows: Record<string, unknown>[] = await source("audit_history")
-    .where({ entity_type: "request", entity_id: protocol })
+    .where({ entity_type: "request" })
+    .whereIn("entity_id", protocols)
     .whereIn("action_type", STATUS_AUDIT_ACTIONS)
     .orderBy("occurred_at", "asc")
     .orderBy("audit_id", "asc")
-    .select("action_type", "previous_value", "new_value", "occurred_at", "audit_id");
+    .select("entity_id", "action_type", "previous_value", "new_value", "occurred_at", "audit_id");
 
-  return rows.map((row) => {
-    const { action_type, previous_value, new_value, occurred_at, audit_id } = row;
+  const eventsByProtocol = new Map<string, StatusAuditEvent[]>();
 
-    if (
-      !isStatusAuditAction(action_type) ||
-      !(previous_value === null || typeof previous_value === "string") ||
-      !(new_value === null || typeof new_value === "string") ||
-      !(occurred_at instanceof Date) ||
-      !(typeof audit_id === "string" || typeof audit_id === "number")
-    ) {
+  for (const row of rows) {
+    const { entity_id } = row;
+    if (typeof entity_id !== "string") {
       throw new Error("Linha inválida em audit_history para o backfill.");
     }
 
-    return {
-      action_type,
-      previous_value,
-      new_value,
-      occurred_at,
-      audit_id: String(audit_id),
-    };
-  });
+    const event = parseStatusAuditEvent(row);
+    const events = eventsByProtocol.get(entity_id);
+
+    if (events) {
+      events.push(event);
+    } else {
+      eventsByProtocol.set(entity_id, [event]);
+    }
+  }
+
+  return eventsByProtocol;
 }
 
-function isStatusAuditAction(value: unknown): value is StatusAuditAction {
-  return STATUS_AUDIT_ACTIONS.some((action) => action === value);
+function parseStatusAuditEvent(row: Record<string, unknown>): StatusAuditEvent {
+  const { action_type, previous_value, new_value, occurred_at, audit_id } = row;
+
+  if (
+    !isStatusAuditAction(action_type) ||
+    !(previous_value === null || typeof previous_value === "string") ||
+    !(new_value === null || typeof new_value === "string") ||
+    !(occurred_at instanceof Date) ||
+    !(typeof audit_id === "string" || typeof audit_id === "number")
+  ) {
+    throw new Error("Linha inválida em audit_history para o backfill.");
+  }
+
+  return {
+    action_type,
+    previous_value,
+    new_value,
+    occurred_at,
+    audit_id: String(audit_id),
+  };
 }
 
 /**
