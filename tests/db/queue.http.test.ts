@@ -27,10 +27,30 @@ let client: TestClient;
  * depender do dia comercial `America/Sao_Paulo` do dashboard.
  */
 const REQUESTS = [
-  { protocol: "TESTE-0001", createdAt: "2026-10-31T23:00:00Z", department: "Desenvolvimento" },
-  { protocol: "TESTE-0002", createdAt: "2026-11-01T00:00:00Z", department: "desenvolvimento" },
-  { protocol: "TESTE-0003", createdAt: "2026-11-01T23:59:00Z", department: "Financeiro" },
-  { protocol: "TESTE-0004", createdAt: "2026-11-02T00:00:00Z", department: "Desenvolvimento" },
+  {
+    protocol: "TESTE-0001",
+    createdAt: "2026-10-31T23:00:00Z",
+    department: "Desenvolvimento",
+    label: "Alfa",
+  },
+  {
+    protocol: "TESTE-0002",
+    createdAt: "2026-11-01T00:00:00Z",
+    department: "desenvolvimento",
+    label: "Beta",
+  },
+  {
+    protocol: "TESTE-0003",
+    createdAt: "2026-11-01T23:59:00Z",
+    department: "Financeiro",
+    label: "Gamma",
+  },
+  {
+    protocol: "TESTE-0004",
+    createdAt: "2026-11-02T00:00:00Z",
+    department: "Desenvolvimento",
+    label: "Delta",
+  },
 ] as const;
 
 async function seedQueue(): Promise<void> {
@@ -58,12 +78,12 @@ async function seedQueue(): Promise<void> {
       requester_id: requester.requester_id,
       category_id: category.category_id,
       status_id: status.status_id,
-      title: "Solicitação de teste",
+      title: `Titulo ${item.label}`,
       request_type: "Automação",
-      process_name: "Processo de teste",
-      need_description: "Descrição da necessidade.",
-      problem_opportunity: "Descrição do problema.",
-      expected_result: "Resultado esperado.",
+      process_name: `Processo ${item.label}`,
+      need_description: `Necessidade ${item.label}`,
+      problem_opportunity: `Problema ${item.label}`,
+      expected_result: `Resultado ${item.label}`,
       justification: "Justificativa do teste.",
       process_description: "Descrição operacional.",
       process_steps: "Passo 1; passo 2.",
@@ -192,6 +212,23 @@ describe("HTTP real — filtros de data e departamento na fila", () => {
 
     expect(protocols(queue)).toEqual(["TESTE-0003"]);
     expect(queue.departments).toEqual(["Desenvolvimento", "Financeiro"]);
+  });
+});
+
+describe("HTTP real — busca textual do contrato RF04", () => {
+  it("busca por título, processo, descrição, problema e resultado esperado", async () => {
+    const cases = [
+      ["Titulo Alfa", "TESTE-0001"],
+      ["Processo Beta", "TESTE-0002"],
+      ["Necessidade Gamma", "TESTE-0003"],
+      ["Problema Delta", "TESTE-0004"],
+      ["Resultado Alfa", "TESTE-0001"],
+    ] as const;
+
+    for (const [term, expected] of cases) {
+      const queue = await listQueue(`search=${encodeURIComponent(term)}`);
+      expect(queueProtocols(queue), term).toEqual([expected]);
+    }
   });
 });
 
