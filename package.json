@@ -16,7 +16,7 @@
     "docs:openapi:check": "node scripts/check-openapi.mjs --check",
     "docs:check": "npm run docs:types:check && npm run docs:openapi:check",
     "check": "npm run typecheck && npm run typecheck:tests && npm run lint && npm run format:check && npm run docs:check",
-    "test": "vitest run && node --test test/*.test.ts",
+    "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",

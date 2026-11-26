@@ -1,11 +1,11 @@
 {
   // Configuração usada apenas para checagem de tipos dos testes (Vitest).
   // O `tsconfig.json` principal restringe o build a `src`; aqui estendemos o
-  // programa para incluir `test/`, `tests/` e `vitest.config.ts`, sem emitir saída.
+  // programa para incluir `tests/` e `vitest.config.ts`, sem emitir saída.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
     "noEmit": true
   },
-  "include": ["src", "test/**/*.ts", "tests", "vitest.config.ts"]
+  "include": ["src", "tests", "vitest.config.ts"]
 }

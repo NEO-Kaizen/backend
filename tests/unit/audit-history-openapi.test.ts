@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import auditHistoryPaths from "../src/docs/paths/auditHistory.ts";
-import { schemas } from "../src/docs/schemas/index.ts";
+import { it } from "vitest";
+import auditHistoryPaths from "../../src/docs/paths/auditHistory.ts";
+import { schemas } from "../../src/docs/schemas/index.ts";
 
-test("GET /audit-history documents its pagination filters and response envelope", () => {
+it("GET /audit-history documents its pagination filters and response envelope", () => {
   const operation = auditHistoryPaths["/audit-history"].get;
   assert.deepEqual(
     operation.parameters?.map((parameter) => parameter.name),
@@ -24,7 +24,7 @@ test("GET /audit-history documents its pagination filters and response envelope"
   });
 });
 
-test("audit-history 403 responses describe only the permitted roles", () => {
+it("audit-history 403 responses describe only the permitted roles", () => {
   const expectedDescription = "Perfil sem acesso (Administrador ou Gestor).";
   assert.equal(
     auditHistoryPaths["/audit-history"].get.responses["403"].description,
@@ -36,7 +36,7 @@ test("audit-history 403 responses describe only the permitted roles", () => {
   );
 });
 
-test("status-times documents audit history divergence as a standard 409 error", () => {
+it("status-times documents audit history divergence as a standard 409 error", () => {
   const response = auditHistoryPaths["/audit-logs/{protocol}/status-times"].get.responses["409"];
   assert.equal(
     response.content["application/json"].schema.$ref,

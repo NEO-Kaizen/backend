@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { calculateStatusTime } from "../src/modules/auditHistory/statusTime.ts";
+import { it } from "vitest";
+import { calculateStatusTime } from "../../src/modules/auditHistory/statusTime.ts";
 import {
   isRequestStatusTransitionAction,
   parseAuditedStatusName,
-} from "../src/shared/audit/statusTransition.ts";
+} from "../../src/shared/audit/statusTransition.ts";
 
-test("shared audit utility recognizes status actions and supported value formats", () => {
+it("shared audit utility recognizes status actions and supported value formats", () => {
   assert.equal(isRequestStatusTransitionAction("request.status_change"), true);
   assert.equal(isRequestStatusTransitionAction("request.triage"), true);
   assert.equal(isRequestStatusTransitionAction("request.access_denied"), false);
@@ -15,7 +15,7 @@ test("shared audit utility recognizes status actions and supported value formats
   assert.equal(parseAuditedStatusName('{"status":4}'), null);
 });
 
-test("status time separates active and paused periods", () => {
+it("status time separates active and paused periods", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T10:00:00Z"),
     initialStatus: "Em triagem",
@@ -54,7 +54,7 @@ test("status time separates active and paused periods", () => {
   );
 });
 
-test("status time classifies pauses by status ID rather than label", () => {
+it("status time classifies pauses by status ID rather than label", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T10:00:00Z"),
     initialStatus: "Em triagem",
@@ -80,7 +80,7 @@ test("status time classifies pauses by status ID rather than label", () => {
   assert.equal(result.intervals[1]?.activeMilliseconds, 60 * 60 * 1000);
 });
 
-test("completed request closes each audited interval and the final status", () => {
+it("completed request closes each audited interval and the final status", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T09:00:00Z"),
     initialStatus: "Em triagem",
@@ -114,7 +114,7 @@ test("completed request closes each audited interval and the final status", () =
   assert.equal(result.totalPausedMilliseconds, 2 * 60 * 60 * 1000);
 });
 
-test("in-progress request keeps the current status open", () => {
+it("in-progress request keeps the current status open", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T09:00:00Z"),
     initialStatus: "Em triagem",
@@ -139,7 +139,7 @@ test("in-progress request keeps the current status open", () => {
   assert.equal(result.intervals.at(-1)?.activeMilliseconds, 2 * 60 * 60 * 1000);
 });
 
-test("divergent audit and database status fails instead of inventing a period", () => {
+it("divergent audit and database status fails instead of inventing a period", () => {
   assert.throws(
     () =>
       calculateStatusTime({
@@ -161,7 +161,7 @@ test("divergent audit and database status fails instead of inventing a period", 
   );
 });
 
-test("reopened terminal intervals have zero duration and do not affect totals", () => {
+it("reopened terminal intervals have zero duration and do not affect totals", () => {
   const result = calculateStatusTime({
     openedAt: new Date("2026-11-20T09:00:00Z"),
     initialStatus: "Em triagem",
