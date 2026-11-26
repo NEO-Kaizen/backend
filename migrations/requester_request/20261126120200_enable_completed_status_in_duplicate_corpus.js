@@ -11,11 +11,17 @@
  * Regras em `docs/rules/duplicate-detection.md`.
  */
 const COMPLETED_STATUS_ID = 16;
+const INELIGIBLE_STATUS_IDS = [10, 13, 17, 19];
 
 export async function up(knex) {
   await knex("statuses")
     .where({ status_id: COMPLETED_STATUS_ID })
     .update({ is_duplicate_corpus_eligible: true });
+
+  // Reforça o baseline da #209: esses desfechos continuam fora do corpus.
+  await knex("statuses")
+    .whereIn("status_id", INELIGIBLE_STATUS_IDS)
+    .update({ is_duplicate_corpus_eligible: false });
 }
 
 export async function down(knex) {
