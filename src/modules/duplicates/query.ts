@@ -1,5 +1,5 @@
 import type { DemandBlock } from "../../shared/types/requests.ts";
-import { normalizeText, processTerm } from "./normalize.ts";
+import { processTerm, tokenizePt } from "./normalize.ts";
 
 /**
  * Consulta lexical do Alerta de duplicidade (issue #209).
@@ -23,9 +23,7 @@ const DEMAND_FIELDS: readonly (keyof DemandBlock)[] = [
 ];
 
 function pushTerms(value: string, terms: string[], seen: Set<string>): void {
-  for (const rawTerm of normalizeText(value).split(/[^a-z0-9]+/)) {
-    if (rawTerm.length <= 1) continue;
-
+  for (const rawTerm of tokenizePt(value)) {
     const processed = processTerm(rawTerm);
     if (processed === null) continue;
 

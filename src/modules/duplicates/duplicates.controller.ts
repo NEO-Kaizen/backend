@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { buildZodFieldErrors } from "../../shared/validation/zodErrors.ts";
 import { duplicateCheckPayloadSchema } from "./duplicates.schema.ts";
-import { checkDuplicates } from "./duplicates.service.ts";
+import { checkDuplicates, EMPTY_DUPLICATE_CHECK_RESPONSE } from "./duplicates.service.ts";
 
 /**
  * `POST /requests/duplicates/check` — Alerta de duplicidade (issue #209).
@@ -19,8 +19,14 @@ export async function postDuplicateCheck(req: Request, res: Response): Promise<R
     throw new ValidationError(fields, message);
   }
 
-  const response = await checkDuplicates(parsed.data.demand);
-
   res.set("Cache-Control", "no-store");
-  return res.status(200).json(response);
+
+  try {
+    return res.status(200).json(await checkDuplicates(parsed.data.demand));
+  } catch (error) {
+    // Falha de flag/índice/busca não impede o envio da Solicitação; a causa é
+    // logada uma única vez aqui, na borda. O texto da Demanda nunca é logado.
+    console.error("[duplicates] duplicate check failed", error);
+    return res.status(200).json(EMPTY_DUPLICATE_CHECK_RESPONSE);
+  }
 }

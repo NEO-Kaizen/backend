@@ -22,6 +22,7 @@ export interface IndexPollerOptions {
   now?: () => Date;
   intervalMs?: number;
   overlapMs?: number;
+  onSuccess?: () => void;
   onError?: (error: unknown) => void;
   /**
    * Quando o índice já foi construído antes do poller (boot), a primeira
@@ -71,6 +72,7 @@ export function createIndexPoller(options: IndexPollerOptions): IndexPoller {
       }
       cursor = runAt;
       enabledState = true;
+      options.onSuccess?.();
       return;
     }
 
@@ -86,6 +88,7 @@ export function createIndexPoller(options: IndexPollerOptions): IndexPoller {
     }
 
     cursor = runAt;
+    options.onSuccess?.();
   }
 
   async function runOnce(): Promise<void> {

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DemandBlock } from "../../src/shared/types/requests.ts";
 import { startTestServer, TestClient, type TestServer } from "../helpers/http.ts";
 
@@ -17,9 +17,11 @@ vi.mock("../../src/modules/portalConfig/portalConfig.repository.ts", () => ({
   getSolicitationMode: vi.fn(async () => "PUBLIC"),
 }));
 
-vi.mock("../../src/modules/duplicates/duplicates.service.ts", () => ({
-  checkDuplicates: vi.fn(async () => ({ confidence: "none", items: [] })),
+vi.mock("../../src/modules/duplicates/duplicates.repository.ts", () => ({
+  isDuplicateDetectionEnabled: vi.fn(),
 }));
+
+const duplicatesRepository = await import("../../src/modules/duplicates/duplicates.repository.ts");
 
 const DEMAND: DemandBlock = {
   title: "Automatizar conciliação bancária",
@@ -36,6 +38,10 @@ let server: TestServer;
 
 beforeAll(async () => {
   server = await startTestServer();
+});
+
+beforeEach(() => {
+  vi.mocked(duplicatesRepository.isDuplicateDetectionEnabled).mockResolvedValue(false);
 });
 
 afterAll(async () => {

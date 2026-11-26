@@ -6,6 +6,8 @@ import type { SimilarityDocument, SimilarityHit } from "../../shared/types/dupli
  * O índice é derivado de `request_public_projections` e reconstruível; trocar
  * o MiniSearch por Meilisearch não muda o contrato HTTP.
  */
+export const DUPLICATE_SEARCH_LIMIT = 20;
+
 export interface SimilarityIndex {
   search(query: string, limit: number): SimilarityHit[];
   upsert(document: SimilarityDocument): void;

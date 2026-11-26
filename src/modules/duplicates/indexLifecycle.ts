@@ -1,8 +1,13 @@
 import type { SimilarityDocument, SimilarityHit } from "../../shared/types/duplicates.ts";
-import * as repository from "./duplicates.repository.ts";
+import {
+  isDuplicateDetectionEnabled,
+  isPublishedProjection,
+  listProjectionChangesSince,
+  listPublishedProjections,
+  type PublicProjectionRow,
+} from "./duplicates.repository.ts";
 import { createIndexPoller, type IndexPoller } from "./indexPoller.ts";
 import { MiniSearchIndex } from "./miniSearchIndex.ts";
-import type { PublicProjectionRow } from "./duplicates.repository.ts";
 import type { SimilarityIndex } from "./similarityIndex.ts";
 
 /**
@@ -42,14 +47,14 @@ export function resetDuplicateIndex(): void {
  */
 export async function rebuildDuplicateIndex(): Promise<void> {
   try {
-    const enabled = await repository.isDuplicateDetectionEnabled();
+    const enabled = await isDuplicateDetectionEnabled();
 
     if (!enabled) {
       resetDuplicateIndex();
       return;
     }
 
-    const projections = await repository.listPublishedProjections();
+    const projections = await listPublishedProjections();
     index.rebuild(projections.map(toSimilarityDocument));
     ready = true;
   } catch {
@@ -57,39 +62,6 @@ export async function rebuildDuplicateIndex(): Promise<void> {
     // responde vazio. Nenhum texto de consulta é logado.
     ready = false;
     console.warn("[duplicates] index rebuild failed");
-  }
-}
-
-/**
- * Aplica um lote incremental de mudanças da projeção. A janela é de
- * responsabilidade do chamador; o poller usa a sobreposição de 5 min.
- */
-export async function syncDuplicateIndex(since: Date): Promise<void> {
-  try {
-    const enabled = await repository.isDuplicateDetectionEnabled();
-
-    if (!enabled) {
-      resetDuplicateIndex();
-      return;
-    }
-
-    if (!ready) {
-      await rebuildDuplicateIndex();
-      return;
-    }
-
-    const changes = await repository.listProjectionChangesSince(since);
-
-    for (const change of changes) {
-      if (change.publication_status === "published" && change.is_publicly_listable) {
-        index.upsert(toSimilarityDocument(change));
-      } else {
-        index.remove(change.public_id);
-      }
-    }
-  } catch {
-    ready = false;
-    console.warn("[duplicates] index sync failed");
   }
 }
 
@@ -109,15 +81,15 @@ export function startDuplicateIndexPolling(): void {
   if (poller) return;
 
   poller = createIndexPoller({
-    readEnabled: repository.isDuplicateDetectionEnabled,
+    readEnabled: isDuplicateDetectionEnabled,
     readAll: async () => {
-      const projections = await repository.listPublishedProjections();
+      const projections = await listPublishedProjections();
       return projections.map(toSimilarityDocument);
     },
     readChanges: async (since) => {
-      const changes = await repository.listProjectionChangesSince(since);
+      const changes = await listProjectionChangesSince(since);
       return changes.map((change) =>
-        change.publication_status === "published" && change.is_publicly_listable
+        isPublishedProjection(change)
           ? {
               publicId: change.public_id,
               published: true,
@@ -128,7 +100,6 @@ export function startDuplicateIndexPolling(): void {
     },
     apply: (document) => {
       index.upsert(document);
-      ready = true;
     },
     remove: (publicId) => {
       index.remove(publicId);
@@ -137,7 +108,13 @@ export function startDuplicateIndexPolling(): void {
       index.rebuild([]);
       ready = false;
     },
+    onSuccess: () => {
+      ready = true;
+    },
     onError: () => {
+      // Falha de poll degrada a busca para vazio até o próximo sucesso; o
+      // índice antigo não pode continuar respondendo (issue #209).
+      ready = false;
       console.warn("[duplicates] index poll failed");
     },
     // O boot já reconstruiu o índice quando a flag está ligada; a primeira
@@ -146,9 +123,4 @@ export function startDuplicateIndexPolling(): void {
   });
 
   poller.start();
-}
-
-export function stopDuplicateIndexPolling(): void {
-  poller?.stop();
-  poller = null;
 }

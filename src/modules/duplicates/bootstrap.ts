@@ -8,11 +8,8 @@ import { rebuildDuplicateIndex, startDuplicateIndexPolling } from "./indexLifecy
  * derruba o servidor — o endpoint degrada para vazio até o próximo rebuild/poll.
  */
 export async function bootstrapDuplicateIndex(): Promise<void> {
-  try {
-    await rebuildDuplicateIndex();
-  } catch {
-    console.warn("[duplicates] index bootstrap failed");
-  } finally {
-    startDuplicateIndexPolling();
-  }
+  // `rebuildDuplicateIndex` já captura as próprias falhas; o poller sempre
+  // começa depois, e a busca degrada para vazio até um rebuild/poll bem-sucedido.
+  await rebuildDuplicateIndex();
+  startDuplicateIndexPolling();
 }

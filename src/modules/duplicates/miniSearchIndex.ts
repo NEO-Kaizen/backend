@@ -1,7 +1,7 @@
 import MiniSearch, { type SearchResult } from "minisearch";
 import type { SimilarityDocument, SimilarityHit } from "../../shared/types/duplicates.ts";
 import { processTerm, tokenizePt } from "./normalize.ts";
-import type { SimilarityIndex } from "./similarityIndex.ts";
+import { DUPLICATE_SEARCH_LIMIT, type SimilarityIndex } from "./similarityIndex.ts";
 
 /**
  * Adaptador MiniSearch do `SimilarityIndex` (ADR 0004).
@@ -9,11 +9,10 @@ import type { SimilarityIndex } from "./similarityIndex.ts";
  * - campos indexados: título (boost 3), resumo (1,2), categoria (0,15) e
  *   período (0,15); `status` fica apenas armazenado para o DTO;
  * - fuzzy e prefix desligados na v1; `combineWith: "OR"`;
- * - upsert via `replace` e remoção via `discard`;
+ * - upsert adiciona ou substitui conforme o id já exista, e remoção ignora id
+ *   ausente (o poller pode enviar supressões de projeções nunca indexadas);
  * - busca limitada ao top 20.
  */
-export const MINI_SEARCH_MAX_RESULTS = 20;
-
 const INDEXED_FIELDS = ["title", "summary", "category", "period"] as const;
 const STORED_FIELDS = ["title", "summary", "category", "status", "period"] as const;
 
@@ -62,7 +61,7 @@ export class MiniSearchIndex implements SimilarityIndex {
   search(query: string, limit: number): SimilarityHit[] {
     if (!query.trim()) return [];
 
-    const cappedLimit = Math.max(0, Math.min(limit, MINI_SEARCH_MAX_RESULTS));
+    const cappedLimit = Math.max(0, Math.min(limit, DUPLICATE_SEARCH_LIMIT));
     if (cappedLimit === 0) return [];
 
     return this.engine
@@ -87,11 +86,20 @@ export class MiniSearchIndex implements SimilarityIndex {
   }
 
   upsert(document: SimilarityDocument): void {
-    this.engine.replace(toIndexedDocument(document));
+    const indexedDocument = toIndexedDocument(document);
+
+    if (this.engine.has(indexedDocument.id)) {
+      this.engine.replace(indexedDocument);
+      return;
+    }
+
+    this.engine.add(indexedDocument);
   }
 
   remove(publicId: string): void {
-    this.engine.discard(publicId);
+    if (this.engine.has(publicId)) {
+      this.engine.discard(publicId);
+    }
   }
 
   rebuild(documents: readonly SimilarityDocument[]): void {

@@ -36,7 +36,7 @@ const SYNONYM_GROUPS = [
   ["nota", "nf", "nfe"],
   ["planilha", "excel", "spreadsheet"],
   ["colaborador", "funcionario", "empregado"],
-  ["chamado", "ticket", "protocolo"],
+  ["chamado", "ticket"],
   ["estoque", "inventario"],
   ["automacao", "rpa", "robo", "robot"],
   ["contrato", "contratacao", "contratual"],

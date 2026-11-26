@@ -47,15 +47,29 @@ interface ProjectionValues {
   suppression_reason: SuppressionReason | null;
 }
 
-/** Precedência determinística dos motivos de supressão. */
-export function resolveSuppressionReason(input: {
+/** Sinais de elegibilidade usados pela precedência de supressão. */
+export interface SuppressionSignals {
   statusIsActive: boolean;
   statusIsTerminal: boolean;
   handlesRestrictedInfo: boolean | null;
   statusIsRestricted: boolean;
   categoryIsPubliclyListable: boolean;
   statusIsCorpusEligible: boolean;
-}): SuppressionReason | null {
+}
+
+function toSuppressionSignals(source: ProjectionSourceRow): SuppressionSignals {
+  return {
+    statusIsActive: source.status_is_active,
+    statusIsTerminal: source.status_is_terminal,
+    handlesRestrictedInfo: source.handles_restricted_info,
+    statusIsRestricted: source.status_is_restricted,
+    categoryIsPubliclyListable: source.category_is_publicly_listable,
+    statusIsCorpusEligible: source.status_is_duplicate_corpus_eligible,
+  };
+}
+
+/** Precedência determinística dos motivos de supressão. */
+export function resolveSuppressionReason(input: SuppressionSignals): SuppressionReason | null {
   if (!input.statusIsActive) return "inactive_status";
   if (input.statusIsTerminal) return "terminal_status";
   if (input.handlesRestrictedInfo === true) return "restricted_request";
@@ -108,14 +122,7 @@ export async function publishRequestProjection(
   const isPubliclyListable =
     source.category_is_publicly_listable && source.status_is_duplicate_corpus_eligible;
 
-  const suppressionReason = resolveSuppressionReason({
-    statusIsActive: source.status_is_active,
-    statusIsTerminal: source.status_is_terminal,
-    handlesRestrictedInfo: source.handles_restricted_info,
-    statusIsRestricted: source.status_is_restricted,
-    categoryIsPubliclyListable: source.category_is_publicly_listable,
-    statusIsCorpusEligible: source.status_is_duplicate_corpus_eligible,
-  });
+  const suppressionReason = resolveSuppressionReason(toSuppressionSignals(source));
 
   const publicationStatus: PublicationStatus = suppressionReason ? "suppressed" : "published";
   const existing = (await trx("request_public_projections")
@@ -152,12 +159,12 @@ export async function publishRequestProjection(
   };
 
   if (!existing) {
+    // `created_at` e `updated_at` usam o relógio do banco (default da migration),
+    // que é o mesmo relógio lido pelo cursor do poll.
     await trx("request_public_projections").insert({
       request_id: requestId,
       ...values,
       version: 1,
-      created_at: now,
-      updated_at: now,
     });
     return;
   }
@@ -167,6 +174,6 @@ export async function publishRequestProjection(
     .update({
       ...values,
       version: trx.raw("version + 1"),
-      updated_at: now,
+      updated_at: trx.fn.now(),
     });
 }

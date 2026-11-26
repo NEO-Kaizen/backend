@@ -42,6 +42,10 @@ describe("consulta lexical da Demanda", () => {
     expect(terms).toContain("painel");
   });
 
+  it("não trata Protocolo como sinônimo de chamado", () => {
+    expect(buildDuplicateQueryTerms(demand({ title: "protocolo" }))).toEqual(["protocolo"]);
+  });
+
   it("prioriza título, categoria e processo sobre os textos longos", () => {
     const terms = buildDuplicateQueryTerms(
       demand({

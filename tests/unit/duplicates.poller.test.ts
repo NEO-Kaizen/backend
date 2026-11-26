@@ -5,6 +5,8 @@ import {
   DUPLICATE_INDEX_POLL_INTERVAL_MS,
   type IndexPollChange,
 } from "../../src/modules/duplicates/indexPoller.ts";
+import { MiniSearchIndex } from "../../src/modules/duplicates/miniSearchIndex.ts";
+import { DUPLICATE_SEARCH_LIMIT } from "../../src/modules/duplicates/similarityIndex.ts";
 
 function document(publicId: string, title = "Solicitação de Automação em andamento") {
   return {
@@ -154,6 +156,48 @@ describe("poller do índice de duplicidade", () => {
 
     expect(deps.readAll).not.toHaveBeenCalled();
     expect(deps.readChanges).toHaveBeenCalledOnce();
+  });
+
+  it("integra o adaptador real: reconstrói e aplica mudanças novas sem falhar", async () => {
+    const index = new MiniSearchIndex();
+    const deps = createDeps({ documents: [document("a")] });
+    const poller = createIndexPoller({
+      ...deps.options,
+      readAll: async () => [document("a")],
+      readChanges: async () => [
+        { publicId: "b", published: true, document: document("b", "Orçamento de viagem") },
+      ],
+      apply: (similarityDocument) => index.upsert(similarityDocument),
+      remove: (publicId) => index.remove(publicId),
+      clear: () => index.rebuild([]),
+    });
+
+    await poller.runOnce();
+    expect(index.search("automacao", DUPLICATE_SEARCH_LIMIT)).toMatchObject([{ publicId: "a" }]);
+
+    await poller.runOnce();
+    expect(index.search("orcamento", DUPLICATE_SEARCH_LIMIT)).toMatchObject([{ publicId: "b" }]);
+  });
+
+  it("marca sucesso após o poll e não marca ao limpar por flag desligada", async () => {
+    const onSuccess = vi.fn();
+    const enabledDeps = createDeps({ documents: [document("a")] });
+    const enabledPoller = createIndexPoller({ ...enabledDeps.options, onSuccess });
+
+    await enabledPoller.runOnce();
+
+    expect(onSuccess).toHaveBeenCalledOnce();
+
+    const disabledOnSuccess = vi.fn();
+    const disabledDeps = createDeps({ enabled: false });
+    const disabledPoller = createIndexPoller({
+      ...disabledDeps.options,
+      onSuccess: disabledOnSuccess,
+    });
+
+    await disabledPoller.runOnce();
+
+    expect(disabledOnSuccess).not.toHaveBeenCalled();
   });
 
   it("dispara o poll no intervalo configurado com fake timers", async () => {

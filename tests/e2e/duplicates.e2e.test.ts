@@ -20,13 +20,18 @@ vi.mock("../../src/modules/portalConfig/portalConfig.repository.ts", () => ({
   getSolicitationMode: vi.fn(),
 }));
 
-vi.mock("../../src/modules/duplicates/duplicates.service.ts", () => ({
-  checkDuplicates: vi.fn(),
+vi.mock("../../src/modules/duplicates/duplicates.repository.ts", () => ({
+  isDuplicateDetectionEnabled: vi.fn(),
+}));
+
+vi.mock("../../src/modules/duplicates/indexLifecycle.ts", () => ({
+  searchDuplicateIndex: vi.fn(),
 }));
 
 const portalConfigRepository =
   await import("../../src/modules/portalConfig/portalConfig.repository.ts");
-const duplicatesService = await import("../../src/modules/duplicates/duplicates.service.ts");
+const duplicatesRepository = await import("../../src/modules/duplicates/duplicates.repository.ts");
+const indexLifecycle = await import("../../src/modules/duplicates/indexLifecycle.ts");
 
 const DEMAND: DemandBlock = {
   title: "Automatizar conciliação bancária",
@@ -57,6 +62,8 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(portalConfigRepository.getSolicitationMode).mockResolvedValue("PUBLIC");
+  vi.mocked(duplicatesRepository.isDuplicateDetectionEnabled).mockResolvedValue(true);
+  vi.mocked(indexLifecycle.searchDuplicateIndex).mockReturnValue([]);
 });
 
 afterEach(() => {
@@ -69,10 +76,7 @@ afterAll(async () => {
 
 describe("E2E — POST /requests/duplicates/check", () => {
   it("responde 200 com o contrato exato e Cache-Control: no-store", async () => {
-    vi.mocked(duplicatesService.checkDuplicates).mockResolvedValue({
-      confidence: "high",
-      items: [ITEM],
-    });
+    vi.mocked(indexLifecycle.searchDuplicateIndex).mockReturnValue([{ ...ITEM, score: 1 }]);
 
     const client = new TestClient(server.baseUrl);
     const response = await client.post("/requests/duplicates/check", { demand: DEMAND });
@@ -91,20 +95,22 @@ describe("E2E — POST /requests/duplicates/check", () => {
       "summary",
       "title",
     ]);
-    expect(duplicatesService.checkDuplicates).toHaveBeenCalledWith(DEMAND);
+    expect(indexLifecycle.searchDuplicateIndex).toHaveBeenCalledWith(expect.any(String), 20);
   });
 
-  it("responde 200 vazio quando a busca degrada", async () => {
-    vi.mocked(duplicatesService.checkDuplicates).mockResolvedValue({
-      confidence: "none",
-      items: [],
-    });
+  it("degrada para 200 vazio e loga a causa quando a busca falha", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(duplicatesRepository.isDuplicateDetectionEnabled).mockRejectedValue(
+      new Error("banco indisponível"),
+    );
 
     const client = new TestClient(server.baseUrl);
     const response = await client.post("/requests/duplicates/check", { demand: DEMAND });
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.body).toEqual({ confidence: "none", items: [] });
+    expect(consoleError).toHaveBeenCalledOnce();
   });
 
   it("recusa body inválido com 422 e fields", async () => {
@@ -129,7 +135,8 @@ describe("E2E — POST /requests/duplicates/check", () => {
     });
     expectErrorEnvelope(unknownRootKey, { statusCode: 422 });
 
-    expect(duplicatesService.checkDuplicates).not.toHaveBeenCalled();
+    expect(duplicatesRepository.isDuplicateDetectionEnabled).not.toHaveBeenCalled();
+    expect(indexLifecycle.searchDuplicateIndex).not.toHaveBeenCalled();
   });
 
   it("exige sessão no modo AUTHENTICATED (401)", async () => {
@@ -139,6 +146,7 @@ describe("E2E — POST /requests/duplicates/check", () => {
     const response = await client.post("/requests/duplicates/check", { demand: DEMAND });
 
     expectErrorEnvelope(response, { statusCode: 401 });
-    expect(duplicatesService.checkDuplicates).not.toHaveBeenCalled();
+    expect(duplicatesRepository.isDuplicateDetectionEnabled).not.toHaveBeenCalled();
+    expect(indexLifecycle.searchDuplicateIndex).not.toHaveBeenCalled();
   });
 });

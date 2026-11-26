@@ -43,6 +43,13 @@ describe("regra de confiança do Alerta de duplicidade", () => {
     expect(classifyDuplicateConfidence([rawAtFloor + 0.001])).toBe("high");
   });
 
+  it("aceita configuração injetada para a calibração", () => {
+    const calibrated = { version: "calibrated-v1", floor: 0.75, margin: 1.15 };
+
+    expect(classifyDuplicateConfidence([1], calibrated)).toBe("none");
+    expect(classifyDuplicateConfidence([3], calibrated)).toBe("high");
+  });
+
   it("aplica a margem relativa entre topo e segundo", () => {
     const second = 2;
     const normalizedSecond = normalizeSimilarityScore(second);

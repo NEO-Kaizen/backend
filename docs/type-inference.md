@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **190**.
-- Tipos nomeados: **312** â€” 218 interfaces, 91 aliases `type`, 3 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1930** â€” 1453 variÃ¡veis, 238 parÃ¢metros e 239 retornos de funÃ§Ãµes/mÃ©todos.
+- Arquivos-fonte analisados: **189**.
+- Tipos nomeados: **313** â€” 219 interfaces, 91 aliases `type`, 3 classes e 0 enums.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1930** â€” 1452 variÃ¡veis, 238 parÃ¢metros e 240 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **143**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
+- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **144**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -241,16 +241,6 @@ export interface MeResponseDTO {
   avatarUrl: string | null;
   role: Role;
   mustChangePassword: boolean;
-}
-```
-
-### [src/modules/DTOs/duplicates/DuplicateAlert.dto.ts](../src/modules/DTOs/duplicates/DuplicateAlert.dto.ts)
-
-#### L4 â€” interface DuplicateCheckPayload
-
-```ts
-export interface DuplicateCheckPayload {
-  demand: DemandBlock;
 }
 ```
 
@@ -1362,6 +1352,18 @@ export interface ChangeUserStatusResponse {
 }
 ```
 
+### [src/modules/duplicates/confidence.ts](../src/modules/duplicates/confidence.ts)
+
+#### L10 â€” interface DuplicateConfidenceConfig
+
+```ts
+export interface DuplicateConfidenceConfig {
+  readonly version: string;
+  readonly floor: number;
+  readonly margin: number;
+}
+```
+
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
 #### L11 â€” interface PublicProjectionRow
@@ -1406,6 +1408,7 @@ export interface IndexPollerOptions {
   now?: () => Date;
   intervalMs?: number;
   overlapMs?: number;
+  onSuccess?: () => void;
   onError?: (error: unknown) => void;
   /**
    * Quando o índice já foi construído antes do poller (boot), a primeira
@@ -1415,7 +1418,7 @@ export interface IndexPollerOptions {
 }
 ```
 
-#### L33 â€” interface IndexPoller
+#### L34 â€” interface IndexPoller
 
 ```ts
 export interface IndexPoller {
@@ -1427,7 +1430,7 @@ export interface IndexPoller {
 
 ### [src/modules/duplicates/miniSearchIndex.ts](../src/modules/duplicates/miniSearchIndex.ts)
 
-#### L27 â€” interface IndexedDocument
+#### L26 â€” interface IndexedDocument
 
 ```ts
 interface IndexedDocument extends SimilarityDocument {
@@ -1435,7 +1438,7 @@ interface IndexedDocument extends SimilarityDocument {
 }
 ```
 
-#### L48 â€” class MiniSearchIndex
+#### L47 â€” class MiniSearchIndex
 
 ```ts
 export class MiniSearchIndex implements SimilarityIndex {
@@ -1455,7 +1458,7 @@ export class MiniSearchIndex implements SimilarityIndex {
   search(query: string, limit: number): SimilarityHit[] {
     if (!query.trim()) return [];
 
-    const cappedLimit = Math.max(0, Math.min(limit, MINI_SEARCH_MAX_RESULTS));
+    const cappedLimit = Math.max(0, Math.min(limit, DUPLICATE_SEARCH_LIMIT));
     if (cappedLimit === 0) return [];
 
     return this.engine
@@ -1480,11 +1483,20 @@ export class MiniSearchIndex implements SimilarityIndex {
   }
 
   upsert(document: SimilarityDocument): void {
-    this.engine.replace(toIndexedDocument(document));
+    const indexedDocument = toIndexedDocument(document);
+
+    if (this.engine.has(indexedDocument.id)) {
+      this.engine.replace(indexedDocument);
+      return;
+    }
+
+    this.engine.add(indexedDocument);
   }
 
   remove(publicId: string): void {
-    this.engine.discard(publicId);
+    if (this.engine.has(publicId)) {
+      this.engine.discard(publicId);
+    }
   }
 
   rebuild(documents: readonly SimilarityDocument[]): void {
@@ -1543,9 +1555,22 @@ interface ProjectionValues {
 }
 ```
 
+#### L51 â€” interface SuppressionSignals
+
+```ts
+export interface SuppressionSignals {
+  statusIsActive: boolean;
+  statusIsTerminal: boolean;
+  handlesRestrictedInfo: boolean | null;
+  statusIsRestricted: boolean;
+  categoryIsPubliclyListable: boolean;
+  statusIsCorpusEligible: boolean;
+}
+```
+
 ### [src/modules/duplicates/similarityIndex.ts](../src/modules/duplicates/similarityIndex.ts)
 
-#### L9 â€” interface SimilarityIndex
+#### L11 â€” interface SimilarityIndex
 
 ```ts
 export interface SimilarityIndex {
@@ -4093,18 +4118,18 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/confidence.ts](../src/modules/duplicates/confidence.ts)
 
-- L10 â€” variÃ¡vel: `DUPLICATE_CONFIDENCE_CONFIG`
-- L27 â€” variÃ¡vel: `top`
-- L31 â€” variÃ¡vel: `normalizedTop`
-- L34 â€” variÃ¡vel: `second`
-- L35 â€” variÃ¡vel: `normalizedSecond`
-- L36 â€” variÃ¡vel: `marginSatisfied`
+- L21 â€” variÃ¡vel: `DUPLICATE_CONFIDENCE_CONFIG`
+- L41 â€” variÃ¡vel: `top`
+- L45 â€” variÃ¡vel: `normalizedTop`
+- L48 â€” variÃ¡vel: `second`
+- L49 â€” variÃ¡vel: `normalizedSecond`
+- L50 â€” variÃ¡vel: `marginSatisfied`
 
 ### [src/modules/duplicates/duplicates.controller.ts](../src/modules/duplicates/duplicates.controller.ts)
 
 - L15 â€” variÃ¡vel: `parsed`
 - L18 â€” variÃ¡vel: `{ message, fields }`
-- L22 â€” variÃ¡vel: `response`
+- L26 â€” variÃ¡vel: `error`
 
 ### [src/modules/duplicates/duplicates.rateLimit.ts](../src/modules/duplicates/duplicates.rateLimit.ts)
 
@@ -4116,9 +4141,11 @@ interface GroupedIssues {
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
 - L26 â€” variÃ¡vel: `PROJECTION_COLUMNS`
-- L43 â€” variÃ¡vel: `source`
-- L54 â€” variÃ¡vel: `source`
-- L71 â€” variÃ¡vel: `source`
+- L42 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
+- L66 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, updated_at, }`
+- L116 â€” variÃ¡vel: `source`
+- L127 â€” variÃ¡vel: `source`
+- L146 â€” variÃ¡vel: `source`
 
 ### [src/modules/duplicates/duplicates.schema.ts](../src/modules/duplicates/duplicates.schema.ts)
 
@@ -4126,66 +4153,63 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/duplicates.service.ts](../src/modules/duplicates/duplicates.service.ts)
 
-- L20 â€” variÃ¡vel: `SEARCH_LIMIT`
-- L21 â€” variÃ¡vel: `HIGH_CONFIDENCE_ITEM_LIMIT`
-- L22 â€” variÃ¡vel: `MEDIUM_CONFIDENCE_ITEM_LIMIT`
-- L50 â€” variÃ¡vel: `query`
-- L56 â€” variÃ¡vel: `hits`
-- L62 â€” parÃ¢metro: `hit`
-- L62 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L62 â€” variÃ¡vel: `confidence`
+- L22 â€” variÃ¡vel: `HIGH_CONFIDENCE_ITEM_LIMIT`
+- L23 â€” variÃ¡vel: `MEDIUM_CONFIDENCE_ITEM_LIMIT`
+- L53 â€” variÃ¡vel: `query`
+- L59 â€” variÃ¡vel: `hits`
+- L65 â€” parÃ¢metro: `hit`
+- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L65 â€” variÃ¡vel: `confidence`
 
 ### [src/modules/duplicates/indexLifecycle.ts](../src/modules/duplicates/indexLifecycle.ts)
 
-- L18 â€” variÃ¡vel: `ready`
-- L45 â€” variÃ¡vel: `enabled`
-- L52 â€” variÃ¡vel: `projections`
-- L69 â€” variÃ¡vel: `enabled`
-- L81 â€” variÃ¡vel: `changes`
-- L83 â€” variÃ¡vel: `change`
-- L113 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L114 â€” variÃ¡vel: `projections`
-- L117 â€” parÃ¢metro: `since`
-- L117 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L118 â€” variÃ¡vel: `changes`
-- L119 â€” parÃ¢metro: `change`
-- L119 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L129 â€” parÃ¢metro: `document`
-- L129 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L133 â€” parÃ¢metro: `publicId`
-- L133 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L136 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L140 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L23 â€” variÃ¡vel: `ready`
+- L50 â€” variÃ¡vel: `enabled`
+- L57 â€” variÃ¡vel: `projections`
+- L85 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L86 â€” variÃ¡vel: `projections`
+- L89 â€” parÃ¢metro: `since`
+- L89 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L90 â€” variÃ¡vel: `changes`
+- L91 â€” parÃ¢metro: `change`
+- L91 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L101 â€” parÃ¢metro: `document`
+- L101 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L104 â€” parÃ¢metro: `publicId`
+- L104 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L107 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L111 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L114 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/duplicates/indexPoller.ts](../src/modules/duplicates/indexPoller.ts)
 
-- L39 â€” variÃ¡vel: `DUPLICATE_INDEX_POLL_INTERVAL_MS`
-- L40 â€” variÃ¡vel: `DUPLICATE_INDEX_OVERLAP_MS`
-- L43 â€” variÃ¡vel: `intervalMs`
-- L44 â€” variÃ¡vel: `overlapMs`
-- L45 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” variÃ¡vel: `now`
-- L53 â€” variÃ¡vel: `enabled`
-- L62 â€” variÃ¡vel: `runAt`
-- L67 â€” variÃ¡vel: `documents`
-- L69 â€” variÃ¡vel: `document`
-- L77 â€” variÃ¡vel: `since`
-- L78 â€” variÃ¡vel: `changes`
-- L80 â€” variÃ¡vel: `change`
-- L94 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L97 â€” variÃ¡vel: `error`
-- L112 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L40 â€” variÃ¡vel: `DUPLICATE_INDEX_POLL_INTERVAL_MS`
+- L41 â€” variÃ¡vel: `DUPLICATE_INDEX_OVERLAP_MS`
+- L44 â€” variÃ¡vel: `intervalMs`
+- L45 â€” variÃ¡vel: `overlapMs`
+- L46 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L46 â€” variÃ¡vel: `now`
+- L54 â€” variÃ¡vel: `enabled`
+- L63 â€” variÃ¡vel: `runAt`
+- L68 â€” variÃ¡vel: `documents`
+- L70 â€” variÃ¡vel: `document`
+- L79 â€” variÃ¡vel: `since`
+- L80 â€” variÃ¡vel: `changes`
+- L82 â€” variÃ¡vel: `change`
+- L97 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L100 â€” variÃ¡vel: `error`
+- L115 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/duplicates/miniSearchIndex.ts](../src/modules/duplicates/miniSearchIndex.ts)
 
-- L15 â€” variÃ¡vel: `MINI_SEARCH_MAX_RESULTS`
-- L17 â€” variÃ¡vel: `INDEXED_FIELDS`
-- L18 â€” variÃ¡vel: `STORED_FIELDS`
-- L20 â€” variÃ¡vel: `SEARCH_OPTIONS`
-- L65 â€” variÃ¡vel: `cappedLimit`
-- L71 â€” parÃ¢metro: `result`
-- L71 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L72 â€” variÃ¡vel: `publicId`
+- L16 â€” variÃ¡vel: `INDEXED_FIELDS`
+- L17 â€” variÃ¡vel: `STORED_FIELDS`
+- L19 â€” variÃ¡vel: `SEARCH_OPTIONS`
+- L64 â€” variÃ¡vel: `cappedLimit`
+- L70 â€” parÃ¢metro: `result`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L71 â€” variÃ¡vel: `publicId`
+- L89 â€” variÃ¡vel: `indexedDocument`
 
 ### [src/modules/duplicates/normalize.ts](../src/modules/duplicates/normalize.ts)
 
@@ -4204,24 +4228,28 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-- L98 â€” variÃ¡vel: `source`
-- L103 â€” variÃ¡vel: `template`
-- L108 â€” variÃ¡vel: `isPubliclyListable`
-- L111 â€” variÃ¡vel: `suppressionReason`
-- L121 â€” variÃ¡vel: `existing`
-- L127 â€” variÃ¡vel: `now`
-- L128 â€” variÃ¡vel: `publishedAt`
-- L132 â€” variÃ¡vel: `suppressedAt`
+- L112 â€” variÃ¡vel: `source`
+- L117 â€” variÃ¡vel: `template`
+- L122 â€” variÃ¡vel: `isPubliclyListable`
+- L125 â€” variÃ¡vel: `suppressionReason`
+- L128 â€” variÃ¡vel: `existing`
+- L134 â€” variÃ¡vel: `now`
+- L135 â€” variÃ¡vel: `publishedAt`
+- L139 â€” variÃ¡vel: `suppressedAt`
 
 ### [src/modules/duplicates/query.ts](../src/modules/duplicates/query.ts)
 
 - L13 â€” variÃ¡vel: `DUPLICATE_QUERY_TERM_LIMIT`
 - L26 â€” variÃ¡vel: `rawTerm`
-- L29 â€” variÃ¡vel: `processed`
-- L32 â€” variÃ¡vel: `candidates`
-- L33 â€” variÃ¡vel: `candidate`
-- L48 â€” variÃ¡vel: `seen`
-- L50 â€” variÃ¡vel: `field`
+- L27 â€” variÃ¡vel: `processed`
+- L30 â€” variÃ¡vel: `candidates`
+- L31 â€” variÃ¡vel: `candidate`
+- L46 â€” variÃ¡vel: `seen`
+- L48 â€” variÃ¡vel: `field`
+
+### [src/modules/duplicates/similarityIndex.ts](../src/modules/duplicates/similarityIndex.ts)
+
+- L9 â€” variÃ¡vel: `DUPLICATE_SEARCH_LIMIT`
 
 ### [src/modules/duplicates/template.ts](../src/modules/duplicates/template.ts)
 
