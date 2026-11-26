@@ -118,9 +118,11 @@ export interface RequesterTable {
 export interface AssignmentContextRow {
   request_id: string;
   protocol: string;
+  title: string;
   professional_id: string | null;
   mapping_professional_id: string | null;
   status: RequestStatus;
+  category: string;
   screening_result: string | null;
   /** `details_professional.user_id` do responsável da triagem (issue #124). */
   assignee_user_id: number | null;

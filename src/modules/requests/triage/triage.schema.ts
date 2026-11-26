@@ -44,15 +44,14 @@ export const createTriagePayloadSchema = z
     adherentToScope: triageChoice,
     adherentJustification: textField(1000),
     changeCategory: triageChoice,
-    // name-string do cadastro ativo (ver `docs/rules/triage.md`) — nunca id.
+    // name-string do cadastro ativo (contrato §Tipos + TODO) — nunca id.
     newCategory: z.string().trim().max(40, "Máximo de 40 caracteres.").default(""),
     preliminaryComplexity: textField(4000),
     perceivedRisks: textField(4000),
     suggestedResponsible: textField(150),
     suggestedResponsibleJustification: textField(1000),
     // PortalStatus.id numérico — literais antigos (nomes) não são aceitos
-    // (ver `docs/rules/triage.md`, seção Regras condicionais: "Backend não aceita
-    // literais antigos").
+    // (contrato §Observações: "Backend não aceita literais antigos").
     // Resolução contra `statuses` (v4: is_active/is_restricted/triage_mode)
     // acontece no service via `resolveExitStatus`.
     exitStatus: z

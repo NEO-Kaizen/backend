@@ -86,6 +86,10 @@ _Evitar_: resultado da triagem, decisão, status da triagem.
 Sessão de levantamento com as áreas envolvidas na solução, com participantes, responsável designado e registro próprio.
 _Evitar_: reunião, call, workshop.
 
+**Agendamento**:
+Data, horário, modalidade e meio de acesso da sessão de _Mapeamento_ com o solicitante.
+_Evitar_: agenda, reunião, call.
+
 **Análise de viabilidade**:
 Etapa em que se avalia a possibilidade técnica e operacional de atender a solicitação já mapeada.
 _Evitar_: estudo, benchmarking, viabilidade.
@@ -134,6 +138,44 @@ _Evitar_: log, histórico, trilha de mudanças.
 Registro imutável de uma ação que foi recusada — por falta de permissão ou por regra de negócio. Preservado mesmo quando a ação não aconteceu. A _recusa_ é o ato; a _tentativa_ é o registro dele. O conjunto é a _trilha de tentativas_.
 _Evitar_: erro, negação, log.
 
+## Notificações e audiência
+
+**Notificação**:
+Aviso dirigido a um destinatário sobre um acontecimento de uma solicitação, exibido dentro da aplicação e com estado de leitura próprio.
+_Evitar_: alerta, aviso, push, mensagem do sistema.
+
+**Evento**:
+Acontecimento do ciclo de vida de uma solicitação capaz de originar _Notificações_ — mudança de status, pendência, agendamento ou designação.
+_Evitar_: gatilho, trigger, ocorrência.
+
+**Centro de não lidas**:
+Lugar único da aplicação onde a pessoa autenticada vê suas _Notificações_ e marca as lidas.
+_Evitar_: inbox, sino, painel de avisos, central de notificações.
+
+**Matriz de audiência**:
+Correspondência entre _Eventos_, destinatários e _Allowlists_.
+_Evitar_: RBAC (é _Perfil_ e _Permissão_), mapa de visibilidade.
+
+**Allowlist**:
+Lista explícita dos campos que um _Payload_ pode carregar para uma audiência.
+_Evitar_: whitelist, filtro de campos.
+
+**Payload**:
+Conteúdo efetivo de uma _Notificação_, já reduzido à _Allowlist_ da audiência.
+_Evitar_: corpo, dados, objeto de resposta.
+
+**Destinatário**:
+Usuário que recebe uma _Notificação_.
+_Evitar_: usuário notificado, receptor.
+
+**Canal**:
+Mecanismo de entrega de _Notificações_ (na v1, canal in-app; preparado para e-mail no RF31).
+_Evitar_: meio, adaptador de envio.
+
+**Stream**:
+Canal contínuo de entrega de _Notificações_ em tempo real via Server-Sent Events (SSE).
+_Evitar_: websocket, conexão aberta, canal ao vivo.
+
 ## Acesso
 
 **Permissão**:
@@ -168,6 +210,10 @@ _Evitar_: super-admin, root, administrador mestre.
 Pessoa designada para conduzir a triagem ou o mapeamento de uma solicitação. O vínculo com a solicitação é a _Custódia_; a propriedade do perfil de poder receber essa designação é a _Atribuibilidade_.
 _Evitar_: analista (é o perfil, não o vínculo), dono, responsável técnico.
 
+**Designação**:
+Ato do administrador de escolher o _Responsável_ de uma solicitação ou de um _Mapeamento_.
+_Evitar_: atribuição, alocação, assign.
+
 **Modo de acesso**:
 Configuração que determina se a abertura de solicitação exige autenticação ou está liberada ao público.
 _Evitar_: modo de portal, visibilidade, tipo de acesso.
@@ -175,33 +221,3 @@ _Evitar_: modo de portal, visibilidade, tipo de acesso.
 **Aparência**:
 Conjunto de cores e estilos que o portal apresenta. Há mais de uma; duas são vigentes ao mesmo tempo, uma para o slot claro e outra para o slot escuro, e o solicitante escolhe entre as oferecidas.
 _Evitar_: tema, theme, skin, paleta.
-
-## Notificações e Eventos
-
-**Notificação**:
-Projeção gravada por destinatário na mesma transação de um evento de negócio, permitindo acompanhar atualizações de solicitações de forma síncrona ou em tempo real.
-_Evitar_: alerta, aviso, push, pop-up.
-
-**Evento**:
-Fato de negócio imutável que desencadeia reações e notificações no sistema, validado estruturalmente por contrato.
-_Evitar_: mensagem, trigger, ação.
-
-**Payload**:
-Conteúdo restrito associado a um Evento ou Notificação, limitado à Allowlist para omitir dados confidenciais ou técnicos.
-_Evitar_: body, dados completos, json bruto.
-
-**Allowlist**:
-Lista fechada de campos permitidos em um Payload, garantindo que o destinatário receba apenas ponteiros e informações públicas essenciais.
-_Evitar_: whitelist, lista permitida.
-
-**Destinatário**:
-Usuário que recebe uma Notificação (na v1, vinculado ao `requester_user_id` da solicitação).
-_Evitar_: usuário notificado, receptor.
-
-**Canal**:
-Mecanismo de entrega de Notificações (na v1, canal in-app; preparado para e-mail no RF31).
-_Evitar_: meio, adaptador de envio.
-
-**Stream**:
-Canal contínuo de entrega de Notificações em tempo real via Server-Sent Events (SSE).
-_Evitar_: websocket, conexão aberta, canal ao vivo.
