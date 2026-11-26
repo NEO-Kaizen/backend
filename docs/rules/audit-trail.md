@@ -15,17 +15,21 @@ as telas de auditoria derivam dela.
 
 ## Catálogo
 
-| Entidade         | Ações                                                                                                           |
-| ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| `user`           | `create`, `activate`, `deactivate`, `reset_password`, `change_password`, `update_profile`, `update`             |
-| `prioritization` | `evaluate`                                                                                                      |
-| `request`        | `assign`, `reassign`, `unassign`, `status_change`, `update`, `triage`, `override_status_admin`, `access_denied` |
-| `mapping`        | `assign`, `save`, `complete`                                                                                    |
-| `settings`       | `update`                                                                                                        |
-| `pending_item`   | `create`, `respond`, `attach`, `validate`, `reopen`                                                             |
+Os nomes das entidades e os valores de ação vigentes estão definidos na
+[OpenAPI](../openapi.json).
 
 Entidade nova exige atualização do catálogo em código **e** do `CHECK` do banco
 no mesmo PR.
+
+## Transições de Status
+
+- Toda mudança de Status e seu evento de auditoria são gravados na mesma
+  transação. Uma tentativa negada não altera o Status.
+- Uma constraint trigger exige, no commit, exatamente um evento de auditoria
+  correspondente a cada mudança real de `requests.status_id` na mesma
+  transação.
+- Transições automáticas usam origem de sistema; ações humanas usam o ator da
+  sessão.
 
 ## Origens
 
@@ -35,13 +39,12 @@ no mesmo PR.
   responsável).
 - `requester`, `manual`, `internal` — conforme o fluxo que originou a ação.
 
-## Consulta
+## Reconstrução de tempo por Status
 
-- Administrador e Gestor leem a listagem administrativa; Analista lê a Linha do tempo
-  de uma solicitação apenas se for responsável (triagem ou mapeamento).
-- A listagem é ordenada do evento mais recente para o mais antigo.
-- Respostas administrativas não devem ser armazenadas por navegador ou
-  intermediários.
+A reconstrução falha se a trilha for inválida ou não terminar no Status atual
+persistido. As regras de domínio estão em
+[`status-time.md`](status-time.md); o formato e o acesso estão na
+[OpenAPI](../openapi.json).
 
 ## Privacidade
 

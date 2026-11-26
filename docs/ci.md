@@ -20,10 +20,11 @@ O Dependabot abre PRs semanais para `npm` e `github-actions`, agrupando minor/pa
 
 Sequência executada contra o service container `postgres:18-alpine` (mesmo digest de `docker-compose.yml`):
 
-1. as migrations sobem com `npm run migrate:latest`;
+1. as 62 migrations sobem com `npm run migrate:latest` (contagem atual em `migrations\` e subpastas);
 2. todas são revertidas com `npx knex migrate:rollback --all --env development` e reaplicadas;
 3. as seeds-base rodam duas vezes e as seeds de cenário rodam duas vezes, validando idempotência;
-4. a API sobe com `node src/server.ts` e o smoke test chama `GET /portal-config` (rota pública) por até 30 tentativas.
+4. `npm test` roda a suíte Vitest completa (unit, integration, e2e e db), incluindo os testes contra PostgreSQL semeado;
+5. a API sobe com `node src/server.ts` e o smoke test chama `GET /portal-config` (rota pública) por até 30 tentativas.
 
 O rollback precisa acontecer **antes** de qualquer seed: com dados semeados, a migration de auditoria de mapping falha ao reverter. O bug está registrado na issue #142.
 

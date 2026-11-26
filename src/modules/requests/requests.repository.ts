@@ -35,7 +35,7 @@ import type {
 } from "../DTOs/requests/RequestResponse.dto.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 
-const INITIAL_STATUS = "Solicitação enviada";
+export const INITIAL_REQUEST_STATUS = "Solicitação enviada";
 
 interface YesNoDetailColumns {
   flag: boolean | null;
@@ -310,7 +310,7 @@ export async function createRequest(
       throw new AppError("Categoria inválida — selecione uma opção da lista.", 400);
     }
 
-    const statusId = await findStatusId(INITIAL_STATUS, trx);
+    const statusId = await findStatusId(INITIAL_REQUEST_STATUS, trx);
     const requesterId = await resolveRequesterId(request.requester, requesterUserId ?? null, trx);
     const saved = await insertRequest(
       request,
@@ -329,7 +329,7 @@ export async function createRequest(
 
     return {
       protocol: saved.protocol,
-      status: INITIAL_STATUS,
+      status: INITIAL_REQUEST_STATUS,
       createdAt: saved.created_at.toISOString(),
     } satisfies CreateRequestResponse;
   });
@@ -735,6 +735,7 @@ export async function findAssignmentContextByProtocol(
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
+    created_at: "requests.created_at",
     professional_id: "requests.professional_id",
     status: "statuses.name",
     screening_result: "requests.screening_result",
@@ -816,6 +817,7 @@ export async function updateStatus(
 export interface RequestStatusContext {
   request_id: string;
   protocol: string;
+  created_at: Date | string;
   title: string;
   requester_user_id: number | null;
   current_status_id: number | null;
@@ -848,6 +850,7 @@ export async function findRequestStatusContext(
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
+    created_at: "requests.created_at",
     title: "requests.title",
     requester_user_id: "requests.requester_user_id",
     current_status_id: "requests.status_id",

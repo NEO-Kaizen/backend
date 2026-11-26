@@ -20,6 +20,16 @@ posição do array na configuração, não um campo `order`.
   - `free`: alvo livre pelo agente da fase;
   - `conclusion_only`: alvo apenas na conclusão da fase.
 
+## Pausa de Status
+
+- `is_paused = true` classifica o tempo no Status como pausado, sem somá-lo ao
+  tempo ativo; `false` classifica o período como ativo.
+- A classificação usa o `status_id` persistido na transição, não o nome atual
+  do Status, portanto renomeações não reclassificam períodos já auditados.
+- A API expõe essa configuração somente para leitura; ela é definida por
+  migration ou seed. O contrato de leitura está descrito na
+  [OpenAPI](../openapi.json).
+
 ## Criação
 
 Toda solicitação nasce em `Solicitação enviada` (id 1), que também é o primeiro

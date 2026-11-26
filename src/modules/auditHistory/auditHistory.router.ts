@@ -5,6 +5,7 @@ import {
   listAuditHistoryController,
   getAuditHistoryDetailController,
   getAuditLogsByProtocolController,
+  getStatusTimesByProtocolController,
 } from "./auditHistory.controller.ts";
 
 const noStore = (
@@ -46,6 +47,13 @@ export const auditLogsRouter = express.Router();
 // Mesma postura de cache da listagem administrativa: dados sensíveis não devem
 // ser armazenados por navegador ou intermediários.
 auditLogsRouter.use(noStore);
+
+auditLogsRouter.get(
+  "/:protocol/status-times",
+  authMiddleware,
+  requireRole("Analista", "Gestor", "Administrador"),
+  getStatusTimesByProtocolController,
+);
 
 auditLogsRouter.get(
   "/:protocol",

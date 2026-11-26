@@ -8,6 +8,7 @@ import {
   type ChangeOrigin,
   type ComposedAuditAction,
 } from "./auditCatalog.ts";
+import { isRequestStatusTransitionAction, parseAuditedStatusName } from "./statusTransition.ts";
 
 export interface AuditEntryBase {
   /** Identificador da entidade afetada. */
@@ -24,6 +25,17 @@ export interface AuditEntryBase {
   ipAddress?: string | null;
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
   changeOrigin?: ChangeOrigin | null;
+}
+
+async function findStatusIdByName(
+  trx: Knex.Transaction,
+  statusName: string | null,
+): Promise<number | null> {
+  if (!statusName) return null;
+  const row = await trx("statuses")
+    .where({ name: statusName })
+    .first<{ status_id: number }>("status_id");
+  return row?.status_id ?? null;
 }
 
 /**
@@ -63,6 +75,19 @@ export async function recordAudit<E extends AuditEntityType, A extends ComposedA
     );
   }
 
+  const isStatusTransition =
+    entry.entityType === "request" && isRequestStatusTransitionAction(entry.actionType);
+  const [statusId, previousStatusId] = isStatusTransition
+    ? await Promise.all([
+        findStatusIdByName(trx, parseAuditedStatusName(entry.newValue)),
+        findStatusIdByName(trx, parseAuditedStatusName(entry.previousValue)),
+      ])
+    : [null, null];
+
+  if (isStatusTransition && statusId === null) {
+    throw new AppError("Status de destino da transição não encontrado.", 500);
+  }
+
   const rows = await trx("audit_history")
     .insert({
       entity_type: entry.entityType,
@@ -75,6 +100,9 @@ export async function recordAudit<E extends AuditEntityType, A extends ComposedA
       last_technical_message: entry.lastTechnicalMessage ?? null,
       ip_address: entry.ipAddress ?? null,
       change_origin: entry.changeOrigin ?? null,
+      status_id: statusId,
+      previous_status_id: previousStatusId,
+      transaction_id: trx.raw("pg_current_xact_id()"),
     })
     .returning("audit_id");
 

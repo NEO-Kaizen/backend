@@ -119,40 +119,27 @@ Tabela de referência administrável pelo módulo de configurações.
 Armazena o catálogo de Status do Motor v4. Apenas parte dos Status é pública
 (`is_public = true`); os 17 valores semeados são a referência base, não uma
 lista fechada. A semântica das flags e modos (`is_core`, `is_public`,
-`is_terminal`, `is_restricted`, `triage_mode`, `mapping_mode`) está em
-[`docs/rules/requests-lifecycle.md`](../rules/requests-lifecycle.md); esta
-seção descreve apenas o schema. O default de `is_active` passou a `true` na
-revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
+`is_terminal`, `is_restricted`, `is_paused`, `triage_mode`, `mapping_mode`)
+está em [`Pausa de Status`](../rules/requests-lifecycle.md#pausa-de-status) e
+nas regras de [ciclo de vida](../rules/requests-lifecycle.md);
+esta seção descreve apenas o schema. O default de `is_active` passou a `true`
+na revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
 
-| Campo           | Tipo         | Obrigatório | Restrição / Default                   | Finalidade                           |
-| --------------- | ------------ | ----------- | ------------------------------------- | ------------------------------------ |
-| `status_id`     | INTEGER      | Sim         | PK, auto increment                    | Identificador                        |
-| `order_number`  | INTEGER      | Sim         | UK `uk_statuses_order` (DEFERRABLE)   | Ordem de exibição                    |
-| `name`          | VARCHAR(100) | Sim         | UK `uk_statuses_name`                 | Nome                                 |
-| `description`   | TEXT         | Não         | NULL permitido                        | Descrição                            |
-| `tone`          | ENUM         | Sim         | `status_tone`; DEFAULT `info`         | Tom visual                           |
-| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)           | Status disponível para uso           |
-| `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                         | Status central do fluxo              |
-| `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                         | Exige administrador para transição   |
-| `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                         | Encerra a solicitação                |
-| `triage_mode`   | ENUM         | Sim         | `status_triage_mode`; DEFAULT `none`  | Como o status se relaciona à triagem |
-| `mapping_mode`  | ENUM         | Sim         | `status_mapping_mode`; DEFAULT `none` | Como se relaciona ao mapeamento      |
-| `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                         | Visível ao solicitante               |
-
-| Campo           | Tipo         | Obrigatório | Restrição / Default                          | Finalidade                    |
-| --------------- | ------------ | ----------- | -------------------------------------------- | ----------------------------- |
-| `status_id`     | INTEGER      | Sim         | Primary Key, auto increment                  | Identificador estável (1..50) |
-| `order_number`  | INTEGER      | Sim         | UNIQUE (`uk_statuses_order`)                 | Ordem de exibição             |
-| `name`          | VARCHAR(100) | Sim         | UNIQUE (`uk_statuses_name`)                  | Nome do Status                |
-| `description`   | TEXT         | Não         | NULL permitido                               | Descrição do Status           |
-| `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                                | Núcleo imutável               |
-| `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                                | Nome visível ao solicitante   |
-| `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                                | Encerra a solicitação         |
-| `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                                | Só Administrador define       |
-| `triage_mode`   | ENUM         | Sim         | `none`/`free`/`conclusion_only`              | Alvo da fase de triagem       |
-| `mapping_mode`  | ENUM         | Sim         | `none`/`free`/`conclusion_only`              | Alvo da fase de mapeamento    |
-| `tone`          | ENUM         | Sim         | `error`/`success`/`info`/`warning`/`neutral` | Tom visual                    |
-| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE                                 | Participa de novos fluxos     |
+| Campo           | Tipo         | Obrigatório | Restrição / Default                   | Finalidade                                |
+| --------------- | ------------ | ----------- | ------------------------------------- | ----------------------------------------- |
+| `status_id`     | INTEGER      | Sim         | PK, auto increment                    | Identificador                             |
+| `order_number`  | INTEGER      | Sim         | UK `uk_statuses_order` (DEFERRABLE)   | Ordem de exibição                         |
+| `name`          | VARCHAR(100) | Sim         | UK `uk_statuses_name`                 | Nome                                      |
+| `description`   | TEXT         | Não         | NULL permitido                        | Descrição                                 |
+| `tone`          | ENUM         | Sim         | `status_tone`; DEFAULT `info`         | Tom visual                                |
+| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)           | Status disponível para uso                |
+| `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                         | Status central do fluxo                   |
+| `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                         | Exige administrador para transição        |
+| `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                         | Encerra a solicitação                     |
+| `triage_mode`   | ENUM         | Sim         | `status_triage_mode`; DEFAULT `none`  | Como o status se relaciona à triagem      |
+| `mapping_mode`  | ENUM         | Sim         | `status_mapping_mode`; DEFAULT `none` | Como se relaciona ao mapeamento           |
+| `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                         | Visível ao solicitante                    |
+| `is_paused`     | BOOLEAN      | Sim         | DEFAULT FALSE                         | Indica se o Status pausa a contagem ativa |
 
 ### Restrições
 

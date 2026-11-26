@@ -1,4 +1,5 @@
 import type { AuditEntityType } from "../../../shared/audit/auditCatalog.ts";
+import type { StatusTimeInterval, StatusTimeByStatus } from "../../auditHistory/statusTime.ts";
 
 export interface AuditHistoryQuery {
   page?: number;
@@ -47,3 +48,14 @@ export interface AuditHistoryListResponse {
   page: number;
   limit: number;
 }
+
+export type StatusTimeResponse = {
+  protocol: string;
+  calculatedAt: string;
+  intervals: StatusTimeInterval[];
+  totalsByStatus: StatusTimeByStatus[];
+  totalActiveMilliseconds: number;
+  totalPausedMilliseconds: number;
+};
+
+export type { StatusTimeInterval, StatusTimeByStatus };

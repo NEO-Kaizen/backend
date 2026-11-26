@@ -5,10 +5,25 @@ import type {
   AuditHistorySummary,
   AuditHistoryDetail,
   AuditHistoryListResponse,
+  StatusTimeResponse,
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
 import { auditCatalog, isAuditEntityName } from "../../shared/audit/auditCatalog.ts";
-import { findRequestStatusContext } from "../requests/requests.repository.ts";
+import {
+  isRequestStatusTransitionAction,
+  parseAuditedStatusName,
+} from "../../shared/audit/statusTransition.ts";
+import {
+  findRequestStatusContext,
+  INITIAL_REQUEST_STATUS,
+  type RequestStatusContext,
+} from "../requests/requests.repository.ts";
+import {
+  calculateStatusTime,
+  StatusTimeHistoryDivergenceError,
+  type StatusTimeSummary,
+  type StatusTimeTransition,
+} from "./statusTime.ts";
 
 /** Rótulo do catálogo; valores históricos fora dele caem no próprio nome persistido. */
 function entityTypeLabel(entityType: string): string {
@@ -77,22 +92,144 @@ export async function getAuditHistoryDetail(auditId: number): Promise<AuditHisto
   return toDetail(row);
 }
 
-/**
- * Timeline de auditoria por protocolo (`GET /audit-logs/:protocol`, issue
- * #124). Acesso: Administrador/Gestor (admin-like) ou ANALYST_ASSIGNEE da
- * solicitação (responsável da triagem ou designado do mapeamento).
- */
-export async function listAuditLogsByProtocol(
-  protocol: string,
-  actor: { id: number; role: Role },
-): Promise<AuditHistoryDetail[]> {
-  const normalized = protocol.trim();
-  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
+function parseStatusTransition(
+  value: string | null,
+  snapshotStatusId: number | string | null,
+  statusIdByName: ReadonlyMap<string, number>,
+  statusNameById: ReadonlyMap<number, string>,
+): { status: string | null; statusId: number | undefined } {
+  const parsedStatusName = parseAuditedStatusName(value);
+  if (parsedStatusName === null) return { status: null, statusId: undefined };
 
-  const request = await findRequestStatusContext(normalized);
+  const statusId = readStatusId(snapshotStatusId) ?? statusIdByName.get(parsedStatusName);
+  return {
+    status:
+      statusId !== undefined
+        ? (statusNameById.get(statusId) ?? parsedStatusName)
+        : parsedStatusName,
+    statusId,
+  };
+}
+
+function readStatusId(value: number | string | null): number | undefined {
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  if (typeof value === "string" && Number.isInteger(Number(value))) return Number(value);
+  return undefined;
+}
+
+async function calculateStatusTimeForRequest(
+  request: NonNullable<Awaited<ReturnType<typeof findRequestStatusContext>>>,
+  now: Date,
+): Promise<StatusTimeSummary> {
+  const [statuses, auditRows] = await Promise.all([
+    repository.listStatuses(),
+    repository.listAuditHistoryByProtocol(request.protocol),
+  ]);
+  const statusIdByName = new Map(statuses.map((status) => [status.name, status.status_id]));
+  const statusNameById = new Map(statuses.map((status) => [status.status_id, status.name]));
+  const pausedStatusIds = statuses
+    .filter((status) => status.is_paused)
+    .map((status) => status.status_id);
+  const terminalStatusIds = statuses
+    .filter((status) => status.is_terminal)
+    .map((status) => status.status_id);
+
+  const chronologicalRows = [...auditRows].reverse();
+  const transitions: StatusTimeTransition[] = [];
+
+  for (const row of chronologicalRows) {
+    if (!isRequestStatusTransitionAction(row.action_type)) continue;
+
+    const statusTransition = parseStatusTransition(
+      row.new_value,
+      row.status_id,
+      statusIdByName,
+      statusNameById,
+    );
+    if (!statusTransition.status) {
+      throw new AppError(
+        "A transição não contém um Status válido na auditoria.",
+        409,
+        "STATUS_HISTORY_DIVERGENCE",
+      );
+    }
+
+    const occurredAt =
+      row.occurred_at instanceof Date ? row.occurred_at : new Date(String(row.occurred_at));
+    if (Number.isNaN(occurredAt.getTime())) {
+      throw new AppError(
+        "A transição contém uma data inválida na auditoria.",
+        409,
+        "STATUS_HISTORY_DIVERGENCE",
+      );
+    }
+
+    transitions.push({
+      status: statusTransition.status,
+      statusId: statusTransition.statusId,
+      occurredAt,
+    });
+  }
+
+  const openedAt =
+    request.created_at instanceof Date ? request.created_at : new Date(String(request.created_at));
+  if (Number.isNaN(openedAt.getTime())) {
+    throw new AppError("Data de abertura da solicitação inválida", 500);
+  }
+
+  const earliestAuditRow = chronologicalRows.find((row) =>
+    isRequestStatusTransitionAction(row.action_type),
+  );
+  const previousStatus = parseStatusTransition(
+    earliestAuditRow?.previous_value ?? null,
+    earliestAuditRow?.previous_status_id ?? null,
+    statusIdByName,
+    statusNameById,
+  );
+  const currentStatus = request.current_status_name;
+  if (!currentStatus) {
+    throw new AppError("Status atual da solicitação inválido", 500);
+  }
+  const initialStatus = previousStatus.status ?? INITIAL_REQUEST_STATUS;
+  if (!previousStatus.status && earliestAuditRow) {
+    throw new AppError(
+      "Não foi possível reconstruir o Status inicial a partir da auditoria.",
+      409,
+      "STATUS_HISTORY_DIVERGENCE",
+    );
+  }
+
+  try {
+    return calculateStatusTime({
+      openedAt,
+      initialStatus,
+      initialStatusId: previousStatus.statusId ?? statusIdByName.get(INITIAL_REQUEST_STATUS),
+      currentStatus,
+      currentStatusId: request.current_status_id !== null ? request.current_status_id : undefined,
+      currentIsTerminal: request.current_is_terminal,
+      pausedStatusIds,
+      terminalStatusIds,
+      transitions,
+      now,
+    });
+  } catch (error) {
+    if (error instanceof StatusTimeHistoryDivergenceError) {
+      throw new AppError(
+        "A trilha de auditoria diverge do Status atual da solicitação.",
+        409,
+        "STATUS_HISTORY_DIVERGENCE",
+      );
+    }
+    throw error;
+  }
+}
+
+function assertRequestCustody(
+  request: RequestStatusContext | undefined,
+  actor: { id: number; role: Role },
+): RequestStatusContext {
+  const isManagerLike = actor.role === "Administrador" || actor.role === "Gestor";
   if (!request) {
-    // Sem vazar existência: não-custódia recebe 403 genérico; só perfis com
-    // leitura ampla veem o 404 real.
     if (!isManagerLike) {
       throw new AppError(
         "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
@@ -116,6 +253,45 @@ export async function listAuditLogsByProtocol(
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
   }
+  return request;
+}
+
+async function findCustodiedRequest(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<RequestStatusContext> {
+  return assertRequestCustody(await findRequestStatusContext(protocol.trim()), actor);
+}
+
+export async function getStatusTimesByProtocol(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<StatusTimeResponse> {
+  const request = await findCustodiedRequest(protocol, actor);
+
+  const calculatedAt = new Date();
+  const summary = await calculateStatusTimeForRequest(request, calculatedAt);
+
+  return {
+    protocol: request.protocol,
+    calculatedAt: calculatedAt.toISOString(),
+    intervals: summary.intervals,
+    totalsByStatus: summary.totalsByStatus,
+    totalActiveMilliseconds: summary.totalActiveMilliseconds,
+    totalPausedMilliseconds: summary.totalPausedMilliseconds,
+  };
+}
+
+/**
+ * Timeline de auditoria por protocolo (`GET /audit-logs/:protocol`, issue
+ * #124). Acesso: Administrador/Gestor (admin-like) ou ANALYST_ASSIGNEE da
+ * solicitação (responsável da triagem ou designado do mapeamento).
+ */
+export async function listAuditLogsByProtocol(
+  protocol: string,
+  actor: { id: number; role: Role },
+): Promise<AuditHistoryDetail[]> {
+  const request = await findCustodiedRequest(protocol, actor);
 
   const rows = await repository.listAuditHistoryByProtocol(request.protocol);
   return rows.map((row) => toDetail(row));

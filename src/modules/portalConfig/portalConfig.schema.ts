@@ -6,7 +6,7 @@ import {
   THEME_TOKEN_KEYS,
   type AccessSection,
   type CategoriesSection,
-  type StatusesSection,
+  type PortalStatusPatch,
   type ThemeTokenKey,
 } from "../../shared/types/portalConfig.ts";
 import { STATUS_TONES, type StatusTone } from "../../shared/types/systemTheme.ts";
@@ -174,7 +174,7 @@ export const portalStatusSchema = z
         message: "isCore só é permitido nos status de núcleo (ids 1, 3, 4, 6, 7, 16, 17).",
       });
     }
-  });
+  }) satisfies z.ZodType<PortalStatusPatch>;
 
 export const updateStatusesSchema = z
   .object({
@@ -222,7 +222,7 @@ export const updateStatusesSchema = z
         }
       }),
   })
-  .strict() satisfies z.ZodType<StatusesSection>;
+  .strict() satisfies z.ZodType<{ statuses: PortalStatusPatch[] }>;
 
 /**
  * Pesos da priorização — objeto atômico completo, sempre com todas as chaves.

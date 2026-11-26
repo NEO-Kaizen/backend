@@ -1251,8 +1251,8 @@ export async function updateRequestStatus(
       userId: actor.id,
       previousValue: request.current_status_name,
       newValue: target.name,
-      // `note` = justificativa interna; o retorno pÃºblico Ã© snapshot prÃ³prio
-      // (nunca concatenado), persistido apenas quando o destino Ã© pÃºblico.
+      // `note` = justificativa interna; o retorno público é snapshot próprio
+      // (nunca concatenado), persistido apenas quando o destino é público.
       note: payload.justification ?? null,
       lastTechnicalMessage: target.isPublic ? (payload.lastTechnicalMessage ?? null) : null,
       ipAddress,

@@ -37,6 +37,8 @@ solicitante, sem cache ou restart.
 - Ao menos um Status precisa ficar ativo.
 - A leitura inclui Status inativos; eles permanecem registrados e não entram em
   novos fluxos.
+- `isPaused` é somente leitura nas respostas e não pode ser enviado em
+  `PATCH /portal-config/statuses`; sua configuração é feita por migration/seed.
 - A ordem do array é a ordem de exibição.
 
 As regras de transição estão em

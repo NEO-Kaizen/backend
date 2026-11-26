@@ -14,6 +14,13 @@ interface AuditCountRow {
   total: number | string;
 }
 
+export interface StatusRow {
+  status_id: number;
+  name: string;
+  is_paused: boolean;
+  is_terminal: boolean;
+}
+
 interface AuditHistoryDetailRow {
   audit_id: number | string;
   entity_type: string;
@@ -28,6 +35,8 @@ interface AuditHistoryDetailRow {
   ip_address: string | null;
   change_origin: string | null;
   occurred_at: Date | string;
+  status_id: number | string | null;
+  previous_status_id: number | string | null;
 }
 
 export async function listAuditHistory(
@@ -86,6 +95,8 @@ export async function findAuditHistoryById(
       "a.ip_address",
       "a.change_origin",
       "a.occurred_at",
+      "a.status_id",
+      "a.previous_status_id",
     )
     .where("a.audit_id", auditId)
     .first<AuditHistoryDetailRow>();
@@ -115,10 +126,18 @@ export async function listAuditHistoryByProtocol(
       "a.ip_address",
       "a.change_origin",
       "a.occurred_at",
+      "a.status_id",
+      "a.previous_status_id",
     )
     .where("a.entity_type", "request")
     .andWhere("a.entity_id", protocol)
     .orderBy("a.occurred_at", "desc")
     .orderBy("a.audit_id", "desc")
     .then((rows) => rows as AuditHistoryDetailRow[]);
+}
+
+export async function listStatuses(): Promise<StatusRow[]> {
+  return db("statuses")
+    .select("status_id", "name", "is_paused", "is_terminal")
+    .then((rows) => rows as StatusRow[]);
 }

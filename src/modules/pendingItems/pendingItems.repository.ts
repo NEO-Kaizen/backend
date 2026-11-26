@@ -398,6 +398,7 @@ export async function respondPendingItemTx(input: {
   pendingItemId: string;
   batchId: string;
   patch: Record<string, unknown>;
+  actorId: number | null;
   actorEmail: string | undefined;
   isInternal: boolean;
   ip: string | undefined;
@@ -424,7 +425,7 @@ export async function respondPendingItemTx(input: {
       entityType: "pending_item",
       actionType: "pending_item.respond",
       entityId: input.pendingItemId,
-      userId: null,
+      userId: input.actorId,
       previousValue: "requested",
       newValue: "responded",
       ipAddress: input.ip ?? null,

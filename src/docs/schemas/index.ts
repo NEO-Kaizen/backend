@@ -136,6 +136,7 @@ import {
   PortalAssets,
   PortalCategory,
   PortalStatus,
+  PortalStatusPatch,
   PrioritizationWeights,
   ThemeTokens,
   ThemeGradient,
@@ -155,6 +156,8 @@ import {
   EvaluatePrioritizationRequest,
   EvaluatePrioritizationResponse,
 } from "./prioritization.ts";
+
+import { StatusTimeInterval, StatusTimeByStatus, StatusTimeResponse } from "./audit.ts";
 
 import {
   NotificationPayload,
@@ -300,6 +303,7 @@ export const schemas = {
   PortalAssets,
   PortalCategory,
   PortalStatus,
+  PortalStatusPatch,
   PrioritizationWeights,
   ThemeTokens,
   ThemeGradient,
@@ -311,6 +315,9 @@ export const schemas = {
   PortalCategoriesPatchBody,
   PortalStatusesPatchBody,
   PortalPrioritizationWeightsPatchBody,
+  StatusTimeInterval,
+  StatusTimeByStatus,
+  StatusTimeResponse,
 
   // Prioritization
   PrioritizationCriterion,

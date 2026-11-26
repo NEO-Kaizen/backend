@@ -171,11 +171,11 @@ export async function seed(knex) {
       entity_type: "request",
       entity_id: RICH_PROTOCOL,
       action_type: "request.status_change",
-      previous_value: "Em triagem",
+      previous_value: "Elegível",
       new_value: "Aguardando mapeamento",
       user_id: null,
-      occurred_at: "2026-07-20T10:00:00.000Z",
-      note: "RN-010",
+      occurred_at: "2026-08-21T10:00:00.000Z",
+      note: "Triagem concluída; encaminhamento para mapeamento.",
       change_origin: "system",
     },
     {
@@ -200,7 +200,7 @@ export async function seed(knex) {
       new_value: JSON.stringify({
         triageId: TRIAGE_REASSESSMENT.id,
         exitStatus: TRIAGE_REASSESSMENT.exitStatus,
-        status: "Elegível para avaliação",
+        status: "Elegível",
       }),
       user_id: 107,
       occurred_at: "2026-08-20T09:00:00.000Z",

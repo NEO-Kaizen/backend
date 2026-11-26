@@ -1,5 +1,8 @@
+import { auditCatalog } from "../../shared/audit/auditCatalog.ts";
 import { protocolParam } from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
+
+const auditEntityTypes = Object.keys(auditCatalog);
 
 export default {
   "/audit-history": {
@@ -15,23 +18,22 @@ export default {
           name: "page",
           in: "query",
           required: false,
-          schema: { type: "integer", minimum: 1, default: 1 },
+          description: "Página solicitada (padrão: 1).",
+          schema: { type: "integer", minimum: 1, default: 1, example: 1 },
         },
         {
           name: "limit",
           in: "query",
           required: false,
-          schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+          description: "Itens por página (padrão: 20; máximo: 100).",
+          schema: { type: "integer", minimum: 1, maximum: 100, default: 20, example: 20 },
         },
         {
           name: "entityType",
           in: "query",
           required: false,
-          description: "Filtra por entidade do catálogo de auditoria.",
-          schema: {
-            type: "string",
-            enum: ["user", "prioritization", "request", "mapping", "settings", "pending_item"],
-          },
+          description: "Filtra pelo tipo de entidade auditada.",
+          schema: { type: "string", enum: auditEntityTypes, example: "request" },
         },
       ],
       responses: {
@@ -73,7 +75,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Linha do tempo de auditoria por protocolo",
       description:
-        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Perfis internos; Analista precisa ser responsável (triagem ou mapeamento).",
+        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Administrador e Gestor podem consultar qualquer solicitação; Analista precisa ser responsável pela triagem ou designado do mapeamento. Solicitante não tem acesso.",
       operationId: "getAuditLogsByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -93,6 +95,111 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Perfil ou custódia insuficiente."),
         "404": error("Protocolo inexistente."),
+      },
+    },
+  },
+  "/audit-logs/{protocol}/status-times": {
+    get: {
+      tags: ["Auditoria"],
+      summary: "Consultar tempo por Status",
+      description:
+        "Retorna intervalos e totais de tempo por Status. Administrador e Gestor podem consultar qualquer solicitação; Analista precisa ser responsável pela triagem ou designado do mapeamento. Solicitante não tem acesso.",
+      operationId: "getStatusTimesByProtocol",
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Tempo ativo e pausado por Status.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/StatusTimeResponse" },
+              example: {
+                protocol: "MAAT-8K3P-9X2M",
+                calculatedAt: "2026-11-20T14:00:00.000Z",
+                intervals: [
+                  {
+                    status: "Em triagem",
+                    enteredAt: "2026-11-20T10:00:00.000Z",
+                    exitedAt: "2026-11-20T11:00:00.000Z",
+                    activeMilliseconds: 3600000,
+                    pausedMilliseconds: 0,
+                    isPaused: false,
+                  },
+                  {
+                    status: "Pendente de informações",
+                    enteredAt: "2026-11-20T11:00:00.000Z",
+                    exitedAt: null,
+                    activeMilliseconds: 0,
+                    pausedMilliseconds: 10800000,
+                    isPaused: true,
+                  },
+                ],
+                totalsByStatus: [
+                  {
+                    status: "Em triagem",
+                    activeMilliseconds: 3600000,
+                    pausedMilliseconds: 0,
+                    isPaused: false,
+                  },
+                  {
+                    status: "Pendente de informações",
+                    activeMilliseconds: 0,
+                    pausedMilliseconds: 10800000,
+                    isPaused: true,
+                  },
+                ],
+                totalActiveMilliseconds: 3600000,
+                totalPausedMilliseconds: 10800000,
+              },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description:
+            "Perfil sem acesso ou Analista sem custódia (responsável pela triagem ou designado do mapeamento). Solicitante não tem acesso.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Protocolo inexistente para perfil Administrador ou Gestor.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "Histórico de Status divergente da solicitação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+              example: {
+                status: "error",
+                statusCode: 409,
+                message: "A trilha de auditoria diverge do Status atual da solicitação.",
+                code: "STATUS_HISTORY_DIVERGENCE",
+              },
+            },
+          },
+        },
       },
     },
   },

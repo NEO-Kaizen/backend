@@ -3,9 +3,8 @@
  *
  * Diferente do fake genérico anterior, este helper é fail-closed e
  * observável:
- * - só aceita a query que os services realmente fazem fora dos repositories:
- *   `trx("audit_history").insert(...).returning("audit_id")`;
- * - qualquer outra tabela, método ou query fora de transação lança erro;
+ * - só aceita a query de auditoria e a expressão `trx.raw` usada por ela;
+ * - qualquer outra tabela, expressão SQL, método ou query fora de transação lança erro;
  * - os eventos de auditoria ficam registrados para asserções;
  * - commit/rollback são contados, mas a atomicidade real é provada na suíte
  *   `db` (Postgres + trigger de falha).
@@ -80,6 +79,12 @@ export interface FakeDb {
 export function createFakeDb(): FakeDb {
   const trx = (table: string) => auditBuilder(table);
   trx.fn = { now: () => new Date() };
+  trx.raw = (sql: string) => {
+    if (sql !== "pg_current_xact_id()") {
+      return unexpected(`raw() inesperado: "${sql}".`);
+    }
+    return "fake-transaction-id";
+  };
 
   const db = ((table: string) => {
     unexpected(
