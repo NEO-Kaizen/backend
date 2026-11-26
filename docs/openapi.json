@@ -1117,6 +1117,103 @@
           "lastUpdate": { "type": "string", "format": "date-time" }
         }
       },
+      "DuplicateCheckRequest": {
+        "type": "object",
+        "required": ["demand"],
+        "additionalProperties": false,
+        "properties": { "demand": { "$ref": "#/components/schemas/DuplicateCheckDemand" } }
+      },
+      "DuplicateCheckDemand": {
+        "type": "object",
+        "required": [
+          "title",
+          "requestType",
+          "category",
+          "processName",
+          "description",
+          "problem",
+          "expectedResult",
+          "justification"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 150,
+            "example": "Automatizar conciliação bancária"
+          },
+          "requestType": { "type": "string", "maxLength": 80, "example": "Automação" },
+          "category": { "$ref": "#/components/schemas/RequestCategory" },
+          "processName": {
+            "type": "string",
+            "maxLength": 150,
+            "example": "Conciliação bancária mensal"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "example": "Descrição da necessidade."
+          },
+          "problem": {
+            "type": "string",
+            "maxLength": 4000,
+            "example": "Problema ou oportunidade identificada."
+          },
+          "expectedResult": {
+            "type": "string",
+            "maxLength": 4000,
+            "example": "Resultado esperado."
+          },
+          "justification": {
+            "type": "string",
+            "maxLength": 4000,
+            "example": "Justificativa da solicitação."
+          }
+        },
+        "additionalProperties": false
+      },
+      "DuplicateAlertItem": {
+        "type": "object",
+        "required": ["publicId", "title", "summary", "category", "status", "period"],
+        "additionalProperties": false,
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identificador público aleatório, independente do Protocolo.",
+            "example": "8f14e45f-ea3a-4b2c-9c1d-1f7a5e6b2c90"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "Solicitação de Automação em andamento"
+          },
+          "summary": {
+            "type": "string",
+            "example": "Solicitação em andamento da categoria Automação, registrada no período 2026-Q4."
+          },
+          "category": { "type": "string", "maxLength": 80, "example": "Automação" },
+          "status": { "type": "string", "maxLength": 100, "example": "Em andamento" },
+          "period": { "type": "string", "pattern": "^\\d{4}-Q[1-4]$", "example": "2026-Q4" }
+        }
+      },
+      "DuplicateCheckResponse": {
+        "type": "object",
+        "required": ["confidence", "items"],
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "none"],
+            "description": "Faixa do Alerta: alta (até 3 itens), média (até 5 itens) ou nenhuma (lista vazia).",
+            "example": "medium"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 5,
+            "items": { "$ref": "#/components/schemas/DuplicateAlertItem" }
+          }
+        }
+      },
       "QueueMetrics": {
         "type": "object",
         "required": [
@@ -2850,6 +2947,77 @@
           },
           "403": {
             "description": "Perfil sem acesso (Analista, Gestor ou Administrador).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/requests/duplicates/check": {
+      "post": {
+        "tags": ["Solicitações"],
+        "summary": "Verificar duplicidade da Demanda",
+        "description": "Consulta o corpus público curado ao concluir a aba de Demanda (RF16). Público no modo `PUBLIC` e com sessão obrigatória no modo `AUTHENTICATED`; sujeito a rate limit por IP. A resposta nunca ecoa o texto enviado e pode trazer apenas `publicId`, `title`, `summary`, `category`, `status` e `period`. Flag desligada, índice indisponível ou falha de busca degradam para `200` com `confidence: \"none\"` e `items: []`. Solicitações em aberto aparecem apenas com o resumo de template; concluídas entram com texto tarjado (issue #210). O Alerta não vincula registros nem altera Status — a Marcação de duplicidade é o ato formal do RF25.",
+        "operationId": "postDuplicateCheck",
+        "security": [{}, { "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DuplicateCheckRequest" },
+              "example": {
+                "demand": {
+                  "title": "Automatizar conciliação bancária",
+                  "requestType": "Automação",
+                  "category": "Automação",
+                  "processName": "Conciliação bancária mensal",
+                  "description": "Conferência manual de extratos e lançamentos.",
+                  "problem": "Retrabalho e risco de divergência no fechamento.",
+                  "expectedResult": "Conciliação automática com trilha de conferência.",
+                  "justification": "Reduzir esforço manual do time financeiro."
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Faixa de confiança e itens públicos do Alerta de duplicidade. Resposta com `Cache-Control: no-store`.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Impede cache da resposta com dados de terceiros.",
+                "schema": { "type": "string", "example": "no-store" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DuplicateCheckResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Modo AUTHENTICATED sem sessão válida.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Corpo inválido, campo obrigatório ausente ou chave desconhecida.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições (rate limit por IP).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "500": {
+            "description": "Falha interna genérica, sem detalhe do corpus.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }

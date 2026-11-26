@@ -4,6 +4,8 @@ import { requireRole } from "../../shared/middleware/requireRole.ts";
 import { requireAccessMode } from "../../shared/middleware/accessMode.ts";
 import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import { uploadFields } from "../../shared/middleware/upload.ts";
+import { postDuplicateCheck } from "../duplicates/duplicates.controller.ts";
+import { duplicateCheckRateLimit } from "../duplicates/duplicates.rateLimit.ts";
 import {
   getInternalRequestByProtocol,
   getRequestsByEmail,
@@ -29,6 +31,17 @@ requestsRoutes.get(
   authMiddleware,
   requireRole("Analista", "Gestor", "Administrador"),
   getAssignees,
+);
+
+// Alerta de duplicidade (RF16 — issue #209). Rota estática declarada antes de
+// `/:protocol`; público em PUBLIC e sessão obrigatória em AUTHENTICATED, com
+// rate limit por IP e resposta sem cache. Regras em
+// `docs/rules/duplicate-detection.md`.
+requestsRoutes.post(
+  "/duplicates/check",
+  duplicateCheckRateLimit,
+  requireAccessMode(),
+  postDuplicateCheck,
 );
 
 // Wire format em `src/docs/paths/requests.ts` (`patchInternalAssignee`): PATCH

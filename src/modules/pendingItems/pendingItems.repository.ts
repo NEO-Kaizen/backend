@@ -3,6 +3,7 @@ import type { Knex } from "knex";
 import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
+import { publishRequestProjection } from "../duplicates/projection.ts";
 import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
@@ -298,6 +299,9 @@ async function updateRequestStatusId(
     updated_by: updatedBy,
     updated_at: trx.fn.now(),
   });
+
+  // Pendências também mudam o Status fora do Motor: projeta na mesma transação.
+  await publishRequestProjection(trx, requestId);
 }
 
 export async function findProfessionalIdByUserId(userId: number): Promise<string | null> {
@@ -522,6 +526,7 @@ export async function applyReviewDecisionsTx(input: {
     }
 
     let hasReopen = false;
+    let appliedField = false;
 
     for (const dec of input.decisions) {
       const row = (await trx("pending_items").where({ pending_item_id: dec.id }).first("*")) as
@@ -535,6 +540,7 @@ export async function applyReviewDecisionsTx(input: {
       if (dec.decision === "validate") {
         if (dec.fieldKey) {
           await applyFieldToRequest(trx, input.requestId, dec.fieldKey, dec.value);
+          appliedField = true;
         }
         await trx("pending_items")
           .where({ pending_item_id: dec.id })
@@ -572,6 +578,12 @@ export async function applyReviewDecisionsTx(input: {
           changeOrigin: "admin",
         });
       }
+    }
+
+    if (appliedField) {
+      // Categoria/prazo/restrição corrigidos pelo solicitante podem mudar a
+      // elegibilidade do corpus público.
+      await publishRequestProjection(trx, input.requestId);
     }
 
     const nextStatusName = input.decideStatus({ hasReopen });

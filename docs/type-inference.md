@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **172**.
-- Tipos nomeados: **293** â€” 204 interfaces, 87 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1822** â€” 1365 variÃ¡veis, 231 parÃ¢metros e 226 retornos de funÃ§Ãµes/mÃ©todos.
+- Arquivos-fonte analisados: **189**.
+- Tipos nomeados: **313** â€” 219 interfaces, 91 aliases `type`, 3 classes e 0 enums.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **1930** â€” 1452 variÃ¡veis, 238 parÃ¢metros e 240 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **129**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
+- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **144**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -1352,6 +1352,250 @@ export interface ChangeUserStatusResponse {
 }
 ```
 
+### [src/modules/duplicates/confidence.ts](../src/modules/duplicates/confidence.ts)
+
+#### L10 â€” interface DuplicateConfidenceConfig
+
+```ts
+export interface DuplicateConfidenceConfig {
+  readonly version: string;
+  readonly floor: number;
+  readonly margin: number;
+}
+```
+
+### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
+
+#### L11 â€” interface PublicProjectionRow
+
+```ts
+export interface PublicProjectionRow {
+  request_id: string;
+  public_id: string;
+  public_title: string;
+  public_summary: string;
+  public_category: string;
+  public_status: string;
+  public_period: string;
+  publication_status: PublicationStatus;
+  is_publicly_listable: boolean;
+  redaction_version: string;
+  version: number;
+  updated_at: Date;
+}
+```
+
+### [src/modules/duplicates/indexPoller.ts](../src/modules/duplicates/indexPoller.ts)
+
+#### L11 â€” alias IndexPollChange
+
+```ts
+export type IndexPollChange =
+  | { publicId: string; published: true; document: SimilarityDocument }
+  | { publicId: string; published: false };
+```
+
+#### L15 â€” interface IndexPollerOptions
+
+```ts
+export interface IndexPollerOptions {
+  readEnabled: () => Promise<boolean>;
+  readAll: () => Promise<readonly SimilarityDocument[]>;
+  readChanges: (since: Date) => Promise<readonly IndexPollChange[]>;
+  apply: (document: SimilarityDocument) => void;
+  remove: (publicId: string) => void;
+  clear: () => void;
+  now?: () => Date;
+  intervalMs?: number;
+  overlapMs?: number;
+  onSuccess?: () => void;
+  onError?: (error: unknown) => void;
+  /**
+   * Quando o índice já foi construído antes do poller (boot), a primeira
+   * execução pode ser incremental em vez de um rebuild completo redundante.
+   */
+  initialized?: boolean;
+}
+```
+
+#### L34 â€” interface IndexPoller
+
+```ts
+export interface IndexPoller {
+  runOnce: () => Promise<void>;
+  start: () => void;
+  stop: () => void;
+}
+```
+
+### [src/modules/duplicates/miniSearchIndex.ts](../src/modules/duplicates/miniSearchIndex.ts)
+
+#### L26 â€” interface IndexedDocument
+
+```ts
+interface IndexedDocument extends SimilarityDocument {
+  id: string;
+}
+```
+
+#### L47 â€” class MiniSearchIndex
+
+```ts
+export class MiniSearchIndex implements SimilarityIndex {
+  private readonly engine: MiniSearch<IndexedDocument>;
+
+  constructor() {
+    this.engine = new MiniSearch<IndexedDocument>({
+      idField: "id",
+      fields: [...INDEXED_FIELDS],
+      storeFields: [...STORED_FIELDS],
+      tokenize: tokenizePt,
+      processTerm,
+      searchOptions: SEARCH_OPTIONS,
+    });
+  }
+
+  search(query: string, limit: number): SimilarityHit[] {
+    if (!query.trim()) return [];
+
+    const cappedLimit = Math.max(0, Math.min(limit, DUPLICATE_SEARCH_LIMIT));
+    if (cappedLimit === 0) return [];
+
+    return this.engine
+      .search(query, SEARCH_OPTIONS)
+      .slice(0, cappedLimit)
+      .flatMap((result) => {
+        const publicId = typeof result.id === "string" ? result.id : "";
+        if (!publicId) return [];
+
+        return [
+          {
+            publicId,
+            title: storedString(result, "title"),
+            summary: storedString(result, "summary"),
+            category: storedString(result, "category"),
+            status: storedString(result, "status"),
+            period: storedString(result, "period"),
+            score: result.score,
+          },
+        ];
+      });
+  }
+
+  upsert(document: SimilarityDocument): void {
+    const indexedDocument = toIndexedDocument(document);
+
+    if (this.engine.has(indexedDocument.id)) {
+      this.engine.replace(indexedDocument);
+      return;
+    }
+
+    this.engine.add(indexedDocument);
+  }
+
+  remove(publicId: string): void {
+    if (this.engine.has(publicId)) {
+      this.engine.discard(publicId);
+    }
+  }
+
+  rebuild(documents: readonly SimilarityDocument[]): void {
+    this.engine.removeAll();
+    this.engine.addAll(documents.map(toIndexedDocument));
+  }
+}
+```
+
+### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
+
+#### L15 â€” interface ProjectionSourceRow
+
+```ts
+interface ProjectionSourceRow {
+  request_id: string;
+  created_at: Date;
+  handles_restricted_info: boolean | null;
+  category_name: string;
+  category_is_publicly_listable: boolean;
+  status_name: string;
+  status_is_active: boolean;
+  status_is_terminal: boolean;
+  status_is_restricted: boolean;
+  status_is_duplicate_corpus_eligible: boolean;
+}
+```
+
+#### L28 â€” interface ExistingProjection
+
+```ts
+interface ExistingProjection {
+  public_id: string;
+  publication_status: PublicationStatus;
+  published_at: Date | null;
+  suppressed_at: Date | null;
+}
+```
+
+#### L35 â€” interface ProjectionValues
+
+```ts
+interface ProjectionValues {
+  public_id: string;
+  public_title: string;
+  public_summary: string;
+  public_category: string;
+  public_status: string;
+  public_period: string;
+  publication_status: PublicationStatus;
+  is_publicly_listable: boolean;
+  redaction_version: string;
+  published_at: Date | null;
+  suppressed_at: Date | null;
+  suppression_reason: SuppressionReason | null;
+}
+```
+
+#### L51 â€” interface SuppressionSignals
+
+```ts
+export interface SuppressionSignals {
+  statusIsActive: boolean;
+  statusIsTerminal: boolean;
+  handlesRestrictedInfo: boolean | null;
+  statusIsRestricted: boolean;
+  categoryIsPubliclyListable: boolean;
+  statusIsCorpusEligible: boolean;
+}
+```
+
+### [src/modules/duplicates/similarityIndex.ts](../src/modules/duplicates/similarityIndex.ts)
+
+#### L11 â€” interface SimilarityIndex
+
+```ts
+export interface SimilarityIndex {
+  search(query: string, limit: number): SimilarityHit[];
+  upsert(document: SimilarityDocument): void;
+  remove(publicId: string): void;
+  rebuild(documents: readonly SimilarityDocument[]): void;
+}
+```
+
+### [src/modules/duplicates/template.ts](../src/modules/duplicates/template.ts)
+
+#### L14 â€” interface OpenRequestTemplate
+
+```ts
+export interface OpenRequestTemplate {
+  title: string;
+  summary: string;
+  category: string;
+  status: string;
+  period: string;
+  redactionVersion: string;
+}
+```
+
 ### [src/modules/internalNotes/internalNotes.repository.ts](../src/modules/internalNotes/internalNotes.repository.ts)
 
 #### L15 â€” interface RequestIdentityRow
@@ -1452,7 +1696,7 @@ export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-#### L9 â€” interface RequestRef
+#### L10 â€” interface RequestRef
 
 ```ts
 export interface RequestRef {
@@ -1466,7 +1710,7 @@ export interface RequestRef {
 }
 ```
 
-#### L240 â€” alias PendingItemInsert
+#### L241 â€” alias PendingItemInsert
 
 ```ts
 export type PendingItemInsert = {
@@ -1483,7 +1727,7 @@ export type PendingItemInsert = {
 };
 ```
 
-#### L253 â€” alias RespondFacts
+#### L254 â€” alias RespondFacts
 
 ```ts
 export type RespondFacts = {
@@ -1493,7 +1737,7 @@ export type RespondFacts = {
 };
 ```
 
-#### L259 â€” alias ReviewDecisionInput
+#### L260 â€” alias ReviewDecisionInput
 
 ```ts
 export type ReviewDecisionInput =
@@ -1507,13 +1751,13 @@ export type ReviewDecisionInput =
   | { id: string; decision: "reopen"; comment: string };
 ```
 
-#### L269 â€” alias ReviewFacts
+#### L270 â€” alias ReviewFacts
 
 ```ts
 export type ReviewFacts = { hasReopen: boolean };
 ```
 
-#### L271 â€” alias SavedPendingAttachment
+#### L272 â€” alias SavedPendingAttachment
 
 ```ts
 export type SavedPendingAttachment = {
@@ -1776,7 +2020,7 @@ export interface DashboardFilterOptionRows {
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
-#### L40 â€” interface YesNoDetailColumns
+#### L41 â€” interface YesNoDetailColumns
 
 ```ts
 interface YesNoDetailColumns {
@@ -1785,7 +2029,7 @@ interface YesNoDetailColumns {
 }
 ```
 
-#### L155 â€” interface RequestInsertReturning
+#### L156 â€” interface RequestInsertReturning
 
 ```ts
 interface RequestInsertReturning {
@@ -1795,7 +2039,7 @@ interface RequestInsertReturning {
 }
 ```
 
-#### L344 â€” interface RequestSummaryRow
+#### L348 â€” interface RequestSummaryRow
 
 ```ts
 interface RequestSummaryRow {
@@ -1809,7 +2053,7 @@ interface RequestSummaryRow {
 }
 ```
 
-#### L424 â€” interface RequestWithOwner
+#### L428 â€” interface RequestWithOwner
 
 ```ts
 export interface RequestWithOwner {
@@ -1818,7 +2062,7 @@ export interface RequestWithOwner {
 }
 ```
 
-#### L496 â€” interface RequestAttachmentRow
+#### L500 â€” interface RequestAttachmentRow
 
 ```ts
 export interface RequestAttachmentRow {
@@ -1829,7 +2073,7 @@ export interface RequestAttachmentRow {
 }
 ```
 
-#### L504 â€” interface SchedulePreferenceRow
+#### L508 â€” interface SchedulePreferenceRow
 
 ```ts
 export interface SchedulePreferenceRow {
@@ -1837,7 +2081,7 @@ export interface SchedulePreferenceRow {
 }
 ```
 
-#### L816 â€” interface RequestStatusContext
+#### L823 â€” interface RequestStatusContext
 
 ```ts
 export interface RequestStatusContext {
@@ -1856,7 +2100,7 @@ export interface RequestStatusContext {
 }
 ```
 
-#### L832 â€” interface RequestStatusTarget
+#### L839 â€” interface RequestStatusTarget
 
 ```ts
 export interface RequestStatusTarget {
@@ -1919,7 +2163,7 @@ export interface TrackingCaller {
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
-#### L4 â€” interface StatusTransitionTarget
+#### L5 â€” interface StatusTransitionTarget
 
 ```ts
 export interface StatusTransitionTarget {
@@ -1929,7 +2173,7 @@ export interface StatusTransitionTarget {
 }
 ```
 
-#### L10 â€” interface StatusTransitionInput
+#### L11 â€” interface StatusTransitionInput
 
 ```ts
 export interface StatusTransitionInput {
@@ -1943,7 +2187,7 @@ export interface StatusTransitionInput {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-#### L7 â€” interface StatusRow
+#### L8 â€” interface StatusRow
 
 ```ts
 interface StatusRow {
@@ -1953,7 +2197,7 @@ interface StatusRow {
 }
 ```
 
-#### L13 â€” interface CategoryRow
+#### L14 â€” interface CategoryRow
 
 ```ts
 interface CategoryRow {
@@ -1962,7 +2206,7 @@ interface CategoryRow {
 }
 ```
 
-#### L18 â€” interface RequestContextRow
+#### L19 â€” interface RequestContextRow
 
 ```ts
 interface RequestContextRow {
@@ -1978,7 +2222,7 @@ interface RequestContextRow {
 }
 ```
 
-#### L50 â€” interface TriageRow
+#### L51 â€” interface TriageRow
 
 ```ts
 interface TriageRow {
@@ -2001,7 +2245,7 @@ interface TriageRow {
 }
 ```
 
-#### L221 â€” interface TriageAuditContext
+#### L222 â€” interface TriageAuditContext
 
 ```ts
 export interface TriageAuditContext {
@@ -2351,6 +2595,75 @@ export interface SavedAttachment {
   sizeBytes: number; // tamanho em bytes
   storageKey: string; // chave relativa persistida no banco (basename)
   storagePath: string; // caminho absoluto em disco — uso interno, nunca exposto na API
+}
+```
+
+### [src/shared/types/duplicates.ts](../src/shared/types/duplicates.ts)
+
+#### L2 â€” alias DuplicateConfidence
+
+```ts
+export type DuplicateConfidence = "high" | "medium" | "none";
+```
+
+#### L5 â€” alias PublicationStatus
+
+```ts
+export type PublicationStatus = "published" | "suppressed";
+```
+
+#### L8 â€” alias SuppressionReason
+
+```ts
+export type SuppressionReason =
+  | "inactive_status"
+  | "terminal_status"
+  | "restricted_request"
+  | "restricted_status"
+  | "ineligible_category"
+  | "ineligible_status";
+```
+
+#### L21 â€” interface DuplicateAlertItem
+
+```ts
+export interface DuplicateAlertItem {
+  publicId: string;
+  title: string;
+  summary: string;
+  category: string;
+  status: string;
+  period: string;
+}
+```
+
+#### L31 â€” interface DuplicateCheckResponse
+
+```ts
+export interface DuplicateCheckResponse {
+  confidence: DuplicateConfidence;
+  items: DuplicateAlertItem[];
+}
+```
+
+#### L37 â€” interface SimilarityDocument
+
+```ts
+export interface SimilarityDocument {
+  publicId: string;
+  title: string;
+  summary: string;
+  category: string;
+  status: string;
+  period: string;
+}
+```
+
+#### L47 â€” interface SimilarityHit
+
+```ts
+export interface SimilarityHit extends SimilarityDocument {
+  score: number;
 }
 ```
 
@@ -3219,6 +3532,7 @@ export interface SystemSettingsRow {
   platform_name: string;
   solicitation_mode: SolicitationMode;
   protocol_mask: string;
+  duplicate_detection_enabled: boolean;
   theme_id: number | null;
   logo_light_url: string | null;
   logo_dark_url: string | null;
@@ -3501,9 +3815,16 @@ interface GroupedIssues {
 - L1 â€” variÃ¡vel: `ErrorResponse`
 - L22 â€” variÃ¡vel: `ValidationErrorResponse`
 
+### [src/docs/schemas/duplicates.ts](../src/docs/schemas/duplicates.ts)
+
+- L10 â€” variÃ¡vel: `DuplicateCheckDemand`
+- L15 â€” variÃ¡vel: `DuplicateCheckRequest`
+- L24 â€” variÃ¡vel: `DuplicateAlertItem`
+- L54 â€” variÃ¡vel: `DuplicateCheckResponse`
+
 ### [src/docs/schemas/index.ts](../src/docs/schemas/index.ts)
 
-- L168 â€” variÃ¡vel: `schemas`
+- L175 â€” variÃ¡vel: `schemas`
 
 ### [src/docs/schemas/internalNotes.ts](../src/docs/schemas/internalNotes.ts)
 
@@ -3795,6 +4116,151 @@ interface GroupedIssues {
 - L29 â€” variÃ¡vel: `updateRequesterSchema`
 - L47 â€” variÃ¡vel: `updateProfileSchema`
 
+### [src/modules/duplicates/confidence.ts](../src/modules/duplicates/confidence.ts)
+
+- L21 â€” variÃ¡vel: `DUPLICATE_CONFIDENCE_CONFIG`
+- L41 â€” variÃ¡vel: `top`
+- L45 â€” variÃ¡vel: `normalizedTop`
+- L48 â€” variÃ¡vel: `second`
+- L49 â€” variÃ¡vel: `normalizedSecond`
+- L50 â€” variÃ¡vel: `marginSatisfied`
+
+### [src/modules/duplicates/duplicates.controller.ts](../src/modules/duplicates/duplicates.controller.ts)
+
+- L15 â€” variÃ¡vel: `parsed`
+- L18 â€” variÃ¡vel: `{ message, fields }`
+- L26 â€” variÃ¡vel: `error`
+
+### [src/modules/duplicates/duplicates.rateLimit.ts](../src/modules/duplicates/duplicates.rateLimit.ts)
+
+- L10 â€” variÃ¡vel: `perTenSeconds`
+- L11 â€” variÃ¡vel: `perMinute`
+- L13 â€” variÃ¡vel: `RATE_LIMIT_MESSAGE`
+- L16 â€” variÃ¡vel: `ip`
+
+### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
+
+- L26 â€” variÃ¡vel: `PROJECTION_COLUMNS`
+- L42 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
+- L66 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, updated_at, }`
+- L116 â€” variÃ¡vel: `source`
+- L127 â€” variÃ¡vel: `source`
+- L146 â€” variÃ¡vel: `source`
+
+### [src/modules/duplicates/duplicates.schema.ts](../src/modules/duplicates/duplicates.schema.ts)
+
+- L10 â€” variÃ¡vel: `duplicateCheckPayloadSchema`
+
+### [src/modules/duplicates/duplicates.service.ts](../src/modules/duplicates/duplicates.service.ts)
+
+- L22 â€” variÃ¡vel: `HIGH_CONFIDENCE_ITEM_LIMIT`
+- L23 â€” variÃ¡vel: `MEDIUM_CONFIDENCE_ITEM_LIMIT`
+- L53 â€” variÃ¡vel: `query`
+- L59 â€” variÃ¡vel: `hits`
+- L65 â€” parÃ¢metro: `hit`
+- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L65 â€” variÃ¡vel: `confidence`
+
+### [src/modules/duplicates/indexLifecycle.ts](../src/modules/duplicates/indexLifecycle.ts)
+
+- L23 â€” variÃ¡vel: `ready`
+- L50 â€” variÃ¡vel: `enabled`
+- L57 â€” variÃ¡vel: `projections`
+- L85 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L86 â€” variÃ¡vel: `projections`
+- L89 â€” parÃ¢metro: `since`
+- L89 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L90 â€” variÃ¡vel: `changes`
+- L91 â€” parÃ¢metro: `change`
+- L91 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L101 â€” parÃ¢metro: `document`
+- L101 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L104 â€” parÃ¢metro: `publicId`
+- L104 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L107 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L111 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L114 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+
+### [src/modules/duplicates/indexPoller.ts](../src/modules/duplicates/indexPoller.ts)
+
+- L40 â€” variÃ¡vel: `DUPLICATE_INDEX_POLL_INTERVAL_MS`
+- L41 â€” variÃ¡vel: `DUPLICATE_INDEX_OVERLAP_MS`
+- L44 â€” variÃ¡vel: `intervalMs`
+- L45 â€” variÃ¡vel: `overlapMs`
+- L46 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L46 â€” variÃ¡vel: `now`
+- L54 â€” variÃ¡vel: `enabled`
+- L63 â€” variÃ¡vel: `runAt`
+- L68 â€” variÃ¡vel: `documents`
+- L70 â€” variÃ¡vel: `document`
+- L79 â€” variÃ¡vel: `since`
+- L80 â€” variÃ¡vel: `changes`
+- L82 â€” variÃ¡vel: `change`
+- L97 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L100 â€” variÃ¡vel: `error`
+- L115 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+
+### [src/modules/duplicates/miniSearchIndex.ts](../src/modules/duplicates/miniSearchIndex.ts)
+
+- L16 â€” variÃ¡vel: `INDEXED_FIELDS`
+- L17 â€” variÃ¡vel: `STORED_FIELDS`
+- L19 â€” variÃ¡vel: `SEARCH_OPTIONS`
+- L64 â€” variÃ¡vel: `cappedLimit`
+- L70 â€” parÃ¢metro: `result`
+- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L71 â€” variÃ¡vel: `publicId`
+- L89 â€” variÃ¡vel: `indexedDocument`
+
+### [src/modules/duplicates/normalize.ts](../src/modules/duplicates/normalize.ts)
+
+- L10 â€” variÃ¡vel: `STOPWORDS`
+- L33 â€” variÃ¡vel: `SYNONYM_GROUPS`
+- L76 â€” parÃ¢metro: `term`
+- L76 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L92 â€” variÃ¡vel: `SYNONYM_MAP`
+- L93 â€” variÃ¡vel: `group`
+- L94 â€” variÃ¡vel: `canonical`
+- L95 â€” variÃ¡vel: `variant`
+- L96 â€” variÃ¡vel: `key`
+- L102 â€” variÃ¡vel: `normalized`
+- L105 â€” variÃ¡vel: `stemmed`
+- L106 â€” variÃ¡vel: `canonical`
+
+### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
+
+- L112 â€” variÃ¡vel: `source`
+- L117 â€” variÃ¡vel: `template`
+- L122 â€” variÃ¡vel: `isPubliclyListable`
+- L125 â€” variÃ¡vel: `suppressionReason`
+- L128 â€” variÃ¡vel: `existing`
+- L134 â€” variÃ¡vel: `now`
+- L135 â€” variÃ¡vel: `publishedAt`
+- L139 â€” variÃ¡vel: `suppressedAt`
+
+### [src/modules/duplicates/query.ts](../src/modules/duplicates/query.ts)
+
+- L13 â€” variÃ¡vel: `DUPLICATE_QUERY_TERM_LIMIT`
+- L26 â€” variÃ¡vel: `rawTerm`
+- L27 â€” variÃ¡vel: `processed`
+- L30 â€” variÃ¡vel: `candidates`
+- L31 â€” variÃ¡vel: `candidate`
+- L46 â€” variÃ¡vel: `seen`
+- L48 â€” variÃ¡vel: `field`
+
+### [src/modules/duplicates/similarityIndex.ts](../src/modules/duplicates/similarityIndex.ts)
+
+- L9 â€” variÃ¡vel: `DUPLICATE_SEARCH_LIMIT`
+
+### [src/modules/duplicates/template.ts](../src/modules/duplicates/template.ts)
+
+- L11 â€” variÃ¡vel: `OPEN_REQUEST_PUBLIC_STATUS`
+- L12 â€” variÃ¡vel: `OPEN_REQUEST_REDACTION_VERSION`
+- L28 â€” variÃ¡vel: `dateOnly`
+- L34 â€” variÃ¡vel: `[yearPart, monthPart]`
+- L35 â€” variÃ¡vel: `year`
+- L36 â€” variÃ¡vel: `month`
+- L49 â€” variÃ¡vel: `period`
+
 ### [src/modules/internalNotes/internalNotes.controller.ts](../src/modules/internalNotes/internalNotes.controller.ts)
 
 - L14 â€” variÃ¡vel: `parsed`
@@ -4036,95 +4502,96 @@ interface GroupedIssues {
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-- L23 â€” variÃ¡vel: `conn`
-- L24 â€” variÃ¡vel: `row`
-- L44 â€” variÃ¡vel: `conn`
-- L45 â€” variÃ¡vel: `row`
-- L62 â€” variÃ¡vel: `conn`
-- L63 â€” variÃ¡vel: `row`
-- L74 â€” variÃ¡vel: `conn`
-- L85 â€” variÃ¡vel: `conn`
-- L86 â€” variÃ¡vel: `row`
-- L95 â€” variÃ¡vel: `grouped`
-- L98 â€” variÃ¡vel: `conn`
-- L99 â€” variÃ¡vel: `rows`
-- L104 â€” variÃ¡vel: `row`
-- L105 â€” variÃ¡vel: `key`
-- L106 â€” variÃ¡vel: `list`
-- L118 â€” variÃ¡vel: `conn`
-- L119 â€” variÃ¡vel: `row`
-- L132 â€” variÃ¡vel: `conn`
-- L133 â€” variÃ¡vel: `rows`
-- L139 â€” parÃ¢metro: `r`
-- L139 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L139 â€” variÃ¡vel: `map`
-- L140 â€” variÃ¡vel: `requested`
-- L141 â€” variÃ¡vel: `responded`
-- L142 â€” variÃ¡vel: `validated`
-- L155 â€” variÃ¡vel: `conn`
-- L157 â€” variÃ¡vel: `rows`
-- L167 â€” variÃ¡vel: `byBatch`
-- L168 â€” variÃ¡vel: `row`
-- L169 â€” variÃ¡vel: `entry`
-- L170 â€” variÃ¡vel: `count`
-- L177 â€” variÃ¡vel: `candidates`
-- L178 â€” parÃ¢metro: `[, s]`
-- L178 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L182 â€” variÃ¡vel: `requiresAttachment`
-- L186 â€” parÃ¢metro: `[batchId]`
-- L186 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L190 â€” parÃ¢metro: `r`
-- L190 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L190 â€” variÃ¡vel: `requiresSet`
-- L192 â€” variÃ¡vel: `attachmentCounts`
-- L194 â€” variÃ¡vel: `counts`
-- L204 â€” variÃ¡vel: `c`
-- L207 â€” variÃ¡vel: `[batchId, summary]`
-- L218 â€” variÃ¡vel: `conn`
-- L219 â€” variÃ¡vel: `row`
-- L225 â€” variÃ¡vel: `count`
-- L227 â€” variÃ¡vel: `lastUnreadAt`
-- L232 â€” variÃ¡vel: `row`
-- L282 â€” variÃ¡vel: `row`
-- L304 â€” variÃ¡vel: `row`
-- L309 â€” variÃ¡vel: `row`
-- L318 â€” variÃ¡vel: `conn`
-- L333 â€” parÃ¢metro: `trx`
-- L333 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L334 â€” parÃ¢metro: `row`
-- L334 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L334 â€” variÃ¡vel: `toInsert`
-- L350 â€” variÃ¡vel: `current`
-- L351 â€” variÃ¡vel: `pendingStatusId`
-- L406 â€” parÃ¢metro: `trx`
-- L406 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L407 â€” variÃ¡vel: `row`
-- L434 â€” variÃ¡vel: `requestedCount`
-- L438 â€” variÃ¡vel: `requestedRemaining`
-- L440 â€” variÃ¡vel: `requiresAttachment`
-- L443 â€” variÃ¡vel: `attachmentSatisfied`
-- L447 â€” variÃ¡vel: `current`
-- L448 â€” variÃ¡vel: `nextStatusName`
-- L455 â€” variÃ¡vel: `statusId`
-- L481 â€” parÃ¢metro: `trx`
-- L481 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L517 â€” parÃ¢metro: `trx`
-- L517 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L524 â€” variÃ¡vel: `hasReopen`
-- L526 â€” variÃ¡vel: `dec`
-- L527 â€” variÃ¡vel: `row`
-- L531 â€” variÃ¡vel: `currentStatus`
-- L577 â€” variÃ¡vel: `nextStatusName`
-- L579 â€” variÃ¡vel: `statusId`
-- L596 â€” parÃ¢metro: `d`
-- L596 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L618 â€” variÃ¡vel: `col`
-- L620 â€” variÃ¡vel: `v`
-- L624 â€” variÃ¡vel: `requesterRow`
-- L646 â€” variÃ¡vel: `col`
-- L649 â€” variÃ¡vel: `category`
-- L692 â€” variÃ¡vel: `col`
-- L719 â€” variÃ¡vel: `entry`
+- L24 â€” variÃ¡vel: `conn`
+- L25 â€” variÃ¡vel: `row`
+- L45 â€” variÃ¡vel: `conn`
+- L46 â€” variÃ¡vel: `row`
+- L63 â€” variÃ¡vel: `conn`
+- L64 â€” variÃ¡vel: `row`
+- L75 â€” variÃ¡vel: `conn`
+- L86 â€” variÃ¡vel: `conn`
+- L87 â€” variÃ¡vel: `row`
+- L96 â€” variÃ¡vel: `grouped`
+- L99 â€” variÃ¡vel: `conn`
+- L100 â€” variÃ¡vel: `rows`
+- L105 â€” variÃ¡vel: `row`
+- L106 â€” variÃ¡vel: `key`
+- L107 â€” variÃ¡vel: `list`
+- L119 â€” variÃ¡vel: `conn`
+- L120 â€” variÃ¡vel: `row`
+- L133 â€” variÃ¡vel: `conn`
+- L134 â€” variÃ¡vel: `rows`
+- L140 â€” parÃ¢metro: `r`
+- L140 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L140 â€” variÃ¡vel: `map`
+- L141 â€” variÃ¡vel: `requested`
+- L142 â€” variÃ¡vel: `responded`
+- L143 â€” variÃ¡vel: `validated`
+- L156 â€” variÃ¡vel: `conn`
+- L158 â€” variÃ¡vel: `rows`
+- L168 â€” variÃ¡vel: `byBatch`
+- L169 â€” variÃ¡vel: `row`
+- L170 â€” variÃ¡vel: `entry`
+- L171 â€” variÃ¡vel: `count`
+- L178 â€” variÃ¡vel: `candidates`
+- L179 â€” parÃ¢metro: `[, s]`
+- L179 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L183 â€” variÃ¡vel: `requiresAttachment`
+- L187 â€” parÃ¢metro: `[batchId]`
+- L187 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L191 â€” parÃ¢metro: `r`
+- L191 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L191 â€” variÃ¡vel: `requiresSet`
+- L193 â€” variÃ¡vel: `attachmentCounts`
+- L195 â€” variÃ¡vel: `counts`
+- L205 â€” variÃ¡vel: `c`
+- L208 â€” variÃ¡vel: `[batchId, summary]`
+- L219 â€” variÃ¡vel: `conn`
+- L220 â€” variÃ¡vel: `row`
+- L226 â€” variÃ¡vel: `count`
+- L228 â€” variÃ¡vel: `lastUnreadAt`
+- L233 â€” variÃ¡vel: `row`
+- L283 â€” variÃ¡vel: `row`
+- L308 â€” variÃ¡vel: `row`
+- L313 â€” variÃ¡vel: `row`
+- L322 â€” variÃ¡vel: `conn`
+- L337 â€” parÃ¢metro: `trx`
+- L337 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L338 â€” parÃ¢metro: `row`
+- L338 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L338 â€” variÃ¡vel: `toInsert`
+- L354 â€” variÃ¡vel: `current`
+- L355 â€” variÃ¡vel: `pendingStatusId`
+- L410 â€” parÃ¢metro: `trx`
+- L410 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L411 â€” variÃ¡vel: `row`
+- L438 â€” variÃ¡vel: `requestedCount`
+- L442 â€” variÃ¡vel: `requestedRemaining`
+- L444 â€” variÃ¡vel: `requiresAttachment`
+- L447 â€” variÃ¡vel: `attachmentSatisfied`
+- L451 â€” variÃ¡vel: `current`
+- L452 â€” variÃ¡vel: `nextStatusName`
+- L459 â€” variÃ¡vel: `statusId`
+- L485 â€” parÃ¢metro: `trx`
+- L485 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L521 â€” parÃ¢metro: `trx`
+- L521 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L528 â€” variÃ¡vel: `hasReopen`
+- L529 â€” variÃ¡vel: `appliedField`
+- L531 â€” variÃ¡vel: `dec`
+- L532 â€” variÃ¡vel: `row`
+- L536 â€” variÃ¡vel: `currentStatus`
+- L589 â€” variÃ¡vel: `nextStatusName`
+- L591 â€” variÃ¡vel: `statusId`
+- L608 â€” parÃ¢metro: `d`
+- L608 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L630 â€” variÃ¡vel: `col`
+- L632 â€” variÃ¡vel: `v`
+- L636 â€” variÃ¡vel: `requesterRow`
+- L658 â€” variÃ¡vel: `col`
+- L661 â€” variÃ¡vel: `category`
+- L704 â€” variÃ¡vel: `col`
+- L731 â€” variÃ¡vel: `entry`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
@@ -4818,70 +5285,70 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
-- L38 â€” variÃ¡vel: `INITIAL_STATUS`
-- L78 â€” variÃ¡vel: `email`
-- L125 â€” variÃ¡vel: `row`
-- L139 â€” variÃ¡vel: `requesterId`
-- L162 â€” variÃ¡vel: `result`
-- L166 â€” variÃ¡vel: `row`
-- L183 â€” variÃ¡vel: `email`
-- L184 â€” variÃ¡vel: `requestId`
-- L186 â€” variÃ¡vel: `manualControls`
-- L187 â€” variÃ¡vel: `processDocumentation`
-- L188 â€” variÃ¡vel: `similarSolution`
-- L189 â€” variÃ¡vel: `otherAreas`
-- L190 â€” variÃ¡vel: `restrictedInfo`
-- L192 â€” variÃ¡vel: `insertedRows`
-- L251 â€” variÃ¡vel: `row`
-- L270 â€” parÃ¢metro: `scheduledFor`
-- L270 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L289 â€” parÃ¢metro: `attachment`
-- L289 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L306 â€” parÃ¢metro: `trx`
-- L306 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L307 â€” variÃ¡vel: `categoryId`
-- L313 â€” variÃ¡vel: `statusId`
-- L314 â€” variÃ¡vel: `requesterId`
-- L315 â€” variÃ¡vel: `saved`
-- L324 â€” variÃ¡vel: `email`
-- L339 â€” variÃ¡vel: `row`
-- L354 â€” variÃ¡vel: `PUBLIC_STATUS_SUMMARY_SQL`
-- L357 â€” retorno da funÃ§Ã£o: `baseSummaryQuery()`
-- L374 â€” parÃ¢metro: `builder`
-- L374 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L384 â€” variÃ¡vel: `countRows`
-- L390 â€” variÃ¡vel: `total`
-- L392 â€” variÃ¡vel: `rows`
-- L407 â€” parÃ¢metro: `row`
-- L407 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L432 â€” variÃ¡vel: `response`
-- L464 â€” variÃ¡vel: `meetingScheduledFor`
-- L466 â€” variÃ¡vel: `meeting`
-- L470 â€” variÃ¡vel: `openedAt`
-- L511 â€” variÃ¡vel: `hasMapping`
-- L513 â€” variÃ¡vel: `query`
-- L541 â€” variÃ¡vel: `baseSelect`
-- L608 â€” variÃ¡vel: `mappingSelect`
-- L652 â€” variÃ¡vel: `row`
-- L665 â€” variÃ¡vel: `ASSIGNABLE_PROFILES`
-- L688 â€” variÃ¡vel: `numericId`
-- L733 â€” variÃ¡vel: `hasMapping`
-- L749 â€” variÃ¡vel: `query`
-- L760 â€” variÃ¡vel: `row`
-- L804 â€” variÃ¡vel: `statusId`
-- L846 â€” variÃ¡vel: `hasMappingColumn`
-- L863 â€” variÃ¡vel: `query`
-- L874 â€” variÃ¡vel: `row`
-- L899 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L958 â€” variÃ¡vel: `manualControls`
-- L959 â€” variÃ¡vel: `processDocumentation`
-- L960 â€” variÃ¡vel: `similarSolution`
-- L961 â€” variÃ¡vel: `otherAreas`
-- L962 â€” variÃ¡vel: `restrictedInfo`
+- L39 â€” variÃ¡vel: `INITIAL_STATUS`
+- L79 â€” variÃ¡vel: `email`
+- L126 â€” variÃ¡vel: `row`
+- L140 â€” variÃ¡vel: `requesterId`
+- L163 â€” variÃ¡vel: `result`
+- L167 â€” variÃ¡vel: `row`
+- L184 â€” variÃ¡vel: `email`
+- L185 â€” variÃ¡vel: `requestId`
+- L187 â€” variÃ¡vel: `manualControls`
+- L188 â€” variÃ¡vel: `processDocumentation`
+- L189 â€” variÃ¡vel: `similarSolution`
+- L190 â€” variÃ¡vel: `otherAreas`
+- L191 â€” variÃ¡vel: `restrictedInfo`
+- L193 â€” variÃ¡vel: `insertedRows`
+- L252 â€” variÃ¡vel: `row`
+- L271 â€” parÃ¢metro: `scheduledFor`
+- L271 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L290 â€” parÃ¢metro: `attachment`
+- L290 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L307 â€” parÃ¢metro: `trx`
+- L307 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L308 â€” variÃ¡vel: `categoryId`
+- L314 â€” variÃ¡vel: `statusId`
+- L315 â€” variÃ¡vel: `requesterId`
+- L316 â€” variÃ¡vel: `saved`
+- L325 â€” variÃ¡vel: `email`
+- L343 â€” variÃ¡vel: `row`
+- L358 â€” variÃ¡vel: `PUBLIC_STATUS_SUMMARY_SQL`
+- L361 â€” retorno da funÃ§Ã£o: `baseSummaryQuery()`
+- L378 â€” parÃ¢metro: `builder`
+- L378 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L388 â€” variÃ¡vel: `countRows`
+- L394 â€” variÃ¡vel: `total`
+- L396 â€” variÃ¡vel: `rows`
+- L411 â€” parÃ¢metro: `row`
+- L411 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L436 â€” variÃ¡vel: `response`
+- L468 â€” variÃ¡vel: `meetingScheduledFor`
+- L470 â€” variÃ¡vel: `meeting`
+- L474 â€” variÃ¡vel: `openedAt`
+- L515 â€” variÃ¡vel: `hasMapping`
+- L517 â€” variÃ¡vel: `query`
+- L545 â€” variÃ¡vel: `baseSelect`
+- L612 â€” variÃ¡vel: `mappingSelect`
+- L656 â€” variÃ¡vel: `row`
+- L669 â€” variÃ¡vel: `ASSIGNABLE_PROFILES`
+- L692 â€” variÃ¡vel: `numericId`
+- L737 â€” variÃ¡vel: `hasMapping`
+- L753 â€” variÃ¡vel: `query`
+- L764 â€” variÃ¡vel: `row`
+- L808 â€” variÃ¡vel: `statusId`
+- L853 â€” variÃ¡vel: `hasMappingColumn`
+- L870 â€” variÃ¡vel: `query`
+- L881 â€” variÃ¡vel: `row`
+- L906 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L965 â€” variÃ¡vel: `manualControls`
+- L966 â€” variÃ¡vel: `processDocumentation`
+- L967 â€” variÃ¡vel: `similarSolution`
+- L968 â€” variÃ¡vel: `otherAreas`
+- L969 â€” variÃ¡vel: `restrictedInfo`
 
 ### [src/modules/requests/requests.router.ts](../src/modules/requests/requests.router.ts)
 
-- L20 â€” variÃ¡vel: `requestsRoutes`
+- L22 â€” variÃ¡vel: `requestsRoutes`
 
 ### [src/modules/requests/requests.schema.ts](../src/modules/requests/requests.schema.ts)
 
@@ -5046,10 +5513,10 @@ interface GroupedIssues {
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
-- L29 â€” variÃ¡vel: `lastTechnicalMessage`
-- L38 â€” variÃ¡vel: `query`
-- L42 â€” variÃ¡vel: `rows`
-- L43 â€” variÃ¡vel: `row`
+- L30 â€” variÃ¡vel: `lastTechnicalMessage`
+- L39 â€” variÃ¡vel: `query`
+- L43 â€” variÃ¡vel: `rows`
+- L44 â€” variÃ¡vel: `row`
 
 ### [src/modules/requests/triage/triage.controller.ts](../src/modules/requests/triage/triage.controller.ts)
 
@@ -5069,14 +5536,14 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L69 â€” variÃ¡vel: `TRIAGE_COLUMNS`
-- L122 â€” variÃ¡vel: `row`
-- L152 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L163 â€” variÃ¡vel: `raw`
-- L182 â€” variÃ¡vel: `source`
-- L211 â€” variÃ¡vel: `updatedRows`
-- L279 â€” parÃ¢metro: `trx`
-- L279 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L70 â€” variÃ¡vel: `TRIAGE_COLUMNS`
+- L123 â€” variÃ¡vel: `row`
+- L153 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L164 â€” variÃ¡vel: `raw`
+- L183 â€” variÃ¡vel: `source`
+- L212 â€” variÃ¡vel: `updatedRows`
+- L280 â€” parÃ¢metro: `trx`
+- L280 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/requests/triage/triage.router.ts](../src/modules/requests/triage/triage.router.ts)
 
@@ -5279,10 +5746,10 @@ interface GroupedIssues {
 
 ### [src/server.ts](../src/server.ts)
 
-- L5 â€” variÃ¡vel: `PORT`
-- L8 â€” parÃ¢metro: `e`
-- L8 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L10 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L6 â€” variÃ¡vel: `PORT`
+- L9 â€” parÃ¢metro: `e`
+- L9 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L11 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/shared/audit/auditCatalog.ts](../src/shared/audit/auditCatalog.ts)
 
@@ -5646,17 +6113,17 @@ interface GroupedIssues {
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-- L24 â€” variÃ¡vel: `row`
-- L45 â€” variÃ¡vel: `row`
-- L63 â€” variÃ¡vel: `row`
-- L86 â€” variÃ¡vel: `row`
-- L232 â€” variÃ¡vel: `row`
-- L282 â€” variÃ¡vel: `row`
-- L304 â€” variÃ¡vel: `row`
-- L309 â€” variÃ¡vel: `row`
-- L440 â€” variÃ¡vel: `requiresAttachment`
-- L624 â€” variÃ¡vel: `requesterRow`
-- L649 â€” variÃ¡vel: `category`
+- L25 â€” variÃ¡vel: `row`
+- L46 â€” variÃ¡vel: `row`
+- L64 â€” variÃ¡vel: `row`
+- L87 â€” variÃ¡vel: `row`
+- L233 â€” variÃ¡vel: `row`
+- L283 â€” variÃ¡vel: `row`
+- L308 â€” variÃ¡vel: `row`
+- L313 â€” variÃ¡vel: `row`
+- L444 â€” variÃ¡vel: `requiresAttachment`
+- L636 â€” variÃ¡vel: `requesterRow`
+- L661 â€” variÃ¡vel: `category`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
@@ -5694,12 +6161,12 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
-- L125 â€” variÃ¡vel: `row`
-- L339 â€” variÃ¡vel: `row`
-- L432 â€” variÃ¡vel: `response`
-- L652 â€” variÃ¡vel: `row`
-- L760 â€” variÃ¡vel: `row`
-- L874 â€” variÃ¡vel: `row`
+- L126 â€” variÃ¡vel: `row`
+- L343 â€” variÃ¡vel: `row`
+- L436 â€” variÃ¡vel: `response`
+- L656 â€” variÃ¡vel: `row`
+- L764 â€” variÃ¡vel: `row`
+- L881 â€” variÃ¡vel: `row`
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
@@ -5707,7 +6174,7 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L122 â€” variÃ¡vel: `row`
+- L123 â€” variÃ¡vel: `row`
 
 ### [src/modules/users/users.repository.ts](../src/modules/users/users.repository.ts)
 
@@ -5719,7 +6186,7 @@ interface GroupedIssues {
 
 ### [src/server.ts](../src/server.ts)
 
-- L8 â€” parÃ¢metro: `e`
+- L9 â€” parÃ¢metro: `e`
 
 ### [src/shared/middleware/auth.ts](../src/shared/middleware/auth.ts)
 

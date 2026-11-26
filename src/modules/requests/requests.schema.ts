@@ -31,7 +31,7 @@ const requesterSchema = z.object({
   additionalContact: optionalString(100),
 }) satisfies z.ZodType<RequesterBlock>;
 
-const demandSchema = z.object({
+export const demandSchema = z.object({
   title: requiredString(150),
   requestType: requiredString(80),
   category: requiredString(80),

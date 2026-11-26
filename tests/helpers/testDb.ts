@@ -132,6 +132,15 @@ export async function resetTestDb(): Promise<void> {
   await testDb("system_themes").insert({ theme_id: 1 });
   await testDb("system_settings").insert({ settings_id: 1, theme_id: 1 });
   await testDb("profiles").update({ is_active: true });
+
+  // Allowlists do corpus de duplicidade (issue #209): o reset devolve o
+  // baseline da migration — todas as categorias publicáveis e todos os
+  // status elegíveis, exceto os desfechos 10, 13, 16, 17 e 19.
+  await testDb("categories").update({ is_publicly_listable: true });
+  await testDb("statuses").update({ is_duplicate_corpus_eligible: true });
+  await testDb("statuses")
+    .whereIn("status_id", [10, 13, 16, 17, 19])
+    .update({ is_duplicate_corpus_eligible: false });
 }
 
 export async function closeTestDb(): Promise<void> {

@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { Knex } from "knex";
+import { publishRequestProjection } from "../duplicates/projection.ts";
 
 export interface StatusTransitionTarget {
   status_id: number;
@@ -49,5 +50,10 @@ export async function applyStatusTransition(
       input.expectedStatusId === undefined ? 404 : 409,
     );
   }
+
+  // Mudança de Status (PATCH direto ou conclusão de mapeamento) republica ou
+  // suprime a projeção pública do RF16 na mesma transação.
+  await publishRequestProjection(trx, input.requestId);
+
   return new Date(row.updated_at).toISOString();
 }

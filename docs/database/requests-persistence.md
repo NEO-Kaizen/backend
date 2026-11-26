@@ -102,17 +102,22 @@ Opcionalmente estende uma conta de `users` (1:1).
 
 Tabela de referência administrável pelo módulo de configurações.
 
-| Campo           | Tipo        | Obrigatório | Restrição / Default                                                 | Finalidade                 |
-| --------------- | ----------- | ----------- | ------------------------------------------------------------------- | -------------------------- |
-| `category_id`   | INTEGER     | Sim         | PK, auto increment                                                  | Identificador da categoria |
-| `name`          | VARCHAR(80) | Sim         | UK `uk_categories_name`; UK `uk_categories_name_ci` (`lower(name)`) | Nome — limite 80           |
-| `description`   | TEXT        | Não         | NULL permitido                                                      | Descrição                  |
-| `status`        | ENUM        | Sim         | `active`/`inactive`; DEFAULT `active`                               | Situação do cadastro       |
-| `display_order` | INTEGER     | Não         | NULL permitido                                                      | Ordem de exibição          |
-| `created_at`    | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP`                                         | Data e hora de criação     |
+| Campo                  | Tipo        | Obrigatório | Restrição / Default                                                 | Finalidade                                                |
+| ---------------------- | ----------- | ----------- | ------------------------------------------------------------------- | --------------------------------------------------------- |
+| `category_id`          | INTEGER     | Sim         | PK, auto increment                                                  | Identificador da categoria                                |
+| `name`                 | VARCHAR(80) | Sim         | UK `uk_categories_name`; UK `uk_categories_name_ci` (`lower(name)`) | Nome — limite 80                                          |
+| `description`          | TEXT        | Não         | NULL permitido                                                      | Descrição                                                 |
+| `status`               | ENUM        | Sim         | `active`/`inactive`; DEFAULT `active`                               | Situação do cadastro                                      |
+| `display_order`        | INTEGER     | Não         | NULL permitido                                                      | Ordem de exibição                                         |
+| `is_publicly_listable` | BOOLEAN     | Sim         | DEFAULT FALSE; migration liga as existentes                         | Categoria alimenta o corpus público de duplicidade (RF16) |
+| `created_at`           | TIMESTAMPTZ | Sim         | DEFAULT `CURRENT_TIMESTAMP`                                         | Data e hora de criação                                    |
 
 - `uk_categories_name_ci` reforça no banco a unicidade case-insensitive.
 - índice em `status` (`idx_categories_status`).
+- `is_publicly_listable` é a allowlist do corpus de duplicidade (issue #209):
+  nasce `false` para categorias novas e foi ligada para as categorias existentes
+  na migration. Regras em
+  [`duplicate-detection.md`](../rules/duplicate-detection.md).
 
 ## Tabela `statuses`
 
@@ -124,20 +129,21 @@ lista fechada. A semântica das flags e modos (`is_core`, `is_public`,
 seção descreve apenas o schema. O default de `is_active` passou a `true` na
 revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
 
-| Campo           | Tipo         | Obrigatório | Restrição / Default                   | Finalidade                           |
-| --------------- | ------------ | ----------- | ------------------------------------- | ------------------------------------ |
-| `status_id`     | INTEGER      | Sim         | PK, auto increment                    | Identificador                        |
-| `order_number`  | INTEGER      | Sim         | UK `uk_statuses_order` (DEFERRABLE)   | Ordem de exibição                    |
-| `name`          | VARCHAR(100) | Sim         | UK `uk_statuses_name`                 | Nome                                 |
-| `description`   | TEXT         | Não         | NULL permitido                        | Descrição                            |
-| `tone`          | ENUM         | Sim         | `status_tone`; DEFAULT `info`         | Tom visual                           |
-| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)           | Status disponível para uso           |
-| `is_core`       | BOOLEAN      | Sim         | DEFAULT FALSE                         | Status central do fluxo              |
-| `is_restricted` | BOOLEAN      | Sim         | DEFAULT FALSE                         | Exige administrador para transição   |
-| `is_terminal`   | BOOLEAN      | Sim         | DEFAULT FALSE                         | Encerra a solicitação                |
-| `triage_mode`   | ENUM         | Sim         | `status_triage_mode`; DEFAULT `none`  | Como o status se relaciona à triagem |
-| `mapping_mode`  | ENUM         | Sim         | `status_mapping_mode`; DEFAULT `none` | Como se relaciona ao mapeamento      |
-| `is_public`     | BOOLEAN      | Sim         | DEFAULT FALSE                         | Visível ao solicitante               |
+| Campo                          | Tipo         | Obrigatório | Restrição / Default                   | Finalidade                                             |
+| ------------------------------ | ------------ | ----------- | ------------------------------------- | ------------------------------------------------------ |
+| `status_id`                    | INTEGER      | Sim         | PK, auto increment                    | Identificador                                          |
+| `order_number`                 | INTEGER      | Sim         | UK `uk_statuses_order` (DEFERRABLE)   | Ordem de exibição                                      |
+| `name`                         | VARCHAR(100) | Sim         | UK `uk_statuses_name`                 | Nome                                                   |
+| `description`                  | TEXT         | Não         | NULL permitido                        | Descrição                                              |
+| `tone`                         | ENUM         | Sim         | `status_tone`; DEFAULT `info`         | Tom visual                                             |
+| `is_active`                    | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)           | Status disponível para uso                             |
+| `is_core`                      | BOOLEAN      | Sim         | DEFAULT FALSE                         | Status central do fluxo                                |
+| `is_restricted`                | BOOLEAN      | Sim         | DEFAULT FALSE                         | Exige administrador para transição                     |
+| `is_terminal`                  | BOOLEAN      | Sim         | DEFAULT FALSE                         | Encerra a solicitação                                  |
+| `triage_mode`                  | ENUM         | Sim         | `status_triage_mode`; DEFAULT `none`  | Como o status se relaciona à triagem                   |
+| `mapping_mode`                 | ENUM         | Sim         | `status_mapping_mode`; DEFAULT `none` | Como se relaciona ao mapeamento                        |
+| `is_public`                    | BOOLEAN      | Sim         | DEFAULT FALSE                         | Visível ao solicitante                                 |
+| `is_duplicate_corpus_eligible` | BOOLEAN      | Sim         | DEFAULT TRUE                          | Status alimenta o corpus público de duplicidade (RF16) |
 
 | Campo           | Tipo         | Obrigatório | Restrição / Default                          | Finalidade                    |
 | --------------- | ------------ | ----------- | -------------------------------------------- | ----------------------------- |
@@ -162,6 +168,10 @@ revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
 - Status core (`1, 3, 4, 6, 7, 16, 17`) não podem ser removidos, renomeados,
   desativados nem ter flags/modos alterados;
 - o `CHECK` de `entity_type` da auditoria é independente deste catálogo.
+- `is_duplicate_corpus_eligible` é a allowlist do corpus de duplicidade (issue
+  #209): nasce `true` e a migration desliga os ids 10, 13, 16, 17 e 19 (quando
+  existirem). Regras em
+  [`duplicate-detection.md`](../rules/duplicate-detection.md).
 - O enum `status_tone` usa `error | success | info | warning | neutral`;
   `status_triage_mode`/`status_mapping_mode` usam
   `none | free | conclusion_only`.

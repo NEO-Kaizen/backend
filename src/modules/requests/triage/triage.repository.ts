@@ -2,6 +2,7 @@ import type { Knex } from "knex";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
+import { publishRequestProjection } from "../../duplicates/projection.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
 interface StatusRow {
@@ -289,6 +290,10 @@ export async function saveTriageDecision(
       true,
       trx,
     );
+
+    // Status e Categoria da triagem são snapshots da projeção pública.
+    await publishRequestProjection(trx, requestId);
+
     await recordAudit(trx, {
       entityType: "request",
       entityId: protocol,

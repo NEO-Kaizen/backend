@@ -34,6 +34,7 @@ import type {
   RequestSummary,
 } from "../DTOs/requests/RequestResponse.dto.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
+import { publishRequestProjection } from "../duplicates/projection.ts";
 
 const INITIAL_STATUS = "Solicitação enviada";
 
@@ -326,6 +327,9 @@ export async function createRequest(
     await saveTimePreferences(saved.request_id, request.schedulePreferences, trx);
 
     await saveAttachments(saved.request_id, attachments, email, trx);
+
+    // Projeção pública do RF16 na MESMA transação da criação (issue #209).
+    await publishRequestProjection(trx, saved.request_id);
 
     return {
       protocol: saved.protocol,
@@ -808,6 +812,9 @@ export async function updateStatus(
     updated_by: updatedBy,
     updated_at: trx.fn.now(),
   });
+
+  // RN-010 legado também altera o Status: republica/suprime a projeção.
+  await publishRequestProjection(trx, requestId);
 }
 
 // --- Motor de Status v4 (issue #124) — PATCH /requests/:protocol/status ------
@@ -1004,6 +1011,10 @@ export async function updateRequestBlocks(
       updated_by: updatedBy,
       updated_at: trx.fn.now(),
     });
+
+  // Prazo/restrição (e demais campos do formulário) podem mudar a elegibilidade
+  // da projeção pública — republica/suprime na mesma transação.
+  await publishRequestProjection(trx, requestId);
 }
 
 export async function updateRequesterEditable(
