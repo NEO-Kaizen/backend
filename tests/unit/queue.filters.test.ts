@@ -163,12 +163,14 @@ describe("applyQueueFilters", () => {
     );
   });
 
+  // Bordas reais de fuso/dia e o comportamento isolado de `dateTo` são
+  // verificados com banco em `tests/db/queue.http.test.ts`.
   it("dateFrom e dateTo filtram created_at no dia comercial, com dateTo inclusivo", () => {
     const { sql, bindings } = build({ dateFrom: "2026-11-01", dateTo: "2026-11-30" });
 
-    expect(sql).toContain('"requests"."created_at" >= (?::date AT TIME ZONE ?)');
+    expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
     expect(sql).toContain(
-      `"requests"."created_at" < ((?::date + INTERVAL '1 day') AT TIME ZONE ?)`,
+      `"requests"."created_at" < ((?::date + INTERVAL '1 day')::timestamp AT TIME ZONE ?)`,
     );
     expect(bindings).toEqual([
       "2026-11-01",
@@ -201,7 +203,7 @@ describe("applyQueueFilters", () => {
       7,
       7,
     ]);
-    expect(sql).toContain('"requests"."created_at" >= (?::date AT TIME ZONE ?)');
+    expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
     expect(sql).toMatch(/and lower\("requester"\."department"\) = lower\(\?\)/);
     expect(sql).toMatch(
       /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,

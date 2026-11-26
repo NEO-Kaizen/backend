@@ -37,37 +37,19 @@ export const listQueueService = async (
   filters: QueueQuery,
   actor?: AuthenticatedUser,
 ): Promise<QueueResponse> => {
-  const {
-    page,
-    pageSize,
-    search,
-    status,
-    priority,
-    assigneeId,
-    unassigned,
-    dateFrom,
-    dateTo,
-    department,
-    sortBy,
-    sortOrder,
-  } = filters;
+  const { page, pageSize, assigneeId, sortBy, sortOrder, ...queueFilters } = filters;
   const offset = (page - 1) * pageSize;
 
-  const repoUnassigned = Boolean(unassigned || assigneeId === "unassigned");
+  const repoUnassigned = Boolean(queueFilters.unassigned || assigneeId === "unassigned");
   const repoAssigneeId =
     typeof assigneeId === "string" && assigneeId !== "unassigned" ? assigneeId : undefined;
   const analystUserId = resolveAnalystUserId(actor);
 
   const [{ items, total }, assignees] = await Promise.all([
     findQueueRequests({
-      search,
-      status,
-      priority,
+      ...queueFilters,
       assigneeId: repoAssigneeId,
       unassigned: repoUnassigned,
-      dateFrom,
-      dateTo,
-      department,
       sortBy,
       sortOrder,
       // Escopo da fila e custódia da nota são regras diferentes, mas para o

@@ -1,11 +1,11 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import { BUSINESS_TIME_ZONE, whereBusinessDayRange } from "../../shared/datetime/businessDay.ts";
 import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { DashboardQuery } from "../DTOs/reports/Dashboard.dto.ts";
 import type { QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
 import { applyQueueFilters } from "../queue/queue.filters.ts";
 
-const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 const OPENED_MONTH_SQL = `DATE_TRUNC(
   'month',
   r.created_at AT TIME ZONE '${BUSINESS_TIME_ZONE}'
@@ -66,16 +66,7 @@ export interface DashboardFilterOptionRows {
 }
 
 function applyDashboardFilters(query: Knex.QueryBuilder, filters: DashboardQuery): void {
-  if (filters.from) {
-    query.whereRaw(`r.created_at >= (?::date AT TIME ZONE ?)`, [filters.from, BUSINESS_TIME_ZONE]);
-  }
-
-  if (filters.to) {
-    query.whereRaw(`r.created_at < ((?::date + INTERVAL '1 day') AT TIME ZONE ?)`, [
-      filters.to,
-      BUSINESS_TIME_ZONE,
-    ]);
-  }
+  whereBusinessDayRange(query, "r.created_at", { from: filters.from, to: filters.to });
 
   if (filters.situation === "open") {
     query.where("s.is_terminal", false);

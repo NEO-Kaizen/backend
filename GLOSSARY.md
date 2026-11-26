@@ -22,6 +22,10 @@ _Evitar_: máscara de formatação, template.
 Pessoa que registra uma solicitação e acompanha seu andamento. Pode atuar de forma anônima — a porta pública, sem conta nem perfil — ou autenticada, com uma conta regida pelas chaves `request:create`, `request:track` e `pending_item:respond`. Em ambos os casos, o vínculo com a solicitação é a _Posse_, não a custódia interna.
 _Evitar_: cliente, usuário externo, requisitante.
 
+**Departamento**:
+Unidade organizacional informada no cadastro do Solicitante. Na busca, o recorte é pelo valor exato e case-insensitive; não é hierarquia nem similaridade, e a ausência do dado não corresponde a nenhum recorte.
+_Evitar_: área, setor, unidade.
+
 **Anexo**:
 Arquivo enviado junto da solicitação, vinculado a ela e disponível para consulta do time interno.
 _Evitar_: documento, upload, arquivo.

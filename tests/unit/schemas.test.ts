@@ -116,15 +116,18 @@ describe("queueQuerySchema", () => {
     ).toBe(false);
   });
 
-  it("exportação CSV aceita os filtros compartilhados, mas não parâmetros de paginação", () => {
+  it("exportação CSV aceita os filtros compartilhados, mas não paginação nem ordenação", () => {
     expect(
       queueFilterQuerySchema.safeParse({
         search: "MAAT",
         dateFrom: "2026-11-01",
+        dateTo: "2026-11-30",
         department: "Desenvolvimento",
       }).success,
     ).toBe(true);
     expect(queueFilterQuerySchema.safeParse({ page: "1" }).success).toBe(false);
+    expect(queueFilterQuerySchema.safeParse({ sortBy: "protocol" }).success).toBe(false);
+    expect(queueFilterQuerySchema.safeParse({ sortOrder: "asc" }).success).toBe(false);
   });
 });
 

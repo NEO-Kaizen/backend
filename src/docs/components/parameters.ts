@@ -53,7 +53,9 @@ export const sortByParam = {
   in: "query",
   required: false,
   description:
-    "Campo de ordenação. O desempate é feito por `protocol` em ordem ascendente. " +
+    "Campo de ordenação. `status` segue a ordem do ciclo de vida e `priority` a gravidade " +
+    "(Crítica antes de Baixa em `desc`). O desempate é feito por `protocol` em ordem " +
+    "ascendente, exceto quando `protocol` é o próprio campo ordenado. " +
     "Valores: `createdAt`, `protocol`, `requesterName`, `status`, `priority` ou `assignee`.",
   schema: { type: "string", enum: [...QUEUE_SORT_BY], default: "createdAt" },
 };

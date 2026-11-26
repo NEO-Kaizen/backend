@@ -1,30 +1,43 @@
 # Busca de solicitações
 
-- Escopo: fila interna (`GET /queue`) e exportação CSV (`GET /reports/requests.csv`).
+- Escopo: fila interna e exportação CSV.
 - Issue: #215 (RF04, atividade S3-03).
 
-## Filtros compartilhados
+## Recorte por abertura
 
-Todos os filtros são opcionais e combinados com `AND`. A ausência de filtros preserva o comportamento anterior da listagem.
+A data de referência é a abertura da Solicitação. O dia comercial é o fuso
+adotado pelo portal (`America/Sao_Paulo`), não o fuso do servidor.
 
-| Parâmetro    | Regra                                                                                                         |
-| ------------ | ------------------------------------------------------------------------------------------------------------- |
-| `dateFrom`   | `AAAA-MM-DD`. Inclui solicitações abertas a partir do início desse dia no fuso comercial `America/Sao_Paulo`. |
-| `dateTo`     | `AAAA-MM-DD`. Inclui solicitações abertas até o fim desse dia no mesmo fuso.                                  |
-| `department` | Departamento do solicitante em `requesters.department`. Comparação exata e case-insensitive; `NULL` não casa. |
+- O limite inicial inclui o começo do dia comercial.
+- O limite final inclui o fim do dia comercial e é aplicado como intervalo
+  semiaberto (`< limite final + 1 dia`), para que nenhum registro no último
+  minuto escape.
+- O limite inicial não pode ser posterior ao limite final.
 
-O campo de referência da data é `requests.created_at` (abertura). `dateTo` é implementado como `< dateTo + 1 dia`, então não há perda de registros no limite do dia. `dateFrom` não pode ser posterior a `dateTo`.
+A ausência de recorte preserva o comportamento anterior da listagem.
 
-Datas e departamento usam os mesmos filtros na paginação e na contagem: `total` e `data` refletem exatamente o mesmo recorte. A visibilidade por responsável (issue #102) e a custódia de notas internas (issue #204) continuam aplicadas depois dos filtros — nenhum filtro amplia o acesso do Analista.
+## Departamento do solicitante
+
+O recorte por Departamento do Solicitante é por valor exato e case-insensitive.
+Solicitações sem Departamento não correspondem. A comparação não é hierárquica
+nem por similaridade.
+
+Os mesmos recortes valem para a paginação, a contagem total e a exportação. A
+visibilidade por responsável (issue #102) e a custódia de notas internas (issue
+#204) continuam aplicadas depois dos filtros — nenhum recorte amplia o acesso do
+Analista.
 
 ## Ordenação
 
-`sortBy` e `sortOrder` valem somente para `GET /queue`; a exportação CSV não aceita ordenação.
+A ordenação vale somente para a fila paginada; a exportação não é ordenável pelo
+cliente.
 
-- `sortBy`: `createdAt` (padrão), `protocol`, `requesterName`, `status`, `priority` ou `assignee`.
-- `sortOrder`: `asc` ou `desc` (padrão `desc`).
-- Desempate: `protocol` em `asc` para manter a paginação determinística quando os valores ordenados iguais.
+- Status obedece à ordem do ciclo de vida, não à ordem alfabética do nome.
+- Prioridade obedece à gravidade da faixa, não à ordem alfabética do rótulo.
+- Ausência de Prioridade ou de Responsável aparece por último em qualquer
+  direção.
+- O desempate é por Protocolo em ordem ascendente, exceto quando o Protocolo é o
+  próprio campo ordenado.
 
-O valor do cliente nunca é interpolado em SQL: o schema Zod limita `sortBy` ao allowlist acima e o repositório traduz o valor para a coluna correspondente. Parâmetros inválidos de data, departamento ou ordenação respondem `400` com mensagem de validação em português.
-
-Nenhuma mudança de schema foi necessária; já existe índice em `requests.created_at`.
+O cliente nunca envia SQL: a borda limita as escolhas e a persistência traduz
+cada uma para a coluna correspondente.

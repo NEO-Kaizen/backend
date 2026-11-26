@@ -1,8 +1,6 @@
 import type { Knex } from "knex";
+import { whereBusinessDayRange } from "../../shared/datetime/businessDay.ts";
 import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
-
-/** Mesmo dia comercial usado pelo dashboard para filtros de abertura. */
-const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 
 export interface QueueRepositoryFilters extends QueueFilterQuery {
   scopedUserId?: number;
@@ -62,20 +60,7 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
     });
   }
 
-  if (dateFrom) {
-    query.whereRaw(`"requests"."created_at" >= (?::date AT TIME ZONE ?)`, [
-      dateFrom,
-      BUSINESS_TIME_ZONE,
-    ]);
-  }
-
-  if (dateTo) {
-    // Intervalo semiaberto: `dateTo` é inclusivo mesmo para registros no fim do dia.
-    query.whereRaw(`"requests"."created_at" < ((?::date + INTERVAL '1 day') AT TIME ZONE ?)`, [
-      dateTo,
-      BUSINESS_TIME_ZONE,
-    ]);
-  }
+  whereBusinessDayRange(query, "requests.created_at", { from: dateFrom, to: dateTo });
 
   if (department) {
     query.whereRaw(`lower("requester"."department") = lower(?)`, [department]);
