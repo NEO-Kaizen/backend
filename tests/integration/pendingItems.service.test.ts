@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetFakeDb } from "../helpers/fakeDb.ts";
 import type { AuthenticatedUser } from "../../src/shared/types/user.ts";
 import type { PendingCaller } from "../../src/modules/pendingItems/pendingItems.service.ts";
-import type { RequestRef } from "../../src/modules/pendingItems/pendingItems.repository.ts";
+import type {
+  PendingItemRow,
+  RequestRef,
+} from "../../src/modules/pendingItems/pendingItems.repository.ts";
+import { findActiveAdminUserIds } from "../../src/modules/users/users.repository.ts";
+import { emitPendingItemRespondedNotification } from "../../src/shared/notifications/pendingItemRespondedNotification.ts";
 
 vi.mock("../../src/database/conection.ts", async () => {
   const { createFakeDb } = await import("../helpers/fakeDb.ts");
@@ -20,9 +25,19 @@ vi.mock("../../src/modules/pendingItems/pendingItems.repository.ts", async (impo
     findPendingItemsByRequestId: vi.fn(),
     findAttachmentsByPendingItemIds: vi.fn(),
     findPendingItemById: vi.fn(),
-    respondPendingItemTx: vi.fn(),
+    applyPendingItemResponse: vi.fn(),
+    findAssigneeUserIdByRequestId: vi.fn(),
   };
 });
+
+vi.mock("../../src/modules/users/users.repository.ts", () => ({
+  findActiveAdminUserIds: vi.fn(),
+  findUserIdByEmail: vi.fn(),
+}));
+
+vi.mock("../../src/shared/notifications/pendingItemRespondedNotification.ts", () => ({
+  emitPendingItemRespondedNotification: vi.fn(),
+}));
 
 vi.mock("../../src/modules/requests/requests.repository.ts", () => ({
   findInternalRequestByProtocol: vi.fn(),
@@ -44,6 +59,7 @@ function makeRequest(overrides: Partial<RequestRef> = {}): RequestRef {
   return {
     request_id: REQUEST_ID,
     protocol: PROTOCOL,
+    title: "Solicitação de teste",
     status: "Pendente de informações",
     status_id: 5,
     requester_user_id: OWNER_ID,
@@ -64,6 +80,29 @@ function makeCaller(overrides: Partial<AuthenticatedUser> = {}): PendingCaller {
       ...overrides,
     },
     requesterIdentity: null,
+  };
+}
+
+function makePendingItemRow(overrides: Partial<PendingItemRow> = {}): PendingItemRow {
+  return {
+    pending_item_id: PENDING_ITEM_ID,
+    request_id: REQUEST_ID,
+    batch_id: "batch-1",
+    type: "observation",
+    field_key: null,
+    field_label: null,
+    current_value: null,
+    comment: "Envie o relatório",
+    description: null,
+    status: "requested",
+    corrected_value: null,
+    response_text: null,
+    request_attachment: false,
+    deadline: null,
+    created_at: "2026-11-01T10:00:00.000Z",
+    responded_at: null,
+    validated_at: null,
+    ...overrides,
   };
 }
 
@@ -165,31 +204,25 @@ describe("pendingItems.service — Posse do Solicitante autenticado", () => {
 describe("pendingItems.service.respondPendingItem — Posse do Solicitante autenticado", () => {
   it("responde a pendência do dono vinculado por requester_user_id", async () => {
     vi.mocked(repository.findRequestByProtocol).mockResolvedValue(makeRequest());
-    vi.mocked(repository.findPendingItemById).mockResolvedValue({
-      pending_item_id: PENDING_ITEM_ID,
-      request_id: REQUEST_ID,
-      batch_id: "batch-1",
-      type: "observation",
-      status: "requested",
-    });
-    vi.mocked(repository.respondPendingItemTx).mockResolvedValue({
-      pending_item_id: PENDING_ITEM_ID,
-      batch_id: "batch-1",
-      type: "observation",
-      status: "responded",
-      comment: "Envie o relatório",
-      response_text: "Segue o relatório revisado.",
-      created_at: "2026-11-01T10:00:00.000Z",
-      responded_at: "2026-11-25T12:00:00.000Z",
+    vi.mocked(repository.findPendingItemById).mockResolvedValue(makePendingItemRow());
+    vi.mocked(repository.applyPendingItemResponse).mockResolvedValue({
+      row: makePendingItemRow({
+        status: "responded",
+        response_text: "Segue o relatório revisado.",
+        responded_at: "2026-11-25T12:00:00.000Z",
+      }),
+      auditId: "audit-1",
     });
     vi.mocked(repository.findAttachmentsByPendingItemIds).mockResolvedValue(new Map());
+    vi.mocked(repository.findAssigneeUserIdByRequestId).mockResolvedValue(null);
+    vi.mocked(findActiveAdminUserIds).mockResolvedValue([]);
+    vi.mocked(emitPendingItemRespondedNotification).mockResolvedValue([]);
 
     const item = await service.respondPendingItem(
       PROTOCOL,
       PENDING_ITEM_ID,
       { response: "Segue o relatório revisado." },
-      "solicitante.teste@empresa.com",
-      false,
+      null,
       undefined,
       makeCaller(),
     );
@@ -200,7 +233,8 @@ describe("pendingItems.service.respondPendingItem — Posse do Solicitante auten
       status: "responded",
       responseText: "Segue o relatório revisado.",
     });
-    expect(repository.respondPendingItemTx).toHaveBeenCalledWith(
+    expect(repository.applyPendingItemResponse).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         requestId: REQUEST_ID,
         protocol: PROTOCOL,
@@ -217,14 +251,13 @@ describe("pendingItems.service.respondPendingItem — Posse do Solicitante auten
         PROTOCOL,
         PENDING_ITEM_ID,
         { response: "Tentativa indevida" },
-        "outro@empresa.com",
-        false,
+        null,
         undefined,
         makeCaller({ id: "112" }),
       ),
     ).rejects.toMatchObject({ statusCode: 401 });
 
     expect(repository.findPendingItemById).not.toHaveBeenCalled();
-    expect(repository.respondPendingItemTx).not.toHaveBeenCalled();
+    expect(repository.applyPendingItemResponse).not.toHaveBeenCalled();
   });
 });

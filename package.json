@@ -25,6 +25,8 @@
     "test:db:up": "docker compose --profile test up -d --wait postgres-test",
     "test:db:down": "docker compose --profile test rm -sf postgres-test",
     "verify": "npm run check && npm test",
+    "verify:notifications": "node scripts/verify-pending-item-notifications.mjs",
+    "verify:notifications:rollback": "node scripts/verify-notification-rollback.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
