@@ -45,3 +45,15 @@ it("status-times documents audit history divergence as a standard 409 error", ()
   assert.equal(response.content["application/json"].example.code, "STATUS_HISTORY_DIVERGENCE");
   assert.equal(schemas.ErrorResponse.properties.code.type, "string");
 });
+
+it("audit history action type enum includes request transition actions", () => {
+  const actionTypes = schemas.AuditHistoryDetail.properties.action_type.enum;
+  assert.ok(
+    [
+      "request.status_change",
+      "request.override_status_admin",
+      "request.triage",
+      "request.access_denied",
+    ].every((actionType) => actionTypes.includes(actionType)),
+  );
+});

@@ -1,3 +1,5 @@
+import { auditActionTypes } from "./audit.ts";
+
 export const AuditActor = {
   type: "object",
   required: ["kind", "userId", "displayName"],
@@ -20,7 +22,11 @@ export const AuditHistorySummary = {
       example: "request",
     },
     entity_type_label: { type: "string", example: "Usuários" },
-    action_type: { type: "string", example: "request.status_change" },
+    action_type: {
+      type: "string",
+      enum: auditActionTypes,
+      example: "request.status_change",
+    },
     actor: { $ref: "#/components/schemas/AuditActor" },
     occurred_at: { type: "string", format: "date-time" },
   },
@@ -57,7 +63,11 @@ export const AuditHistoryDetail = {
     audit_id: { type: "integer" },
     entity_type: { type: "string" },
     entity_id: { type: "string" },
-    action_type: { type: "string" },
+    action_type: {
+      type: "string",
+      enum: auditActionTypes,
+      example: "request.status_change",
+    },
     actor: { $ref: "#/components/schemas/AuditActor" },
     previous_value: { type: "string", nullable: true },
     new_value: { type: "string", nullable: true },

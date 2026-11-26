@@ -1902,7 +1902,37 @@
             "example": "request"
           },
           "entity_type_label": { "type": "string", "example": "Usuários" },
-          "action_type": { "type": "string", "example": "request.status_change" },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "user.create",
+              "user.activate",
+              "user.deactivate",
+              "user.reset_password",
+              "user.change_password",
+              "user.update_profile",
+              "user.update",
+              "prioritization.evaluate",
+              "request.assign",
+              "request.reassign",
+              "request.unassign",
+              "request.status_change",
+              "request.update",
+              "request.triage",
+              "request.override_status_admin",
+              "request.access_denied",
+              "mapping.assign",
+              "mapping.save",
+              "mapping.complete",
+              "settings.update",
+              "pending_item.create",
+              "pending_item.respond",
+              "pending_item.attach",
+              "pending_item.validate",
+              "pending_item.reopen"
+            ],
+            "example": "request.status_change"
+          },
           "actor": { "$ref": "#/components/schemas/AuditActor" },
           "occurred_at": { "type": "string", "format": "date-time" }
         }
@@ -1940,7 +1970,37 @@
           "audit_id": { "type": "integer" },
           "entity_type": { "type": "string" },
           "entity_id": { "type": "string" },
-          "action_type": { "type": "string" },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "user.create",
+              "user.activate",
+              "user.deactivate",
+              "user.reset_password",
+              "user.change_password",
+              "user.update_profile",
+              "user.update",
+              "prioritization.evaluate",
+              "request.assign",
+              "request.reassign",
+              "request.unassign",
+              "request.status_change",
+              "request.update",
+              "request.triage",
+              "request.override_status_admin",
+              "request.access_denied",
+              "mapping.assign",
+              "mapping.save",
+              "mapping.complete",
+              "settings.update",
+              "pending_item.create",
+              "pending_item.respond",
+              "pending_item.attach",
+              "pending_item.validate",
+              "pending_item.reopen"
+            ],
+            "example": "request.status_change"
+          },
           "actor": { "$ref": "#/components/schemas/AuditActor" },
           "previous_value": { "type": "string", "nullable": true },
           "new_value": { "type": "string", "nullable": true },
@@ -2241,6 +2301,19 @@
             "description": "Indica que o Status é período de pausa: o tempo nesse Status não conta como tempo ativo. Configurado somente por migration/seed.",
             "example": false
           }
+        },
+        "example": {
+          "id": 4,
+          "name": "Pendente de informações",
+          "isCore": true,
+          "isPublic": true,
+          "isTerminal": false,
+          "isPaused": true,
+          "triageMode": "free",
+          "mappingMode": "free",
+          "isRestricted": false,
+          "tone": "warning",
+          "isActive": true
         }
       },
       "PortalStatusPatch": {
@@ -2531,10 +2604,15 @@
           "isPaused"
         ],
         "properties": {
-          "status": { "type": "string", "example": "Pendente de informações" },
+          "status": {
+            "type": "string",
+            "description": "Nome do Status deste intervalo.",
+            "example": "Pendente de informações"
+          },
           "enteredAt": {
             "type": "string",
             "format": "date-time",
+            "description": "Instante em que a solicitação entrou neste Status.",
             "example": "2026-11-20T11:00:00.000Z"
           },
           "exitedAt": {
@@ -2544,19 +2622,51 @@
             "example": null,
             "description": "Instante de saída; null somente para o Status atual não terminal. Em Status terminal, coincide com enteredAt."
           },
-          "activeMilliseconds": { "type": "integer", "minimum": 0, "example": 0 },
-          "pausedMilliseconds": { "type": "integer", "minimum": 0, "example": 10800000 },
-          "isPaused": { "type": "boolean", "example": true }
+          "activeMilliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Tempo ativo dentro do intervalo, em milissegundos.",
+            "example": 0
+          },
+          "pausedMilliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Tempo pausado dentro do intervalo, em milissegundos.",
+            "example": 10800000
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Indica se o Status está configurado como pausa.",
+            "example": true
+          }
         }
       },
       "StatusTimeByStatus": {
         "type": "object",
         "required": ["status", "activeMilliseconds", "pausedMilliseconds", "isPaused"],
         "properties": {
-          "status": { "type": "string", "example": "Pendente de informações" },
-          "activeMilliseconds": { "type": "integer", "minimum": 0, "example": 0 },
-          "pausedMilliseconds": { "type": "integer", "minimum": 0, "example": 10800000 },
-          "isPaused": { "type": "boolean", "example": true }
+          "status": {
+            "type": "string",
+            "description": "Nome agregado do Status.",
+            "example": "Pendente de informações"
+          },
+          "activeMilliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Soma do tempo ativo deste Status em todos os intervalos.",
+            "example": 0
+          },
+          "pausedMilliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Soma do tempo pausado deste Status em todos os intervalos.",
+            "example": 10800000
+          },
+          "isPaused": {
+            "type": "boolean",
+            "description": "Indica se o Status agregado está configurado como pausa.",
+            "example": true
+          }
         }
       },
       "StatusTimeResponse": {
@@ -2570,22 +2680,39 @@
           "totalPausedMilliseconds"
         ],
         "properties": {
-          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "protocol": {
+            "type": "string",
+            "description": "Protocolo público da solicitação.",
+            "example": "MAAT-8K3P-9X2M"
+          },
           "calculatedAt": {
             "type": "string",
             "format": "date-time",
+            "description": "Instante usado para calcular a duração do Status atual.",
             "example": "2026-11-20T14:22:45.736Z"
           },
           "intervals": {
             "type": "array",
+            "description": "Entradas e saídas históricas em cada Status.",
             "items": { "$ref": "#/components/schemas/StatusTimeInterval" }
           },
           "totalsByStatus": {
             "type": "array",
+            "description": "Soma consolidada por nome de Status.",
             "items": { "$ref": "#/components/schemas/StatusTimeByStatus" }
           },
-          "totalActiveMilliseconds": { "type": "integer", "minimum": 0, "example": 3600000 },
-          "totalPausedMilliseconds": { "type": "integer", "minimum": 0, "example": 10800000 }
+          "totalActiveMilliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Soma de todos os períodos ativos, em milissegundos.",
+            "example": 3600000
+          },
+          "totalPausedMilliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Soma de todos os períodos pausados, em milissegundos.",
+            "example": 10800000
+          }
         }
       },
       "PrioritizationCriterion": {
@@ -4640,7 +4767,95 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PortalStatusesPatchBody" }
+              "schema": { "$ref": "#/components/schemas/PortalStatusesPatchBody" },
+              "example": {
+                "statuses": [
+                  {
+                    "id": 1,
+                    "name": "Solicitação enviada",
+                    "isCore": true,
+                    "isPublic": true,
+                    "isTerminal": false,
+                    "triageMode": "none",
+                    "mappingMode": "none",
+                    "isRestricted": false,
+                    "tone": "neutral",
+                    "isActive": true
+                  },
+                  {
+                    "id": 3,
+                    "name": "Em triagem",
+                    "isCore": true,
+                    "isPublic": true,
+                    "isTerminal": false,
+                    "triageMode": "free",
+                    "mappingMode": "none",
+                    "isRestricted": false,
+                    "tone": "info",
+                    "isActive": true
+                  },
+                  {
+                    "id": 4,
+                    "name": "Pendente de informações",
+                    "isCore": true,
+                    "isPublic": true,
+                    "isTerminal": false,
+                    "triageMode": "free",
+                    "mappingMode": "free",
+                    "isRestricted": false,
+                    "tone": "warning",
+                    "isActive": true
+                  },
+                  {
+                    "id": 6,
+                    "name": "Mapeamento agendado",
+                    "isCore": true,
+                    "isPublic": false,
+                    "isTerminal": false,
+                    "triageMode": "none",
+                    "mappingMode": "conclusion_only",
+                    "isRestricted": false,
+                    "tone": "info",
+                    "isActive": true
+                  },
+                  {
+                    "id": 7,
+                    "name": "Em mapeamento",
+                    "isCore": true,
+                    "isPublic": true,
+                    "isTerminal": false,
+                    "triageMode": "none",
+                    "mappingMode": "free",
+                    "isRestricted": false,
+                    "tone": "info",
+                    "isActive": true
+                  },
+                  {
+                    "id": 16,
+                    "name": "Concluído",
+                    "isCore": true,
+                    "isPublic": true,
+                    "isTerminal": true,
+                    "triageMode": "conclusion_only",
+                    "mappingMode": "conclusion_only",
+                    "isRestricted": false,
+                    "tone": "success",
+                    "isActive": true
+                  },
+                  {
+                    "id": 17,
+                    "name": "Cancelado",
+                    "isCore": true,
+                    "isPublic": true,
+                    "isTerminal": true,
+                    "triageMode": "conclusion_only",
+                    "mappingMode": "conclusion_only",
+                    "isRestricted": false,
+                    "tone": "error",
+                    "isActive": true
+                  }
+                ]
+              }
             }
           }
         },
@@ -5113,7 +5328,7 @@
       "get": {
         "tags": ["Auditoria"],
         "summary": "Linha do tempo de auditoria por protocolo",
-        "description": "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Perfis internos; Analista precisa ser responsável (triagem ou mapeamento).",
+        "description": "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Administrador e Gestor podem consultar qualquer solicitação; Analista precisa ser responsável pela triagem ou designado do mapeamento. Solicitante não tem acesso.",
         "operationId": "getAuditLogsByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5168,7 +5383,7 @@
       "get": {
         "tags": ["Auditoria"],
         "summary": "Consultar tempo por Status",
-        "description": "Retorna os intervalos ativos e pausados por Status de uma solicitação. Exige autenticação e acesso interno à solicitação.",
+        "description": "Retorna intervalos e totais de tempo por Status. Administrador e Gestor podem consultar qualquer solicitação; Analista precisa ser responsável pela triagem ou designado do mapeamento. Solicitante não tem acesso.",
         "operationId": "getStatusTimesByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5184,7 +5399,45 @@
             "description": "Tempo ativo e pausado por Status.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/StatusTimeResponse" }
+                "schema": { "$ref": "#/components/schemas/StatusTimeResponse" },
+                "example": {
+                  "protocol": "MAAT-8K3P-9X2M",
+                  "calculatedAt": "2026-11-20T14:00:00.000Z",
+                  "intervals": [
+                    {
+                      "status": "Em triagem",
+                      "enteredAt": "2026-11-20T10:00:00.000Z",
+                      "exitedAt": "2026-11-20T11:00:00.000Z",
+                      "activeMilliseconds": 3600000,
+                      "pausedMilliseconds": 0,
+                      "isPaused": false
+                    },
+                    {
+                      "status": "Pendente de informações",
+                      "enteredAt": "2026-11-20T11:00:00.000Z",
+                      "exitedAt": null,
+                      "activeMilliseconds": 0,
+                      "pausedMilliseconds": 10800000,
+                      "isPaused": true
+                    }
+                  ],
+                  "totalsByStatus": [
+                    {
+                      "status": "Em triagem",
+                      "activeMilliseconds": 3600000,
+                      "pausedMilliseconds": 0,
+                      "isPaused": false
+                    },
+                    {
+                      "status": "Pendente de informações",
+                      "activeMilliseconds": 0,
+                      "pausedMilliseconds": 10800000,
+                      "isPaused": true
+                    }
+                  ],
+                  "totalActiveMilliseconds": 3600000,
+                  "totalPausedMilliseconds": 10800000
+                }
               }
             }
           },
@@ -5195,7 +5448,7 @@
             }
           },
           "403": {
-            "description": "Usuário sem custódia ou protocolo não visível ao Analista sem custódia.",
+            "description": "Perfil sem acesso ou Analista sem custódia (responsável pela triagem ou designado do mapeamento). Solicitante não tem acesso.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }

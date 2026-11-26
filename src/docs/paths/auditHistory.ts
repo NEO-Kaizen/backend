@@ -75,7 +75,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Linha do tempo de auditoria por protocolo",
       description:
-        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Perfis internos; Analista precisa ser responsável (triagem ou mapeamento).",
+        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Administrador e Gestor podem consultar qualquer solicitação; Analista precisa ser responsável pela triagem ou designado do mapeamento. Solicitante não tem acesso.",
       operationId: "getAuditLogsByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -103,7 +103,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Consultar tempo por Status",
       description:
-        "Retorna os intervalos ativos e pausados por Status de uma solicitação. Exige autenticação e acesso interno à solicitação.",
+        "Retorna intervalos e totais de tempo por Status. Administrador e Gestor podem consultar qualquer solicitação; Analista precisa ser responsável pela triagem ou designado do mapeamento. Solicitante não tem acesso.",
       operationId: "getStatusTimesByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -120,6 +120,44 @@ export default {
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/StatusTimeResponse" },
+              example: {
+                protocol: "MAAT-8K3P-9X2M",
+                calculatedAt: "2026-11-20T14:00:00.000Z",
+                intervals: [
+                  {
+                    status: "Em triagem",
+                    enteredAt: "2026-11-20T10:00:00.000Z",
+                    exitedAt: "2026-11-20T11:00:00.000Z",
+                    activeMilliseconds: 3600000,
+                    pausedMilliseconds: 0,
+                    isPaused: false,
+                  },
+                  {
+                    status: "Pendente de informações",
+                    enteredAt: "2026-11-20T11:00:00.000Z",
+                    exitedAt: null,
+                    activeMilliseconds: 0,
+                    pausedMilliseconds: 10800000,
+                    isPaused: true,
+                  },
+                ],
+                totalsByStatus: [
+                  {
+                    status: "Em triagem",
+                    activeMilliseconds: 3600000,
+                    pausedMilliseconds: 0,
+                    isPaused: false,
+                  },
+                  {
+                    status: "Pendente de informações",
+                    activeMilliseconds: 0,
+                    pausedMilliseconds: 10800000,
+                    isPaused: true,
+                  },
+                ],
+                totalActiveMilliseconds: 3600000,
+                totalPausedMilliseconds: 10800000,
+              },
             },
           },
         },
@@ -132,7 +170,8 @@ export default {
           },
         },
         "403": {
-          description: "Usuário sem custódia ou protocolo não visível ao Analista sem custódia.",
+          description:
+            "Perfil sem acesso ou Analista sem custódia (responsável pela triagem ou designado do mapeamento). Solicitante não tem acesso.",
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/ErrorResponse" },

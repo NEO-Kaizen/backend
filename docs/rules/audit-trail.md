@@ -59,7 +59,8 @@ no mesmo PR.
 - `GET /audit-logs/{protocol}/status-times` reconstrói intervalos e totais por
   Status a partir da trilha. A consulta responde `409 STATUS_HISTORY_DIVERGENCE`
   se o histórico não puder ser reconstruído ou não terminar no Status atual;
-  detalhes de campos e permissões estão em `docs/rf13-status-time-audit.md`.
+  regras em [`status-time.md`](status-time.md) e contrato na
+  [OpenAPI](../openapi.json).
 
 ## Privacidade
 

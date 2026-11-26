@@ -1,7 +1,7 @@
 import { auditCatalog } from "../../shared/audit/auditCatalog.ts";
 
 const auditEntityTypes = Object.keys(auditCatalog);
-const auditActionTypes = Object.entries(auditCatalog).flatMap(([entity, definition]) =>
+export const auditActionTypes = Object.entries(auditCatalog).flatMap(([entity, definition]) =>
   definition.actions.map((action) => `${entity}.${action}`),
 );
 
@@ -106,10 +106,15 @@ export const StatusTimeInterval = {
     "isPaused",
   ],
   properties: {
-    status: { type: "string", example: "Pendente de informações" },
+    status: {
+      type: "string",
+      description: "Nome do Status deste intervalo.",
+      example: "Pendente de informações",
+    },
     enteredAt: {
       type: "string",
       format: "date-time",
+      description: "Instante em que a solicitação entrou neste Status.",
       example: "2026-11-20T11:00:00.000Z",
     },
     exitedAt: {
@@ -120,9 +125,23 @@ export const StatusTimeInterval = {
       description:
         "Instante de saída; null somente para o Status atual não terminal. Em Status terminal, coincide com enteredAt.",
     },
-    activeMilliseconds: { type: "integer", minimum: 0, example: 0 },
-    pausedMilliseconds: { type: "integer", minimum: 0, example: 10800000 },
-    isPaused: { type: "boolean", example: true },
+    activeMilliseconds: {
+      type: "integer",
+      minimum: 0,
+      description: "Tempo ativo dentro do intervalo, em milissegundos.",
+      example: 0,
+    },
+    pausedMilliseconds: {
+      type: "integer",
+      minimum: 0,
+      description: "Tempo pausado dentro do intervalo, em milissegundos.",
+      example: 10800000,
+    },
+    isPaused: {
+      type: "boolean",
+      description: "Indica se o Status está configurado como pausa.",
+      example: true,
+    },
   },
 };
 
@@ -130,10 +149,28 @@ export const StatusTimeByStatus = {
   type: "object",
   required: ["status", "activeMilliseconds", "pausedMilliseconds", "isPaused"],
   properties: {
-    status: { type: "string", example: "Pendente de informações" },
-    activeMilliseconds: { type: "integer", minimum: 0, example: 0 },
-    pausedMilliseconds: { type: "integer", minimum: 0, example: 10800000 },
-    isPaused: { type: "boolean", example: true },
+    status: {
+      type: "string",
+      description: "Nome agregado do Status.",
+      example: "Pendente de informações",
+    },
+    activeMilliseconds: {
+      type: "integer",
+      minimum: 0,
+      description: "Soma do tempo ativo deste Status em todos os intervalos.",
+      example: 0,
+    },
+    pausedMilliseconds: {
+      type: "integer",
+      minimum: 0,
+      description: "Soma do tempo pausado deste Status em todos os intervalos.",
+      example: 10800000,
+    },
+    isPaused: {
+      type: "boolean",
+      description: "Indica se o Status agregado está configurado como pausa.",
+      example: true,
+    },
   },
 };
 
@@ -148,21 +185,38 @@ export const StatusTimeResponse = {
     "totalPausedMilliseconds",
   ],
   properties: {
-    protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+    protocol: {
+      type: "string",
+      description: "Protocolo público da solicitação.",
+      example: "MAAT-8K3P-9X2M",
+    },
     calculatedAt: {
       type: "string",
       format: "date-time",
+      description: "Instante usado para calcular a duração do Status atual.",
       example: "2026-11-20T14:22:45.736Z",
     },
     intervals: {
       type: "array",
+      description: "Entradas e saídas históricas em cada Status.",
       items: { $ref: "#/components/schemas/StatusTimeInterval" },
     },
     totalsByStatus: {
       type: "array",
+      description: "Soma consolidada por nome de Status.",
       items: { $ref: "#/components/schemas/StatusTimeByStatus" },
     },
-    totalActiveMilliseconds: { type: "integer", minimum: 0, example: 3600000 },
-    totalPausedMilliseconds: { type: "integer", minimum: 0, example: 10800000 },
+    totalActiveMilliseconds: {
+      type: "integer",
+      minimum: 0,
+      description: "Soma de todos os períodos ativos, em milissegundos.",
+      example: 3600000,
+    },
+    totalPausedMilliseconds: {
+      type: "integer",
+      minimum: 0,
+      description: "Soma de todos os períodos pausados, em milissegundos.",
+      example: 10800000,
+    },
   },
 };

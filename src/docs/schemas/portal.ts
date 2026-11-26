@@ -236,6 +236,19 @@ export const PortalStatus = {
       example: false,
     },
   },
+  example: {
+    id: 4,
+    name: "Pendente de informações",
+    isCore: true,
+    isPublic: true,
+    isTerminal: false,
+    isPaused: true,
+    triageMode: "free",
+    mappingMode: "free",
+    isRestricted: false,
+    tone: "warning",
+    isActive: true,
+  },
 };
 
 export const PortalStatusPatch = {
