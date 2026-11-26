@@ -20,15 +20,8 @@ export interface QueueMetricsResponse {
 
 export type QueuePriorityFilter = RequestPriority | "nenhum";
 
-/** Campos de ordenação permitidos pela API da fila (issue #215). */
-export const QUEUE_SORT_BY = [
-  "createdAt",
-  "protocol",
-  "requesterName",
-  "status",
-  "priority",
-  "assignee",
-] as const;
+/** Campos de ordenação permitidos pela API da fila (contrato RF04). */
+export const QUEUE_SORT_BY = ["createdAt", "protocol", "status", "priority"] as const;
 export type QueueSortBy = (typeof QUEUE_SORT_BY)[number];
 
 /** Direções de ordenação permitidas pela API da fila (issue #215). */
@@ -42,10 +35,10 @@ export interface QueueFilterQuery {
   priority?: QueuePriorityFilter;
   assigneeId?: string | "unassigned";
   unassigned?: boolean;
-  /** Data inicial de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial. */
-  dateFrom?: string;
-  /** Data final de abertura (`AAAA-MM-DD`), inclusiva no fuso comercial. */
-  dateTo?: string;
+  /** Data inicial de abertura (`AAAA-MM-DD`), inclusiva em UTC. */
+  createdFrom?: string;
+  /** Data final de abertura (`AAAA-MM-DD`), inclusiva em UTC. */
+  createdTo?: string;
   /** Departamento do solicitante, comparado de forma exata e case-insensitive. */
   department?: string;
 }
@@ -55,6 +48,9 @@ export interface QueueSortQuery {
   sortBy?: QueueSortBy;
   sortOrder?: QueueSortOrder;
 }
+
+/** Filtros + ordenação aceitos pela exportação CSV (sem paginação). */
+export type QueueExportQuery = QueueFilterQuery & QueueSortQuery;
 
 /** Query completa aceita por `GET /queue` — validada por `queueQuerySchema`. */
 export interface QueueQuery extends QueueFilterQuery, QueueSortQuery {
@@ -74,4 +70,6 @@ export interface QueueItem extends RequestSummary {
 
 export interface QueueResponse extends PaginatedResponse<QueueItem> {
   assignees: QueueAssignee[];
+  /** Departamentos distintos e globais do solicitante, ordenados. */
+  departments: string[];
 }

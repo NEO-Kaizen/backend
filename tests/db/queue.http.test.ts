@@ -22,15 +22,15 @@ let server: TestServer;
 let client: TestClient;
 
 /**
- * Fuso comercial é UTC-3. Os instantes abaixo caem exatamente nas bordas do
- * dia: 02:00Z é 23:00 do dia anterior e 03:00Z é 00:00 do dia seguinte.
- * `dateFrom`/`dateTo` são inclusivos no dia comercial, não em UTC.
+ * Instantes nas bordas do dia UTC: 23:00Z de 31/10, 00:00Z e 23:59Z de 01/11
+ * e 00:00Z de 02/11. `createdFrom`/`createdTo` são inclusivos em UTC, sem
+ * depender do dia comercial `America/Sao_Paulo` do dashboard.
  */
 const REQUESTS = [
-  { protocol: "TESTE-0001", createdAt: "2026-11-01T02:00:00Z", department: "Desenvolvimento" },
-  { protocol: "TESTE-0002", createdAt: "2026-11-01T03:00:00Z", department: "desenvolvimento" },
-  { protocol: "TESTE-0003", createdAt: "2026-11-02T02:59:00Z", department: "Financeiro" },
-  { protocol: "TESTE-0004", createdAt: "2026-11-02T03:00:00Z", department: "Desenvolvimento" },
+  { protocol: "TESTE-0001", createdAt: "2026-10-31T23:00:00Z", department: "Desenvolvimento" },
+  { protocol: "TESTE-0002", createdAt: "2026-11-01T00:00:00Z", department: "desenvolvimento" },
+  { protocol: "TESTE-0003", createdAt: "2026-11-01T23:59:00Z", department: "Financeiro" },
+  { protocol: "TESTE-0004", createdAt: "2026-11-02T00:00:00Z", department: "Desenvolvimento" },
 ] as const;
 
 async function seedQueue(): Promise<void> {
@@ -88,6 +88,7 @@ async function seedQueue(): Promise<void> {
 interface QueueResponse {
   data: Array<{ protocol: string }>;
   total: number;
+  departments: string[];
 }
 
 async function listQueue(query: string): Promise<QueueResponse> {
@@ -129,25 +130,32 @@ afterAll(async () => {
 });
 
 describe("HTTP real — filtros de data e departamento na fila", () => {
-  it("dateFrom usa o começo do dia comercial, não o instante UTC", async () => {
-    const queue = await listQueue("dateFrom=2026-11-01");
+  it("createdFrom usa o começo do dia UTC", async () => {
+    const queue = await listQueue("createdFrom=2026-11-01");
 
     expect(queue.total).toBe(3);
     expect(protocols(queue)).toEqual(["TESTE-0002", "TESTE-0003", "TESTE-0004"]);
   });
 
-  it("dateTo isolado inclui o último minuto do dia comercial", async () => {
-    const queue = await listQueue("dateTo=2026-10-31");
+  it("createdTo isolado inclui o último minuto do dia UTC", async () => {
+    const queue = await listQueue("createdTo=2026-10-31");
 
     expect(queue.total).toBe(1);
     expect(protocols(queue)).toEqual(["TESTE-0001"]);
   });
 
-  it("dateTo exclui o primeiro minuto do dia seguinte", async () => {
-    const queue = await listQueue("dateTo=2026-11-01");
+  it("createdTo exclui o primeiro minuto do dia seguinte", async () => {
+    const queue = await listQueue("createdTo=2026-11-01");
 
     expect(queue.total).toBe(3);
     expect(protocols(queue)).toEqual(["TESTE-0001", "TESTE-0002", "TESTE-0003"]);
+  });
+
+  it("intervalo de um dia inclui as duas pontas em UTC", async () => {
+    const queue = await listQueue("createdFrom=2026-11-01&createdTo=2026-11-01");
+
+    expect(queue.total).toBe(2);
+    expect(protocols(queue)).toEqual(["TESTE-0002", "TESTE-0003"]);
   });
 
   it("department compara de forma exata e case-insensitive", async () => {
@@ -166,7 +174,7 @@ describe("HTTP real — filtros de data e departamento na fila", () => {
 
   it("combina data e departamento com AND", async () => {
     const queue = await listQueue(
-      "dateFrom=2026-11-01&dateTo=2026-11-01&department=desenvolvimento",
+      "createdFrom=2026-11-01&createdTo=2026-11-01&department=desenvolvimento",
     );
 
     expect(queue.total).toBe(1);
@@ -174,9 +182,16 @@ describe("HTTP real — filtros de data e departamento na fila", () => {
   });
 
   it("recusa data inválida com 400", async () => {
-    const response = await client.get("/queue?page=1&pageSize=10&dateFrom=2026-11-31");
+    const response = await client.get("/queue?page=1&pageSize=10&createdFrom=2026-11-31");
 
     expect(response.status).toBe(400);
+  });
+
+  it("departments é global, distinto e ordenado, independente dos filtros", async () => {
+    const queue = await listQueue("department=Financeiro");
+
+    expect(protocols(queue)).toEqual(["TESTE-0003"]);
+    expect(queue.departments).toEqual(["Desenvolvimento", "Financeiro"]);
   });
 });
 
@@ -222,13 +237,38 @@ describe("HTTP real — ordenação por domínio", () => {
       "TESTE-0003",
       "TESTE-0004",
     ]);
+
+    const byPriorityAsc = await listQueue("sortBy=priority&sortOrder=asc");
+    expect(queueProtocols(byPriorityAsc)).toEqual([
+      "TESTE-0003",
+      "TESTE-0001",
+      "TESTE-0002",
+      "TESTE-0004",
+    ]);
+  });
+
+  it("compara protocolo sem diferenciar maiúsculas", async () => {
+    await testDb("requests").where({ protocol: "TESTE-0002" }).update({ protocol: "teste-0002" });
+
+    expect(queueProtocols(await listQueue("sortBy=protocol&sortOrder=asc"))).toEqual([
+      "TESTE-0001",
+      "teste-0002",
+      "TESTE-0003",
+      "TESTE-0004",
+    ]);
+    expect(queueProtocols(await listQueue("sortBy=protocol&sortOrder=desc"))).toEqual([
+      "TESTE-0004",
+      "TESTE-0003",
+      "teste-0002",
+      "TESTE-0001",
+    ]);
   });
 });
 
 describe("HTTP real — exportação CSV com os filtros compartilhados", () => {
   it("exporta apenas as solicitações do recorte", async () => {
     const response = await client.get(
-      "/reports/requests.csv?dateFrom=2026-11-01&dateTo=2026-11-01&department=desenvolvimento",
+      "/reports/requests.csv?createdFrom=2026-11-01&createdTo=2026-11-01&department=desenvolvimento",
     );
 
     expect(response.status).toBe(200);
@@ -239,8 +279,20 @@ describe("HTTP real — exportação CSV com os filtros compartilhados", () => {
     expect(response.text).not.toContain("TESTE-0004");
   });
 
-  it("recusa ordenação na exportação com 400", async () => {
-    const response = await client.get("/reports/requests.csv?sortBy=protocol");
+  it("aplica a ordenação recebida na exportação", async () => {
+    const response = await client.get("/reports/requests.csv?sortBy=protocol&sortOrder=desc");
+
+    expect(response.status).toBe(200);
+    expect(response.text.match(/TESTE-\d{4}/g)).toEqual([
+      "TESTE-0004",
+      "TESTE-0003",
+      "TESTE-0002",
+      "TESTE-0001",
+    ]);
+  });
+
+  it("recusa ordenação fora do contrato na exportação com 400", async () => {
+    const response = await client.get("/reports/requests.csv?sortBy=requesterName");
 
     expect(response.status).toBe(400);
   });

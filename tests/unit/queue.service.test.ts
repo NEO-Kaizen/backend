@@ -7,6 +7,7 @@ vi.mock("../../src/modules/queue/queue.repository.ts", () => ({
   findQueueRequests: vi.fn(),
   fetchQueueMetrics: vi.fn(),
   fetchAllAssignees: vi.fn(),
+  fetchAllDepartments: vi.fn(),
 }));
 
 const repository = await import("../../src/modules/queue/queue.repository.ts");
@@ -32,6 +33,7 @@ beforeEach(() => {
     overdueRequests: 0,
   });
   vi.mocked(repository.fetchAllAssignees).mockResolvedValue([]);
+  vi.mocked(repository.fetchAllDepartments).mockResolvedValue([]);
 });
 
 describe("listQueueService — custódia da busca por notas", () => {
@@ -76,8 +78,8 @@ describe("listQueueService — custódia da busca por notas", () => {
       {
         page: 2,
         pageSize: 5,
-        dateFrom: "2026-11-01",
-        dateTo: "2026-11-30",
+        createdFrom: "2026-11-01",
+        createdTo: "2026-11-30",
         department: "Desenvolvimento",
         sortBy: "protocol",
         sortOrder: "asc",
@@ -87,8 +89,8 @@ describe("listQueueService — custódia da busca por notas", () => {
 
     expect(repository.findQueueRequests).toHaveBeenCalledWith(
       expect.objectContaining({
-        dateFrom: "2026-11-01",
-        dateTo: "2026-11-30",
+        createdFrom: "2026-11-01",
+        createdTo: "2026-11-30",
         department: "Desenvolvimento",
         sortBy: "protocol",
         sortOrder: "asc",
@@ -96,6 +98,15 @@ describe("listQueueService — custódia da busca por notas", () => {
         offset: 5,
       }),
     );
+  });
+
+  it("devolve departamentos globais no envelope da fila", async () => {
+    vi.mocked(repository.fetchAllDepartments).mockResolvedValue(["Desenvolvimento", "Financeiro"]);
+
+    const response = await listQueueService({ page: 1, pageSize: 10 }, makeActor("Gestor"));
+
+    expect(repository.fetchAllDepartments).toHaveBeenCalledOnce();
+    expect(response.departments).toEqual(["Desenvolvimento", "Financeiro"]);
   });
 });
 

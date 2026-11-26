@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { whereBusinessDayRange } from "../../shared/datetime/businessDay.ts";
+import { whereUtcDayRange } from "../../shared/datetime/businessDay.ts";
 import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 
 export interface QueueRepositoryFilters extends QueueFilterQuery {
@@ -20,7 +20,8 @@ export interface QueueRepositoryFilters extends QueueFilterQuery {
  * vale somente para a correspondência em notas. O responsável de mapeamento
  * amplia a fila, mas não amplia a busca por nota. Os filtros de data e
  * departamento (issue #215) entram no mesmo conjunto e, portanto, também
- * valem para a exportação CSV.
+ * valem para a exportação CSV. As datas usam o dia em UTC, conforme o
+ * contrato RF04; o dashboard mantém o dia comercial `America/Sao_Paulo`.
  */
 export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueRepositoryFilters): void {
   const {
@@ -29,8 +30,8 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
     priority,
     assigneeId,
     unassigned,
-    dateFrom,
-    dateTo,
+    createdFrom,
+    createdTo,
     department,
     scopedUserId,
     noteCustodianUserId,
@@ -42,10 +43,13 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
     query.andWhere((builder) => {
       builder
         .where("requests.protocol", "ilike", searchPattern)
-        .orWhere("requester.corporate_email", "ilike", searchPattern)
-        .orWhere("requester.full_name", "ilike", searchPattern)
+        .orWhere("requests.title", "ilike", searchPattern)
+        .orWhere("requests.process_name", "ilike", searchPattern)
         .orWhere("requests.need_description", "ilike", searchPattern)
         .orWhere("requests.problem_opportunity", "ilike", searchPattern)
+        .orWhere("requests.expected_result", "ilike", searchPattern)
+        .orWhere("requester.corporate_email", "ilike", searchPattern)
+        .orWhere("requester.full_name", "ilike", searchPattern)
         .orWhereExists((notesQuery) => {
           notesQuery
             .select(1)
@@ -60,7 +64,7 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
     });
   }
 
-  whereBusinessDayRange(query, "requests.created_at", { from: dateFrom, to: dateTo });
+  whereUtcDayRange(query, "requests.created_at", { from: createdFrom, to: createdTo });
 
   if (department) {
     query.whereRaw(`lower("requester"."department") = lower(?)`, [department]);

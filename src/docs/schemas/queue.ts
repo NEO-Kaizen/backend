@@ -56,7 +56,7 @@ export const QueueItem = {
 
 export const QueueResponse = {
   type: "object",
-  required: ["data", "page", "pageSize", "total", "totalPages", "assignees"],
+  required: ["data", "page", "pageSize", "total", "totalPages", "assignees", "departments"],
   properties: {
     data: { type: "array", items: { $ref: "#/components/schemas/QueueItem" } },
     page: { type: "integer", example: 1 },
@@ -67,6 +67,13 @@ export const QueueResponse = {
       type: "array",
       description: "Responsáveis atribuíveis para o filtro da fila.",
       items: { $ref: "#/components/schemas/QueueAssignee" },
+    },
+    departments: {
+      type: "array",
+      description:
+        "Departamentos distintos e globais do solicitante, ordenados; não dependem dos filtros nem da paginação.",
+      items: { type: "string" },
+      example: ["Desenvolvimento", "Financeiro"],
     },
   },
 };

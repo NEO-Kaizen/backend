@@ -1,6 +1,6 @@
 import {
-  dateFromParam,
-  dateToParam,
+  createdFromParam,
+  createdToParam,
   departmentParam,
   protocolParam,
   searchParam,
@@ -32,6 +32,7 @@ export default {
       summary: "Listar fila de atendimento",
       description:
         "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. " +
+        "As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. " +
         "Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
       operationId: "getQueue",
       security: [{ cookieAuth: [] }],
@@ -81,8 +82,8 @@ export default {
             "`true`/`1` lista apenas sem responsável. Não pode ser combinado com `assigneeId` diferente de `unassigned`.",
           schema: { type: "string", enum: ["true", "1", "false", "0"] },
         },
-        dateFromParam,
-        dateToParam,
+        createdFromParam,
+        createdToParam,
         departmentParam,
         sortByParam,
         sortOrderParam,
