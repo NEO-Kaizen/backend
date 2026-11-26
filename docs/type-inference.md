@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **196**.
-- Tipos nomeados: **328** â€” 230 interfaces, 95 aliases `type`, 3 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **2027** â€” 1521 variÃ¡veis, 252 parÃ¢metros e 254 retornos de funÃ§Ãµes/mÃ©todos.
+- Arquivos-fonte analisados: **198**.
+- Tipos nomeados: **332** â€” 233 interfaces, 96 aliases `type`, 3 classes e 0 enums.
+- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **2051** â€” 1539 variÃ¡veis, 255 parÃ¢metros e 257 retornos de funÃ§Ãµes/mÃ©todos.
 - DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **48**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **151**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
+- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **152**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
 - Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -1377,7 +1377,7 @@ export interface StatusAuditEvent {
 
 ### [src/modules/duplicates/backfillConcludedAt.ts](../src/modules/duplicates/backfillConcludedAt.ts)
 
-#### L36 â€” interface BackfillConcludedAtOptions
+#### L39 â€” interface BackfillConcludedAtOptions
 
 ```ts
 export interface BackfillConcludedAtOptions {
@@ -1385,7 +1385,7 @@ export interface BackfillConcludedAtOptions {
 }
 ```
 
-#### L40 â€” interface BackfillConcludedAtReport
+#### L43 â€” interface BackfillConcludedAtReport
 
 ```ts
 export interface BackfillConcludedAtReport {
@@ -1400,14 +1400,47 @@ export interface BackfillConcludedAtReport {
 }
 ```
 
-#### L51 â€” interface BackfillBatchOutcome
+#### L54 â€” alias BackfillBatchOutcome
 
 ```ts
-interface BackfillBatchOutcome {
-  updated: string[];
-  withoutEvent: string[];
-  skipped: string[];
+type BackfillBatchOutcome = Pick<BackfillConcludedAtReport, "updated" | "withoutEvent" | "skipped">;
+```
+
+#### L56 â€” interface ResolvedCandidateConclusion
+
+```ts
+interface ResolvedCandidateConclusion {
+  request_id: string;
+  protocol: string;
+  concludedAt: Date | null;
 }
+```
+
+#### L62 â€” interface ConcludedCandidate
+
+```ts
+interface ConcludedCandidate {
+  request_id: string;
+  protocol: string;
+  concludedAt: Date;
+}
+```
+
+### [src/modules/duplicates/completedWindow.ts](../src/modules/duplicates/completedWindow.ts)
+
+#### L21 â€” interface DuplicateCompletedWindow
+
+```ts
+export interface DuplicateCompletedWindow {
+  readonly months: number;
+  readonly [duplicateCompletedWindowBrand]: true;
+}
+```
+
+#### L48 â€” alias DuplicateCompletedWindowFallbackWarner
+
+```ts
+export type DuplicateCompletedWindowFallbackWarner = (message: string) => void;
 ```
 
 ### [src/modules/duplicates/concludedAtReplay.ts](../src/modules/duplicates/concludedAtReplay.ts)
@@ -1502,6 +1535,15 @@ export interface ExistingProjection {
   publication_status: PublicationStatus;
   published_at: Date | null;
   suppressed_at: Date | null;
+}
+```
+
+#### L307 â€” interface GetDuplicateCompletedWindowOptions
+
+```ts
+export interface GetDuplicateCompletedWindowOptions {
+  trx?: Knex.Transaction;
+  onFallback: DuplicateCompletedWindowFallbackWarner;
 }
 ```
 
@@ -1633,7 +1675,7 @@ export class MiniSearchIndex implements SimilarityIndex {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-#### L31 â€” interface ProjectionValues
+#### L34 â€” interface ProjectionValues
 
 ```ts
 interface ProjectionValues {
@@ -1653,7 +1695,7 @@ interface ProjectionValues {
 }
 ```
 
-#### L48 â€” interface SuppressionSignals
+#### L51 â€” interface SuppressionSignals
 
 ```ts
 export interface SuppressionSignals {
@@ -1671,7 +1713,7 @@ export interface SuppressionSignals {
 
 ### [src/modules/duplicates/redact.ts](../src/modules/duplicates/redact.ts)
 
-#### L59 â€” interface CompletedProjectionText
+#### L64 â€” interface CompletedProjectionText
 
 ```ts
 export interface CompletedProjectionText {
@@ -1681,7 +1723,7 @@ export interface CompletedProjectionText {
 }
 ```
 
-#### L65 â€” interface CompletedProjectionTextInput
+#### L70 â€” interface CompletedProjectionTextInput
 
 ```ts
 export interface CompletedProjectionTextInput {
@@ -1708,20 +1750,20 @@ export interface SimilarityIndex {
 
 ### [src/modules/duplicates/template.ts](../src/modules/duplicates/template.ts)
 
-#### L24 â€” alias CompletedTemplateField
+#### L29 â€” alias CompletedTemplateField
 
 ```ts
-export type CompletedTemplateField = "category" | "period";
+export type CompletedTemplateField = keyof typeof COMPLETED_TEMPLATE_COLUMNS;
 ```
 
-#### L26 â€” alias CompletedTemplatePart
+#### L36 â€” alias CompletedTemplatePart
 
 ```ts
 export type CompletedTemplatePart =
   { readonly literal: string } | { readonly field: CompletedTemplateField };
 ```
 
-#### L52 â€” interface PublicRequestTemplate
+#### L53 â€” interface PublicRequestTemplate
 
 ```ts
 export interface PublicRequestTemplate {
@@ -3672,21 +3714,7 @@ export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
 export type PortalSolicitationMode = SolicitationMode;
 ```
 
-#### L22 â€” interface DuplicateCompletedWindow
-
-```ts
-export interface DuplicateCompletedWindow {
-  readonly months: number;
-}
-```
-
-#### L44 â€” alias DuplicateCompletedWindowFallbackWarner
-
-```ts
-export type DuplicateCompletedWindowFallbackWarner = (message: string) => void;
-```
-
-#### L76 â€” interface SystemSettingsRow
+#### L20 â€” interface SystemSettingsRow
 
 ```ts
 export interface SystemSettingsRow {
@@ -3867,6 +3895,18 @@ export interface UserMetricsResponse {
   active: number;
   pending: number;
   admins: number;
+}
+```
+
+### [src/shared/utils/describeFailure.ts](../src/shared/utils/describeFailure.ts)
+
+#### L31 â€” interface FailureDetails
+
+```ts
+interface FailureDetails {
+  name: string;
+  code?: string;
+  message: string;
 }
 ```
 
@@ -4300,44 +4340,59 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/backfillConcludedAt.ts](../src/modules/duplicates/backfillConcludedAt.ts)
 
-- L34 â€” variÃ¡vel: `BACKFILL_BATCH_SIZE`
-- L65 â€” parÃ¢metro: `event`
-- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L65 â€” variÃ¡vel: `replayEvents`
-- L66 â€” variÃ¡vel: `statusId`
-- L82 â€” variÃ¡vel: `replay`
-- L92 â€” variÃ¡vel: `outcome`
-- L94 â€” variÃ¡vel: `candidate`
-- L95 â€” variÃ¡vel: `{ protocol, concludedAt }`
-- L118 â€” variÃ¡vel: `outcome`
-- L120 â€” variÃ¡vel: `candidate`
-- L121 â€” variÃ¡vel: `{ protocol, concludedAt }`
-- L132 â€” variÃ¡vel: `didUpdate`
-- L155 â€” variÃ¡vel: `dryRun`
-- L156 â€” variÃ¡vel: `candidates`
-- L167 â€” variÃ¡vel: `statusIdsByName`
-- L168 â€” variÃ¡vel: `window`
-- L170 â€” variÃ¡vel: `start`
-- L171 â€” variÃ¡vel: `batch`
-- L172 â€” parÃ¢metro: `candidate`
-- L172 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L172 â€” variÃ¡vel: `protocols`
-- L175 â€” variÃ¡vel: `eventsByProtocol`
-- L180 â€” parÃ¢metro: `trx`
-- L180 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L180 â€” variÃ¡vel: `outcome`
-- L181 â€” variÃ¡vel: `eventsByProtocol`
+- L37 â€” variÃ¡vel: `BACKFILL_BATCH_SIZE`
+- L76 â€” parÃ¢metro: `event`
+- L76 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L76 â€” variÃ¡vel: `replayEvents`
+- L77 â€” variÃ¡vel: `statusId`
+- L93 â€” variÃ¡vel: `replay`
+- L107 â€” parÃ¢metro: `candidate`
+- L107 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L123 â€” variÃ¡vel: `conclusion`
+- L143 â€” variÃ¡vel: `outcome`
+- L144 â€” variÃ¡vel: `{ concluded, withoutEvent }`
+- L148 â€” parÃ¢metro: `candidate`
+- L148 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L161 â€” variÃ¡vel: `outcome`
+- L162 â€” variÃ¡vel: `{ concluded, withoutEvent }`
+- L168 â€” variÃ¡vel: `candidate`
+- L169 â€” variÃ¡vel: `didUpdate`
+- L196 â€” variÃ¡vel: `dryRun`
+- L197 â€” variÃ¡vel: `candidates`
+- L206 â€” variÃ¡vel: `statusIdsByName`
+- L207 â€” variÃ¡vel: `window`
+- L211 â€” variÃ¡vel: `start`
+- L212 â€” variÃ¡vel: `batch`
+- L213 â€” parÃ¢metro: `candidate`
+- L213 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L213 â€” variÃ¡vel: `protocols`
+- L216 â€” variÃ¡vel: `eventsByProtocol`
+- L221 â€” parÃ¢metro: `trx`
+- L221 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L221 â€” variÃ¡vel: `outcome`
+- L222 â€” variÃ¡vel: `eventsByProtocol`
+
+### [src/modules/duplicates/completedWindow.ts](../src/modules/duplicates/completedWindow.ts)
+
+- L8 â€” variÃ¡vel: `DUPLICATE_COMPLETED_WINDOW_MONTHS`
+- L30 â€” variÃ¡vel: `DEFAULT_DUPLICATE_COMPLETED_WINDOW`
+- L57 â€” variÃ¡vel: `hasWarned`
+- L59 â€” parÃ¢metro: `message`
+- L59 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L71 â€” variÃ¡vel: `warnDuplicateCompletedWindowFallback`
+- L72 â€” parÃ¢metro: `message`
+- L72 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
 
 ### [src/modules/duplicates/completedWindowSweep.ts](../src/modules/duplicates/completedWindowSweep.ts)
 
-- L24 â€” variÃ¡vel: `SWEEP_BATCH_SIZE`
-- L27 â€” variÃ¡vel: `window`
-- L30 â€” variÃ¡vel: `candidates`
-- L32 â€” variÃ¡vel: `start`
-- L33 â€” variÃ¡vel: `batch`
-- L35 â€” parÃ¢metro: `trx`
-- L35 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L36 â€” variÃ¡vel: `requestId`
+- L25 â€” variÃ¡vel: `SWEEP_BATCH_SIZE`
+- L28 â€” variÃ¡vel: `window`
+- L33 â€” variÃ¡vel: `candidates`
+- L35 â€” variÃ¡vel: `start`
+- L36 â€” variÃ¡vel: `batch`
+- L38 â€” parÃ¢metro: `trx`
+- L38 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L39 â€” variÃ¡vel: `requestId`
 
 ### [src/modules/duplicates/concludedAtReplay.ts](../src/modules/duplicates/concludedAtReplay.ts)
 
@@ -4375,22 +4430,19 @@ interface GroupedIssues {
 - L229 â€” variÃ¡vel: `{ public_id, publication_status, published_at, suppressed_at }`
 - L280 â€” variÃ¡vel: `row`
 - L299 â€” variÃ¡vel: `source`
-- L307 â€” parÃ¢metro: `message`
-- L307 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L307 â€” variÃ¡vel: `warnCompletedWindowFallback`
 - L321 â€” variÃ¡vel: `source`
 - L326 â€” variÃ¡vel: `window`
 - L345 â€” variÃ¡vel: `source`
 - L346 â€” variÃ¡vel: `window`
-- L350 â€” parÃ¢metro: `builder`
-- L350 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L372 â€” variÃ¡vel: `part`
-- L397 â€” variÃ¡vel: `source`
-- L425 â€” variÃ¡vel: `source`
-- L436 â€” parÃ¢metro: `row`
-- L436 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L437 â€” variÃ¡vel: `{ request_id }`
-- L454 â€” variÃ¡vel: `source`
+- L353 â€” parÃ¢metro: `builder`
+- L353 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L375 â€” variÃ¡vel: `part`
+- L400 â€” variÃ¡vel: `source`
+- L428 â€” variÃ¡vel: `source`
+- L439 â€” parÃ¢metro: `row`
+- L439 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L440 â€” variÃ¡vel: `{ request_id }`
+- L457 â€” variÃ¡vel: `source`
 
 ### [src/modules/duplicates/duplicates.schema.ts](../src/modules/duplicates/duplicates.schema.ts)
 
@@ -4473,18 +4525,18 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-- L104 â€” variÃ¡vel: `isCompleted`
-- L113 â€” variÃ¡vel: `fallback`
-- L122 â€” variÃ¡vel: `redacted`
-- L152 â€” variÃ¡vel: `resolvedWindow`
-- L153 â€” variÃ¡vel: `source`
-- L158 â€” variÃ¡vel: `suppressionReason`
-- L159 â€” variÃ¡vel: `template`
-- L161 â€” variÃ¡vel: `isPubliclyListable`
-- L165 â€” variÃ¡vel: `existing`
-- L170 â€” variÃ¡vel: `now`
-- L171 â€” variÃ¡vel: `publishedAt`
-- L175 â€” variÃ¡vel: `suppressedAt`
+- L107 â€” variÃ¡vel: `isCompleted`
+- L116 â€” variÃ¡vel: `fallback`
+- L125 â€” variÃ¡vel: `redacted`
+- L155 â€” variÃ¡vel: `resolvedWindow`
+- L158 â€” variÃ¡vel: `source`
+- L163 â€” variÃ¡vel: `suppressionReason`
+- L164 â€” variÃ¡vel: `template`
+- L166 â€” variÃ¡vel: `isPubliclyListable`
+- L170 â€” variÃ¡vel: `existing`
+- L175 â€” variÃ¡vel: `now`
+- L176 â€” variÃ¡vel: `publishedAt`
+- L180 â€” variÃ¡vel: `suppressedAt`
 
 ### [src/modules/duplicates/query.ts](../src/modules/duplicates/query.ts)
 
@@ -4498,13 +4550,13 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/redact.ts](../src/modules/duplicates/redact.ts)
 
-- L56 â€” parÃ¢metro: `pattern`
-- L56 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L81 â€” variÃ¡vel: `title`
-- L82 â€” variÃ¡vel: `summary`
-- L83 â€” parÃ¢metro: `part`
-- L83 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L92 â€” variÃ¡vel: `template`
+- L61 â€” parÃ¢metro: `pattern`
+- L61 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L86 â€” variÃ¡vel: `title`
+- L87 â€” variÃ¡vel: `summary`
+- L88 â€” parÃ¢metro: `part`
+- L88 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L97 â€” variÃ¡vel: `template`
 
 ### [src/modules/duplicates/similarityIndex.ts](../src/modules/duplicates/similarityIndex.ts)
 
@@ -4517,18 +4569,18 @@ interface GroupedIssues {
 - L13 â€” variÃ¡vel: `COMPLETED_REQUEST_PUBLIC_STATUS`
 - L15 â€” variÃ¡vel: `COMPLETED_REQUEST_REDACTION_VERSION`
 - L17 â€” variÃ¡vel: `COMPLETED_REQUEST_TEMPLATE_VERSION`
-- L33 â€” variÃ¡vel: `COMPLETED_TEMPLATE_COLUMNS`
-- L38 â€” variÃ¡vel: `COMPLETED_TITLE_TEMPLATE`
-- L44 â€” variÃ¡vel: `COMPLETED_SUMMARY_TEMPLATE`
-- L65 â€” parÃ¢metro: `part`
-- L65 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L73 â€” variÃ¡vel: `dateOnly`
-- L79 â€” variÃ¡vel: `[yearPart, monthPart]`
-- L80 â€” variÃ¡vel: `year`
-- L81 â€” variÃ¡vel: `month`
-- L94 â€” variÃ¡vel: `period`
-- L115 â€” variÃ¡vel: `period`
-- L116 â€” variÃ¡vel: `values`
+- L24 â€” variÃ¡vel: `COMPLETED_TEMPLATE_COLUMNS`
+- L39 â€” variÃ¡vel: `COMPLETED_TITLE_TEMPLATE`
+- L45 â€” variÃ¡vel: `COMPLETED_SUMMARY_TEMPLATE`
+- L66 â€” parÃ¢metro: `part`
+- L66 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L74 â€” variÃ¡vel: `dateOnly`
+- L80 â€” variÃ¡vel: `[yearPart, monthPart]`
+- L81 â€” variÃ¡vel: `year`
+- L82 â€” variÃ¡vel: `month`
+- L95 â€” variÃ¡vel: `period`
+- L116 â€” variÃ¡vel: `period`
+- L117 â€” variÃ¡vel: `values`
 
 ### [src/modules/internalNotes/internalNotes.controller.ts](../src/modules/internalNotes/internalNotes.controller.ts)
 
@@ -6242,13 +6294,6 @@ interface GroupedIssues {
 - L10 â€” variÃ¡vel: `STATUS_IDS`
 - L28 â€” variÃ¡vel: `CORE_STATUS_IDS`
 
-### [src/shared/types/systemSettings.ts](../src/shared/types/systemSettings.ts)
-
-- L11 â€” variÃ¡vel: `DUPLICATE_COMPLETED_WINDOW_MONTHS`
-- L53 â€” variÃ¡vel: `hasWarned`
-- L55 â€” parÃ¢metro: `message`
-- L55 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-
 ### [src/shared/types/systemTheme.ts](../src/shared/types/systemTheme.ts)
 
 - L2 â€” variÃ¡vel: `STATUS_TONES`
@@ -6269,6 +6314,28 @@ interface GroupedIssues {
 - L83 â€” variÃ¡vel: `day`
 - L84 â€” variÃ¡vel: `hours`
 - L85 â€” variÃ¡vel: `minutes`
+
+### [src/shared/utils/describeFailure.ts](../src/shared/utils/describeFailure.ts)
+
+- L9 â€” variÃ¡vel: `MAX_DESCRIPTION_LENGTH`
+- L40 â€” variÃ¡vel: `{ code }`
+- L54 â€” variÃ¡vel: `record`
+- L55 â€” variÃ¡vel: `message`
+- L56 â€” variÃ¡vel: `name`
+- L57 â€” variÃ¡vel: `code`
+- L67 â€” variÃ¡vel: `sanitized`
+- L70 â€” variÃ¡vel: `separatorIndex`
+- L72 â€” variÃ¡vel: `head`
+- L73 â€” variÃ¡vel: `tail`
+- L75 â€” parÃ¢metro: `pattern`
+- L75 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L80 â€” variÃ¡vel: `pattern`
+- L84 â€” variÃ¡vel: `[pattern, replacement]`
+- L98 â€” variÃ¡vel: `details`
+- L108 â€” variÃ¡vel: `name`
+- L109 â€” variÃ¡vel: `code`
+- L110 â€” variÃ¡vel: `message`
+- L111 â€” variÃ¡vel: `prefix`
 
 ### [src/shared/utils/ensureDefaultAssets.ts](../src/shared/utils/ensureDefaultAssets.ts)
 
