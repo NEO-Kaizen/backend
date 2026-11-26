@@ -15,10 +15,10 @@ export type IndexPollChange =
 export interface IndexPollerOptions {
   readEnabled: () => Promise<boolean>;
   /**
-   * Varredura de expiração da janela (issue #210), executada antes de ler a
-   * projeção. Falha nela é tratada como falha do poll: o cursor não avança.
+   * Reconciliação da janela de conclusão (issue #210), executada antes de ler
+   * a projeção. Falha nela é tratada como falha do poll: o cursor não avança.
    */
-  expire?: () => Promise<void>;
+  sweepCompletedWindow?: () => Promise<void>;
   readAll: () => Promise<readonly SimilarityDocument[]>;
   readChanges: (since: Date) => Promise<readonly IndexPollChange[]>;
   apply: (document: SimilarityDocument) => void;
@@ -65,7 +65,7 @@ export function createIndexPoller(options: IndexPollerOptions): IndexPoller {
       return;
     }
 
-    await options.expire?.();
+    await options.sweepCompletedWindow?.();
 
     const runAt = now();
 

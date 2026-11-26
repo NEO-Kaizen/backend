@@ -4,9 +4,9 @@
  * - `system_settings.duplicate_completed_window_months` (1..36, padrão 3)
  *   define por quanto tempo uma Solicitação concluída continua no corpus.
  * - `request_public_projections.public_concluded_at` guarda a conclusão
- *   efetiva usada na varredura de expiração. É interno: não entra no DTO.
- * - O índice parcial cobre a leitura de publicadas e a varredura de
- *   concluídas fora da janela.
+ *   efetiva usada na varredura da janela. É interno: não entra no DTO.
+ * - Os índices parciais cobrem a leitura de publicadas, a supressão fora da
+ *   janela e a reconciliação de suprimidas que voltaram para dentro dela.
  *
  * Regras em `docs/rules/duplicate-detection.md`; persistência em
  * `docs/database/duplicate-detection-persistence.md` e
@@ -30,9 +30,15 @@ export async function up(knex) {
     ON request_public_projections (publication_status, is_publicly_listable, public_concluded_at)
     WHERE publication_status = 'published' AND is_publicly_listable = TRUE
   `);
+  await knex.raw(`
+    CREATE INDEX idx_request_public_projections_suppressed_outside_window
+    ON request_public_projections (public_concluded_at)
+    WHERE publication_status = 'suppressed' AND suppression_reason = 'outside_window'
+  `);
 }
 
 export async function down(knex) {
+  await knex.raw("DROP INDEX IF EXISTS idx_request_public_projections_suppressed_outside_window");
   await knex.raw("DROP INDEX IF EXISTS idx_request_public_projections_published_concluded");
 
   await knex.schema.alterTable("request_public_projections", (table) => {

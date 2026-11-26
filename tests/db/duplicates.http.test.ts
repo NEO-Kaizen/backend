@@ -110,13 +110,13 @@ describe("DB — projeção pública e Alerta de duplicidade", () => {
     const created = await createRequest(makeRequestPayload());
     const request = await requestRow(created.protocol);
     const projection = await projectionRow(created.protocol);
+    const period = toSaoPauloQuarter(request.created_at);
 
     expect(projection).toMatchObject({
       publication_status: "published",
       is_publicly_listable: true,
       public_title: "Solicitação de Automação em andamento",
-      public_summary:
-        "Solicitação em andamento da categoria Automação, registrada no período 2026-Q4.",
+      public_summary: `Solicitação em andamento da categoria Automação, registrada no período ${period}.`,
       public_category: "Automação",
       public_status: "Em andamento",
       redaction_version: "v1-open-template",

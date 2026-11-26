@@ -225,14 +225,14 @@ describe("DB — concluídas com texto tarjado e janela", () => {
 
     const request = await requestRow(created.protocol);
     const projection = await projectionRow(created.protocol);
+    const period = toSaoPauloQuarter(request.created_at);
 
     expect(request.status_id).toBe(1);
     expect(request.concluded_at).toBeNull();
     expect(projection).toMatchObject({
       publication_status: "published",
       public_title: "Solicitação de Automação em andamento",
-      public_summary:
-        "Solicitação em andamento da categoria Automação, registrada no período 2026-Q4.",
+      public_summary: `Solicitação em andamento da categoria Automação, registrada no período ${period}.`,
       public_status: "Em andamento",
       redaction_version: "v1-open-template",
       public_concluded_at: null,
@@ -252,8 +252,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
       publication_status: "suppressed",
       suppression_reason: "outside_window",
       public_title: "Solicitação de Automação concluída",
-      public_summary:
-        "Solicitação concluída da categoria Automação, registrada no período 2026-Q4.",
+      public_summary: `Solicitação concluída da categoria Automação, registrada no período ${projection.public_period}.`,
       public_status: "Concluída",
       redaction_version: "v1-regex",
     });
@@ -316,6 +315,68 @@ describe("DB — concluídas com texto tarjado e janela", () => {
     expect((await checkDuplicates(DEMAND)).items).toHaveLength(0);
   });
 
+  it("aumentar a janela reconcilia outside_window e regenera o texto tarjado", async () => {
+    const created = await createRequest();
+    await concludeByPatch(created.protocol);
+    await backdateConclusion(created.protocol, 2);
+
+    await publishWithWindow(created.protocol, 1);
+    await expect(projectionRow(created.protocol)).resolves.toMatchObject({
+      publication_status: "suppressed",
+      suppression_reason: "outside_window",
+      public_title: "Solicitação de Automação concluída",
+    });
+
+    await testDb("system_settings")
+      .where({ settings_id: 1 })
+      .update({ duplicate_completed_window_months: 3 });
+    await rebuildDuplicateIndex();
+
+    const projection = await projectionRow(created.protocol);
+    expect(projection).toMatchObject({
+      publication_status: "published",
+      suppression_reason: null,
+      public_title: "Automatizar conciliação",
+      public_summary:
+        "Descrição detalhada do processo e do problema.\n\nProcesso manual e sujeito a erros.",
+      public_status: "Concluída",
+    });
+
+    const body = await checkDuplicates(DEMAND);
+    expect(body.items).toContainEqual({
+      publicId: projection.public_id,
+      title: "Automatizar conciliação",
+      summary:
+        "Descrição detalhada do processo e do problema.\n\nProcesso manual e sujeito a erros.",
+      category: "Automação",
+      status: "Concluída",
+      period: projection.public_period,
+    });
+  });
+
+  it("reconciliação reavalia restrição e não republica a linha suprimida", async () => {
+    const created = await createRequest();
+    await concludeByPatch(created.protocol);
+    await backdateConclusion(created.protocol, 2);
+    await publishWithWindow(created.protocol, 1);
+
+    const request = await requestRow(created.protocol);
+    await testDb("requests")
+      .where({ request_id: request.request_id })
+      .update({ handles_restricted_info: true });
+    await testDb("system_settings")
+      .where({ settings_id: 1 })
+      .update({ duplicate_completed_window_months: 3 });
+    await rebuildDuplicateIndex();
+
+    await expect(projectionRow(created.protocol)).resolves.toMatchObject({
+      publication_status: "suppressed",
+      suppression_reason: "restricted_request",
+      public_title: "Solicitação de Automação concluída",
+    });
+    expect((await checkDuplicates(DEMAND)).items).toHaveLength(0);
+  });
+
   it("restrição, Categoria desligada e Status 16 desligado suprimem com template", async () => {
     const restrictedPayload = makeRequestPayload();
     restrictedPayload.demand.title = "Título livre restrito";
@@ -357,6 +418,42 @@ describe("DB — concluídas com texto tarjado e janela", () => {
     });
   });
 
+  it("gate de PII cobre variantes espaçadas sem vazar no endpoint", async () => {
+    const spacedCpf = "123 456 789 00";
+    const spacedCnpj = "12 345 678/0001 90";
+    const spacedCep = "01310 100";
+    const payload = makeRequestPayload();
+    payload.demand.title = `Conciliação para CPF ${spacedCpf}`;
+    payload.demand.description = `Empresa ${spacedCnpj} no CEP ${spacedCep}.`;
+    payload.demand.problem = "Processo manual.";
+
+    const created = await createRequest(payload);
+    await concludeByPatch(created.protocol);
+
+    const projection = await projectionRow(created.protocol);
+    const projectionJson = JSON.stringify(projection);
+
+    expect(projection).toMatchObject({
+      publication_status: "published",
+      public_title: "Solicitação de Automação concluída",
+      public_status: "Concluída",
+    });
+    expect(projectionJson).not.toContain(spacedCpf);
+    expect(projectionJson).not.toContain(spacedCnpj);
+    expect(projectionJson).not.toContain(spacedCep);
+
+    const body = await checkDuplicates({
+      ...DEMAND,
+      title: `Conciliação ${spacedCpf}`,
+      description: spacedCnpj,
+      problem: spacedCep,
+    });
+
+    expect(JSON.stringify(body)).not.toContain(spacedCpf);
+    expect(JSON.stringify(body)).not.toContain(spacedCnpj);
+    expect(JSON.stringify(body)).not.toContain(spacedCep);
+  });
+
   it("falha do gate de PII cai para o template sem vazar texto bruto", async () => {
     const canary = "CANARIO-PII-4242";
     const cpf = "123.456.789-00";
@@ -375,8 +472,7 @@ describe("DB — concluídas com texto tarjado e janela", () => {
     expect(projection).toMatchObject({
       publication_status: "published",
       public_title: "Solicitação de Automação concluída",
-      public_summary:
-        "Solicitação concluída da categoria Automação, registrada no período 2026-Q4.",
+      public_summary: `Solicitação concluída da categoria Automação, registrada no período ${projection.public_period}.`,
       public_status: "Concluída",
       redaction_version: "v1-regex",
     });

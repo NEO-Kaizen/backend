@@ -4,6 +4,11 @@ export type DuplicateConfidence = "high" | "medium" | "none";
 /** Estado da linha em `request_public_projections`. */
 export type PublicationStatus = "published" | "suppressed";
 
+/** Guard de runtime para o estado vindo do banco. */
+export function isPublicationStatus(value: unknown): value is PublicationStatus {
+  return value === "published" || value === "suppressed";
+}
+
 /** Motivo determinístico de supressão de uma projeção pública. */
 export type SuppressionReason =
   | "inactive_status"

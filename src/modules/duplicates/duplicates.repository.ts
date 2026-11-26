@@ -1,7 +1,8 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
-import type { PublicationStatus } from "../../shared/types/duplicates.ts";
+import { isPublicationStatus, type PublicationStatus } from "../../shared/types/duplicates.ts";
 import {
+  COMPLETED_REQUEST_REDACTION_VERSION,
   COMPLETED_TEMPLATE_SUMMARY_MIDDLE,
   COMPLETED_TEMPLATE_SUMMARY_PREFIX,
   COMPLETED_TEMPLATE_SUMMARY_SUFFIX,
@@ -49,6 +50,8 @@ const PROJECTION_COLUMNS = [
 
 /** Janela padrão do corpus de concluídas, em meses (issue #210). */
 export const DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS = 3;
+const MIN_DUPLICATE_COMPLETED_WINDOW_MONTHS = 1;
+const MAX_DUPLICATE_COMPLETED_WINDOW_MONTHS = 36;
 
 /** Filtro único de publicação; espelha `isPublishedProjection`. */
 export const PUBLISHED_PROJECTION_FILTER = {
@@ -63,10 +66,6 @@ export function isPublishedProjection(
     projection.publication_status === PUBLISHED_PROJECTION_FILTER.publication_status &&
     projection.is_publicly_listable === PUBLISHED_PROJECTION_FILTER.is_publicly_listable
   );
-}
-
-function isPublicationStatus(value: unknown): value is PublicationStatus {
-  return value === "published" || value === "suppressed";
 }
 
 /**
@@ -142,13 +141,17 @@ export async function isDuplicateDetectionEnabled(trx?: Knex.Transaction): Promi
  */
 export async function getDuplicateCompletedWindowMonths(trx?: Knex.Transaction): Promise<number> {
   const source = trx ?? db;
-  const row: { duplicate_completed_window_months: number } | undefined = await source(
-    "system_settings",
-  )
+  const row: Record<string, unknown> | undefined = await source("system_settings")
     .where({ settings_id: 1 })
     .first("duplicate_completed_window_months");
 
-  return row?.duplicate_completed_window_months ?? DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS;
+  const windowMonths = row?.duplicate_completed_window_months;
+  return typeof windowMonths === "number" &&
+    Number.isInteger(windowMonths) &&
+    windowMonths >= MIN_DUPLICATE_COMPLETED_WINDOW_MONTHS &&
+    windowMonths <= MAX_DUPLICATE_COMPLETED_WINDOW_MONTHS
+    ? windowMonths
+    : DEFAULT_DUPLICATE_COMPLETED_WINDOW_MONTHS;
 }
 
 /**
@@ -160,9 +163,7 @@ export async function listPublishedProjections(
   trx?: Knex.Transaction,
 ): Promise<PublicProjectionRow[]> {
   const source = trx ?? db;
-  const windowMonths = trx
-    ? await getDuplicateCompletedWindowMonths(trx)
-    : await getDuplicateCompletedWindowMonths();
+  const windowMonths = await getDuplicateCompletedWindowMonths(trx);
 
   const rows: Record<string, unknown>[] = await source("request_public_projections")
     .where(PUBLISHED_PROJECTION_FILTER)
@@ -178,21 +179,21 @@ export async function listPublishedProjections(
 }
 
 /**
- * Varredura de expiração da janela (issue #210): concluídas publicadas fora da
+ * Varredura da janela (issue #210): concluídas publicadas e listáveis fora da
  * janela viram `suppressed`/`outside_window`. O texto livre é substituído pelo
  * template de concluída na mesma escrita, para que uma linha suprimida nunca
  * preserve texto que deixou de ser publicável.
  *
  * O relógio é o do banco (`now()`), o mesmo usado na publicação.
  */
-export async function suppressExpiredCompletedProjections(
+export async function suppressCompletedOutsideWindow(
   windowMonths: number,
   trx?: Knex.Transaction,
 ): Promise<number> {
   const source = trx ?? db;
 
   return source("request_public_projections")
-    .where({ publication_status: "published" })
+    .where(PUBLISHED_PROJECTION_FILTER)
     .whereNotNull("public_concluded_at")
     .whereRaw("public_concluded_at < now() - make_interval(months => ?)", [windowMonths])
     .update({
@@ -208,10 +209,40 @@ export async function suppressExpiredCompletedProjections(
         COMPLETED_TEMPLATE_SUMMARY_MIDDLE,
         COMPLETED_TEMPLATE_SUMMARY_SUFFIX,
       ]),
-      redaction_version: "v1-regex",
+      redaction_version: COMPLETED_REQUEST_REDACTION_VERSION,
       version: source.raw("version + 1"),
       updated_at: source.fn.now(),
     });
+}
+
+/**
+ * Candidatas à reconciliação no sentido inverso: linhas suprimidas por
+ * `outside_window` cuja conclusão voltou a ficar dentro da janela atual.
+ * A decisão de republicar é refeita por `publishRequestProjection`, que relê
+ * `requests` e reavalia todas as regras.
+ */
+export async function listSuppressedCompletedWithinWindow(
+  windowMonths: number,
+  trx?: Knex.Transaction,
+): Promise<string[]> {
+  const source = trx ?? db;
+  const rows: Record<string, unknown>[] = await source("request_public_projections")
+    .where({
+      publication_status: "suppressed",
+      suppression_reason: "outside_window",
+    })
+    .whereNotNull("public_concluded_at")
+    .whereRaw("public_concluded_at >= now() - make_interval(months => ?)", [windowMonths])
+    .orderBy("updated_at", "asc")
+    .select("request_id");
+
+  return rows.map((row) => {
+    const { request_id } = row;
+    if (typeof request_id !== "string") {
+      throw new Error("Linha inválida em request_public_projections.");
+    }
+    return request_id;
+  });
 }
 
 /**
