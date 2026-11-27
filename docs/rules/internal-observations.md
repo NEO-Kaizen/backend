@@ -26,12 +26,12 @@ processo, descrição, problema, resultado esperado, nome e e-mail do solicitant
 A nota só faz a solicitação corresponder; o conteúdo não é devolvido na resposta.
 
 A listagem usa o escopo da fila: o Analista vê solicitações em que é responsável
-de triagem ou de mapeamento. A correspondência por nota é mais estreita e usa a
-custódia de `internal_note:read`:
+de triagem ou de mapeamento. A correspondência por nota usa a custódia de
+`internal_note:read`, a mesma das notas:
 
-- Com `internal_note:read` em `assigned`, a busca por nota só encontra
-  solicitações em que o ator é o responsável; ser responsável de mapeamento
-  não amplia essa busca;
+- Com `internal_note:read` em `assigned`, a busca por nota encontra
+  solicitações em que o ator é o responsável da triagem **ou** o Designado do
+  mapeamento corrente;
 - Com custódia `all`, encontra todas;
 - Solicitante não acessa a busca interna.
 

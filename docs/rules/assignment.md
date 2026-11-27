@@ -25,12 +25,14 @@ Solicitações antigas mantêm o vínculo se o profissional for desativado;
 Designar o mapeamento desatribui a triagem (`requests.professional_id = null`).
 A ação precisa alinhar com o vínculo existente na solicitação:
 
-- **Só triagem:** `triage:*`, `pending_item:*` e `prioritization:write`.
+- **Só triagem:** `triage:*`, `pending_item:*`, `prioritization:write` e
+  `request:assign` (designação do Responsável da triagem).
   `pending_item:*` e `prioritization:write` repetem o comportamento anterior
   ao RBAC e **dependem de confirmação do Produto** — não são decisão fechada.
-- **Só mapeamento:** `mapping:*` — leitura, escrita de conteúdo e designação.
-  A triagem não edita nem designa o mapeamento; a primeira designação é feita
-  por Admin/Root.
+- **Só mapeamento:** `mapping:*` — leitura, escrita de conteúdo e designação
+  do Responsável do mapeamento. A triagem não edita nem designa o mapeamento;
+  a designação exige `mapping:write` com custódia do mapeamento corrente, e a
+  primeira designação é feita por Admin/Root.
 - **Qualquer um dos dois:** `request:read`, `request:write`,
   `request:status_change`, `internal_note:*`, `audit:read` e `queue:*`.
 

@@ -161,7 +161,6 @@ Este documento define **como escrever código** neste repositório. Ele não red
 - A especificação OpenAPI em `src/docs/` é a fonte única do contrato HTTP; o código consome o contrato, não o redefine no handler. Swagger UI e `/api-docs/swagger.json` a expõem.
 - Alteração de rota, payload, resposta ou status code atualiza `src/docs/` e `docs/openapi.json` (`npm run docs:openapi`) no mesmo PR; `npm run check` falha se as rotas reais e a spec divergirem.
 - Regras de negócio — o que o domínio decide, não o formato do fio — vivem em `docs/rules/`.
-- Exemplos de contrato não contêm PII.
 - Decisões de arquitetura que sejam difíceis de reverter viram ADR em `docs/adr/`.
 - Exemplos de contrato não contêm PII.
 - Use o vocabulário do `GLOSSARY.md` em títulos, mensagens e documentos.
