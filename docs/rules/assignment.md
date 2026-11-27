@@ -14,10 +14,24 @@ Um profissional é atribuível quando, ao mesmo tempo:
 
 1. `details_professional.status = 'active'`;
 2. `users.is_active = true`;
-3. o perfil é `analista`.
+3. o Perfil está ativo, tem a flag da etapa (`is_assignable_triage` ou
+   `is_assignable_mapping`) e o predicado de chaves exigido.
 
 Solicitações antigas mantêm o vínculo se o profissional for desativado;
 `ON DELETE SET NULL` só age em exclusão física.
+
+## Leitura no fluxo de mapeamento
+
+Designar o mapeamento desatribui a triagem (`requests.professional_id = null`).
+Por isso `request:read` e `audit:read` aceitam o Responsável da triagem **ou** o
+Designado do mapeamento corrente. A escrita (`request:write`), a atribuição
+(`request:assign`) e a troca de Status (`request:status_change`) continuam
+exclusivas do Responsável da triagem.
+
+A visão interna do Designado do mapeamento sai sem Observações internas
+(`internalObservations: null`) e com os blocos de Pendência zerados
+(`pendingSummary`/`unread` zerados, `correctionAlert: null`), porque ele não tem
+`internal_note:read` nem `pending_item:read` na linha.
 
 > Incluir `gestor` como atribuível é uma decisão pendente; ver
 > [`README.md`](README.md).

@@ -10,8 +10,12 @@ A Linha do tempo privada combina três fontes:
 
 ## Acesso
 
-Perfis internos com `internal_note:read`. O gate é o da rota; a Linha do
-tempo não reaplica a custódia.
+Perfis internos com `internal_note:read` + Custódia. O gate é o da rota; a
+Linha do tempo não reaplica a custódia.
+
+Quem lê a visão interna sem `internal_note:read` na linha — por exemplo, o
+Designado do mapeamento — recebe `internalObservations: null`, mesmo que a
+solicitação tenha observações gravadas.
 
 ## Busca
 

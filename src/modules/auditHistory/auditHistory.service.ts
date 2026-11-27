@@ -1,9 +1,9 @@
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
   custodyFor,
-  hasResponsibleCustody,
+  denyRequestAccess,
+  hasAnyResponsibleCustody,
   recordAccessDeniedAttempt,
-  requireResponsibleCustody,
 } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import type {
@@ -120,7 +120,11 @@ export async function getAuditHistoryDetail(
     const protocol = await repository.findAuditTargetProtocol(row.entity_type, row.entity_id);
     const request = protocol ? await findRequestStatusContext(protocol) : undefined;
     const isVisible =
-      request !== undefined && hasResponsibleCustody(actor, "audit:read", request.assignee_user_id);
+      request !== undefined &&
+      hasAnyResponsibleCustody(actor, "audit:read", [
+        request.assignee_user_id,
+        request.mapping_assignee_user_id,
+      ]);
 
     if (!isVisible) {
       await recordAccessDeniedAttempt(
@@ -149,15 +153,18 @@ export async function listAuditLogsByProtocol(
 ): Promise<AuditHistoryDetail[]> {
   const normalized = protocol.trim();
 
-  const request = await requireResponsibleCustody(
-    await findRequestStatusContext(normalized),
-    actor,
-    "audit:read",
-    normalized,
-    ipAddress,
-    "audit:read sem custódia",
-    (row) => row.assignee_user_id,
-  );
+  const request = await findRequestStatusContext(normalized);
+  if (
+    !request ||
+    !hasAnyResponsibleCustody(actor, "audit:read", [
+      request.assignee_user_id,
+      request.mapping_assignee_user_id,
+    ])
+  ) {
+    return denyRequestAccess(normalized, actor.id, ipAddress, "audit:read sem custódia", [
+      "audit:read",
+    ]);
+  }
 
   const rows = await repository.listAuditHistoryByProtocol(request.protocol);
   return rows.map((row) => toDetail(row));

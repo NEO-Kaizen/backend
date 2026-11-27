@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **199**.
 - Tipos nomeados: **388** — 265 interfaces, 121 aliases `type`, 2 classes e 0 enums.
-- Declarações sem anotação explícita: **2301** — 1682 variáveis, 306 parâmetros e 313 retornos de funções/métodos.
+- Declarações sem anotação explícita: **2305** — 1684 variáveis, 307 parâmetros e 314 retornos de funções/métodos.
 - Declarações com tipo efetivo `any` detectado pelo checker: **50**; ocorrências com a palavra-chave `any` explícita no código-fonte: **0**.
 - Arquivos com pelo menos uma declaração sem anotação: **151**; arquivos sem ocorrências são omitidos das seções 2 e 3.
 - Erros de typecheck no momento da geração: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -2211,7 +2211,7 @@ export type UpdateStatusPayload = z.infer<typeof updateStatusSchema>;
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-#### L86 — interface AuthenticatedIdentity
+#### L87 — interface AuthenticatedIdentity
 
 ```ts
 interface AuthenticatedIdentity {
@@ -2220,13 +2220,13 @@ interface AuthenticatedIdentity {
 }
 ```
 
-#### L91 — alias RequestActor
+#### L92 — alias RequestActor
 
 ```ts
 type RequestActor = PermissionActor;
 ```
 
-#### L93 — interface RequestMutationAcknowledgement
+#### L94 — interface RequestMutationAcknowledgement
 
 ```ts
 interface RequestMutationAcknowledgement {
@@ -2235,7 +2235,7 @@ interface RequestMutationAcknowledgement {
 }
 ```
 
-#### L486 — interface TrackingCaller
+#### L519 — interface TrackingCaller
 
 ```ts
 export interface TrackingCaller {
@@ -2244,7 +2244,7 @@ export interface TrackingCaller {
 }
 ```
 
-#### L731 — interface InternalRequestRow
+#### L764 — interface InternalRequestRow
 
 ```ts
 interface InternalRequestRow {
@@ -4836,13 +4836,11 @@ interface GroupedIssues {
 - L120 — variável: `protocol`
 - L121 — variável: `request`
 - L122 — variável: `isVisible`
-- L150 — variável: `normalized`
-- L152 — variável: `request`
-- L159 — parâmetro: `row`
-- L159 — retorno da função: `<anônima>()`
-- L162 — variável: `rows`
-- L163 — parâmetro: `row`
-- L163 — retorno da função: `<anônima>()`
+- L154 — variável: `normalized`
+- L156 — variável: `request`
+- L169 — variável: `rows`
+- L170 — parâmetro: `row`
+- L170 — retorno da função: `<anônima>()`
 
 ### [src/modules/auth/auth.controller.ts](../src/modules/auth/auth.controller.ts)
 
@@ -6282,139 +6280,141 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-- L125 — variável: `user`
-- L138 — variável: `normalizedProtocol`
-- L140 — variável: `found`
-- L150 — variável: `identity`
-- L151 — variável: `isOwner`
-- L167 — retorno da função: `registerRequest()`
-- L175 — variável: `payload`
-- L181 — variável: `err`
-- L191 — variável: `identity`
-- L208 — variável: `email`
-- L217 — variável: `normalizedEmail`
-- L253 — parâmetro: `value`
-- L253 — retorno da função: `<anônima>()`
-- L261 — variável: `request`
-- L270 — parâmetro: `row`
-- L270 — retorno da função: `<anônima>()`
-- L274 — variável: `requestId`
-- L275 — variável: `[attachments, schedulePreferences, evaluation]`
-- L284 — variável: `meeting`
-- L292 — retorno da função: `<anônima>()`
-- L292 — variável: `pendingSummary`
-- L294 — variável: `summary`
-- L295 — variável: `correctionAlert`
-- L296 — variável: `unreadRaw`
-- L335 — variável: `openedAt`
-- L336 — variável: `lastUpdate`
-- L338 — variável: `assigneeUserId`
-- L339 — variável: `mappingUserId`
-- L341 — variável: `assignee`
-- L350 — variável: `mappingAssignee`
-- L414 — parâmetro: `row`
-- L414 — retorno da função: `<anônima>()`
-- L418 — parâmetro: `attachment`
-- L418 — retorno da função: `<anônima>()`
-- L455 — variável: `trimmed`
-- L462 — variável: `record`
-- L466 — variável: `{ __triage: _triage, observations: _obs, ...rest }`
-- L491 — variável: `TRACKING_INVALID_IDENTITY`
-- L494 — variável: `scheduledFor`
-- L560 — variável: `openedAt`
-- L581 — variável: `requestId`
-- L582 — variável: `[attachments, schedulePreferences]`
-- L587 — variável: `meeting`
-- L588 — variável: `complementary`
-- L591 — variável: `{ impacts, ...base }`
-- L613 — parâmetro: `preference`
-- L613 — retorno da função: `<anônima>()`
-- L618 — parâmetro: `attachment`
-- L618 — retorno da função: `<anônima>()`
-- L650 — variável: `row`
-- L670 — variável: `mode`
-- L681 — variável: `row`
-- L686 — variável: `nameOk`
-- L689 — variável: `emailOk`
-- L711 — variável: `normalizedProtocol`
-- L838 — variável: `request`
-- L844 — parâmetro: `row`
-- L844 — retorno da função: `<anônima>()`
-- L848 — parâmetro: `trx`
-- L848 — retorno da função: `<anônima>()`
-- L867 — variável: `updatedRequest`
-- L886 — variável: `RN010_ELIGIBLE_SCREENING`
-- L923 — variável: `candidate`
-- L924 — variável: `assignable`
-- L938 — variável: `candidate`
-- L939 — variável: `assignable`
-- L956 — variável: `error`
-- L980 — variável: `request`
-- L986 — parâmetro: `row`
-- L986 — retorno da função: `<anônima>()`
-- L992 — variável: `assignee`
-- L995 — retorno da função: `<anônima>()`
-- L999 — variável: `previousId`
-- L1000 — variável: `nextId`
-- L1002 — variável: `auditNext`
-- L1003 — variável: `auditPrev`
-- L1006 — variável: `action`
-- L1008 — variável: `shouldAdvanceStatus`
-- L1016 — variável: `previousMapping`
-- L1017 — variável: `auditPrevMapping`
-- L1023 — parâmetro: `trx`
-- L1023 — retorno da função: `<anônima>()`
-- L1026 — variável: `auditId`
-- L1104 — variável: `request`
-- L1110 — parâmetro: `row`
-- L1110 — retorno da função: `<anônima>()`
-- L1116 — variável: `hasAssignee`
-- L1117 — variável: `hasMapping`
-- L1122 — variável: `raw`
-- L1124 — variável: `previous`
-- L1125 — variável: `auditPrev`
-- L1128 — parâmetro: `trx`
-- L1128 — retorno da função: `<anônima>()`
-- L1145 — retorno da função: `<anônima>()`
-- L1145 — variável: `resolved`
-- L1148 — variável: `previous`
-- L1149 — variável: `auditPrev`
-- L1152 — variável: `previousMapping`
-- L1153 — variável: `auditPrevMapping`
-- L1156 — variável: `action`
-- L1157 — variável: `shouldAdvance`
-- L1160 — parâmetro: `trx`
-- L1160 — retorno da função: `<anônima>()`
-- L1167 — variável: `auditId`
-- L1224 — variável: `raw`
-- L1226 — variável: `previous`
-- L1227 — variável: `auditPrev`
-- L1230 — parâmetro: `trx`
-- L1230 — retorno da função: `<anônima>()`
-- L1247 — retorno da função: `<anônima>()`
-- L1247 — variável: `resolved`
-- L1250 — variável: `previous`
-- L1251 — variável: `auditPrev`
-- L1254 — variável: `previousAssignee`
-- L1255 — variável: `auditPrevAssignee`
-- L1258 — variável: `action`
-- L1259 — parâmetro: `trx`
-- L1259 — retorno da função: `<anônima>()`
-- L1266 — variável: `auditId`
-- L1314 — variável: `updatedRequest`
-- L1386 — variável: `request`
-- L1392 — parâmetro: `row`
-- L1392 — retorno da função: `<anônima>()`
-- L1396 — variável: `target`
-- L1415 — variável: `requiresOverride`
-- L1417 — variável: `hasStatusOverride`
-- L1440 — variável: `changeOrigin`
-- L1442 — parâmetro: `trx`
-- L1442 — retorno da função: `<anônima>()`
-- L1442 — variável: `{ lastUpdate, committed }`
-- L1443 — variável: `persistedAt`
-- L1455 — variável: `auditId`
-- L1480 — variável: `committedNotifications`
+- L126 — variável: `user`
+- L139 — variável: `normalizedProtocol`
+- L141 — variável: `found`
+- L151 — variável: `identity`
+- L152 — variável: `isOwner`
+- L168 — retorno da função: `registerRequest()`
+- L176 — variável: `payload`
+- L182 — variável: `err`
+- L192 — variável: `identity`
+- L209 — variável: `email`
+- L218 — variável: `normalizedEmail`
+- L254 — parâmetro: `value`
+- L254 — retorno da função: `<anônima>()`
+- L262 — variável: `request`
+- L274 — parâmetro: `row`
+- L274 — retorno da função: `<anônima>()`
+- L284 — variável: `canReadInternalNotes`
+- L289 — variável: `canReadPendingItems`
+- L295 — variável: `requestId`
+- L296 — variável: `[attachments, schedulePreferences, evaluation]`
+- L305 — variável: `meeting`
+- L315 — retorno da função: `<anônima>()`
+- L315 — variável: `pendingSummary`
+- L325 — variável: `summary`
+- L326 — variável: `correctionAlert`
+- L327 — variável: `unreadRaw`
+- L366 — variável: `openedAt`
+- L367 — variável: `lastUpdate`
+- L369 — variável: `assigneeUserId`
+- L370 — variável: `mappingUserId`
+- L372 — variável: `assignee`
+- L381 — variável: `mappingAssignee`
+- L445 — parâmetro: `row`
+- L445 — retorno da função: `<anônima>()`
+- L449 — parâmetro: `attachment`
+- L449 — retorno da função: `<anônima>()`
+- L488 — variável: `trimmed`
+- L495 — variável: `record`
+- L499 — variável: `{ __triage: _triage, observations: _obs, ...rest }`
+- L524 — variável: `TRACKING_INVALID_IDENTITY`
+- L527 — variável: `scheduledFor`
+- L593 — variável: `openedAt`
+- L614 — variável: `requestId`
+- L615 — variável: `[attachments, schedulePreferences]`
+- L620 — variável: `meeting`
+- L621 — variável: `complementary`
+- L624 — variável: `{ impacts, ...base }`
+- L646 — parâmetro: `preference`
+- L646 — retorno da função: `<anônima>()`
+- L651 — parâmetro: `attachment`
+- L651 — retorno da função: `<anônima>()`
+- L683 — variável: `row`
+- L703 — variável: `mode`
+- L714 — variável: `row`
+- L719 — variável: `nameOk`
+- L722 — variável: `emailOk`
+- L744 — variável: `normalizedProtocol`
+- L871 — variável: `request`
+- L877 — parâmetro: `row`
+- L877 — retorno da função: `<anônima>()`
+- L881 — parâmetro: `trx`
+- L881 — retorno da função: `<anônima>()`
+- L900 — variável: `updatedRequest`
+- L922 — variável: `RN010_ELIGIBLE_SCREENING`
+- L959 — variável: `candidate`
+- L960 — variável: `assignable`
+- L974 — variável: `candidate`
+- L975 — variável: `assignable`
+- L992 — variável: `error`
+- L1016 — variável: `request`
+- L1022 — parâmetro: `row`
+- L1022 — retorno da função: `<anônima>()`
+- L1028 — variável: `assignee`
+- L1031 — retorno da função: `<anônima>()`
+- L1035 — variável: `previousId`
+- L1036 — variável: `nextId`
+- L1038 — variável: `auditNext`
+- L1039 — variável: `auditPrev`
+- L1042 — variável: `action`
+- L1044 — variável: `shouldAdvanceStatus`
+- L1052 — variável: `previousMapping`
+- L1053 — variável: `auditPrevMapping`
+- L1059 — parâmetro: `trx`
+- L1059 — retorno da função: `<anônima>()`
+- L1062 — variável: `auditId`
+- L1140 — variável: `request`
+- L1146 — parâmetro: `row`
+- L1146 — retorno da função: `<anônima>()`
+- L1152 — variável: `hasAssignee`
+- L1153 — variável: `hasMapping`
+- L1158 — variável: `raw`
+- L1160 — variável: `previous`
+- L1161 — variável: `auditPrev`
+- L1164 — parâmetro: `trx`
+- L1164 — retorno da função: `<anônima>()`
+- L1181 — retorno da função: `<anônima>()`
+- L1181 — variável: `resolved`
+- L1184 — variável: `previous`
+- L1185 — variável: `auditPrev`
+- L1188 — variável: `previousMapping`
+- L1189 — variável: `auditPrevMapping`
+- L1192 — variável: `action`
+- L1193 — variável: `shouldAdvance`
+- L1196 — parâmetro: `trx`
+- L1196 — retorno da função: `<anônima>()`
+- L1203 — variável: `auditId`
+- L1260 — variável: `raw`
+- L1262 — variável: `previous`
+- L1263 — variável: `auditPrev`
+- L1266 — parâmetro: `trx`
+- L1266 — retorno da função: `<anônima>()`
+- L1283 — retorno da função: `<anônima>()`
+- L1283 — variável: `resolved`
+- L1286 — variável: `previous`
+- L1287 — variável: `auditPrev`
+- L1290 — variável: `previousAssignee`
+- L1291 — variável: `auditPrevAssignee`
+- L1294 — variável: `action`
+- L1295 — parâmetro: `trx`
+- L1295 — retorno da função: `<anônima>()`
+- L1302 — variável: `auditId`
+- L1350 — variável: `updatedRequest`
+- L1425 — variável: `request`
+- L1431 — parâmetro: `row`
+- L1431 — retorno da função: `<anônima>()`
+- L1435 — variável: `target`
+- L1454 — variável: `requiresOverride`
+- L1456 — variável: `hasStatusOverride`
+- L1479 — variável: `changeOrigin`
+- L1481 — parâmetro: `trx`
+- L1481 — retorno da função: `<anônima>()`
+- L1481 — variável: `{ lastUpdate, committed }`
+- L1482 — variável: `persistedAt`
+- L1494 — variável: `auditId`
+- L1519 — variável: `committedNotifications`
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
@@ -6755,10 +6755,14 @@ interface GroupedIssues {
 - L51 — parâmetro: `permission`
 - L51 — retorno da função: `<anônima>()`
 - L60 — variável: `custody`
-- L72 — variável: `responsibleId`
-- L91 — variável: `requesterUserId`
-- L113 — parâmetro: `trx`
-- L113 — retorno da função: `<anônima>()`
+- L85 — variável: `responsibleIds`
+- L86 — parâmetro: `value`
+- L86 — retorno da função: `<anônima>()`
+- L87 — parâmetro: `value`
+- L87 — retorno da função: `<anônima>()`
+- L103 — variável: `requesterUserId`
+- L125 — parâmetro: `trx`
+- L125 — retorno da função: `<anônima>()`
 
 ### [src/shared/audit/accessDenied.ts](../src/shared/audit/accessDenied.ts)
 
@@ -7300,7 +7304,7 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-- L253 — parâmetro: `value`
+- L254 — parâmetro: `value`
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 

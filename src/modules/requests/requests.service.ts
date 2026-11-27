@@ -74,6 +74,7 @@ import type {
 import {
   custodyFor,
   denyRequestAccess,
+  hasAnyResponsibleCustody,
   hasResponsibleCustody,
   isRequesterOwner,
   recordAccessDeniedAttempt,
@@ -267,8 +268,28 @@ export async function findInternalByProtocol(
     protocol,
     ipAddress,
     "request:read sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:read", row["assignee_user_id"]),
+    // A visão interna é legível pelo Responsável da triagem **ou** do
+    // Mapeamento corrente: designar o mapeamento zera `professional_id` por
+    // exclusividade, e o designado não pode perder a leitura da linha.
+    (row) =>
+      hasAnyResponsibleCustody(actor, "request:read", [
+        row["assignee_user_id"],
+        row["mapping_user_id"],
+      ]),
     ["request:read"],
+  );
+
+  // Blocos sensíveis do DTO seguem as chaves próprias: o designado do
+  // mapeamento lê a solicitação, mas não Observações internas nem Pendências.
+  const canReadInternalNotes = hasResponsibleCustody(
+    actor,
+    "internal_note:read",
+    request["assignee_user_id"],
+  );
+  const canReadPendingItems = hasResponsibleCustody(
+    actor,
+    "pending_item:read",
+    request["assignee_user_id"],
   );
 
   const requestId = request["request_id"] as string;
@@ -288,8 +309,18 @@ export async function findInternalByProtocol(
       }
     : null;
 
-  // Pendências (contract-pendencias_03): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
+  // Pendências (contract-pendencias_03): pendingSummary/unread/correctionAlert
+  // derivados sem tabela de leitura. Sem `pending_item:read` na linha, o bloco
+  // sai vazio em vez de expor a existência de pendências.
   const pendingSummary = await (async () => {
+    if (!canReadPendingItems) {
+      return {
+        summary: { total: 0, requested: 0, responded: 0, validated: 0 },
+        correctionAlert: null,
+        unread: { count: 0, hasUnread: false, lastUnreadAt: null as string | null },
+      };
+    }
+
     try {
       const summary = await pendingItemsRepo.pendingSummaryByRequestId(requestId);
       const correctionAlert = await pendingItemsRepo.findCorrectionAlert(requestId);
@@ -424,7 +455,9 @@ export async function findInternalByProtocol(
     })),
     openedAt,
     lastUpdate,
-    internalObservations: extractInternalObservations(request["internal_notes"] as string | null),
+    internalObservations: canReadInternalNotes
+      ? extractInternalObservations(request["internal_notes"] as string | null)
+      : null,
   };
 }
 
@@ -867,7 +900,10 @@ export async function updateInternalRequest(
   const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (
     updatedRequest &&
-    hasResponsibleCustody(actor, "request:read", updatedRequest.assignee_user_id)
+    hasAnyResponsibleCustody(actor, "request:read", [
+      updatedRequest.assignee_user_id,
+      updatedRequest.mapping_assignee_user_id,
+    ])
   ) {
     return findInternalByProtocol(protocol.trim(), actor, ipAddress);
   }
@@ -1314,7 +1350,10 @@ export async function assignAnalyst(
   const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (
     updatedRequest &&
-    hasResponsibleCustody(actor, "request:read", updatedRequest.assignee_user_id)
+    hasAnyResponsibleCustody(actor, "request:read", [
+      updatedRequest.assignee_user_id,
+      updatedRequest.mapping_assignee_user_id,
+    ])
   ) {
     return findInternalByProtocol(protocol.trim(), actor, ipAddress);
   }

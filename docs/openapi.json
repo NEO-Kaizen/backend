@@ -3251,7 +3251,7 @@
       "get": {
         "tags": ["Solicitações"],
         "summary": "Consulta administrativa de solicitação",
-        "description": "Retorna os blocos completos, status, priorização, responsáveis, anexos, pendências e estado de leitura. Requer perfil Analista (restrito às solicitações atribuídas), Gestor ou Administrador.",
+        "description": "Retorna os blocos completos, status, priorização, responsáveis, anexos, pendências e estado de leitura. Exige `request:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente. Sem `internal_note:read` na linha, `internalObservations` vem `null`; sem `pending_item:read`, `pendingSummary`/`unread` vêm zerados e `correctionAlert` vem `null`.",
         "operationId": "getInternalRequestByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -3279,13 +3279,13 @@
             }
           },
           "403": {
-            "description": "Sem `request:assign` ou Custódia da linha.",
+            "description": "Sem `request:read` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente (`request_not_found`).",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5819,7 +5819,7 @@
       "get": {
         "tags": ["Auditoria"],
         "summary": "Linha do tempo de auditoria por protocolo",
-        "description": "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Exige `audit:read` + Custódia da solicitação.",
+        "description": "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Exige `audit:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente.",
         "operationId": "getAuditLogsByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [

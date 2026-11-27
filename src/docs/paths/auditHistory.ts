@@ -73,7 +73,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Linha do tempo de auditoria por protocolo",
       description:
-        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Exige `audit:read` + Custódia da solicitação.",
+        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Exige `audit:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente.",
       operationId: "getAuditLogsByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],

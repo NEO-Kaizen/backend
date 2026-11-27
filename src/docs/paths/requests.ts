@@ -177,15 +177,17 @@ export default {
       summary: "Consulta administrativa de solicitação",
       description:
         "Retorna os blocos completos, status, priorização, responsáveis, anexos, pendências e estado de leitura. " +
-        "Requer perfil Analista (restrito às solicitações atribuídas), Gestor ou Administrador.",
+        "Exige `request:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente. " +
+        "Sem `internal_note:read` na linha, `internalObservations` vem `null`; sem `pending_item:read`, " +
+        "`pendingSummary`/`unread` vêm zerados e `correctionAlert` vem `null`.",
       operationId: "getInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
       responses: {
         "200": { description: "Detalhe interno da solicitação.", ...json("InternalRequestDetail") },
         "401": error("Sem cookie ou token inválido/expirado."),
-        "403": error("Sem `request:assign` ou Custódia da linha."),
-        "404": error("Protocolo inexistente (`request_not_found`)."),
+        "403": error("Sem `request:read` ou Custódia da linha."),
+        "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
       },
     },
     patch: {
