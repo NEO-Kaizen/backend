@@ -3342,13 +3342,13 @@
             }
           },
           "403": {
-            "description": "Sem `request:write` ou Custódia da linha.",
+            "description": "Sem `request:write`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente (`request_not_found`).",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3576,13 +3576,13 @@
             }
           },
           "403": {
-            "description": "Sem `request:status_change` + Custódia; alvo restrito ou fora do modo `free` exige `request:status_override` global (`request_status_override_required`).",
+            "description": "Sem `request:status_change`; alvo restrito ou fora do modo `free` exige `request:status_override` global (`request_status_override_required`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo ou status de destino inexistente.",
+            "description": "Protocolo inexistente, fora da Custódia ou status de destino inexistente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3648,13 +3648,13 @@
             }
           },
           "403": {
-            "description": "Sem `request:assign` ou Custódia da linha.",
+            "description": "Sem `request:assign`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente (`request_not_found`).",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3709,13 +3709,13 @@
             }
           },
           "403": {
-            "description": "Sem `request:assign` ou Custódia da linha.",
+            "description": "Sem `request:assign`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente (`request_not_found`).",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
