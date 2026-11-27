@@ -55,6 +55,19 @@ export const getTracking = async (req: Request, res: Response): Promise<Response
   return res.status(200).json(response);
 };
 
+// Seção de duplicidade do Acompanhamento (RF16 — issue #211). Mesma credencial
+// dual e mesmo recorte do `tracking`; o service exclui a própria Solicitação.
+export const getRequestDuplicates = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+
+  const response = await service.getRequestDuplicates(protocol, {
+    user: req.user,
+    requesterIdentity: req.requesterIdentity ?? null,
+  });
+
+  return res.status(200).json(response);
+};
+
 // Consulta administrativa/interna (issue #48) — difere de getRequestsByProtocol
 // (pública, issue #34): exige autenticação e perfil interno (ver
 // requests.router.ts) e retorna o DTO interno completo (RequestInternalDetailDTO).

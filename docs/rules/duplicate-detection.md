@@ -6,10 +6,10 @@ registros nem altera Status**: a Marcação de duplicidade continua sendo o ato
 formal do RF25.
 
 A implementação cobre o corpus de Solicitações **abertas** (issue #209) e
-**concluídas com texto tarjado dentro da janela** (issue #210), o índice lexical
-e o `POST /requests/duplicates/check`. O Acompanhamento pertence à #211; a
-administração da flag/janela/allowlists à #212; canário, calibração e carga à
-#213.
+**concluídas com texto tarjado dentro da janela** (issue #210), o índice lexical,
+o `POST /requests/duplicates/check` e a seção do Acompanhamento em
+`GET /requests/:protocol/duplicates` (issue #211). A administração da
+flag/janela/allowlists pertence à #212; canário, calibração e carga à #213.
 
 ## Corpus público
 
@@ -267,6 +267,20 @@ O texto da consulta não é ecoado, auditado nem logado. O endpoint nunca devolv
 Protocolo, score, total, contagem, Notas internas, Triagem, Prioridade,
 Responsável, Anexos ou PII de terceiros.
 
+`GET /requests/:protocol/duplicates` (issue #211):
+
+- exige `requesterDualAuth` e espelha a autorização do
+  `GET /requests/:protocol/tracking`: sessão do Solicitante dono ou identidade
+  pública (`X-Requester-Identity`) no modo `PUBLIC`;
+- perfil interno responde `403` com a mesma mensagem do Acompanhamento;
+- sem identidade, identidade divergente ou protocolo inexistente/de terceiro
+  respondem com o mesmo erro genérico do Acompanhamento (`401`/`404`);
+- usa o mesmo corpus, índice, regra de confiança e DTO do alerta, com no máximo
+  5 itens;
+- exclui a própria Solicitação pelo `request_id` da projeção publicada; se ela
+  não estiver publicada, responde `200` com lista vazia;
+- flag desligada ou índice indisponível também degradam para `200` vazio.
+
 ## Privacidade
 
 - A busca só lê a projeção pública; a base interna fica fora do caminho.
@@ -279,7 +293,6 @@ Responsável, Anexos ou PII de terceiros.
 
 ## Fora do escopo desta fatia
 
-- `GET /requests/:protocol/duplicates` (issue #211).
 - `PATCH /portal-config/duplicates`, `/categories` e `/statuses` (issue #212),
   incluindo a republicação ao aumentar a janela.
 - Marcação de duplicidade do RF25.

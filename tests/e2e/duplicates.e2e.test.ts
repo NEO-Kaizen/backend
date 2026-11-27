@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DemandBlock } from "../../src/shared/types/requests.ts";
+import type { DemandBlock, InternalRequestRow } from "../../src/shared/types/requests.ts";
+import { makeAuthState, makeToken } from "../helpers/factories.ts";
 import {
   expectErrorEnvelope,
   startTestServer,
@@ -22,16 +23,23 @@ vi.mock("../../src/modules/portalConfig/portalConfig.repository.ts", () => ({
 
 vi.mock("../../src/modules/duplicates/duplicates.repository.ts", () => ({
   isDuplicateDetectionEnabled: vi.fn(),
+  findPublishedPublicIdByRequestId: vi.fn(),
 }));
 
 vi.mock("../../src/modules/duplicates/indexLifecycle.ts", () => ({
   searchDuplicateIndex: vi.fn(),
 }));
 
+vi.mock("../../src/modules/requests/requests.repository.ts", () => ({
+  findInternalRequestByProtocol: vi.fn(),
+}));
+
+const authRepository = await import("../../src/modules/auth/auth.repository.ts");
 const portalConfigRepository =
   await import("../../src/modules/portalConfig/portalConfig.repository.ts");
 const duplicatesRepository = await import("../../src/modules/duplicates/duplicates.repository.ts");
 const indexLifecycle = await import("../../src/modules/duplicates/indexLifecycle.ts");
+const requestsRepository = await import("../../src/modules/requests/requests.repository.ts");
 
 const DEMAND: DemandBlock = {
   title: "Automatizar conciliação bancária",
@@ -148,5 +156,114 @@ describe("E2E — POST /requests/duplicates/check", () => {
     expectErrorEnvelope(response, { statusCode: 401 });
     expect(duplicatesRepository.isDuplicateDetectionEnabled).not.toHaveBeenCalled();
     expect(indexLifecycle.searchDuplicateIndex).not.toHaveBeenCalled();
+  });
+});
+
+function makeRequestRow(overrides: Partial<InternalRequestRow> = {}): InternalRequestRow {
+  return {
+    request_id: "42",
+    requester_user_id: 1,
+    requester_name: "Maria Solicitante",
+    requester_email: "maria@neo.com",
+    title: DEMAND.title,
+    request_type: DEMAND.requestType,
+    category: DEMAND.category,
+    process_name: DEMAND.processName,
+    need_description: DEMAND.description,
+    problem_opportunity: DEMAND.problem,
+    expected_result: DEMAND.expectedResult,
+    justification: DEMAND.justification,
+    ...overrides,
+  } as unknown as InternalRequestRow;
+}
+
+const OWN_PUBLIC_ID = "11111111-1111-4111-8111-111111111111";
+const PROTOCOL = "MAAT-ABCD-EFGH";
+
+function mockSolicitanteSession(): void {
+  vi.mocked(authRepository.getAuthState).mockResolvedValue(
+    makeAuthState({ profile_name: "solicitante" }),
+  );
+}
+
+function solicitanteCookie(): Record<string, string> {
+  return { cookie: `session_id=${makeToken({ id: "1", role: "Solicitante" })}` };
+}
+
+describe("E2E — GET /requests/:protocol/duplicates", () => {
+  it("exige identidade no modo PUBLIC (401 genérico)", async () => {
+    const client = new TestClient(server.baseUrl);
+    const response = await client.get(`/requests/${PROTOCOL}/duplicates`);
+
+    expectErrorEnvelope(response, { statusCode: 401 });
+    expect(requestsRepository.findInternalRequestByProtocol).not.toHaveBeenCalled();
+  });
+
+  it("recusa perfil interno com o mesmo 403 do Acompanhamento", async () => {
+    vi.mocked(authRepository.getAuthState).mockResolvedValue(
+      makeAuthState({ profile_name: "analista" }),
+    );
+
+    const token = makeToken({ id: "1", role: "Analista", email: "maria@neo.com" });
+    const client = new TestClient(server.baseUrl);
+    const response = await client.get(`/requests/${PROTOCOL}/duplicates`, {
+      cookie: `session_id=${token}`,
+    });
+
+    expectErrorEnvelope(response, {
+      statusCode: 403,
+      message: "Perfis internos devem acompanhar pela consulta interna.",
+    });
+    expect(requestsRepository.findInternalRequestByProtocol).not.toHaveBeenCalled();
+  });
+
+  it("terceiro autenticado recebe 404 sem revelar a existência", async () => {
+    mockSolicitanteSession();
+    vi.mocked(requestsRepository.findInternalRequestByProtocol).mockResolvedValue(
+      makeRequestRow({ requester_user_id: 2 }),
+    );
+
+    const client = new TestClient(server.baseUrl);
+    const response = await client.get(`/requests/${PROTOCOL}/duplicates`, solicitanteCookie());
+
+    expectErrorEnvelope(response, { statusCode: 404, message: /encontrado/ });
+  });
+
+  it("sessão do dono devolve o DTO do alerta e exclui a própria Solicitação", async () => {
+    mockSolicitanteSession();
+    vi.mocked(requestsRepository.findInternalRequestByProtocol).mockResolvedValue(makeRequestRow());
+    vi.mocked(duplicatesRepository.findPublishedPublicIdByRequestId).mockResolvedValue(
+      OWN_PUBLIC_ID,
+    );
+    vi.mocked(indexLifecycle.searchDuplicateIndex).mockReturnValue([
+      { ...ITEM, publicId: OWN_PUBLIC_ID, score: 2 },
+      { ...ITEM, score: 1 },
+    ]);
+
+    const client = new TestClient(server.baseUrl);
+    const response = await client.get(`/requests/${PROTOCOL}/duplicates`, solicitanteCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ confidence: "high", items: [ITEM] });
+    expect(duplicatesRepository.findPublishedPublicIdByRequestId).toHaveBeenCalledWith("42");
+  });
+
+  it("identidade pública válida devolve a seção no modo PUBLIC", async () => {
+    vi.mocked(requestsRepository.findInternalRequestByProtocol).mockResolvedValue(makeRequestRow());
+    vi.mocked(duplicatesRepository.findPublishedPublicIdByRequestId).mockResolvedValue(
+      OWN_PUBLIC_ID,
+    );
+    vi.mocked(indexLifecycle.searchDuplicateIndex).mockReturnValue([{ ...ITEM, score: 1 }]);
+
+    const client = new TestClient(server.baseUrl);
+    const response = await client.get(`/requests/${PROTOCOL}/duplicates`, {
+      "x-requester-identity": JSON.stringify({
+        name: "Maria Solicitante",
+        email: "maria@neo.com",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ confidence: "high", items: [ITEM] });
   });
 });

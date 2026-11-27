@@ -358,6 +358,42 @@ export default {
     },
   },
 
+  "/requests/{protocol}/duplicates": {
+    get: {
+      tags: ["Solicitações"],
+      summary: "Solicitações com características em comum no Acompanhamento",
+      description:
+        "Seção do Acompanhamento (RF16 — issue #211). Usa a mesma credencial dual do `tracking`: cookie de sessão do Solicitante ou `X-Requester-Identity` no modo `PUBLIC`. " +
+        "Espelha a autorização do Acompanhamento (dono, modo de acesso e perfil interno recusado) e exclui a própria Solicitação. " +
+        "Se a própria Solicitação não estiver publicada, a resposta é vazia. " +
+        "O DTO é o mesmo do Alerta de duplicidade, com no máximo 5 itens e sem Protocolo, score, total ou PII.",
+      operationId: "getRequestDuplicates",
+      security: [{ cookieAuth: [] }, { requesterIdentity: [] }],
+      parameters: [
+        protocolParam,
+        {
+          name: "X-Requester-Identity",
+          in: "header",
+          required: false,
+          description:
+            'JSON `{"name":"...","email":"..."}` verificado previamente em `POST .../public/verify`.',
+          schema: { type: "string" },
+          example: '{"name":"Maria Silva","email":"maria.silva@empresa.com"}',
+        },
+      ],
+      responses: {
+        "200": {
+          description:
+            "Itens públicos com características em comum, sem a própria Solicitação. Resposta vazia quando a flag está desligada, o índice não está pronto ou a Solicitação não está publicada.",
+          ...json("DuplicateCheckResponse"),
+        },
+        "401": error("Identidade ausente/divergente ou sessão inválida."),
+        "403": error("Perfil interno ou verificação indisponível no modo AUTHENTICATED."),
+        "404": error("Protocolo não encontrado ou de terceiro."),
+      },
+    },
+  },
+
   "/requests/{protocol}/status": {
     patch: {
       tags: ["Solicitações"],

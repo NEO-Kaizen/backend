@@ -6,7 +6,10 @@ import type {
 } from "../../shared/types/duplicates.ts";
 import type { DemandBlock } from "../../shared/types/requests.ts";
 import { classifyDuplicateConfidence } from "./confidence.ts";
-import { isDuplicateDetectionEnabled } from "./duplicates.repository.ts";
+import {
+  findPublishedPublicIdByRequestId,
+  isDuplicateDetectionEnabled,
+} from "./duplicates.repository.ts";
 import { searchDuplicateIndex } from "./indexLifecycle.ts";
 import { buildDuplicateQuery } from "./query.ts";
 import { DUPLICATE_SEARCH_LIMIT } from "./similarityIndex.ts";
@@ -45,19 +48,15 @@ function itemLimit(confidence: DuplicateConfidence): number {
   return 0;
 }
 
-export async function checkDuplicates(demand: DemandBlock): Promise<DuplicateCheckResponse> {
-  if (!(await isDuplicateDetectionEnabled())) {
-    return EMPTY_DUPLICATE_CHECK_RESPONSE;
-  }
-
-  const query = buildDuplicateQuery(demand);
-
-  if (!query) {
-    return EMPTY_DUPLICATE_CHECK_RESPONSE;
-  }
-
-  const hits = searchDuplicateIndex(query, DUPLICATE_SEARCH_LIMIT);
-
+/**
+ * Mesmo DTO do Alerta, aplicado a qualquer audiência: classifica a faixa sobre
+ * os hits já filtrados e corta pelo limite da faixa. Lista vazia ou faixa
+ * `none` degrada para a resposta pública vazia.
+ */
+function buildResponse(
+  hits: readonly SimilarityHit[],
+  limit: (confidence: DuplicateConfidence) => number,
+): DuplicateCheckResponse {
   if (hits.length === 0) {
     return EMPTY_DUPLICATE_CHECK_RESPONSE;
   }
@@ -70,6 +69,56 @@ export async function checkDuplicates(demand: DemandBlock): Promise<DuplicateChe
 
   return {
     confidence,
-    items: hits.slice(0, itemLimit(confidence)).map(toAlertItem),
+    items: hits.slice(0, limit(confidence)).map(toAlertItem),
   };
+}
+
+export async function checkDuplicates(demand: DemandBlock): Promise<DuplicateCheckResponse> {
+  if (!(await isDuplicateDetectionEnabled())) {
+    return EMPTY_DUPLICATE_CHECK_RESPONSE;
+  }
+
+  const query = buildDuplicateQuery(demand);
+
+  if (!query) {
+    return EMPTY_DUPLICATE_CHECK_RESPONSE;
+  }
+
+  return buildResponse(searchDuplicateIndex(query, DUPLICATE_SEARCH_LIMIT), itemLimit);
+}
+
+/**
+ * Seção "Solicitações com características em comum" do Acompanhamento
+ * (issue #211).
+ *
+ * Usa o mesmo corpus, índice e DTO do Alerta, mas exclui a própria Solicitação
+ * pelo `public_id` da projeção publicada. Se a Solicitação não está publicada,
+ * a resposta é vazia — a seção nunca expõe um registro que a própria projeção
+ * já suprimiu. Flag desligada também devolve vazio.
+ */
+export async function findDuplicatesForRequest(
+  requestId: string,
+  demand: DemandBlock,
+): Promise<DuplicateCheckResponse> {
+  if (!(await isDuplicateDetectionEnabled())) {
+    return EMPTY_DUPLICATE_CHECK_RESPONSE;
+  }
+
+  const ownPublicId = await findPublishedPublicIdByRequestId(requestId);
+
+  if (!ownPublicId) {
+    return EMPTY_DUPLICATE_CHECK_RESPONSE;
+  }
+
+  const query = buildDuplicateQuery(demand);
+
+  if (!query) {
+    return EMPTY_DUPLICATE_CHECK_RESPONSE;
+  }
+
+  const hits = searchDuplicateIndex(query, DUPLICATE_SEARCH_LIMIT).filter(
+    (hit) => hit.publicId !== ownPublicId,
+  );
+
+  return buildResponse(hits, itemLimit);
 }

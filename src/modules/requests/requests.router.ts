@@ -10,6 +10,7 @@ import {
   getInternalRequestByProtocol,
   getRequestsByEmail,
   getRequestsByProtocol,
+  getRequestDuplicates,
   getTracking,
   patchInternalAssignee,
   patchRequestStatus,
@@ -68,6 +69,11 @@ requestsRoutes.patch(
 // dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
 // antes de `/:protocol` para não ser capturado por engano.
 requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);
+
+// Seção "Solicitações com características em comum" do Acompanhamento (RF16 —
+// issue #211): mesma credencial dual e mesma autorização do `tracking`. O
+// service exclui a própria Solicitação e devolve o DTO público do alerta.
+requestsRoutes.get("/:protocol/duplicates", requesterDualAuth, getRequestDuplicates);
 
 // Motor de Status v4 (issue #124 — ver `docs/rules/requests-lifecycle.md`,
 // seção Troca direta de status): troca de status única.
