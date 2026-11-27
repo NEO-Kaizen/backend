@@ -126,6 +126,12 @@ A documentação da persistência (autenticação, pedidos e configuração glob
 - [Persistência dos pedidos (solicitações)](docs/database/requests-persistence.md)
 - [Persistência da configuração global](docs/database/system-settings-persistence.md)
 
+As regras de negócio ficam em [`docs/rules/`](docs/rules/README.md), as decisões
+difíceis de reverter em [`docs/adr/`](docs/adr/), e o contrato HTTP na
+especificação OpenAPI em [`src/docs/`](src/docs/) — não há contrato duplicado em
+Markdown. O mapa dos documentos antigos está em
+[`docs/superseded.md`](docs/superseded.md).
+
 As migrations e os seeds podem ser executados após a configuração das credenciais do banco:
 
 ```bash
@@ -142,7 +148,7 @@ npm run db:setup
 
 > Se o histórico de migrations estiver inválido (por exemplo, após migrations renomeadas ou removidas), recrie o banco de desenvolvimento com `npm run docker:db:reset` (remove o volume) e depois `npm run docker:db:setup`.
 
-Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`; a composição de Permissões, a marca de Admin Root e as flags de Atribuibilidade são aplicadas de forma idempotente pelo seed `013_base_profile_permissions.js`. A conta Admin Root nasce do seed `014_admin_root_account.js` a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME` (sem essas variáveis, o seed apenas avisa e não cria a conta); ela nasce com troca de senha obrigatória no primeiro login.
+Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`; a composição de Permissões, a marca de Admin Root e as flags de Atribuibilidade são aplicadas de forma idempotente pelo seed `014_base_profile_permissions.js`. A conta Admin Root nasce do seed `015_admin_root_account.js` a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME` (sem essas variáveis, o seed apenas avisa e não cria a conta); ela nasce com troca de senha obrigatória no primeiro login.
 
 Para desfazer o último lote de migrations:
 
@@ -166,7 +172,7 @@ O servidor roda em `http://localhost:3000` (ou na porta definida em `PORT`).
 
 ## Documentação da API (Swagger/OpenAPI)
 
-O contrato da API (endpoints, parâmetros, schemas, exemplos de request/response e códigos de erro) é definido exclusivamente na especificação OpenAPI 3.0.1 e exposto pelo Swagger.
+O contrato da API (endpoints, parâmetros, schemas, exemplos de request/response e códigos de erro) é definido exclusivamente na especificação OpenAPI 3.0.1 e exposto pelo Swagger. A especificação vive em [`src/docs/`](src/docs/) e é materializada em [`docs/openapi.json`](docs/openapi.json) para consumo sem subir o backend.
 
 A documentação interativa fica disponível apenas em desenvolvimento:
 
@@ -177,34 +183,84 @@ Para testar endpoints protegidos no Swagger UI, faça login primeiro em `POST /a
 
 > O Swagger só é montado quando `NODE_ENV=development` e `SWAGGER_ENABLED=true` (definido em `.env`). Nunca é exposto em produção.
 
+## Scripts de documentação
+
+| Comando                      | Descrição                                                         |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `npm run docs:types`         | Gera `docs/type-inference.md` a partir do código                  |
+| `npm run docs:types:check`   | Falha se `docs/type-inference.md` estiver desatualizado           |
+| `npm run docs:openapi`       | Gera `docs/openapi.json` a partir de `src/docs/`                  |
+| `npm run docs:openapi:check` | Valida a spec, os `$ref`s, as rotas reais e o artefato versionado |
+| `npm run docs:check`         | Inventário de tipos, OpenAPI e paridade de rotas                  |
+
+## Testes
+
+A suíte usa [Vitest](https://vitest.dev/) em quatro camadas (`unit`,
+`integration`, `e2e` e `db`). As três primeiras não dependem de banco; a camada
+`db` usa um PostgreSQL descartável para testar persistência, constraints,
+transações e auditoria de verdade.
+
+```bash
+# Sobe o PostgreSQL descartável da camada db
+npm run test:db:up
+
+# Toda a suíte (unit + integration + e2e + db)
+npm test
+
+# Camadas isoladas (as três primeiras não precisam do banco)
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+npm run test:db
+
+# Gate completo: check + test
+npm run verify
+
+# Derruba e recria o banco de teste do zero
+npm run test:db:down
+```
+
+O racional da escolha do Vitest (em vez do Jest), a organização das camadas, o
+banco descartável e as convenções estão documentados em
+[`docs/testing.md`](docs/testing.md).
+
 ## Scripts
 
-| Comando                               | Descrição                                       |
-| ------------------------------------- | ----------------------------------------------- |
-| `npm start`                           | Executa o servidor                              |
-| `npm run dev`                         | Executa o servidor com reload automático        |
-| `npm run docker:dev`                  | Sobe o ambiente Docker (PostgreSQL + app)       |
-| `npm run docker:migrate:latest`       | Executa as migrations pendentes no container    |
-| `npm run docker:migrate:rollback`     | Desfaz o último lote de migrations no container |
-| `npm run docker:migrate:make -- nome` | Cria uma nova migration no container            |
-| `npm run docker:seed:run`             | Popula os dados de desenvolvimento no container |
-| `npm run docker:seed:scenarios:run`   | Acrescenta cenários opcionais no container      |
-| `npm run docker:db:setup`             | Recria o volume e aplica migrations e seeds     |
-| `npm run docker:db:reset`             | Remove containers e o volume do banco           |
-| `npm run build`                       | Compila o TypeScript para `dist/`               |
-| `npm run start:prod`                  | Executa o build gerado                          |
-| `npm run typecheck`                   | Checa os tipos com `tsc --noEmit`               |
-| `npm run lint`                        | Roda o ESLint                                   |
-| `npm run lint:fix`                    | Corrige automaticamente os problemas do ESLint  |
-| `npm run format`                      | Formata o código com Prettier                   |
-| `npm run format:check`                | Verifica a formatação com Prettier              |
-| `npm run migrate:make -- nome`        | Cria uma nova migration                         |
-| `npm run migrate:latest`              | Executa as migrations pendentes                 |
-| `npm run migrate:rollback`            | Desfaz o último lote de migrations              |
-| `npm run seed:run`                    | Popula os dados de desenvolvimento              |
-| `npm run seed:scenarios:run`          | Acrescenta cenários opcionais de teste/demo     |
-| `npm run db:setup`                    | Aplica migrations e seeds em sequência          |
-| `npm test`                            | Executa os testes                               |
+| Comando                               | Descrição                                            |
+| ------------------------------------- | ---------------------------------------------------- |
+| `npm start`                           | Executa o servidor                                   |
+| `npm run dev`                         | Executa o servidor com reload automático             |
+| `npm run docker:dev`                  | Sobe o ambiente Docker (PostgreSQL + app)            |
+| `npm run docker:migrate:latest`       | Executa as migrations pendentes no container         |
+| `npm run docker:migrate:rollback`     | Desfaz o último lote de migrations no container      |
+| `npm run docker:migrate:make -- nome` | Cria uma nova migration no container                 |
+| `npm run docker:seed:run`             | Popula os dados de desenvolvimento no container      |
+| `npm run docker:seed:scenarios:run`   | Acrescenta cenários opcionais no container           |
+| `npm run docker:db:setup`             | Recria o volume e aplica migrations e seeds          |
+| `npm run docker:db:reset`             | Remove containers e o volume do banco                |
+| `npm run build`                       | Compila o TypeScript para `dist/`                    |
+| `npm run start:prod`                  | Executa o build gerado                               |
+| `npm run typecheck`                   | Checa os tipos com `tsc --noEmit`                    |
+| `npm run lint`                        | Roda o ESLint                                        |
+| `npm run lint:fix`                    | Corrige automaticamente os problemas do ESLint       |
+| `npm run format`                      | Formata o código com Prettier                        |
+| `npm run format:check`                | Verifica a formatação com Prettier                   |
+| `npm run migrate:make -- nome`        | Cria uma nova migration                              |
+| `npm run migrate:latest`              | Executa as migrations pendentes                      |
+| `npm run migrate:rollback`            | Desfaz o último lote de migrations                   |
+| `npm run seed:run`                    | Popula os dados de desenvolvimento                   |
+| `npm run seed:scenarios:run`          | Acrescenta cenários opcionais de teste/demo          |
+| `npm run db:setup`                    | Aplica migrations e seeds em sequência               |
+| `npm test`                            | Executa toda a suíte (unit + integration + e2e + db) |
+| `npm run test:unit`                   | Executa apenas os testes unitários                   |
+| `npm run test:integration`            | Executa apenas os testes de integração               |
+| `npm run test:e2e`                    | Executa apenas os testes de ponta a ponta (E2E)      |
+| `npm run test:db`                     | Executa apenas os testes com PostgreSQL real         |
+| `npm run test:watch`                  | Executa os testes em modo watch                      |
+| `npm run test:db:up`                  | Sobe o PostgreSQL descartável da camada db           |
+| `npm run test:db:down`                | Remove o PostgreSQL descartável da camada db         |
+| `npm run verify`                      | Roda `check` e toda a suíte de testes                |
+| `npm run typecheck:tests`             | Checa os tipos dos testes                            |
 
 ## Estrutura do Projeto
 

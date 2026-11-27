@@ -1,6 +1,6 @@
 /**
  * Adiciona a coluna `is_triage_exit` e os status de saída da triagem
- * (contrato `contract-triage_03.md`).
+ * (ver `docs/rules/triage.md`).
  *
  * A coluna NÃO foi adicionada em `202609100004_create_statuses` nem em
  * `20260916160000_add_status_cycle_columns` — manter as migrations originais

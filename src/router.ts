@@ -13,6 +13,7 @@ import pendingItemsRoutes, {
 } from "./modules/pendingItems/pendingItems.router.ts";
 import auditHistoryRoutes, { auditLogsRouter } from "./modules/auditHistory/auditHistory.router.ts";
 import profilesRoutes from "./modules/profiles/profiles.router.ts";
+import notificationsRoutes from "./modules/notifications/notifications.router.ts";
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use("/portal-config", portalConfigRoutes);
 router.use("/reports", reportsRoutes);
 router.use("/audit-history", auditHistoryRoutes);
 router.use("/audit-logs", auditLogsRouter);
+router.use("/notifications", notificationsRoutes);
 
 export default router;

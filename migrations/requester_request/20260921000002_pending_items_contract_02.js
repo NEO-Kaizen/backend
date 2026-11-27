@@ -1,12 +1,12 @@
 /**
- * Pendências por campo (issue #176, contrato docs/contract-pendencias_03.md):
+ * Pendências por campo (issue #176; ver `docs/rules/pending-items.md`):
  * migra pending_items para o ciclo requested → responded → validated, com
  * batchId e observação/campo.
  *
  * - Limpa seeds legados (enums antigos) antes de recriar os tipos nativos.
  * - Troca pending_item_type: field_edit|attachment_upload|information|action → field_edit|observation
  * - Troca pending_item_status: open|overdue|resolved → requested|responded|validated
- * - Adiciona colunas do contrato: batch_id, field_key/label, current/corrected_value,
+ * - Adiciona colunas da especificação: batch_id, field_key/label, current/corrected_value,
  *   comment, response_text, responded_at/validated_at, request_attachment.
  *
  * @param {import("knex").Knex} knex
@@ -38,7 +38,7 @@ export async function up(knex) {
   );
   await knex.raw(`ALTER TABLE "pending_items" ALTER COLUMN "status" SET DEFAULT 'requested'`);
 
-  // --- Colunas novas do contrato ---
+  // --- Colunas novas da especificação ---
   const hasBatchId = await knex.schema.hasColumn("pending_items", "batch_id");
   const hasFieldKey = await knex.schema.hasColumn("pending_items", "field_key");
   const hasFieldLabel = await knex.schema.hasColumn("pending_items", "field_label");

@@ -69,12 +69,24 @@ export function hasResponsibleCustody(
   key: PermissionKey,
   responsibleUserId: unknown,
 ): boolean {
-  const responsibleId =
-    typeof responsibleUserId === "number" ? responsibleUserId : Number(responsibleUserId);
+  return hasAnyResponsibleCustody(actor, key, [responsibleUserId]);
+}
 
-  return hasPermissionCustody(actor, key, {
-    responsibleIds: Number.isInteger(responsibleId) && responsibleId > 0 ? [responsibleId] : [],
-  });
+/**
+ * Vínculo `assigned`/`all` sobre qualquer um dos Responsáveis correntes da
+ * linha. Usado pelas leituras que somam o Responsável da triagem e o do
+ * Mapeamento corrente (visão interna e Linha do tempo).
+ */
+export function hasAnyResponsibleCustody(
+  actor: PermissionActor,
+  key: PermissionKey,
+  responsibleUserIds: readonly unknown[],
+): boolean {
+  const responsibleIds = responsibleUserIds
+    .map((value) => (typeof value === "number" ? value : Number(value)))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  return hasPermissionCustody(actor, key, { responsibleIds });
 }
 
 /**

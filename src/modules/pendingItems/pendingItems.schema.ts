@@ -1,4 +1,8 @@
 import { z } from "zod";
+import type {
+  CreatePendingItemsBody,
+  ReviewPendingItemsBody,
+} from "../DTOs/pendingItems/PendingItems.dto.ts";
 
 export const createPendingItemsSchema = z
   .object({
@@ -25,13 +29,27 @@ export const createPendingItemsSchema = z
         path: ["observation"],
       });
     }
-  });
+  }) satisfies z.ZodType<CreatePendingItemsBody>;
 
 export const verifySchema = z.object({
   name: z.string().trim().min(3).max(150),
   email: z.string().trim().toLowerCase().email("Informe um e-mail válido.").max(254),
   protocol: z.string().trim().min(1),
 });
+
+/**
+ * Corpo do PATCH de resposta. O tipo do item (`field_edit` × `observation`)
+ * só é conhecido no service; a borda valida o envelope tipado, rejeita chaves
+ * fora do contrato e deixa a exigência do campo para a discriminação do item.
+ */
+export const pendingItemResponseBodySchema = z
+  .object({
+    correctedValue: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
+    response: z.string().trim().min(1).max(2000).optional(),
+  })
+  .strict();
+
+export type PendingItemResponseBody = z.infer<typeof pendingItemResponseBodySchema>;
 
 export const reviewSchema = z.object({
   batchId: z.string().trim().min(1),
@@ -52,7 +70,7 @@ export const reviewSchema = z.object({
       ]),
     )
     .min(1),
-});
+}) satisfies z.ZodType<ReviewPendingItemsBody>;
 
 export type CreatePendingItemsInput = z.infer<typeof createPendingItemsSchema>;
 export type VerifyInput = z.infer<typeof verifySchema>;

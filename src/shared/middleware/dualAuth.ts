@@ -16,11 +16,15 @@ import { parseRequesterIdentity } from "../utils/requesterIdentity.ts";
  * A decisão de modo (PUBLIC/AUTHENTICATED) e a validação de ownership ficam
  * no service, mantendo a separação controller/service/repository.
  */
-export function requesterDualAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requesterDualAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const hasCookie = !!req.cookies?.session_id;
 
   if (hasCookie) {
-    authMiddleware(req, res, next);
+    await authMiddleware(req, res, next);
     return;
   }
 

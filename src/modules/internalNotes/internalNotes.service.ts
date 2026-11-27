@@ -1,7 +1,7 @@
 import type { PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
 import {
   denyRequestAccess,
-  hasResponsibleCustody,
+  hasAnyResponsibleCustody,
   type PermissionActor,
 } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
@@ -68,7 +68,9 @@ async function requireRequestAccess(
     return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`);
   }
 
-  if (!hasResponsibleCustody(actor, key, request.responsible_user_id)) {
+  if (
+    !hasAnyResponsibleCustody(actor, key, [request.responsible_user_id, request.mapping_user_id])
+  ) {
     return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`, [key]);
   }
 

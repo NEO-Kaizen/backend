@@ -1,187 +1,88 @@
+import { protocolParam } from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
+
 export default {
   "/requests/{protocol}/internal-notes": {
     get: {
       tags: ["Notas internas"],
-      summary: "Listar notas internas",
+      summary: "Listar a Linha do tempo de notas internas",
       description:
-        "Lista as notas internas e a Linha do tempo da solicitação. " +
-        "Exige `internal_note:read` sob Custódia do Responsável corrente; `all` dispensa o filtro de linha.",
+        "Página da Linha do tempo unificada (notas internas + eventos de auditoria selecionados + registros completos de triagem/mapeamento). " +
+        "Ordem mais recente primeiro, cursor keyset opaco. `unseenCount` conta somente notas de outros autores.",
       operationId: "listInternalNotes",
       security: [{ cookieAuth: [] }],
       parameters: [
+        protocolParam,
         {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+          name: "limit",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+        },
+        {
+          name: "cursor",
+          in: "query",
+          required: false,
+          description: "Cursor opaco devolvido em `nextCursor`.",
+          schema: { type: "string" },
         },
       ],
       responses: {
-        "200": {
-          description: "Lista de notas internas.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/InternalNotesResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sessão sem `internal_note:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Solicitação inexistente ou fora da Custódia do ator.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Página da Linha do tempo.", ...json("InternalNotesResponse") },
+        "400": error("Protocolo, `limit` ou cursor inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `internal_note:read` + Custódia da linha."),
+        "404": error("Solicitação não encontrada."),
       },
     },
     post: {
       tags: ["Notas internas"],
-      summary: "Criar nota interna",
-      description:
-        "Cria uma nova nota interna para a solicitação. " +
-        "Exige `internal_note:write` sob Custódia do Responsável corrente; a autoria vem da sessão.",
+      summary: "Publicar nota interna",
+      description: "Cria uma nota interna imutável na Linha do tempo. Exige perfil interno.",
       operationId: "createInternalNote",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              required: ["content"],
-              properties: {
-                content: { type: "string", example: "Nota importante sobre a solicitação" },
-              },
-            },
+            schema: { $ref: "#/components/schemas/CreateInternalNoteRequest" },
           },
         },
       },
       responses: {
-        "201": {
-          description: "Nota interna criada com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/TimelineNote" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sessão sem `internal_note:write`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Solicitação inexistente ou fora da Custódia do ator.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "201": { description: "Nota criada.", ...json("TimelineNote") },
+        "400": error("Conteúdo vazio ou acima de 4000 caracteres."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `internal_note:read` + Custódia da linha."),
+        "404": error("Solicitação não encontrada."),
       },
     },
+  },
+
+  "/requests/{protocol}/internal-notes/read": {
     put: {
       tags: ["Notas internas"],
-      summary: "Marcar notas internas como lidas",
+      summary: "Marcar notas internas como vistas",
       description:
-        "Avança o checkpoint de leitura até a última nota carregada. " +
-        "Exige `internal_note:read` sob Custódia do Responsável corrente.",
+        "Grava o checkpoint de leitura do usuário autenticado. A nota precisa pertencer à solicitação.",
       operationId: "markInternalNotesRead",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              required: ["lastReadNoteId"],
-              properties: {
-                lastReadNoteId: { type: "string", example: "12" },
-              },
-            },
+            schema: { $ref: "#/components/schemas/MarkInternalNotesReadRequest" },
           },
         },
       },
       responses: {
-        "204": {
-          description: "Checkpoint de leitura atualizado.",
-        },
-        "400": {
-          description: "ID de nota inválido ou de outra solicitação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sessão sem `internal_note:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Solicitação inexistente ou fora da Custódia do ator.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "204": { description: "Checkpoint atualizado (sem corpo)." },
+        "400": error("Payload inválido ou nota de outra solicitação."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `internal_note:read` + Custódia da linha."),
+        "404": error("Solicitação não encontrada."),
       },
     },
   },
