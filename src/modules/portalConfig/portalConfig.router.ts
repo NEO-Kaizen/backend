@@ -7,6 +7,7 @@ import {
   updateAccess,
   updateAssets,
   updateCategories,
+  updateDuplicateDetection,
   updateIdentity,
   updatePrioritizationWeights,
   updateStatuses,
@@ -28,6 +29,7 @@ portalConfigRoutes.patch("/theme", updateTheme);
 portalConfigRoutes.patch("/assets", uploadAssetFields, validateAssetSizes, updateAssets);
 portalConfigRoutes.patch("/categories", updateCategories);
 portalConfigRoutes.patch("/statuses", updateStatuses);
+portalConfigRoutes.patch("/duplicates", updateDuplicateDetection);
 portalConfigRoutes.patch("/prioritization-weights", updatePrioritizationWeights);
 
 export default portalConfigRoutes;

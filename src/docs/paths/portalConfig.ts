@@ -350,4 +350,49 @@ export default {
       },
     },
   },
+  "/portal-config/duplicates": {
+    patch: {
+      tags: ["Configuração do portal"],
+      summary: "Alterar configuração de detecção de duplicidade",
+      description:
+        "Altera a flag de detecção de duplicidade e a janela de conclusão. Exige perfil `Administrador`.",
+      operationId: "updatePortalDuplicateDetection",
+      security: [{ cookieAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/DuplicateDetectionPatchBody" },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Configuração de detecção de duplicidade alterada com sucesso.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["enabled", "completedWindowMonths"],
+                properties: {
+                  enabled: {
+                    type: "boolean",
+                    description: "Flag de detecção de duplicidade.",
+                  },
+                  completedWindowMonths: {
+                    type: "integer",
+                    description:
+                      "Janela de conclusão em meses (1..36). Padrão 3 meses.",
+                  },
+                },
+              },
+            },
+          },
+        },
+        "400": error("Body inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
+      },
+    },
+  },
 };

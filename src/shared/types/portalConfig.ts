@@ -147,6 +147,7 @@ export interface PortalStatus {
   isRestricted: boolean;
   tone: StatusTone;
   isActive: boolean;
+  isDuplicateCorpusEligible: boolean;
 }
 
 // Critérios fixos de priorização (allowlist das chaves aceitas).

@@ -9,6 +9,7 @@ import { portalAssetsPatchSchema } from "./portalConfig.schema.ts";
 import {
   updateAccessSchema,
   updateCategoriesSchema,
+  updateDuplicateDetectionSchema,
   updateIdentitySchema,
   updatePrioritizationWeightsSchema,
   updateStatusesSchema,
@@ -216,6 +217,24 @@ export const updatePrioritizationWeights = async (
 
   const response = await service.updateCriteriaWeights(
     parsed.data.prioritizationWeights,
+    actorUserId(req),
+  );
+  return res.status(200).json(response);
+};
+
+// ---------------------------------------------------------------------------
+// R9 — PATCH /portal-config/duplicates
+// ---------------------------------------------------------------------------
+
+export const updateDuplicateDetection = async (req: Request, res: Response): Promise<Response> => {
+  const parsed = updateDuplicateDetectionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError(formatZodIssues(parsed.error), 400);
+  }
+
+  const response = await service.updateDuplicateDetection(
+    parsed.data.enabled,
+    parsed.data.completedWindowMonths,
     actorUserId(req),
   );
   return res.status(200).json(response);
