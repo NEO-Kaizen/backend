@@ -1,3 +1,11 @@
+import {
+  createdFromParam,
+  createdToParam,
+  departmentParam,
+  searchParam,
+  sortByParam,
+  sortOrderParam,
+} from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
 
 export default {
@@ -76,19 +84,15 @@ export default {
         "Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n" +
         "**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; " +
         "Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. " +
-        "Datas no fuso `America/Sao_Paulo`.\n\n" +
+        "Datas nas colunas do CSV no fuso `America/Sao_Paulo`; os filtros `createdFrom`/`createdTo` usam UTC.\n\n" +
         "`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; " +
-        "`unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`.",
+        "`unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. " +
+        "`createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; " +
+        "todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
       operationId: "exportRequestsCsv",
       security: [{ cookieAuth: [] }],
       parameters: [
-        {
-          name: "search",
-          in: "query",
-          required: false,
-          description: "Busca por protocolo, e-mail corporativo ou nome do solicitante.",
-          schema: { type: "string", maxLength: 254 },
-        },
+        searchParam,
         {
           name: "status",
           in: "query",
@@ -113,6 +117,11 @@ export default {
           required: false,
           schema: { type: "string", enum: ["true", "1", "false", "0"] },
         },
+        createdFromParam,
+        createdToParam,
+        departmentParam,
+        sortByParam,
+        sortOrderParam,
       ],
       responses: {
         "200": {

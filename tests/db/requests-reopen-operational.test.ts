@@ -130,8 +130,7 @@ const respond = (f: Fixture, id: string) =>
     f.protocol,
     id,
     { response: "Resposta" },
-    f.owner.email,
-    false,
+    { ...f.owner, id: Number(f.owner.id) },
     undefined,
     { user: f.owner },
   );

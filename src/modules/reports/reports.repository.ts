@@ -1,11 +1,12 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
-import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
+import { BUSINESS_TIME_ZONE, whereBusinessDayRange } from "../../shared/datetime/businessDay.ts";
+import type { QueueExportQuery } from "../../shared/types/queue.types.ts";
 import type { DashboardQuery } from "../DTOs/reports/Dashboard.dto.ts";
 import type { QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
 import { applyQueueFilters } from "../queue/queue.filters.ts";
+import { applyQueueSort } from "../queue/queue.sort.ts";
 
-const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 const OPENED_MONTH_SQL = `DATE_TRUNC(
   'month',
   r.created_at AT TIME ZONE '${BUSINESS_TIME_ZONE}'
@@ -66,16 +67,7 @@ export interface DashboardFilterOptionRows {
 }
 
 function applyDashboardFilters(query: Knex.QueryBuilder, filters: DashboardQuery): void {
-  if (filters.from) {
-    query.whereRaw(`r.created_at >= (?::date AT TIME ZONE ?)`, [filters.from, BUSINESS_TIME_ZONE]);
-  }
-
-  if (filters.to) {
-    query.whereRaw(`r.created_at < ((?::date + INTERVAL '1 day') AT TIME ZONE ?)`, [
-      filters.to,
-      BUSINESS_TIME_ZONE,
-    ]);
-  }
+  whereBusinessDayRange(query, "r.created_at", { from: filters.from, to: filters.to });
 
   if (filters.situation === "open") {
     query.where("s.is_terminal", false);
@@ -217,7 +209,7 @@ export async function fetchDashboardFilterOptions(): Promise<DashboardFilterOpti
 }
 
 /** Retorna todas as solicitações dos filtros ativos, sem paginação. */
-export async function fetchQueueExportRows(filters: QueueFilterQuery): Promise<QueueExportRow[]> {
+export async function fetchQueueExportRows(filters: QueueExportQuery): Promise<QueueExportRow[]> {
   const query = db("requests")
     .join("requesters as requester", "requester.requester_id", "requests.requester_id")
     .join("statuses as status", "status.status_id", "requests.status_id")
@@ -268,9 +260,9 @@ export async function fetchQueueExportRows(filters: QueueFilterQuery): Promise<Q
       db.raw('COALESCE(requests.updated_at, requests.created_at) as "updatedAt"'),
       "requests.internal_notes as internalNotes",
       "completion_event.occurred_at as completedAt",
-    )
-    .orderBy("requests.created_at", "desc");
+    );
 
   applyQueueFilters(query, filters);
+  applyQueueSort(query, filters.sortBy, filters.sortOrder);
   return query as Promise<QueueExportRow[]>;
 }

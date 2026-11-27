@@ -4,7 +4,7 @@ import {
   optionalText,
   requiredText,
 } from "../../src/shared/validation/fieldSchemas.ts";
-import { queueQuerySchema } from "../../src/modules/queue/queue.schemas.ts";
+import { queueFilterQuerySchema, queueQuerySchema } from "../../src/modules/queue/queue.schemas.ts";
 import { evaluateScoreSchema } from "../../src/modules/prioritization/prioritization.schema.ts";
 import {
   updateCategoriesSchema,
@@ -65,6 +65,104 @@ describe("queueQuerySchema", () => {
     ).toBe(true);
     expect(
       queueQuerySchema.safeParse({ page: "1", pageSize: "10", priority: "Altíssima" }).success,
+    ).toBe(false);
+  });
+
+  it("aceita datas e departamento válidos e recusa intervalo invertido", () => {
+    const valid = queueQuerySchema.safeParse({
+      page: "1",
+      pageSize: "10",
+      createdFrom: "2026-11-01",
+      createdTo: "2026-11-30",
+      department: "  Desenvolvimento  ",
+    });
+    expect(valid.success).toBe(true);
+    if (valid.success) {
+      expect(valid.data).toMatchObject({
+        createdFrom: "2026-11-01",
+        createdTo: "2026-11-30",
+        department: "Desenvolvimento",
+      });
+    }
+
+    expect(
+      queueQuerySchema.safeParse({
+        page: "1",
+        pageSize: "10",
+        createdFrom: "2026-12-01",
+        createdTo: "2026-11-30",
+      }).success,
+    ).toBe(false);
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", createdFrom: "2026-13-01" }).success,
+    ).toBe(false);
+    const atLimit = queueQuerySchema.safeParse({
+      page: "1",
+      pageSize: "10",
+      department: `  ${"x".repeat(200)}  `,
+    });
+    expect(atLimit.success).toBe(true);
+    if (atLimit.success) {
+      expect(atLimit.data.department).toBe("x".repeat(200));
+    }
+
+    expect(
+      queueQuerySchema.safeParse({
+        page: "1",
+        pageSize: "10",
+        department: "x".repeat(201),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("recusa campo e direção de ordenação fora do contrato", () => {
+    for (const sortBy of ["createdAt", "protocol", "status", "priority"]) {
+      const parsed = queueQuerySchema.safeParse({
+        page: "1",
+        pageSize: "10",
+        sortBy,
+        sortOrder: "asc",
+      });
+      expect(parsed.success, sortBy).toBe(true);
+    }
+
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", sortBy: "requests.created_at" })
+        .success,
+    ).toBe(false);
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", sortBy: "requesterName" }).success,
+    ).toBe(false);
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", sortBy: "assignee" }).success,
+    ).toBe(false);
+    expect(
+      queueQuerySchema.safeParse({ page: "1", pageSize: "10", sortOrder: "lateral" }).success,
+    ).toBe(false);
+  });
+
+  it("exportação CSV aceita os mesmos filtros e ordenação, mas não paginação", () => {
+    const parsed = queueFilterQuerySchema.safeParse({
+      search: "MAAT",
+      createdFrom: "2026-11-01",
+      createdTo: "2026-11-30",
+      department: "Desenvolvimento",
+      sortBy: "priority",
+      sortOrder: "desc",
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).toMatchObject({ sortBy: "priority", sortOrder: "desc" });
+    }
+
+    expect(queueFilterQuerySchema.safeParse({ page: "1" }).success).toBe(false);
+    expect(queueFilterQuerySchema.safeParse({ pageSize: "10" }).success).toBe(false);
+    expect(queueFilterQuerySchema.safeParse({ sortBy: "requesterName" }).success).toBe(false);
+    expect(
+      queueFilterQuerySchema.safeParse({
+        createdFrom: "2026-12-01",
+        createdTo: "2026-11-30",
+      }).success,
     ).toBe(false);
   });
 });

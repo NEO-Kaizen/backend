@@ -1,4 +1,9 @@
-import { findQueueRequests, fetchQueueMetrics, fetchAllAssignees } from "./queue.repository.ts";
+import {
+  findQueueRequests,
+  fetchQueueMetrics,
+  fetchAllAssignees,
+  fetchAllDepartments,
+} from "./queue.repository.ts";
 import type {
   QueueQuery,
   QueueResponse,
@@ -7,14 +12,15 @@ import type {
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 
 /**
- * Escopo de visibilidade da fila por perfil (issue #102).
+ * Identificador do Analista usado como dois limites distintos:
+ * - escopo da fila (issue #102): triagem ou mapeamento;
+ * - custódia de `internal_note:read` na busca por notas.
  *
- * O Analista enxerga apenas as solicitações em que é responsável — de triagem
- * ou de mapeamento. `Gestor` e `Administrador` permanecem sem restrição.
- * Retorna o `user_id` do próprio ator (mesmo identificador usado pelo frontend);
- * `0` não existe em `users.user_id` e atua como fail-safe para um id inválido.
+ * `Gestor` e `Administrador` não têm recorte. Retorna o `user_id` do próprio
+ * ator (mesmo identificador usado pelo frontend); `0` não existe em
+ * `users.user_id` e atua como fail-safe para um id inválido.
  */
-const resolveQueueScope = (actor?: AuthenticatedUser): number | undefined => {
+const resolveAnalystUserId = (actor?: AuthenticatedUser): number | undefined => {
   if (actor?.role !== "Analista") return undefined;
 
   const userId = Number(actor.id);
@@ -24,7 +30,7 @@ const resolveQueueScope = (actor?: AuthenticatedUser): number | undefined => {
 export const getQueueMetricsService = async (
   actor?: AuthenticatedUser,
 ): Promise<QueueMetricsResponse> => {
-  return await fetchQueueMetrics(resolveQueueScope(actor));
+  return await fetchQueueMetrics(resolveAnalystUserId(actor));
 };
 
 /** Serializa `created_at` (vem como `Date` do pg ou string) em ISO para o contrato. */
@@ -36,25 +42,30 @@ export const listQueueService = async (
   filters: QueueQuery,
   actor?: AuthenticatedUser,
 ): Promise<QueueResponse> => {
-  const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
+  const { page, pageSize, assigneeId, sortBy, sortOrder, ...queueFilters } = filters;
   const offset = (page - 1) * pageSize;
 
-  const repoUnassigned = Boolean(unassigned || assigneeId === "unassigned");
+  const repoUnassigned = Boolean(queueFilters.unassigned || assigneeId === "unassigned");
   const repoAssigneeId =
     typeof assigneeId === "string" && assigneeId !== "unassigned" ? assigneeId : undefined;
+  const analystUserId = resolveAnalystUserId(actor);
 
-  const [{ items, total }, assignees] = await Promise.all([
+  const [{ items, total }, assignees, departments] = await Promise.all([
     findQueueRequests({
-      search,
-      status,
-      priority,
+      ...queueFilters,
       assigneeId: repoAssigneeId,
       unassigned: repoUnassigned,
-      scopedUserId: resolveQueueScope(actor),
+      sortBy,
+      sortOrder,
+      // Escopo da fila e custódia da nota são regras diferentes, mas para o
+      // Analista usam o mesmo vínculo corrente com a solicitação.
+      scopedUserId: analystUserId,
+      noteCustodianUserId: analystUserId,
       limit: pageSize,
       offset,
     }),
     fetchAllAssignees(),
+    fetchAllDepartments(),
   ]);
 
   const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
@@ -81,5 +92,6 @@ export const listQueueService = async (
     total,
     totalPages,
     assignees,
+    departments,
   };
 };

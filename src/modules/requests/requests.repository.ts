@@ -825,10 +825,12 @@ export async function findAssignmentContextByProtocol(
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
+    title: "requests.title",
     professional_id: "requests.professional_id",
     status: "statuses.name",
     status_id: "requests.status_id",
     closure_ref: "requests.closure_ref",
+    category: "categories.name",
     screening_result: "requests.screening_result",
     assignee_user_id: "dp.user_id",
   };
@@ -840,6 +842,7 @@ export async function findAssignmentContextByProtocol(
 
   const query = source("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
+    .join("categories", "categories.category_id", "requests.category_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
   if (hasMapping) {
     query.leftJoin(
@@ -1008,6 +1011,7 @@ export async function findRequestStatusContext(
 
   const query = source("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
+    .join("categories", "categories.category_id", "requests.category_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
   if (hasMappingColumn) {
     query.leftJoin(

@@ -1,8 +1,16 @@
 import { randomUUID } from "node:crypto";
+import type { Knex } from "knex";
+import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { getFieldSnapshot, isFieldKey, type FieldKey } from "../../shared/catalog/fieldCatalog.ts";
 import * as repo from "./pendingItems.repository.ts";
-import type { PendingItemInsert, ReviewDecisionInput } from "./pendingItems.repository.ts";
+import type {
+  PendingItemInsert,
+  PendingItemResponsePatch,
+  PendingItemRow,
+  RequestRef,
+  ReviewDecisionInput,
+} from "./pendingItems.repository.ts";
 import type {
   PendingItem,
   CreatePendingItemsBody,
@@ -15,13 +23,57 @@ import type { RequestStatus } from "../../shared/types/requests.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
 import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts";
 import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
+import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
+import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
+import {
+  emitPendingItemNotifications,
+  type PendingItemNotificationRequest,
+} from "../../shared/notifications/pendingItemNotification.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
+import {
+  emitPendingItemRespondedNotification,
+  type PendingItemRespondedAudience,
+} from "../../shared/notifications/pendingItemRespondedNotification.ts";
+import { findActiveAdminUserIds, findUserIdByEmail } from "../users/users.repository.ts";
+import type { PendingItemResponseBody } from "./pendingItems.schema.ts";
 
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
 const PENDING_INFO_STATUS: RequestStatus = "Pendente de informações";
+
+/**
+ * Relê a solicitação dentro da transação para que uma correção de título
+ * validada na mesma revisão apareça no Payload.
+ */
+async function readPendingItemNotificationRequest(
+  trx: Knex.Transaction,
+  requestId: string,
+): Promise<PendingItemNotificationRequest> {
+  const request = await repo.findRequestById(requestId, trx);
+  if (!request) throw new AppError("Solicitação não encontrada", 404);
+  return {
+    requestId: request.request_id,
+    requesterUserId: request.requester_user_id,
+    pointer: { protocol: request.protocol, title: request.title },
+  };
+}
+
+/**
+ * Executa o evento de negócio e publica as Notificações somente após o commit
+ * (ADR-0001); se a transação falhar, nada é publicado.
+ */
+async function commitPendingItemAction<TResult>(
+  action: (trx: Knex.Transaction) => Promise<{
+    result: TResult;
+    notifications: readonly CommittedNotification[];
+  }>,
+): Promise<TResult> {
+  const { result, notifications } = await db.transaction(action);
+  publishCommittedNotifications(notifications);
+  return result;
+}
 
 function normalizeSummaryFieldKey(fieldKey: string): string {
   return fieldKey.trim();
@@ -44,10 +96,7 @@ function parsePendingFieldValue(value: unknown): PendingFieldValue {
   return null;
 }
 
-async function buildPendingItems(
-  protocol: string,
-  rows: Record<string, unknown>[],
-): Promise<PendingItem[]> {
+async function buildPendingItems(protocol: string, rows: PendingItemRow[]): Promise<PendingItem[]> {
   const bases = rows.map((row) => {
     const base = repo.mapRowToPendingItemBase(row);
     base.protocol = protocol;
@@ -59,9 +108,9 @@ async function buildPendingItems(
   for (const base of bases) {
     const atts = attachmentsByItem.get(base.id) ?? [];
     const attachments = atts.map((a) => ({
-      fileName: a["file_name"] as string,
-      mimeType: a["content_type"] as string,
-      sizeBytes: Number(a["size_bytes"]),
+      fileName: a.file_name,
+      mimeType: a.content_type,
+      sizeBytes: Number(a.size_bytes),
       downloadUrl: null as string | null,
       canDownload: false,
     }));
@@ -171,15 +220,25 @@ export async function createPendingItems(
     });
   }
 
-  const createdRows = await repo.createPendingItemsBatch({
-    requestId: request.request_id,
-    protocol,
-    batchId,
-    rows,
-    actor,
-    observedStatusId: request.status_id,
-    observedReopenRef: request.reopen_ref,
-    ip,
+  const { rows: createdRows } = await commitPendingItemAction(async (trx) => {
+    const { rows: insertedRows, auditId } = await repo.createPendingItemsBatchInTransaction(trx, {
+      requestId: request.request_id,
+      protocol,
+      batchId,
+      rows,
+      observedStatusId: request.status_id,
+      observedReopenRef: request.reopen_ref,
+      actor,
+      ip,
+    });
+
+    const notifications = await emitPendingItemNotifications(trx, {
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
+      actorUserId: actor.id,
+      events: [{ action: "create", auditId }],
+    });
+
+    return { result: { rows: insertedRows }, notifications };
   });
 
   const mapped = await buildPendingItems(protocol, createdRows);
@@ -191,10 +250,12 @@ export type PendingCaller = {
   requesterIdentity?: { name: string; email: string } | null;
 };
 
+/** Ator da resposta: sessão validada ou identidade pública sem conta (`null`). */
+export type PendingResponseActor = { id: number; email: string; role: string } | null;
+
 /**
- * Criar/revisar exige Administrador ou o assignee atual (regras em
- * `docs/rules/pending-items.md`, mesma regra do botão "Editar" / `canTriage`).
- * Gestor é read-only.
+ * Criar/revisar exige Administrador ou o assignee atual (contrato 03 §3,
+ * mesma regra do botão "Editar" / `canTriage`). Gestor é read-only.
  */
 async function assertCanCreateOrReview(
   requestId: string,
@@ -213,6 +274,18 @@ async function assertRequesterAccess(protocol: string, caller: PendingCaller): P
   if (!request) throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
 
   if (caller.user?.role === "Solicitante") {
+    const requesterUserId = request.requester_user_id;
+
+    // A fonte primária é o vínculo direto `requests.requester_user_id`; o
+    // snapshot de nome/e-mail pode divergir do cadastro (ex.: seed e
+    // solicitações antigas) e não deve negar acesso ao dono autenticado.
+    if (requesterUserId !== null) {
+      if (requesterUserId === Number(caller.user.id)) return;
+      throw new AppError("Valide seus dados para acompanhar esta solicitação.", 401);
+    }
+
+    // Fallback apenas para solicitações sem vínculo (`requester_user_id` NULL),
+    // criadas antes da curadoria do 1:1.
     const nameOk = normalizeName(request.requester_name) === normalizeName(caller.user.name);
     const emailOk = normalizeEmail(request.requester_email) === normalizeEmail(caller.user.email);
     if (!nameOk || !emailOk) {
@@ -250,24 +323,121 @@ export async function listPendingItems(
   // Lote vigente = primeiro com item open (requested/responded); senão o mais
   // recente (rows em ordem cronológica asc). `requestAttachment` é uniforme no
   // lote (D-P8) — basta achar `true` em qualquer linha do lote alvo.
-  const openRow = rows.find(
-    (row) => row["status"] === "requested" || row["status"] === "responded",
-  );
+  const openRow = rows.find((row) => row.status === "requested" || row.status === "responded");
   const targetRow = openRow ?? rows[rows.length - 1];
-  const batchId = (targetRow?.["batch_id"] as string | undefined) ?? null;
+  const batchId = targetRow?.batch_id ?? null;
   const requestAttachment =
     batchId !== null &&
-    rows.some((row) => row["batch_id"] === batchId && row["request_attachment"] === true);
+    rows.some((row) => row.batch_id === batchId && row.request_attachment === true);
 
   return { batchId, requestAttachment, items };
+}
+
+function responseChangeOrigin(actor: PendingResponseActor): "admin" | "requester" {
+  return actor !== null && actor.role !== "Solicitante" ? "admin" : "requester";
+}
+
+/**
+ * Ator da Notificação. Sem sessão, a identidade pública representa o
+ * solicitante vinculado; quando não há vínculo, o e-mail verificado identifica
+ * uma eventual conta do mesmo dono para a autoexclusão.
+ */
+async function resolveResponseActorUserId(
+  trx: Knex.Transaction,
+  actor: PendingResponseActor,
+  request: RequestRef,
+): Promise<number | null> {
+  if (actor) return actor.id;
+  if (request.requester_user_id !== null) return request.requester_user_id;
+  return findUserIdByEmail(trx, request.requester_email);
+}
+
+/** Remove o ator e duplicatas antes de montar o Evento. */
+function uniqueOtherRecipients(userIds: readonly number[], actorUserId: number | null): number[] {
+  return [...new Set(userIds)].filter((userId) => userId !== actorUserId);
+}
+
+async function resolvePendingItemRespondedAudience(
+  trx: Knex.Transaction,
+  requestId: string,
+  actorUserId: number | null,
+): Promise<PendingItemRespondedAudience> {
+  const assigneeUserId = await repo.findAssigneeUserIdByRequestId(trx, requestId);
+  if (assigneeUserId !== null) {
+    return { kind: "assignee", userId: assigneeUserId };
+  }
+  return {
+    kind: "active_admins",
+    userIds: uniqueOtherRecipients(await findActiveAdminUserIds(trx), actorUserId),
+  };
+}
+
+interface PendingItemResponseCommitInput {
+  request: RequestRef;
+  pendingItemId: string;
+  batchId: string;
+  patch: PendingItemResponsePatch;
+  actor: PendingResponseActor;
+  ip: string | undefined;
+}
+
+interface PendingItemResponseCommitResult {
+  row: PendingItemRow;
+  committedNotifications: CommittedNotification[];
+}
+
+/**
+ * Aplica a resposta e emite a Notificação na mesma transação. A publicação
+ * pós-commit fica com o chamador.
+ */
+async function commitPendingItemResponse(
+  input: PendingItemResponseCommitInput,
+): Promise<PendingItemResponseCommitResult> {
+  return db.transaction(async (trx) => {
+    const result = await repo.applyPendingItemResponse(trx, {
+      requestId: input.request.request_id,
+      protocol: input.request.protocol,
+      pendingItemId: input.pendingItemId,
+      batchId: input.batchId,
+      patch: input.patch,
+      actorEmail: input.actor?.email,
+      changeOrigin: responseChangeOrigin(input.actor),
+      ip: input.ip,
+      decideStatus: (facts) =>
+        facts.requestedRemaining === 0 &&
+        facts.attachmentSatisfied &&
+        facts.currentStatusName !== IN_TRIAGE_STATUS
+          ? IN_TRIAGE_STATUS
+          : null,
+    });
+
+    const actorUserId = await resolveResponseActorUserId(trx, input.actor, input.request);
+    const audience = await resolvePendingItemRespondedAudience(
+      trx,
+      input.request.request_id,
+      actorUserId,
+    );
+
+    const committedNotifications = await emitPendingItemRespondedNotification(trx, {
+      auditId: result.auditId,
+      requestId: input.request.request_id,
+      requestPointer: {
+        protocol: input.request.protocol,
+        title: input.request.title,
+      },
+      actorUserId,
+      audience,
+    });
+
+    return { row: result.row, committedNotifications };
+  });
 }
 
 export async function respondPendingItem(
   protocol: string,
   pendingItemId: string,
-  body: Record<string, unknown>,
-  actorEmail: string | undefined,
-  isInternal: boolean,
+  body: PendingItemResponseBody,
+  actor: PendingResponseActor,
   ip: string | undefined,
   caller: PendingCaller,
 ): Promise<PendingItem> {
@@ -275,62 +445,59 @@ export async function respondPendingItem(
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) throw new AppError("Solicitação não encontrada", 404);
   const row = await repo.findPendingItemById(pendingItemId);
-  if (!row || (row["request_id"] as string) !== request.request_id) {
+  if (!row || row.request_id !== request.request_id) {
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  if ((row["status"] as string) !== "requested") {
+  if (row.status !== "requested") {
     throw new AppError("Esta pendência já foi respondida.", 409);
   }
-  const type = row["type"] as "field_edit" | "observation";
+  const type = row.type;
 
-  let patch: Record<string, unknown>;
+  let patch: PendingItemResponsePatch;
   if (type === "field_edit") {
-    if (!Object.prototype.hasOwnProperty.call(body, "correctedValue")) {
+    if (!("correctedValue" in body) || body.correctedValue === undefined) {
       throw new AppError("Campos obrigatórios ausentes: correctedValue", 400);
     }
-    if (body["correctedValue"] === undefined) {
-      throw new AppError("Campos obrigatórios ausentes: correctedValue", 400);
-    }
-    if (Object.prototype.hasOwnProperty.call(body, "response")) {
+    if ("response" in body) {
       throw new AppError("Campos inválidos: response — não permitido para field_edit", 400);
     }
-    patch = { corrected_value: JSON.stringify(body["correctedValue"]) };
+    const serialized = JSON.stringify(body.correctedValue);
+    if (serialized === undefined) {
+      throw new AppError("Campos inválidos: correctedValue", 400);
+    }
+    patch = { corrected_value: serialized };
   } else {
-    if (!Object.prototype.hasOwnProperty.call(body, "response")) {
+    if (!("response" in body)) {
       throw new AppError("Campos obrigatórios ausentes: response", 400);
     }
-    const response = body["response"] as string;
+    const response = body.response;
     if (typeof response !== "string" || response.trim().length === 0) {
       throw new AppError("Campos inválidos: response — Campo obrigatório.", 400);
     }
     if (response.trim().length > 2000) {
       throw new AppError("Campos inválidos: response — Máximo de 2.000 caracteres.", 400);
     }
-    if (Object.prototype.hasOwnProperty.call(body, "correctedValue")) {
+    if ("correctedValue" in body) {
       throw new AppError("Campos inválidos: correctedValue — não permitido para observation", 400);
     }
     patch = { response_text: response.trim() };
   }
 
-  const updated = await repo.respondPendingItemTx({
-    requestId: request.request_id,
-    protocol,
+  const { row: updated, committedNotifications } = await commitPendingItemResponse({
+    request,
     pendingItemId,
-    batchId: row["batch_id"] as string,
+    batchId: row.batch_id,
     patch,
-    actorEmail,
-    isInternal,
+    actor,
     ip,
-    decideStatus: (facts) =>
-      facts.requestedRemaining === 0 &&
-      facts.attachmentSatisfied &&
-      facts.currentStatusName !== IN_TRIAGE_STATUS
-        ? IN_TRIAGE_STATUS
-        : null,
   });
 
-  const list = await buildPendingItems(protocol, [updated]);
+  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
+  // fonte de verdade para quem reconectar via `Last-Event-ID`.
+  publishCommittedNotifications(committedNotifications);
+
+  const list = await buildPendingItems(request.protocol, [updated]);
   return list[0] as PendingItem;
 }
 
@@ -351,7 +518,7 @@ export async function addAttachment(
   const request = await repo.findRequestByProtocol(protocol);
   if (!request) throw new AppError("Solicitação não encontrada", 404);
   const row = await repo.findPendingItemById(pendingItemId);
-  if (!row || (row["request_id"] as string) !== request.request_id) {
+  if (!row || row.request_id !== request.request_id) {
     throw new AppError("Solicitação não encontrada", 404);
   }
 
@@ -401,7 +568,7 @@ function validateCorrectedValueForField(fieldKey: string, value: unknown): void 
     return;
   }
   if (fieldKey === "operational.hasManualControls") {
-    if (value !== false && (typeof value !== "string" || (value as string).trim() === "")) {
+    if (value !== false && (typeof value !== "string" || value.trim() === "")) {
       throw new AppError(
         "Campos inválidos: correctedValue — hasManualControls deve ser false ou texto não vazio",
         400,
@@ -423,13 +590,13 @@ function validateCorrectedValueForField(fieldKey: string, value: unknown): void 
     return;
   }
   if (fieldKey === "operational.operationalImpact") {
-    if (!["Baixo", "Médio", "Alto", "Crítico"].includes(value as string)) {
+    if (typeof value !== "string" || !["Baixo", "Médio", "Alto", "Crítico"].includes(value)) {
       throw new AppError("Campos inválidos: correctedValue — operationalImpact inválido", 400);
     }
     return;
   }
   if (fieldKey === "operational.perceivedCriticality") {
-    if (!["Baixa", "Média", "Alta", "Crítica"].includes(value as string)) {
+    if (typeof value !== "string" || !["Baixa", "Média", "Alta", "Crítica"].includes(value)) {
       throw new AppError("Campos inválidos: correctedValue — perceivedCriticality inválido", 400);
     }
     return;
@@ -453,8 +620,9 @@ function validateCorrectedValueForField(fieldKey: string, value: unknown): void 
   }
 }
 
-function parseCorrectedValue(raw: string | null): unknown {
-  if (raw === null) return null;
+function parseCorrectedValue(raw: unknown): unknown {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "string") return raw;
   try {
     return JSON.parse(raw);
   } catch {
@@ -477,12 +645,12 @@ export async function reviewPendingItems(
   const batchRows = await repo.findPendingItemsByBatchId(batchId, request.request_id);
   if (batchRows.length === 0) throw new AppError("Lote não encontrado", 404);
 
-  const byId = new Map(batchRows.map((row) => [row["pending_item_id"] as string, row]));
+  const byId = new Map(batchRows.map((row) => [row.pending_item_id, row]));
 
   for (const decision of body.items) {
     const row = byId.get(decision.id);
     if (!row) throw new AppError(`Item ${decision.id} não pertence ao lote`, 404);
-    const status = row["status"] as string;
+    const status = row.status;
     // idempotência: reenvio mesmo id+decision não duplica audit nem altera estado
     if (decision.decision === "validate" && status === "validated") continue;
     if (decision.decision === "reopen" && status === "requested") continue;
@@ -498,25 +666,39 @@ export async function reviewPendingItems(
     if (decision.decision === "reopen") {
       return { id: decision.id, decision: "reopen", comment: decision.comment };
     }
-    const row = byId.get(decision.id) as Record<string, unknown>;
-    const fieldKey = (row["field_key"] as string | null) ?? null;
+    const row = byId.get(decision.id);
+    if (!row) throw new AppError(`Item ${decision.id} não pertence ao lote`, 404);
+    const fieldKey = row.field_key;
     let value: unknown = null;
     if (fieldKey) {
-      value = parseCorrectedValue(row["corrected_value"] as string | null);
+      value = parseCorrectedValue(row.corrected_value);
       validateCorrectedValueForField(fieldKey, value);
     }
     return { id: decision.id, decision: "validate", note: decision.note ?? null, fieldKey, value };
   });
 
-  const decidedRows = await repo.applyReviewDecisionsTx({
-    requestId: request.request_id,
-    protocol,
-    batchId,
-    decisions,
-    requestAttachment: body.requestAttachment,
-    actor,
-    ip,
-    decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
+  const { rows: decidedRows } = await commitPendingItemAction(async (trx) => {
+    const { rows: reviewedRows, actionAuditIds } = await repo.applyReviewDecisionsInTransaction(
+      trx,
+      {
+        requestId: request.request_id,
+        protocol,
+        batchId,
+        decisions,
+        requestAttachment: body.requestAttachment,
+        actor,
+        ip,
+        decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
+      },
+    );
+
+    const notifications = await emitPendingItemNotifications(trx, {
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
+      actorUserId: actor.id,
+      events: [...actionAuditIds].map(([action, auditId]) => ({ action, auditId })),
+    });
+
+    return { result: { rows: reviewedRows }, notifications };
   });
 
   const mapped = await buildPendingItems(protocol, decidedRows);

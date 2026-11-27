@@ -32,13 +32,63 @@ describe("applyQueueFilters", () => {
     expect(bindings).toEqual([]);
   });
 
-  it("search aplica ILIKE em protocolo, e-mail e nome do requester", () => {
+  it("search aplica ILIKE em todos os campos do contrato RF04", () => {
     const { sql, bindings } = build({ search: "MAAT" });
 
     expect(sql).toContain('"requests"."protocol" ilike ?');
+    expect(sql).toContain('"requests"."title" ilike ?');
+    expect(sql).toContain('"requests"."process_name" ilike ?');
+    expect(sql).toContain('"requests"."need_description" ilike ?');
+    expect(sql).toContain('"requests"."problem_opportunity" ilike ?');
+    expect(sql).toContain('"requests"."expected_result" ilike ?');
     expect(sql).toContain('"requester"."corporate_email" ilike ?');
     expect(sql).toContain('"requester"."full_name" ilike ?');
-    expect(bindings).toEqual(["%MAAT%", "%MAAT%", "%MAAT%"]);
+    expect(sql).toContain('"note"."content" ilike ?');
+    // Oito colunas diretas + EXISTS das notas.
+    expect(bindings).toEqual(Array(9).fill("%MAAT%"));
+  });
+
+  it("busca em notas usa EXISTS correlacionado, sem junção e sem devolver conteúdo", () => {
+    const { sql } = build({ search: "kickoff" });
+
+    expect(sql).toMatch(
+      /exists \(select 1 from "request_internal_notes" as "note" where note\.request_id = requests\.request_id and "note"\."content" ilike \?\)/,
+    );
+    expect(sql).not.toContain('join "request_internal_notes"');
+    expect(sql).not.toContain('select "note"."content"');
+  });
+
+  it("noteCustodianUserId restringe a nota ao Responsável sem alterar o escopo da fila", () => {
+    const { sql, bindings } = build({
+      search: "kickoff",
+      scopedUserId: 7,
+      noteCustodianUserId: 7,
+    });
+
+    // 9 correspondências de search + custódia da nota + 2 do escopo.
+    expect(bindings).toEqual([...Array(9).fill("%kickoff%"), 7, 7, 7]);
+    expect(sql.match(/"assignee_user"\."user_id" = \?/g)).toHaveLength(2);
+    expect(sql.match(/"mapping_assignee"\."user_id" = \?/g)).toHaveLength(1);
+  });
+
+  it("sem noteCustodianUserId (Gestor/Administrador) a nota não é recortada", () => {
+    const { sql, bindings } = build({ search: "kickoff" });
+
+    expect(bindings).toEqual(Array(9).fill("%kickoff%"));
+    expect(sql).not.toContain('"assignee_user"."user_id" = ?');
+  });
+
+  it("campos opcionais vazios não geram condições", () => {
+    const { sql, bindings } = build({
+      search: "",
+      status: undefined,
+      priority: undefined,
+      assigneeId: undefined,
+      unassigned: false,
+    });
+
+    expect(sql).not.toContain("where");
+    expect(bindings).toEqual([]);
   });
 
   it("status e priority filtram pelas tabelas corretas", () => {
@@ -100,12 +150,54 @@ describe("applyQueueFilters", () => {
       scopedUserId: 7,
     });
 
-    expect(bindings).toEqual(["%MAAT%", "%MAAT%", "%MAAT%", "Em triagem", "Alta", 20, 7, 7]);
+    expect(bindings).toEqual([...Array(9).fill("%MAAT%"), "Em triagem", "Alta", 20, 7, 7]);
     // O grupo do search fecha e os demais filtros entram com AND.
     expect(sql).toMatch(/\) and "status"\."name" = \?/);
     expect(sql).toMatch(/"status"\."name" = \? and "priority_tbl"\."level" = \?/);
     expect(sql).toMatch(/"priority_tbl"\."level" = \? and "assignee_user"\."user_id" = \?/);
     // O OR do escopo é intencional e fica entre parênteses.
+    expect(sql).toMatch(
+      /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,
+    );
+  });
+
+  // Bordas reais de dia e o comportamento isolado de `createdTo` são
+  // verificados com banco em `tests/db/queue.http.test.ts`.
+  it("createdFrom e createdTo filtram created_at em UTC, com createdTo inclusivo", () => {
+    const { sql, bindings } = build({ createdFrom: "2026-11-01", createdTo: "2026-11-30" });
+
+    expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
+    expect(sql).toContain(
+      `"requests"."created_at" < ((?::date + INTERVAL '1 day')::timestamp AT TIME ZONE ?)`,
+    );
+    expect(bindings).toEqual(["2026-11-01", "UTC", "2026-11-30", "UTC"]);
+  });
+
+  it("department compara requesters.department de forma exata e case-insensitive", () => {
+    const { sql, bindings } = build({ department: "Desenvolvimento" });
+
+    expect(sql).toContain('lower("requester"."department") = lower(?)');
+    expect(bindings).toEqual(["Desenvolvimento"]);
+  });
+
+  it("data, departamento e busca entram juntos sem alterar o escopo do Analista", () => {
+    const { sql, bindings } = build({
+      search: "MAAT",
+      createdFrom: "2026-11-01",
+      department: "Desenvolvimento",
+      scopedUserId: 7,
+    });
+
+    expect(bindings).toEqual([
+      ...Array(9).fill("%MAAT%"),
+      "2026-11-01",
+      "UTC",
+      "Desenvolvimento",
+      7,
+      7,
+    ]);
+    expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
+    expect(sql).toMatch(/and lower\("requester"\."department"\) = lower\(\?\)/);
     expect(sql).toMatch(
       /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,
     );

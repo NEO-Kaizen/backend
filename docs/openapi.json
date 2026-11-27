@@ -1275,7 +1275,7 @@
       },
       "QueueResponse": {
         "type": "object",
-        "required": ["data", "page", "pageSize", "total", "totalPages", "assignees"],
+        "required": ["data", "page", "pageSize", "total", "totalPages", "assignees", "departments"],
         "properties": {
           "data": { "type": "array", "items": { "$ref": "#/components/schemas/QueueItem" } },
           "page": { "type": "integer", "example": 1 },
@@ -1286,6 +1286,12 @@
             "type": "array",
             "description": "Responsáveis atribuíveis para o filtro da fila.",
             "items": { "$ref": "#/components/schemas/QueueAssignee" }
+          },
+          "departments": {
+            "type": "array",
+            "description": "Departamentos distintos e globais do solicitante, ordenados; não dependem dos filtros nem da paginação.",
+            "items": { "type": "string" },
+            "example": ["Desenvolvimento", "Financeiro"]
           }
         }
       },
@@ -2638,10 +2644,10 @@
           "calculatedBy": { "type": "integer" }
         }
       },
-      "NotificationPayload": {
+      "NotificationStatusChangedPayload": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Payload reduzido à Allowlist do Evento. Nunca contém mensagem técnica, scores, notas internas ou campos de triagem.",
+        "description": "Payload reduzido à Allowlist do Evento de mudança de Status. Nunca contém mensagem técnica, scores, notas internas ou campos de triagem.",
         "required": ["type", "protocol", "title", "newStatus"],
         "properties": {
           "type": { "type": "string", "enum": ["status_changed"], "example": "status_changed" },
@@ -2654,12 +2660,121 @@
           "newStatus": { "type": "string", "maxLength": 100, "example": "Aguardando mapeamento" }
         }
       },
+      "NotificationMappingScheduledPayload": {
+        "type": "object",
+        "description": "Payload do Evento de Agendamento do Mapeamento: data/hora do Agendamento.",
+        "required": ["type", "protocol", "title", "scheduledAt"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["mapping_scheduled"],
+            "example": "mapping_scheduled"
+          },
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "title": { "type": "string", "example": "Automatizar conciliação bancária" },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data/hora do Agendamento (ISO-8601 UTC).",
+            "example": "2026-08-15T14:00:00Z"
+          }
+        }
+      },
+      "NotificationPendingItemLifecyclePayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Payload dos Eventos de criação, reabertura e validação de Pendência: tipo, protocolo e título.",
+        "required": ["type", "protocol", "title"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["pending_item_created", "pending_item_reopened", "pending_item_validated"],
+            "example": "pending_item_created"
+          },
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "title": { "type": "string", "example": "Automatizar conciliação bancária" }
+        }
+      },
+      "NotificationPendingItemRespondedPayload": {
+        "type": "object",
+        "description": "Payload do Evento de Pendência respondida com Responsável designado. Aponta para a solicitação sem expor dados internos.",
+        "required": ["type", "protocol", "title"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["pending_item_responded"],
+            "example": "pending_item_responded"
+          },
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "title": { "type": "string", "example": "Automatizar conciliação bancária" }
+        }
+      },
+      "NotificationPendingItemRespondedUnassignedPayload": {
+        "type": "object",
+        "description": "Payload do Evento de Pendência respondida sem Responsável designado; inclui o aviso explícito para os Administradores ativos.",
+        "required": ["type", "protocol", "title", "notice"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["pending_item_responded_unassigned"],
+            "example": "pending_item_responded_unassigned"
+          },
+          "protocol": { "type": "string", "example": "MAAT-2R7Q-4M1C" },
+          "title": { "type": "string", "example": "Analisar inadimplência por região" },
+          "notice": {
+            "type": "string",
+            "enum": ["Sem responsável designado"],
+            "example": "Sem responsável designado"
+          }
+        }
+      },
+      "NotificationResponsibleAssignedPayload": {
+        "type": "object",
+        "description": "Payload do Evento de Designação de Responsável: categoria e Status atual da solicitação no momento da designação. Aponta para a solicitação sem expor dados internos.",
+        "required": ["type", "protocol", "title", "category", "status"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["responsible_assigned"],
+            "example": "responsible_assigned"
+          },
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "title": { "type": "string", "example": "Automatizar conciliação bancária" },
+          "category": { "type": "string", "example": "Automação" },
+          "status": { "type": "string", "example": "Aguardando mapeamento" }
+        }
+      },
+      "NotificationPayload": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/NotificationStatusChangedPayload" },
+          { "$ref": "#/components/schemas/NotificationMappingScheduledPayload" },
+          { "$ref": "#/components/schemas/NotificationPendingItemLifecyclePayload" },
+          { "$ref": "#/components/schemas/NotificationPendingItemRespondedPayload" },
+          { "$ref": "#/components/schemas/NotificationPendingItemRespondedUnassignedPayload" },
+          { "$ref": "#/components/schemas/NotificationResponsibleAssignedPayload" }
+        ],
+        "discriminator": { "propertyName": "type" },
+        "description": "Payload reduzido à Allowlist do Evento. Nunca contém mensagem técnica, scores, notas internas ou campos de triagem."
+      },
       "NotificationItem": {
         "type": "object",
         "required": ["id", "type", "payload", "readAt", "createdAt"],
         "properties": {
           "id": { "type": "string", "example": "f0000000-0000-4000-8000-000000000001" },
-          "type": { "type": "string", "enum": ["status_changed"], "example": "status_changed" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "status_changed",
+              "mapping_scheduled",
+              "pending_item_responded",
+              "pending_item_responded_unassigned",
+              "responsible_assigned",
+              "pending_item_created",
+              "pending_item_reopened",
+              "pending_item_validated"
+            ],
+            "example": "status_changed"
+          },
           "payload": { "$ref": "#/components/schemas/NotificationPayload" },
           "readAt": { "type": "string", "format": "date-time", "nullable": true, "example": null },
           "createdAt": {
@@ -4229,7 +4344,7 @@
       "get": {
         "tags": ["Fila de atendimento"],
         "summary": "Listar fila de atendimento",
-        "description": "Listagem paginada da fila com busca e filtros. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
+        "description": "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
         "operationId": "getQueue",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4249,7 +4364,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca por protocolo, e-mail corporativo ou nome do solicitante.",
+            "description": "Busca parcial, case-insensitive, por protocolo, título da Solicitação, nome do processo, descrição, problema, resultado esperado, notas internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {
@@ -4278,6 +4393,45 @@
             "required": false,
             "description": "`true`/`1` lista apenas sem responsável. Não pode ser combinado com `assigneeId` diferente de `unassigned`.",
             "schema": { "type": "string", "enum": ["true", "1", "false", "0"] }
+          },
+          {
+            "name": "createdFrom",
+            "in": "query",
+            "required": false,
+            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC. Não pode ser posterior a `createdTo`.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-01" }
+          },
+          {
+            "name": "createdTo",
+            "in": "query",
+            "required": false,
+            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-30" }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "description": "Departamento do solicitante (com trim). Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
+            "schema": { "type": "string", "maxLength": 200, "example": "Desenvolvimento" }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a Prioridade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
+            "schema": {
+              "type": "string",
+              "enum": ["createdAt", "protocol", "status", "priority"],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "required": false,
+            "description": "Direção da ordenação.",
+            "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" }
           }
         ],
         "responses": {
@@ -5086,7 +5240,7 @@
       "get": {
         "tags": ["Relatórios"],
         "summary": "Exportar solicitações em CSV",
-        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas no fuso `America/Sao_Paulo`.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`.",
+        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas nas colunas do CSV no fuso `America/Sao_Paulo`; os filtros `createdFrom`/`createdTo` usam UTC.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
         "operationId": "exportRequestsCsv",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5094,7 +5248,7 @@
             "name": "search",
             "in": "query",
             "required": false,
-            "description": "Busca por protocolo, e-mail corporativo ou nome do solicitante.",
+            "description": "Busca parcial, case-insensitive, por protocolo, título da Solicitação, nome do processo, descrição, problema, resultado esperado, notas internas, nome e e-mail do solicitante. Em `GET /queue`, a correspondência em notas exige a custódia de `internal_note:read`: o responsável de mapeamento amplia a fila, mas não a busca por nota. Nas rotas restritas a Gestor/Administrador não há recorte por responsável.",
             "schema": { "type": "string", "maxLength": 254 }
           },
           {
@@ -5120,6 +5274,45 @@
             "in": "query",
             "required": false,
             "schema": { "type": "string", "enum": ["true", "1", "false", "0"] }
+          },
+          {
+            "name": "createdFrom",
+            "in": "query",
+            "required": false,
+            "description": "Data inicial de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC. Não pode ser posterior a `createdTo`.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-01" }
+          },
+          {
+            "name": "createdTo",
+            "in": "query",
+            "required": false,
+            "description": "Data final de abertura (`AAAA-MM-DD`), inclusiva, comparada com `created_at` em UTC.",
+            "schema": { "type": "string", "format": "date", "example": "2026-11-30" }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "description": "Departamento do solicitante (com trim). Comparação exata e case-insensitive; solicitações sem departamento não correspondem.",
+            "schema": { "type": "string", "maxLength": 200, "example": "Desenvolvimento" }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "description": "Campo de ordenação, aplicável a `GET /queue` e a `GET /reports/requests.csv`. `status` segue `statuses.order_number` e `priority` a Prioridade (Crítica antes de Baixa em `desc`), com solicitações sem prioridade sempre no fim. `protocol` é comparado sem diferenciar maiúsculas. O desempate é feito por `protocol` ascendente, exceto quando `protocol` é o próprio campo ordenado. Valores: `createdAt`, `protocol`, `status` ou `priority`.",
+            "schema": {
+              "type": "string",
+              "enum": ["createdAt", "protocol", "status", "priority"],
+              "default": "createdAt"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "required": false,
+            "description": "Direção da ordenação.",
+            "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" }
           }
         ],
         "responses": {
@@ -5677,7 +5870,7 @@
       "patch": {
         "tags": ["Pendências"],
         "summary": "Responder pendência",
-        "description": "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth.",
+        "description": "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos Administradores ativos (RF20 — issue #159).",
         "operationId": "respondPendingItem",
         "security": [{ "cookieAuth": [] }, { "requesterIdentity": [] }],
         "parameters": [
