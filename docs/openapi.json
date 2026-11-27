@@ -6082,7 +6082,7 @@
             }
           },
           "404": {
-            "description": "Solicitação não encontrada.",
+            "description": "Solicitação não encontrada ou fora da Custódia.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -6134,13 +6134,13 @@
             }
           },
           "403": {
-            "description": "Sem `pending_item:write` ou Custódia da linha.",
+            "description": "Sem `pending_item:write`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Solicitação não encontrada.",
+            "description": "Solicitação não encontrada ou fora da Custódia.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -6200,13 +6200,13 @@
             }
           },
           "403": {
-            "description": "Sem `pending_item:review` ou Custódia da linha.",
+            "description": "Sem `pending_item:review`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Solicitação ou lote não encontrado.",
+            "description": "Solicitação/lote não encontrado ou fora da Custódia.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
