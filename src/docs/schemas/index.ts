@@ -66,6 +66,8 @@ import {
   AssignRequestPayload,
   AssignRequestResponse,
   AssignAnalystPayload,
+  CancelRequestPayload,
+  CancelRequestResponse,
   UpdateStatusPayload,
   UpdateStatusResponse,
 } from "./request.ts";
@@ -239,6 +241,8 @@ export const schemas = {
   AssignRequestPayload,
   AssignRequestResponse,
   AssignAnalystPayload,
+  CancelRequestPayload,
+  CancelRequestResponse,
   UpdateStatusPayload,
   UpdateStatusResponse,
 

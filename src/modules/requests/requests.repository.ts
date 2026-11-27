@@ -35,6 +35,8 @@ import type {
 } from "../DTOs/requests/RequestResponse.dto.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 
+import { applyStatusTransition } from "./statusTransition.ts";
+
 const INITIAL_STATUS = "Solicitação enviada";
 
 interface YesNoDetailColumns {
@@ -802,15 +804,54 @@ export async function updateStatus(
   trx: Knex.Transaction,
   requestId: string,
   statusName: RequestStatus,
+  expectedStatusName: RequestStatus,
   updatedBy: string,
 ): Promise<void> {
   const statusId = await findStatusId(statusName, trx);
+  const expectedStatusId = await findStatusId(expectedStatusName, trx);
 
-  await trx("requests").where({ request_id: requestId }).update({
-    status_id: statusId,
-    updated_by: updatedBy,
-    updated_at: trx.fn.now(),
+  // A RN-010 mantém a projeção pública anterior.
+  await applyStatusTransition(trx, {
+    requestId,
+    target: { status_id: statusId, name: statusName, isPublic: false },
+    updatedBy,
+    expectedStatusId,
   });
+}
+
+interface CancellationContext {
+  request_id: string;
+  protocol: string;
+  requester_user_id: number | null;
+  status_id: number;
+  has_triage: boolean;
+}
+
+export async function lockRequestForCancellation(
+  trx: Knex.Transaction,
+  protocol: string,
+  requesterUserId: number,
+): Promise<{ request_id: string } | undefined> {
+  return trx("requests")
+    .where({ protocol, requester_user_id: requesterUserId })
+    .forNoKeyUpdate()
+    .first("request_id");
+}
+
+export async function findCancellationContext(
+  requestId: string,
+  source: Knex | Knex.Transaction = db,
+): Promise<CancellationContext | undefined> {
+  const triages = source("triages").select("request_id").where({ request_id: requestId });
+  return source("requests")
+    .where({ request_id: requestId })
+    .first(
+      "request_id",
+      "protocol",
+      "requester_user_id",
+      "status_id",
+      source.raw("EXISTS (?) AS has_triage", [triages]),
+    );
 }
 
 // --- Motor de Status v4 (issue #124) — PATCH /requests/:protocol/status ------

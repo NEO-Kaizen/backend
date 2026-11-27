@@ -302,6 +302,40 @@ export default {
     },
   },
 
+  "/requests/{protocol}/cancel": {
+    post: {
+      tags: ["Solicitações"],
+      summary: "Cancelar solicitação antes da triagem",
+      description:
+        "Disponível ao solicitante autenticado com vínculo direto, no estado Solicitação enviada e sem avaliação registrada.",
+      operationId: "postCancelRequest",
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          ...protocolParam,
+          description:
+            "Protocolo de rastreio. Deve conter ao menos um caractere que não seja espaço em branco.",
+          schema: { ...protocolParam.schema, pattern: "\\S" },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: { $ref: "#/components/schemas/CancelRequestPayload" } },
+        },
+      },
+      responses: {
+        "200": { description: "Solicitação cancelada.", ...json("CancelRequestResponse") },
+        "400": error("Protocolo vazio ou composto apenas por espaços em branco."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem permissão para cancelar."),
+        "404": error("Protocolo não encontrado para o titular autenticado."),
+        "409": error("Conflito com outra alteração da solicitação."),
+        "422": error("Justificativa inválida ou solicitação inelegível (rf07_not_eligible)."),
+      },
+    },
+  },
+
   "/requests/{protocol}/status": {
     patch: {
       tags: ["Solicitações"],

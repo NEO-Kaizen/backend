@@ -10,6 +10,7 @@ import type {
   AssignmentContextRow,
   InternalRequestRow,
 } from "../../shared/types/requests.ts";
+import { STATUS_IDS } from "../../shared/types/status.ts";
 import { REQUEST_PRIORITIES } from "../../shared/types/requests.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
@@ -61,6 +62,7 @@ import type { CommittedNotification } from "../../shared/notifications/emitNotif
 import type {
   AssignAnalystPayload,
   AssignRequestPayload,
+  CancelRequestPayload,
   UpdateRequestPayload,
   UpdateStatusPayload,
 } from "./requests.schema.ts";
@@ -510,12 +512,60 @@ function buildPublicDetails(row: InternalRequestRow): PublicRequestDetails {
   };
 }
 
+function isCancellationEligible(request: { status_id: number; has_triage: boolean }): boolean {
+  return request.status_id === STATUS_IDS.requestSent && !request.has_triage;
+}
+
+export async function cancelRequest(
+  protocol: string,
+  payload: CancelRequestPayload,
+  actor: { id: number; email: string },
+  ipAddress: string | undefined,
+): Promise<{ status: "Cancelado" }> {
+  return db.transaction(async (trx) => {
+    const locked = await repository.lockRequestForCancellation(trx, protocol, actor.id);
+    // Consulte triages em um novo comando após qualquer espera pelo bloqueio.
+    const request = locked && (await repository.findCancellationContext(locked.request_id, trx));
+    if (!request || request.requester_user_id !== actor.id) {
+      throw new AppError("Protocolo não encontrado", 404);
+    }
+    if (!isCancellationEligible(request)) {
+      throw new AppError("Esta solicitação não pode mais ser cancelada.", 422, "rf07_not_eligible");
+    }
+
+    const lastTechnicalMessage = "Solicitação cancelada pelo titular.";
+    await applyStatusTransition(trx, {
+      requestId: request.request_id,
+      target: { status_id: STATUS_IDS.canceled, name: "Cancelado", isPublic: true },
+      updatedBy: actor.email,
+      lastTechnicalMessage,
+      expectedStatusId: STATUS_IDS.requestSent,
+    });
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: request.protocol,
+      actionType: "request.status_change",
+      userId: actor.id,
+      previousValue: "Solicitação enviada",
+      newValue: "Cancelado",
+      note: payload.justification,
+      lastTechnicalMessage,
+      ipAddress,
+      changeOrigin: "requester",
+    });
+
+    return { status: "Cancelado" };
+  });
+}
+
 async function buildAuthenticatedDetails(
   row: InternalRequestRow,
+  userId: number,
 ): Promise<RequesterRequestDetails> {
   const requestId = row.request_id;
-  const [attachments, schedulePreferences] = await Promise.all([
+  const [attachments, cancellation, schedulePreferences] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
+    repository.findCancellationContext(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
   ]);
 
@@ -527,6 +577,7 @@ async function buildAuthenticatedDetails(
 
   return {
     ...base,
+    canCancel: cancellation?.requester_user_id === userId && isCancellationEligible(cancellation),
     operational: {
       ...impacts,
       processDescription: row.process_description,
@@ -598,7 +649,7 @@ async function getAuthenticatedTracking(
     throw new AppError("Protocolo nÃ£o encontrado", 404);
   }
 
-  return { mode: "authenticated", details: await buildAuthenticatedDetails(row) };
+  return { mode: "authenticated", details: await buildAuthenticatedDetails(row, Number(user.id)) };
 }
 
 async function getPublicTracking(
@@ -903,7 +954,13 @@ export async function assignResponsible(
     }
 
     if (shouldAdvanceStatus) {
-      await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
+      await repository.updateStatus(
+        trx,
+        request.request_id,
+        RN010_TO_STATUS,
+        RN010_FROM_STATUS,
+        actor.email,
+      );
 
       await recordAudit(trx, {
         entityType: "request",
@@ -1042,7 +1099,13 @@ export async function assignAnalyst(
           });
         }
         if (shouldAdvance) {
-          await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
+          await repository.updateStatus(
+            trx,
+            request.request_id,
+            RN010_TO_STATUS,
+            RN010_FROM_STATUS,
+            actor.email,
+          );
           await recordAudit(trx, {
             entityType: "request",
             entityId: request.protocol,

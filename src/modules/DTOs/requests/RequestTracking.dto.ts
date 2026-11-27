@@ -67,6 +67,7 @@ export interface PublicRequestDetails {
 }
 
 export interface RequesterRequestDetails extends Omit<PublicRequestDetails, "impacts"> {
+  canCancel: boolean;
   operational: RequesterOperational;
   complementary?: ComplementaryBlock;
   schedulePreferences: string[] | null;
