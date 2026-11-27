@@ -54,6 +54,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
     "@types/pdfkit": "^0.17.7",
+    "@types/svg-to-pdfkit": "^0.1.5",
     "@types/swagger-ui-express": "^4.1.8",
     "eslint": "^10.8.1",
     "globals": "^17.9.0",
@@ -73,6 +74,7 @@
     "pdfkit": "^0.21.0",
     "pg": "^8.23.0",
     "puppeteer": "^25.18.1",
+    "svg-to-pdfkit": "^0.1.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.5.4"
   },

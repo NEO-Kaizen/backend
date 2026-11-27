@@ -1,3 +1,7 @@
+import path from "node:path";
+import SVGtoPDF from "svg-to-pdfkit";
+import Config from "../../configs.ts";
+import { getSettingsRow } from "../portalConfig/portalConfig.repository.ts";
 import { readFile } from "node:fs/promises";
 import PDFDocument from "pdfkit";
 
@@ -17,7 +21,7 @@ const COLORS = {
 const ASSETS = new URL("../../../assets/", import.meta.url);
 
 interface Artwork {
-  paths: string[];
+  defaultLogo: string;
   inter: Buffer;
   montserrat: Buffer;
 }
@@ -26,18 +30,34 @@ let artwork: Artwork | undefined;
 
 async function loadArtwork(): Promise<Artwork> {
   if (artwork) return artwork;
-  const [svg, inter, montserrat] = await Promise.all([
+
+  const [defaultLogo, inter, montserrat] = await Promise.all([
     readFile(new URL("MAAT-logo.svg", ASSETS), "utf8"),
     readFile(new URL("pdf/Inter-Regular.ttf", ASSETS)),
     readFile(new URL("pdf/Montserrat-SemiBold.ttf", ASSETS)),
   ]);
-  // O SVG oficial usa somente caminhos preenchidos, com viewBox 0 0 521 158.
-  const paths = [...svg.matchAll(/<path\s+d="([^"]+)"/g)].flatMap((match) =>
-    match[1] ? [match[1]] : [],
-  );
-  if (!paths.length) throw new Error("A logo do relatório não contém caminhos vetoriais.");
-  artwork = { paths, inter, montserrat };
+
+  artwork = { defaultLogo, inter, montserrat };
   return artwork;
+}
+
+async function loadPortalLogo(defaultLogo: string): Promise<string | Buffer> {
+  const { logo_light_url } = await getSettingsRow();
+
+  // O upload pelo painel ADM salva a imagem em /uploads/portal/.
+  const name = /^\/uploads\/portal\/([\w.-]+\.(?:svg|png))$/i.exec(
+    logo_light_url ?? "",
+  )?.[1];
+
+  if (!name) return defaultLogo;
+
+  try {
+    const data = await readFile(path.join(Config.UPLOAD_DIR, "portal", name));
+    return name.toLowerCase().endsWith(".svg") ? data.toString("utf8") : data;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return defaultLogo;
+    throw error;
+  }
 }
 
 type Document = PDFKit.PDFDocument;
@@ -135,14 +155,23 @@ interface PdfHeader {
   generatedAt: string;
 }
 
-function renderHeader(doc: Document, header: PdfHeader, paths: string[]): void {
+function renderHeader(doc: Document, header: PdfHeader, logo: string | Buffer): void {
   const width = contentWidth(doc);
-  doc
-    .save()
-    .translate(MARGIN, MARGIN)
-    .scale(108 / 521);
-  for (const path of paths) doc.path(path).fill(COLORS.primary);
-  doc.restore();
+
+  if (typeof logo === "string") {
+    SVGtoPDF(doc, logo, MARGIN, MARGIN, {
+      width: 108,
+      height: 33,
+      preserveAspectRatio: "xMinYMid meet",
+      imageCallback: (href) =>
+        /^data:image\/(png|jpeg);base64,/i.test(href) ? href : "",
+    });
+  } else {
+    doc.image(logo, MARGIN, MARGIN, {
+      fit: [108, 33],
+      valign: "center",
+    });
+  }
 
   doc
     .font("Body")
@@ -215,7 +244,8 @@ export async function buildPdf(
   header: PdfHeader,
   render: (doc: Document) => void,
 ): Promise<Buffer> {
-  const { paths, inter, montserrat } = await loadArtwork();
+  const { defaultLogo, inter, montserrat } = await loadArtwork();
+const logo = await loadPortalLogo(defaultLogo);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
@@ -235,7 +265,7 @@ export async function buildPdf(
 
     try {
       doc.registerFont("Body", inter).registerFont("Heading", montserrat);
-      renderHeader(doc, header, paths);
+      renderHeader(doc, header, logo);
       render(doc);
       renderPageMargins(doc, header.protocol);
       doc.end();
