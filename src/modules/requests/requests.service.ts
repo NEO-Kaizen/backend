@@ -1198,30 +1198,24 @@ export async function assignAnalyst(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
-  const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
-  const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
-
-  // A atribuição é autorizada por chave e Custódia, sem decisão por Perfil:
-  // `request:assign` designa o Responsável da triagem; `mapping:write` designa
-  // o do Mapeamento corrente (a Triagem não designa o mapeador). Cada ramo
-  // valida a própria chave; a rota aceita qualquer uma delas no gate.
-  const assignmentKey = hasMapping && !hasAssignee ? "mapping:write" : "request:assign";
   const request = await requireRequestCustody(
     await repository.findAssignmentContextByProtocol(protocol.trim()),
     actor,
     protocol.trim(),
     ipAddress,
-    `${assignmentKey} sem custódia`,
+    "request:assign sem custódia",
     (row) =>
-      hasAnyResponsibleCustody(
-        actor,
-        assignmentKey,
-        assignmentKey === "mapping:write"
-          ? [row.mapping_assignee_user_id]
-          : [row.assignee_user_id, row.mapping_assignee_user_id],
-      ),
-    [assignmentKey],
+      hasAnyResponsibleCustody(actor, "request:assign", [
+        row.assignee_user_id,
+        row.mapping_assignee_user_id,
+      ]),
+    ["request:assign"],
   );
+
+  // A atribuição é autorizada por request:assign e Custódia, sem decisão por
+  // Perfil. A validação do alvo ocorre no service para definir ou reatribuir.
+  const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
+  const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
 
   let committedNotifications: CommittedNotification[] = [];
 

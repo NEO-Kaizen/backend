@@ -119,7 +119,7 @@ export default {
         "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. " +
         "`completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); " +
         "para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`. " +
-        "Conteúdo e designação (`mappingAssigneeId`) exigem `mapping:write` + Custódia do mapeamento corrente; a triagem não designa.",
+        "Conteúdo exige `mapping:write` + Custódia do mapeamento corrente; designação (`mappingAssigneeId`) exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente.",
       operationId: "putMapping",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -166,7 +166,9 @@ export default {
         "200": { description: "Mapeamento atualizado.", ...json("MappingResponse") },
         "400": error("Payload malformado ou vazio."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `mapping:write` ou Custódia do mapeamento corrente."),
+        "403": error(
+          "Sem `mapping:write` (conteúdo) ou `request:assign` (designação), ou sem Custódia compatível.",
+        ),
         "404": error("Protocolo ou mapeamento inexistente."),
         "409": error("Conflito de concorrência na transição."),
         "422": error("Erro de validação de campos ou estado."),

@@ -1,7 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
 import {
-  requireAnyPermission,
   requirePermission,
   requirePermissionIfSession,
 } from "../../shared/middleware/requirePermission.ts";
@@ -45,13 +44,12 @@ requestsRoutes.get(
 // Wire format em `src/docs/paths/requests.ts` (`patchInternalAssignee`): PATCH
 // /requests/{protocol}/internal/assignee com body {assigneeId} | {mappingAssigneeId}
 // (user_id string, XOR, null para remover). Regras em `docs/rules/assignment.md`.
-// O gate aceita `request:assign` (triagem) ou `mapping:write` (mapeamento); o
-// service aplica a chave e a Custódia do ramo e valida a Atribuibilidade do alvo.
-// Mantida rota legada /:protocol/assignee.
+// A chave request:assign faz o gate da operação; o service valida Custódia
+// da solicitação e a Atribuibilidade do alvo. Mantida rota legada /:protocol/assignee.
 requestsRoutes.patch(
   "/:protocol/internal/assignee",
   authMiddleware,
-  requireAnyPermission(["request:assign", "mapping:write"]),
+  requirePermission("request:assign"),
   patchInternalAssignee,
 );
 

@@ -1355,7 +1355,7 @@
             "type": "string",
             "format": "uuid",
             "nullable": true,
-            "description": "`details_professional.professional_id` do executor do mapeamento (`mappings.professional_id`). Não altera a custódia em `requests.mapping_professional_id`. Permitido ao Administrador, ao responsável da solicitação ou ao designado atual."
+            "description": "`details_professional.professional_id` do executor do mapeamento (`mappings.professional_id`). Não altera a custódia em `requests.mapping_professional_id`. Exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente (na matriz base, Administrador/Admin Root)."
           },
           "scheduledFor": { "type": "string", "format": "date-time", "nullable": true },
           "durationMinutes": { "type": "integer", "minimum": 15, "maximum": 480, "nullable": true },
@@ -3701,7 +3701,7 @@
       "patch": {
         "tags": ["Solicitações"],
         "summary": "Atribuir responsável interno",
-        "description": "Define/remove o responsável de triagem (`assigneeId`) ou o designado do mapeamento (`mappingAssigneeId`) — exatamente um por chamada. Nesta rota ambos são `users.user_id` numérico em string. Liberado ao Administrador ou ao Analista responsável pela solicitação; Gestor não atribui.",
+        "description": "Define/remove o responsável de triagem (`assigneeId`) ou o designado do mapeamento (`mappingAssigneeId`) — exatamente um por chamada. Nesta rota ambos são `users.user_id` numérico em string. Exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente; na matriz base, só Administrador e Admin Root atribuem.",
         "operationId": "patchInternalAssignee",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4934,7 +4934,7 @@
       "put": {
         "tags": ["Fila de atendimento"],
         "summary": "Criar ou atualizar mapeamento",
-        "description": "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. `completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`. Conteúdo e designação (`mappingAssigneeId`) exigem `mapping:write` + Custódia do mapeamento corrente; a triagem não designa.",
+        "description": "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. `completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`. Conteúdo exige `mapping:write` + Custódia do mapeamento corrente; designação (`mappingAssigneeId`) exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente.",
         "operationId": "putMapping",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5007,7 +5007,7 @@
             }
           },
           "403": {
-            "description": "Sem `mapping:write` ou Custódia do mapeamento corrente.",
+            "description": "Sem `mapping:write` (conteúdo) ou `request:assign` (designação), ou sem Custódia compatível.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }

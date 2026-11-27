@@ -390,7 +390,7 @@ export default {
       summary: "Atribuir responsável interno",
       description:
         "Define/remove o responsável de triagem (`assigneeId`) ou o designado do mapeamento (`mappingAssigneeId`) — exatamente um por chamada. " +
-        "Nesta rota ambos são `users.user_id` numérico em string. Liberado ao Administrador ou ao Analista responsável pela solicitação; Gestor não atribui.",
+        "Nesta rota ambos são `users.user_id` numérico em string. Exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente; na matriz base, só Administrador e Admin Root atribuem.",
       operationId: "patchInternalAssignee",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],

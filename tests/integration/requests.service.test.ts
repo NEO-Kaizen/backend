@@ -336,7 +336,7 @@ describe("requests.service.findInternalByProtocol — custódia de leitura", () 
 });
 
 describe("requests.service.assignAnalyst — chave por vínculo", () => {
-  it("recusa a designação do mapeamento a quem só tem request:assign", async () => {
+  it("recusa a designação do mapeamento a quem só tem mapping:write", async () => {
     vi.mocked(repository.findAssignmentContextByProtocol).mockResolvedValue({
       request_id: "req-1",
       protocol: PROTOCOL,
@@ -345,20 +345,17 @@ describe("requests.service.assignAnalyst — chave por vínculo", () => {
       status: "Em triagem",
       screening_result: null,
       requester_user_id: 1,
-      assignee_user_id: 7,
-      professional_id: "prof-7",
+      assignee_user_id: 5,
+      professional_id: "prof-5",
       mapping_professional_id: null,
-      mapping_assignee_user_id: 5,
+      mapping_assignee_user_id: 7,
     });
 
     await expect(
       requestsService.assignAnalyst(
         PROTOCOL,
         { mappingAssigneeId: "7" },
-        actorWith([
-          { permission_key: "request:assign", custody: "assigned" },
-          { permission_key: "assignee_directory:read", custody: "global" },
-        ]),
+        actorWith([{ permission_key: "mapping:write", custody: "assigned" }]),
         undefined,
       ),
     ).rejects.toMatchObject({ statusCode: 404, code: "request_not_found" });

@@ -6,7 +6,7 @@
 
 - Arquivos-fonte analisados: **199**.
 - Tipos nomeados: **390** — 266 interfaces, 122 aliases `type`, 2 classes e 0 enums.
-- Declarações sem anotação explícita: **2323** — 1698 variáveis, 309 parâmetros e 316 retornos de funções/métodos.
+- Declarações sem anotação explícita: **2322** — 1697 variáveis, 309 parâmetros e 316 retornos de funções/métodos.
 - Declarações com tipo efetivo `any` detectado pelo checker: **50**; ocorrências com a palavra-chave `any` explícita no código-fonte: **0**.
 - Arquivos com pelo menos uma declaração sem anotação: **151**; arquivos sem ocorrências são omitidos das seções 2 e 3.
 - Erros de typecheck no momento da geração: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
@@ -5946,58 +5946,58 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.service.ts](../src/modules/queue/mapping.service.ts)
 
-- L86 — variável: `date`
-- L149 — parâmetro: `participant`
-- L149 — retorno da função: `<anônima>()`
-- L181 — parâmetro: `participant`
-- L181 — retorno da função: `<anônima>()`
-- L212 — variável: `textField`
-- L213 — variável: `next`
-- L214 — variável: `normalized`
-- L261 — parâmetro: `participant`
-- L261 — retorno da função: `<anônima>()`
-- L261 — variável: `userIds`
-- L265 — variável: `usersById`
-- L267 — parâmetro: `participant`
-- L267 — variável: `resolved`
-- L272 — variável: `user`
-- L279 — variável: `seenEmails`
-- L280 — variável: `seenUserIds`
-- L281 — variável: `participant`
-- L282 — variável: `emailKey`
-- L310 — variável: `getMappingService`
-- L315 — variável: `context`
-- L330 — variável: `mapping`
-- L335 — variável: `[participants, assigneeCandidate]`
-- L348 — variável: `upsertMappingService`
-- L354 — variável: `{ response, committed }`
-- L357 — parâmetro: `trx`
-- L357 — retorno da função: `<anônima>()`
-- L360 — variável: `context`
-- L398 — variável: `mapping`
-- L409 — variável: `previousProfessionalId`
-- L416 — variável: `explicitDesignation`
-- L417 — variável: `isNullOnCreate`
-- L418 — variável: `designationAction`
-- L422 — variável: `contentAction`
-- L443 — variável: `candidate`
-- L475 — variável: `currentValues`
-- L476 — variável: `values`
-- L478 — variável: `concluding`
-- L488 — variável: `target`
-- L519 — variável: `missing`
-- L529 — variável: `resolvedParticipants`
-- L536 — variável: `designationChanged`
-- L571 — variável: `changeOrigin`
-- L575 — variável: `previousAuditValues`
-- L582 — variável: `nextAuditValues`
-- L594 — variável: `mappingAuditId`
-- L679 — parâmetro: `participant`
-- L679 — retorno da função: `<anônima>()`
-- L686 — variável: `assigneeCandidate`
-- L696 — variável: `scheduledAt`
-- L697 — variável: `committedNotifications`
-- L711 — variável: `response`
+- L102 — variável: `date`
+- L165 — parâmetro: `participant`
+- L165 — retorno da função: `<anônima>()`
+- L197 — parâmetro: `participant`
+- L197 — retorno da função: `<anônima>()`
+- L228 — variável: `textField`
+- L229 — variável: `next`
+- L230 — variável: `normalized`
+- L277 — parâmetro: `participant`
+- L277 — retorno da função: `<anônima>()`
+- L277 — variável: `userIds`
+- L281 — variável: `usersById`
+- L283 — parâmetro: `participant`
+- L283 — variável: `resolved`
+- L288 — variável: `user`
+- L295 — variável: `seenEmails`
+- L296 — variável: `seenUserIds`
+- L297 — variável: `participant`
+- L298 — variável: `emailKey`
+- L326 — variável: `getMappingService`
+- L331 — variável: `context`
+- L346 — variável: `mapping`
+- L351 — variável: `[participants, assigneeCandidate]`
+- L364 — variável: `upsertMappingService`
+- L370 — variável: `{ response, committed }`
+- L373 — parâmetro: `trx`
+- L373 — retorno da função: `<anônima>()`
+- L376 — variável: `context`
+- L414 — variável: `mapping`
+- L425 — variável: `previousProfessionalId`
+- L432 — variável: `explicitDesignation`
+- L433 — variável: `isNullOnCreate`
+- L434 — variável: `designationAction`
+- L438 — variável: `contentAction`
+- L474 — variável: `candidate`
+- L506 — variável: `currentValues`
+- L507 — variável: `values`
+- L509 — variável: `concluding`
+- L519 — variável: `target`
+- L550 — variável: `missing`
+- L560 — variável: `resolvedParticipants`
+- L567 — variável: `designationChanged`
+- L602 — variável: `changeOrigin`
+- L606 — variável: `previousAuditValues`
+- L613 — variável: `nextAuditValues`
+- L625 — variável: `mappingAuditId`
+- L710 — parâmetro: `participant`
+- L710 — retorno da função: `<anônima>()`
+- L717 — variável: `assigneeCandidate`
+- L727 — variável: `scheduledAt`
+- L728 — variável: `committedNotifications`
+- L742 — variável: `response`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
@@ -6273,7 +6273,7 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.router.ts](../src/modules/requests/requests.router.ts)
 
-- L25 — variável: `requestsRoutes`
+- L24 — variável: `requestsRoutes`
 
 ### [src/modules/requests/requests.schema.ts](../src/modules/requests/requests.schema.ts)
 
@@ -6402,57 +6402,56 @@ interface GroupedIssues {
 - L1114 — parâmetro: `trx`
 - L1114 — retorno da função: `<anônima>()`
 - L1117 — variável: `auditId`
-- L1201 — variável: `hasAssignee`
-- L1202 — variável: `hasMapping`
-- L1208 — variável: `assignmentKey`
-- L1209 — variável: `request`
-- L1215 — parâmetro: `row`
-- L1215 — retorno da função: `<anônima>()`
-- L1229 — variável: `raw`
-- L1231 — variável: `previous`
-- L1232 — variável: `auditPrev`
-- L1235 — parâmetro: `trx`
-- L1235 — retorno da função: `<anônima>()`
-- L1252 — retorno da função: `<anônima>()`
-- L1252 — variável: `resolved`
-- L1255 — variável: `previous`
-- L1256 — variável: `auditPrev`
-- L1259 — variável: `previousMapping`
-- L1260 — variável: `auditPrevMapping`
-- L1263 — variável: `action`
-- L1264 — variável: `shouldAdvance`
-- L1267 — parâmetro: `trx`
-- L1267 — retorno da função: `<anônima>()`
-- L1274 — variável: `auditId`
-- L1337 — variável: `raw`
-- L1339 — variável: `previous`
-- L1340 — variável: `auditPrev`
-- L1343 — parâmetro: `trx`
-- L1343 — retorno da função: `<anônima>()`
-- L1360 — retorno da função: `<anônima>()`
-- L1360 — variável: `resolved`
-- L1363 — variável: `previous`
-- L1364 — variável: `auditPrev`
-- L1367 — variável: `previousAssignee`
-- L1368 — variável: `auditPrevAssignee`
-- L1371 — variável: `action`
-- L1372 — parâmetro: `trx`
-- L1372 — retorno da função: `<anônima>()`
-- L1379 — variável: `auditId`
-- L1427 — variável: `updatedRequest`
-- L1502 — variável: `request`
-- L1508 — parâmetro: `row`
-- L1508 — retorno da função: `<anônima>()`
-- L1516 — variável: `target`
-- L1535 — variável: `requiresOverride`
-- L1537 — variável: `hasStatusOverride`
-- L1560 — variável: `changeOrigin`
-- L1562 — parâmetro: `trx`
-- L1562 — retorno da função: `<anônima>()`
-- L1562 — variável: `{ lastUpdate, committed }`
-- L1563 — variável: `persistedAt`
-- L1575 — variável: `auditId`
-- L1600 — variável: `committedNotifications`
+- L1201 — variável: `request`
+- L1207 — parâmetro: `row`
+- L1207 — retorno da função: `<anônima>()`
+- L1217 — variável: `hasAssignee`
+- L1218 — variável: `hasMapping`
+- L1223 — variável: `raw`
+- L1225 — variável: `previous`
+- L1226 — variável: `auditPrev`
+- L1229 — parâmetro: `trx`
+- L1229 — retorno da função: `<anônima>()`
+- L1246 — retorno da função: `<anônima>()`
+- L1246 — variável: `resolved`
+- L1249 — variável: `previous`
+- L1250 — variável: `auditPrev`
+- L1253 — variável: `previousMapping`
+- L1254 — variável: `auditPrevMapping`
+- L1257 — variável: `action`
+- L1258 — variável: `shouldAdvance`
+- L1261 — parâmetro: `trx`
+- L1261 — retorno da função: `<anônima>()`
+- L1268 — variável: `auditId`
+- L1331 — variável: `raw`
+- L1333 — variável: `previous`
+- L1334 — variável: `auditPrev`
+- L1337 — parâmetro: `trx`
+- L1337 — retorno da função: `<anônima>()`
+- L1354 — retorno da função: `<anônima>()`
+- L1354 — variável: `resolved`
+- L1357 — variável: `previous`
+- L1358 — variável: `auditPrev`
+- L1361 — variável: `previousAssignee`
+- L1362 — variável: `auditPrevAssignee`
+- L1365 — variável: `action`
+- L1366 — parâmetro: `trx`
+- L1366 — retorno da função: `<anônima>()`
+- L1373 — variável: `auditId`
+- L1421 — variável: `updatedRequest`
+- L1496 — variável: `request`
+- L1502 — parâmetro: `row`
+- L1502 — retorno da função: `<anônima>()`
+- L1510 — variável: `target`
+- L1529 — variável: `requiresOverride`
+- L1531 — variável: `hasStatusOverride`
+- L1554 — variável: `changeOrigin`
+- L1556 — parâmetro: `trx`
+- L1556 — retorno da função: `<anônima>()`
+- L1556 — variável: `{ lastUpdate, committed }`
+- L1557 — variável: `persistedAt`
+- L1569 — variável: `auditId`
+- L1594 — variável: `committedNotifications`
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 

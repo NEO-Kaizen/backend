@@ -25,14 +25,14 @@ Solicitações antigas mantêm o vínculo se o profissional for desativado;
 Designar o mapeamento desatribui a triagem (`requests.professional_id = null`).
 A ação precisa alinhar com o vínculo existente na solicitação:
 
-- **Só triagem:** `triage:*`, `pending_item:*`, `prioritization:write` e
-  `request:assign` (designação do Responsável da triagem).
+- **Só triagem:** `triage:*`, `pending_item:*` e `prioritization:write`.
   `pending_item:*` e `prioritization:write` repetem o comportamento anterior
   ao RBAC e **dependem de confirmação do Produto** — não são decisão fechada.
-- **Só mapeamento:** `mapping:*` — leitura, escrita de conteúdo e designação
-  do Responsável do mapeamento. A triagem não edita nem designa o mapeamento;
-  a designação exige `mapping:write` com custódia do mapeamento corrente, e a
-  primeira designação é feita por Admin/Root.
+- **Só mapeamento:** `mapping:*` — leitura e escrita de conteúdo. A triagem
+  não edita o mapeamento.
+- **Designação:** `request:assign` com custódia da linha, para triagem e
+  mapeamento. Na matriz base, só Administrador e Admin Root; `mapping:write`
+  não designa. A primeira designação do mapeamento também é feita por eles.
 - **Qualquer um dos dois:** `request:read`, `request:write`,
   `request:status_change`, `internal_note:*`, `audit:read` e `queue:*`.
 
@@ -69,11 +69,11 @@ O modal de atribuição usa a lista mais permissiva; a fila usa a de atribuívei
 
 ## Autorização
 
-- Atribuir exige `request:assign`; no perfil base, só Administrador e Admin
-  Root têm a chave. O Analista não atribui.
-- Editar o mapeamento exige `mapping:write` + custódia da solicitação ou do
-  mapeamento corrente; designar o executor também é permitido ao designado
-  atual.
+- Atribuir — triagem ou mapeamento — exige `request:assign`; no perfil base,
+  só Administrador e Admin Root têm a chave. O Analista não atribui.
+- Editar o mapeamento exige `mapping:write` + custódia do mapeamento corrente.
+  A designação do executor segue a regra acima: exige `request:assign`, não
+  `mapping:write`.
 - Analista sem custódia é recusado com código de permissão insuficiente.
 
 ## RN-010 — avanço automático de status
