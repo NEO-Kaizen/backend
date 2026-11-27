@@ -2,6 +2,8 @@ const RICH_REQUEST_ID = 1;
 const RICH_PROTOCOL = "MAAT-8K3P-9X2M";
 const RICH_MAPPING_ID = "aaaaaaaa-aaaa-4000-8000-000000000021";
 const OLDER_MAPPING_ID = "aaaaaaaa-aaaa-4000-8000-000000000020";
+const RESCHEDULED_MAPPING_ID = "aaaaaaaa-aaaa-4000-8000-000000000022";
+const MAPPING_SCHEDULED_STATUS_ID = 6; // "Mapeamento agendado" — conclusão do mapeamento
 
 const TRIAGE_ASSESSMENT = {
   id: "6f1c2a8e-3d4b-4c5a-9e7f-1a2b3c4d5e6f",
@@ -48,6 +50,12 @@ const TRIAGE_REASSESSMENT = {
  *   em audit (proveniência: occurredAt/actor/changeOrigin via join);
  * - 2 esforços de mapeamento em `mappings` (anterior concluído + atual concluído)
  *   + participantes + `mapping.save|complete|assign` em audit;
+ * - 3 conclusões para `Mapeamento agendado` (`target_status_id` 6): a anterior,
+ *   o esforço atual e o Reagendamento — cobrindo agendamento + reagendamento
+ *   (Evento `mapping_scheduled` no seed 013);
+ * - 3 `mappings` com `scheduled_for` coerente com `concluded_at` (a anterior
+ *   agenda 07-29 / conclui 08-01; o atual agenda 08-15 / conclui 08-12; o
+ *   reagendamento agenda 09-15 / conclui 09-10);
  * - checkpoint de leitura (`request_internal_note_read_states`) para `unseenCount > 0`.
  *
  * Idempotente: apaga apenas os registros que cria (por `request_id`/`protocol`/uuid fixo)
@@ -63,7 +71,7 @@ export async function seed(knex) {
   // de cada seed:run, apagando `mappings` antes deste ponto — mas
   // `audit_history` não tem FK, então os audits viram órfãos e só podem ser
   // limpos pelos ids constantes deste seed.
-  const seedMappingIds = [RICH_MAPPING_ID, OLDER_MAPPING_ID];
+  const seedMappingIds = [RICH_MAPPING_ID, OLDER_MAPPING_ID, RESCHEDULED_MAPPING_ID];
 
   await knex.raw(
     "ALTER TABLE audit_history DISABLE TRIGGER trg_audit_history_prevent_update_delete;",
@@ -260,6 +268,7 @@ export async function seed(knex) {
     request_id: RICH_REQUEST_ID,
     professional_id: "650e8400-e29b-41d4-a716-446655440001",
     scheduled_for: "2026-07-29T14:00:00.000Z",
+    target_status_id: MAPPING_SCHEDULED_STATUS_ID,
     duration_minutes: 45,
     modality: "IN_PERSON",
     meeting_link: null,
@@ -278,6 +287,7 @@ export async function seed(knex) {
     request_id: RICH_REQUEST_ID,
     professional_id: "650e8400-e29b-41d4-a716-446655440003",
     scheduled_for: "2026-08-15T14:00:00.000Z",
+    target_status_id: MAPPING_SCHEDULED_STATUS_ID,
     duration_minutes: 60,
     modality: "REMOTE",
     meeting_link: "https://meet.empresa.com/maat-8k3p",
@@ -289,6 +299,27 @@ export async function seed(knex) {
     created_at: "2026-08-05T09:00:00.000Z",
     updated_by: "analista_teste@email.com",
     updated_at: "2026-08-12T10:20:00.000Z",
+  });
+
+  // Reagendamento — novo esforço de Mapeamento concluído para a Status 6
+  // (`mapping_scheduled`); gera Nova notificação com nova data/hora.
+  await knex("mappings").insert({
+    mapping_id: RESCHEDULED_MAPPING_ID,
+    request_id: RICH_REQUEST_ID,
+    professional_id: "650e8400-e29b-41d4-a716-446655440003",
+    scheduled_for: "2026-09-15T14:00:00.000Z",
+    target_status_id: MAPPING_SCHEDULED_STATUS_ID,
+    duration_minutes: 60,
+    modality: "REMOTE",
+    meeting_link: "https://meet.empresa.com/maat-8k3p-r2",
+    location: null,
+    notes: "Reunião de levantamento repousada e expandida.",
+    is_concluded: true,
+    concluded_at: "2026-09-10T11:00:00.000Z",
+    created_by: "analista_teste@email.com",
+    created_at: "2026-09-05T09:00:00.000Z",
+    updated_by: "analista_teste@email.com",
+    updated_at: "2026-09-10T11:00:00.000Z",
   });
 
   await knex("mapping_participants").insert([
@@ -361,6 +392,41 @@ export async function seed(knex) {
       }),
       user_id: 101,
       occurred_at: "2026-08-12T10:20:00.000Z",
+      change_origin: "internal",
+    },
+    {
+      entity_type: "request",
+      entity_id: RICH_PROTOCOL,
+      action_type: "request.status_change",
+      previous_value: "Aguardando mapeamento",
+      new_value: "Mapeamento agendado",
+      user_id: 102,
+      occurred_at: "2026-08-01T11:00:00.000Z",
+      change_origin: "admin",
+    },
+    {
+      entity_type: "mapping",
+      entity_id: RESCHEDULED_MAPPING_ID,
+      action_type: "mapping.assign",
+      previous_value: null,
+      new_value: "650e8400-e29b-41d4-a716-446655440003",
+      user_id: 102,
+      occurred_at: "2026-09-05T09:00:00.000Z",
+      change_origin: "admin",
+    },
+    {
+      entity_type: "mapping",
+      entity_id: RESCHEDULED_MAPPING_ID,
+      action_type: "mapping.complete",
+      previous_value: null,
+      new_value: JSON.stringify({
+        scheduledFor: "2026-09-15T14:00:00.000Z",
+        mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440003",
+        targetStatusId: MAPPING_SCHEDULED_STATUS_ID,
+        is_concluded: true,
+      }),
+      user_id: 101,
+      occurred_at: "2026-09-10T11:00:00.000Z",
       change_origin: "internal",
     },
     {

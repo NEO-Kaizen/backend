@@ -2,6 +2,7 @@ import db from "../../database/conection.ts";
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
 import { applyQueueFilters } from "./queue.filters.ts";
+import { applyQueueSort } from "./queue.sort.ts";
 
 /**
  * Status que contam como "em andamento" nas métricas da fila (Home/Fila).
@@ -99,27 +100,52 @@ export const findQueueRequests = async (
 
   const countQuery = baseQuery.clone().count("* as total").first();
 
-  const itemsQuery = baseQuery
-    .select(
-      "requests.protocol",
-      "requests.created_at as createdAt",
-      "requests.process_name as processName",
-      "priority_tbl.level as priority",
-      "status.name as status",
-      // Expor user_id como assigneeId conforme `docs/rules/assignment.md` (frontend usa user_id)
-      db.raw('assignee_user.user_id::text as "assigneeId"'),
-      "assignee_user.full_name as assignee",
-      "requester.full_name as requesterName",
-      "requester.corporate_email as requesterEmail",
-    )
-    .orderBy("requests.created_at", "desc")
-    .limit(limit)
-    .offset(offset);
+  const itemsQuery = baseQuery.select(
+    "requests.protocol",
+    "requests.created_at as createdAt",
+    "requests.process_name as processName",
+    "priority_tbl.level as priority",
+    "status.name as status",
+    // Expor user_id como assigneeId conforme `docs/rules/assignment.md` (frontend usa user_id)
+    db.raw('assignee_user.user_id::text as "assigneeId"'),
+    "assignee_user.full_name as assignee",
+    "requester.full_name as requesterName",
+    "requester.corporate_email as requesterEmail",
+  );
+
+  applyQueueSort(itemsQuery, params.sortBy, params.sortOrder);
+  itemsQuery.limit(limit).offset(offset);
 
   const [countResult, items] = await Promise.all([countQuery, itemsQuery]);
   const total = countResult ? Number(countResult.total) : 0;
 
   return { items, total };
+};
+
+/**
+ * Departamentos distintos e globais do solicitante, sem depender dos filtros
+ * nem da paginação da fila. A deduplicação é case-insensitive, alinhada ao
+ * filtro `department`; valores com caixas diferentes preservam a primeira
+ * grafia em ordem alfabética.
+ */
+export const fetchAllDepartments = async (): Promise<string[]> => {
+  const rows = (await db("requests")
+    .join("requesters as requester", "requester.requester_id", "requests.requester_id")
+    .select(db.raw(`trim(requester.department) as department`))
+    .whereNotNull("requester.department")
+    .andWhereRaw("trim(requester.department) <> ''")
+    .distinct()
+    .orderByRaw("trim(requester.department) asc")) as Array<{ department: string }>;
+
+  const seen = new Set<string>();
+  return rows
+    .map((row) => row.department)
+    .filter((department) => {
+      const key = department.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 };
 
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {

@@ -3,8 +3,15 @@ import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
+import type { CommittedNotification } from "../../../shared/notifications/emitNotification.ts";
+import { publishCommittedNotifications } from "../../../shared/notifications/notificationEmitter.ts";
+import {
+  emitStatusChangedNotification,
+  type StatusTarget,
+} from "../../../shared/notifications/statusChangedNotification.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import * as repository from "./triage.repository.ts";
+import type { RequestContextRow, StatusRow } from "./triage.repository.ts";
 
 interface Actor {
   id: number;
@@ -40,6 +47,102 @@ async function recordTriageAccessDenied(
   });
 }
 
+interface CommitTriageDecisionInput {
+  protocol: string;
+  request: RequestContextRow;
+  triage: TriageAssessment;
+  categoryId: number | null;
+  exitStatus: StatusRow;
+  actor: Actor;
+  ipAddress?: string;
+}
+
+/**
+ * Persiste o veredito da Triagem, a transição de Status, a auditoria e a
+ * Notificação na mesma transação; devolve as Notificações gravadas para o
+ * aviso pós-commit.
+ */
+async function commitTriageDecision(
+  input: CommitTriageDecisionInput,
+): Promise<CommittedNotification[]> {
+  const { protocol, request, triage, categoryId, exitStatus, actor, ipAddress } = input;
+
+  return db.transaction(async (trx) => {
+    await repository.insertTriage(request.request_id, triage, trx);
+    await repository.applyRequestOutcome({
+      protocol,
+      categoryId,
+      statusId: exitStatus.status_id,
+      isStatusPublic: exitStatus.isPublic,
+      lastTechnicalMessage: triage.lastTechnicalMessage,
+      expectedStatusId: request.status_id,
+      updatedBy: actor.email,
+      trx,
+    });
+
+    const triageAuditId = await recordAudit(trx, {
+      entityType: "request",
+      entityId: protocol,
+      actionType: "request.triage",
+      userId: actor.id,
+      previousValue: JSON.stringify({
+        status: request.status_name,
+        category: request.category_name,
+      }),
+      newValue: JSON.stringify({
+        triageId: triage.id,
+        exitStatus: triage.exitStatus,
+        status: exitStatus.name,
+      }),
+      // `note` = justificativa interna (conclusão da triagem); o retorno
+      // público só é persistido quando o status de saída é público.
+      note: triage.conclusionJustification,
+      lastTechnicalMessage: exitStatus.isPublic ? triage.lastTechnicalMessage : null,
+      ipAddress,
+      changeOrigin: actor.role === "Administrador" ? "admin" : "internal",
+    });
+
+    // Liberação automática do responsável na conclusão da triagem. Evento só
+    // quando havia vínculo; `previousValue` segue a convenção de
+    // `request.unassign` (user_id do responsável anterior). Origem `system`.
+    if (request.professional_id !== null) {
+      await recordAudit(trx, {
+        entityType: "request",
+        entityId: protocol,
+        actionType: "request.unassign",
+        userId: actor.id,
+        previousValue: request.assignee_user_id === null ? null : String(request.assignee_user_id),
+        newValue: null,
+        ipAddress,
+        changeOrigin: "system",
+      });
+    }
+
+    const statusTarget: StatusTarget = {
+      statusId: exitStatus.status_id,
+      isPublic: exitStatus.isPublic,
+      // A query de `resolveExitStatus` garante `is_restricted=false`; o valor
+      // projetado evita que a regra de audiência dependa de um literal.
+      isRestricted: exitStatus.isRestricted,
+    };
+
+    // A mudança efetiva e a elegibilidade (público e não restrito) são
+    // decididas por `emitStatusChangedNotification`.
+    return emitStatusChangedNotification(trx, {
+      source: "triage_verdict",
+      auditId: triageAuditId,
+      requestId: request.request_id,
+      protocol: request.protocol,
+      title: request.title,
+      newStatus: exitStatus.name,
+      actorUserId: actor.id,
+      requesterUserId: request.requester_user_id,
+      previousStatusId: request.status_id,
+      targetStatus: statusTarget,
+    });
+  });
+}
+
 export async function getTriage(protocol: string, actor: Actor): Promise<TriageAssessment | null> {
   const request = await repository.findRequestContext(protocol);
   if (!request) {
@@ -70,8 +173,7 @@ export async function createTriage(
 
   // Priorizado (isRestricted) bloqueia triagem de não-Admin — inclusive
   // assignee → movimentação de/r para Priorizado só via `PATCH /status` com
-  // bypass Admin (ver `docs/rules/requests-lifecycle.md`). Fluxo encerrado
-  // (isTerminal) não reabre.
+  // bypass Admin (delta §3.1). Fluxo encerrado (isTerminal) não reabre.
   if (request.status_is_terminal) {
     throw new AppError("Solicitação encerrada.", 422);
   }
@@ -158,27 +260,17 @@ export async function createTriage(
         : null,
   };
 
-  await repository.saveTriageDecision(
+  const committedNotifications = await commitTriageDecision({
     protocol,
-    request.request_id,
+    request,
     triage,
     categoryId,
-    exitStatus.status_id,
-    exitStatus.isPublic,
-    triage.lastTechnicalMessage,
-    request.status_id,
-    actor.email,
-    { professionalId: request.professional_id, userId: request.assignee_user_id },
-    {
-      actorId: actor.id,
-      previousStatus: request.status_name,
-      previousCategory: request.category_name,
-      nextStatus: exitStatus.name,
-      justification: triage.conclusionJustification,
-      ipAddress,
-      changeOrigin: actor.role === "Administrador" ? "admin" : "internal",
-    },
-  );
+    exitStatus,
+    actor,
+    ipAddress,
+  });
+
+  publishCommittedNotifications(committedNotifications);
 
   return triage;
 }

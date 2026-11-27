@@ -1,4 +1,12 @@
-import { protocolParam } from "../components/parameters.ts";
+import {
+  createdFromParam,
+  createdToParam,
+  departmentParam,
+  protocolParam,
+  searchParam,
+  sortByParam,
+  sortOrderParam,
+} from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
 
 export default {
@@ -23,7 +31,9 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Listar fila de atendimento",
       description:
-        "Listagem paginada da fila com busca e filtros. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
+        "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. " +
+        "As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. " +
+        "Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
       operationId: "getQueue",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -39,13 +49,7 @@ export default {
           required: true,
           schema: { type: "integer", minimum: 1, maximum: 100, example: 10 },
         },
-        {
-          name: "search",
-          in: "query",
-          required: false,
-          description: "Busca por protocolo, e-mail corporativo ou nome do solicitante.",
-          schema: { type: "string", maxLength: 254 },
-        },
+        searchParam,
         {
           name: "status",
           in: "query",
@@ -78,6 +82,11 @@ export default {
             "`true`/`1` lista apenas sem responsável. Não pode ser combinado com `assigneeId` diferente de `unassigned`.",
           schema: { type: "string", enum: ["true", "1", "false", "0"] },
         },
+        createdFromParam,
+        createdToParam,
+        departmentParam,
+        sortByParam,
+        sortOrderParam,
       ],
       responses: {
         "200": { description: "Página da fila.", ...json("QueueResponse") },
