@@ -38,6 +38,8 @@ A ação precisa alinhar com o vínculo existente na solicitação:
   não designa. A primeira designação do mapeamento também é feita por eles.
 - **Qualquer um dos dois:** `request:read`, `request:write`,
   `request:status_change`, `internal_note:*`, `audit:read` e `queue:*`.
+  `audit:read` não faz parte da matriz base do Analista; a timeline da
+  solicitação (`GET /audit-logs/:protocol`) usa `request:read`.
 
 O histórico completo (notas, eventos, triagens e mapeamentos) é lido por
 `internal_note:read` + custódia de triagem **ou** mapeamento.

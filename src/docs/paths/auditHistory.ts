@@ -73,7 +73,7 @@ export default {
       tags: ["Auditoria"],
       summary: "Linha do tempo de auditoria por protocolo",
       description:
-        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Exige `audit:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente.",
+        "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Exige `request:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente.",
       operationId: "getAuditLogsByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -91,7 +91,7 @@ export default {
         },
         "400": error("Protocolo vazio."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil ou custódia insuficiente."),
+        "403": error("Sem `request:read` ou Custódia da linha."),
         "404": error("Protocolo inexistente."),
       },
     },

@@ -279,7 +279,7 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | 19  | `pending_item:respond`         | own         | own      | own          | own           | own        |
 | 20  | `internal_note:read`           | —           | assigned | all          | all           | all        |
 | 21  | `internal_note:write`          | —           | assigned | all          | all           | all        |
-| 22  | `audit:read`                   | —           | assigned | all          | all           | all        |
+| 22  | `audit:read`                   | —           | —        | all          | all           | all        |
 | 23  | `assignee_directory:read`      | —           | global   | global       | global        | global     |
 | 24  | `user:read`                    | —           | —        | —            | global        | global     |
 | 25  | `user:manage`                  | —           | —        | —            | global        | global     |
@@ -301,7 +301,7 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | Perfil        | Chaves | `custodial` | `global` |
 | ------------- | ------ | ----------- | -------- |
 | Solicitante   | 3      | 2           | 1        |
-| Analista      | 19     | 17          | 2        |
+| Analista      | 18     | 16          | 2        |
 | Visualizador  | 14     | 11          | 3        |
 | Administrador | 37     | 19          | 18       |
 | Admin Root    | 37     | 19          | 18       |
@@ -422,7 +422,8 @@ sem mudar a permissão.
 | `GET /requests/:protocol/internal-notes`                                                              | `internal_note:read` + custódia                                                                                                                                                                                                                              |
 | `POST /requests/:protocol/internal-notes`                                                             | `internal_note:write` + custódia                                                                                                                                                                                                                             |
 | `PUT /requests/:protocol/internal-notes/read`                                                         | `internal_note:read` + custódia                                                                                                                                                                                                                              |
-| `GET /audit-history`, `GET /audit-history/:id`, `GET /audit-logs/:protocol`                           | `audit:read` + custódia                                                                                                                                                                                                                                      |
+| `GET /audit-history`, `GET /audit-history/:id`                                                        | `audit:read` + custódia                                                                                                                                                                                                                                      |
+| `GET /audit-logs/:protocol`                                                                           | `request:read` + custódia do Responsável da triagem **ou** do mapeamento corrente (timeline da solicitação)                                                                                                                                                  |
 | `GET /users`, `GET /users/:id`, `GET /users/metrics`                                                  | `user:read`                                                                                                                                                                                                                                                  |
 | `POST /users`, `PUT /users/:id`, `PATCH /users/:id/status`, `POST /users/:id/reset-password`          | `user:manage` + matriz de contas                                                                                                                                                                                                                             |
 | `GET /users/me`, `PUT /users/me`                                                                      | sessão; autoatendimento sem chave (área, departamento e gestor do próprio bloco exigem `user:manage`)                                                                                                                                                        |

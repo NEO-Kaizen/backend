@@ -92,7 +92,6 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
         "pending_item:respond",
         "internal_note:read",
         "internal_note:write",
-        "audit:read",
         "assignee_directory:read",
       ],
       "assigned",

@@ -158,3 +158,27 @@ describe("HTTP real — escrita permanece exclusiva da etapa", () => {
     expect(response.status).toBe(403);
   });
 });
+
+describe("HTTP real — auditoria x timeline da solicitação", () => {
+  it("Analista lê a timeline da solicitação, mas não a listagem de auditoria", async () => {
+    const timeline = await triageClient.get(`/audit-logs/${PROTOCOL}`);
+    const listing = await triageClient.get("/audit-history?page=1&limit=10");
+
+    expect(timeline.status).toBe(200);
+    expect(listing.status).toBe(403);
+  });
+
+  it("designado do mapeamento lê a timeline da solicitação", async () => {
+    const timeline = await mappingClient.get(`/audit-logs/${PROTOCOL}`);
+
+    expect(timeline.status).toBe(200);
+  });
+
+  it("Visualizador lê a listagem de auditoria e a timeline", async () => {
+    const listing = await managerClient.get("/audit-history?page=1&limit=10");
+    const timeline = await managerClient.get(`/audit-logs/${PROTOCOL}`);
+
+    expect(listing.status).toBe(200);
+    expect(timeline.status).toBe(200);
+  });
+});

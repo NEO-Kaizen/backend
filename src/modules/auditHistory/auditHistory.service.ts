@@ -143,7 +143,7 @@ export async function getAuditHistoryDetail(
 
 /**
  * Timeline de auditoria por protocolo (`GET /audit-logs/:protocol`, issue
- * #124). A chave `audit:read` é o gate da rota; a linha é resolvida pela
+ * #124). A chave `request:read` é o gate da rota; a linha é resolvida pela
  * Custódia do Responsável corrente, sem revelar existência fora dela.
  */
 export async function listAuditLogsByProtocol(
@@ -156,13 +156,13 @@ export async function listAuditLogsByProtocol(
   const request = await findRequestStatusContext(normalized);
   if (
     !request ||
-    !hasAnyResponsibleCustody(actor, "audit:read", [
+    !hasAnyResponsibleCustody(actor, "request:read", [
       request.assignee_user_id,
       request.mapping_assignee_user_id,
     ])
   ) {
-    return denyRequestAccess(normalized, actor.id, ipAddress, "audit:read sem custódia", [
-      "audit:read",
+    return denyRequestAccess(normalized, actor.id, ipAddress, "request:read sem custódia", [
+      "request:read",
     ]);
   }
 

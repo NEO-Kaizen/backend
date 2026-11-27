@@ -4830,7 +4830,7 @@ interface GroupedIssues {
 
 - L10 — variável: `noStore`
 - L19 — variável: `auditHistoryRoutes`
-- L44 — variável: `auditLogsRouter`
+- L46 — variável: `auditLogsRouter`
 
 ### [src/modules/auditHistory/auditHistory.schema.ts](../src/modules/auditHistory/auditHistory.schema.ts)
 
@@ -6830,13 +6830,13 @@ interface GroupedIssues {
 - L47 — retorno da função: `<anônima>()`
 - L52 — parâmetro: `entry`
 - L52 — retorno da função: `<anônima>()`
-- L148 — parâmetro: `profile`
-- L148 — retorno da função: `<anônima>()`
-- L148 — variável: `rootProfiles`
-- L154 — variável: `seenNames`
-- L156 — variável: `profile`
-- L162 — variável: `seenKeys`
-- L164 — variável: `grant`
+- L147 — parâmetro: `profile`
+- L147 — retorno da função: `<anônima>()`
+- L147 — variável: `rootProfiles`
+- L153 — variável: `seenNames`
+- L155 — variável: `profile`
+- L161 — variável: `seenKeys`
+- L163 — variável: `grant`
 
 ### [src/shared/catalog/fieldCatalog.ts](../src/shared/catalog/fieldCatalog.ts)
 

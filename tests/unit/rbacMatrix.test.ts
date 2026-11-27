@@ -42,6 +42,10 @@ describe("matriz de perfis base — composição", () => {
     }
   });
 
+  it("o Analista não recebe audit:read", () => {
+    expect(grantOf("Analista", "audit:read")).toBeUndefined();
+  });
+
   it("o Analista mantém as chaves de escrita da solicitação sem atribuir", () => {
     expect(grantOf("Analista", "request:write")?.custody).toBe("assigned");
     expect(grantOf("Analista", "request:status_change")?.custody).toBe("assigned");
