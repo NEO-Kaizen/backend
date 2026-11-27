@@ -90,3 +90,10 @@ Ver
 [`docs/database/notifications-persistence.md`](../database/notifications-persistence.md).
 O contrato HTTP é a especificação OpenAPI em `src/docs/`, servida em
 `GET /api-docs` em desenvolvimento.
+
+## Acesso
+
+As rotas de `/notifications` são autoatendimento: exigem sessão e operam apenas
+sobre as Notificações do próprio usuário. Não há chave no catálogo RBAC — o
+destinatário é sempre o ator da sessão, como em `GET /users/me`. Nenhum id de
+destinatário é aceito do cliente.

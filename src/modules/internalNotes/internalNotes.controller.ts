@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
+import { permissionActorFromRequest } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import type { InternalRole } from "../../shared/types/internalNotes.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
   createInternalNoteSchema,
@@ -9,6 +9,7 @@ import {
   protocolParamsSchema,
 } from "./internalNotes.schema.ts";
 import * as service from "./internalNotes.service.ts";
+import type { InternalNotesActor } from "./internalNotes.service.ts";
 
 function protocolFromRequest(req: Request): string {
   const parsed = protocolParamsSchema.safeParse(req.params);
@@ -18,21 +19,16 @@ function protocolFromRequest(req: Request): string {
   return parsed.data.protocol;
 }
 
-function actorFromRequest(req: Request): { userId: number; role: InternalRole } {
-  if (!req.user) {
+function actorFromRequest(req: Request): InternalNotesActor {
+  const actor = permissionActorFromRequest(req);
+  const profileId = req.user?.profileId;
+  const profileName = req.user?.profileName;
+
+  if (!profileId || !profileName) {
     throw new AppError("Token inválido ou expirado", 401);
   }
 
-  const userId = Number(req.user.id);
-  if (!Number.isInteger(userId)) {
-    throw new AppError("Token inválido ou expirado", 401);
-  }
-
-  if (req.user.role === "Solicitante") {
-    throw new AppError("Acesso restrito aos perfis internos", 403);
-  }
-
-  return { userId, role: req.user.role };
+  return { ...actor, profileId, profileName };
 }
 
 export const listInternalNotes = async (req: Request, res: Response): Promise<Response> => {
@@ -41,11 +37,11 @@ export const listInternalNotes = async (req: Request, res: Response): Promise<Re
     throw new AppError(formatZodIssues(parsed.error, "query"), 400);
   }
 
-  const actor = actorFromRequest(req);
   const response = await service.listInternalNotes(
     protocolFromRequest(req),
-    actor.userId,
+    actorFromRequest(req),
     parsed.data,
+    req.ip,
   );
   return res.status(200).json(response);
 };
@@ -60,6 +56,7 @@ export const createInternalNote = async (req: Request, res: Response): Promise<R
     protocolFromRequest(req),
     parsed.data,
     actorFromRequest(req),
+    req.ip,
   );
   return res.status(201).json(response);
 };
@@ -70,7 +67,11 @@ export const markInternalNotesRead = async (req: Request, res: Response): Promis
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const actor = actorFromRequest(req);
-  await service.markInternalNotesRead(protocolFromRequest(req), parsed.data, actor.userId);
+  await service.markInternalNotesRead(
+    protocolFromRequest(req),
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
   return res.status(204).send();
 };

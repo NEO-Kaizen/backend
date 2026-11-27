@@ -1,12 +1,15 @@
 import type { AuthenticatedUser } from "./user.ts";
 import type { TokenScope } from "../utils/jwtUtil.ts";
 import type { PortalSolicitationMode } from "./systemSettings.ts";
+import type { EffectivePermission } from "../catalog/permissionCatalog.ts";
 
 declare global {
   namespace Express {
     interface Request {
       user?: AuthenticatedUser;
       authScope?: TokenScope;
+      /** Lista efetiva de Permissões do ator, populada pelo gate de chave. */
+      permissions?: EffectivePermission[];
       /** Modo de abertura do portal vigente na request (preenchido pelo guard). */
       accessMode?: PortalSolicitationMode;
       /** Identidade pública verificada via header `X-Requester-Identity` (pendências). */

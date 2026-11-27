@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import { requirePermission } from "../../shared/middleware/requirePermission.ts";
 import {
   createInternalNote,
   listInternalNotes,
@@ -10,10 +10,9 @@ import {
 const internalNotesRoutes = express.Router({ mergeParams: true });
 
 internalNotesRoutes.use(authMiddleware);
-internalNotesRoutes.use(requireRole("Analista", "Gestor", "Administrador"));
 
-internalNotesRoutes.get("/", listInternalNotes);
-internalNotesRoutes.post("/", createInternalNote);
-internalNotesRoutes.put("/read", markInternalNotesRead);
+internalNotesRoutes.get("/", requirePermission("internal_note:read"), listInternalNotes);
+internalNotesRoutes.post("/", requirePermission("internal_note:write"), createInternalNote);
+internalNotesRoutes.put("/read", requirePermission("internal_note:read"), markInternalNotesRead);
 
 export default internalNotesRoutes;

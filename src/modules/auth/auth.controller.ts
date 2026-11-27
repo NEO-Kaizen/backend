@@ -42,7 +42,6 @@ export const authenticate = async (req: Request, res: Response) => {
       id: foundUser.id,
       name: foundUser.name,
       email: foundUser.email,
-      role: foundUser.role,
       password_changed_at: foundUser.passwordChangedAt,
       scope: "change_password",
     });
@@ -54,7 +53,7 @@ export const authenticate = async (req: Request, res: Response) => {
       name: foundUser.name,
       email: foundUser.email,
       avatarUrl: foundUser.avatarUrl,
-      role: foundUser.role,
+      profile: foundUser.profile,
       mustChangePassword: true,
     };
 
@@ -65,7 +64,6 @@ export const authenticate = async (req: Request, res: Response) => {
     id: foundUser.id,
     name: foundUser.name,
     email: foundUser.email,
-    role: foundUser.role,
     password_changed_at: foundUser.passwordChangedAt,
     scope: "session",
   });
@@ -77,7 +75,7 @@ export const authenticate = async (req: Request, res: Response) => {
     name: foundUser.name,
     email: foundUser.email,
     avatarUrl: foundUser.avatarUrl,
-    role: foundUser.role,
+    profile: foundUser.profile,
     mustChangePassword: false,
   };
 
@@ -93,8 +91,9 @@ export const me = async (req: Request, res: Response) => {
     name: sessionUser.name,
     email: sessionUser.email,
     avatarUrl: sessionUser.avatarUrl,
-    role: sessionUser.role,
+    profile: sessionUser.profile,
     mustChangePassword: sessionUser.mustChangePassword,
+    permissions: sessionUser.permissions,
   };
 
   return res.status(200).json(response);
@@ -114,7 +113,6 @@ export const changePassword = async (req: Request, res: Response) => {
     id: updated.id,
     name: updated.name,
     email: updated.email,
-    role: updated.role,
     password_changed_at: updated.passwordChangedAt,
     scope: "session",
   });
@@ -126,7 +124,7 @@ export const changePassword = async (req: Request, res: Response) => {
     name: updated.name,
     email: updated.email,
     avatarUrl: updated.avatarUrl,
-    role: updated.role,
+    profile: updated.profile,
     mustChangePassword: false,
   };
 

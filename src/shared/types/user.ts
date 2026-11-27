@@ -1,11 +1,12 @@
-import type { Role } from "./role.ts";
-
 export interface User {
   id: string;
   email: string;
   name: string;
   password: string;
-  role: Role;
+  /** `String(profiles.profile_id)` — identidade estável do Perfil. */
+  profileId: string;
+  /** Nome vigente do Perfil — rótulo, nunca autorização. */
+  profileName: string;
 }
 
 export type AuthenticatedUser = Omit<User, "password">;
@@ -30,6 +31,8 @@ export interface UserRow {
 export interface AuthUserRow extends UserRow {
   profile_name: string;
   profile_is_active: boolean;
+  /** Marca de Perfil Admin Root — a conta é única e fora das rotas administrativas. */
+  profile_is_root: boolean;
 }
 
 /** Métricas consolidadas da base de usuários — retorno de `GET /users/metrics`. */

@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import { requirePermission } from "../../shared/middleware/requirePermission.ts";
 import {
   listAuditHistoryController,
   getAuditHistoryDetailController,
@@ -25,22 +25,24 @@ auditHistoryRoutes.use(noStore);
 auditHistoryRoutes.get(
   "/",
   authMiddleware,
-  requireRole("Administrador", "Gestor"),
+  requirePermission("audit:read"),
   listAuditHistoryController,
 );
 
 auditHistoryRoutes.get(
   "/:id",
   authMiddleware,
-  requireRole("Administrador", "Gestor"),
+  requirePermission("audit:read"),
   getAuditHistoryDetailController,
 );
 
 export default auditHistoryRoutes;
 
-// Alias `GET /audit-logs/:protocol` (issue #124) — timeline de auditoria de
-// uma solicitação. `/:protocol` aqui NÃO conflita com o `/:id` numérico acima
-// (montagens diferentes): `/audit-history/<int>` vs `/audit-logs/<protocol>`.
+// Alias `GET /audit-logs/:protocol` (issue #124) — timeline da solicitação.
+// `/:protocol` aqui NÃO conflita com o `/:id` numérico acima (montagens
+// diferentes): `/audit-history/<int>` vs `/audit-logs/<protocol>`.
+// A timeline é parte da visão interna da solicitação: a chave é `request:read`,
+// não `audit:read` (a auditoria administrativa continua em `/audit-history`).
 export const auditLogsRouter = express.Router();
 
 // Mesma postura de cache da listagem administrativa: dados sensíveis não devem
@@ -50,6 +52,6 @@ auditLogsRouter.use(noStore);
 auditLogsRouter.get(
   "/:protocol",
   authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
+  requirePermission("request:read"),
   getAuditLogsByProtocolController,
 );

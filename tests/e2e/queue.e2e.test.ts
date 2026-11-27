@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { makeAuthState, makeToken } from "../helpers/factories.ts";
+import { BASE_PROFILES } from "../../src/shared/catalog/baseProfiles.ts";
+import { makeAuthState, makeToken, PROFILE_IDS } from "../helpers/factories.ts";
 import {
   expectErrorEnvelope,
   startTestServer,
@@ -14,11 +15,17 @@ vi.mock("../../src/database/conection.ts", async () => {
 
 vi.mock("../../src/modules/auth/auth.repository.ts", () => ({
   getAuthState: vi.fn(),
+  listUserPermissions: vi.fn(),
 }));
 
 vi.mock("../../src/modules/queue/queue.service.ts", () => ({
   getQueueMetricsService: vi.fn(),
   listQueueService: vi.fn(),
+}));
+
+// A recusa por Permissão é auditada; aqui o foco é o gate HTTP, não a trilha.
+vi.mock("../../src/shared/audit/auditLogger.ts", () => ({
+  recordAudit: vi.fn(async () => "1"),
 }));
 
 const authRepository = await import("../../src/modules/auth/auth.repository.ts");
@@ -38,11 +45,33 @@ afterAll(async () => {
   await server.close();
 });
 
-function gestorSession() {
-  vi.mocked(authRepository.getAuthState).mockResolvedValue(
-    makeAuthState({ profile_name: "gestor" }),
+function permissionRowsFor(profileLabel: string) {
+  const profile = BASE_PROFILES.find(
+    (candidate) => candidate.profileName.toLowerCase() === profileLabel.toLowerCase(),
   );
-  return { cookie: `session_id=${makeToken({ role: "Gestor" })}` };
+
+  return (profile?.permissions ?? []).map(({ key, custody }) => ({
+    permission_key: key,
+    custody,
+  }));
+}
+
+function sessionFor(profileName: "gestor" | "solicitante") {
+  const profileLabel = profileName === "gestor" ? "Gestor" : "Solicitante";
+
+  vi.mocked(authRepository.getAuthState).mockResolvedValue(
+    makeAuthState({
+      profile_name: profileName,
+      profile_id: PROFILE_IDS[profileLabel] as number,
+    }),
+  );
+  vi.mocked(authRepository.listUserPermissions).mockResolvedValue(permissionRowsFor(profileLabel));
+
+  return { cookie: `session_id=${makeToken()}` };
+}
+
+function gestorSession() {
+  return sessionFor("gestor");
 }
 
 describe("E2E — GET /queue com filtros e ordenação", () => {
@@ -76,7 +105,11 @@ describe("E2E — GET /queue com filtros e ordenação", () => {
         sortBy: "protocol",
         sortOrder: "asc",
       },
-      expect.objectContaining({ role: "Gestor" }),
+      expect.objectContaining({
+        id: 1,
+        email: "teste@neo.com",
+        permissions: expect.arrayContaining([{ key: "queue:read", custody: "all" }]),
+      }),
     );
   });
 
@@ -99,16 +132,17 @@ describe("E2E — GET /queue com filtros e ordenação", () => {
   });
 
   it("mantém o bloqueio de Solicitante ao usar os novos filtros", async () => {
-    vi.mocked(authRepository.getAuthState).mockResolvedValue(
-      makeAuthState({ profile_name: "solicitante" }),
-    );
     const client = new TestClient(server.baseUrl);
 
-    const response = await client.get("/queue?page=1&pageSize=10&department=Desenvolvimento", {
-      cookie: `session_id=${makeToken({ role: "Solicitante" })}`,
-    });
+    const response = await client.get(
+      "/queue?page=1&pageSize=10&department=Desenvolvimento",
+      sessionFor("solicitante"),
+    );
 
-    expectErrorEnvelope(response, { statusCode: 403 });
+    expectErrorEnvelope(response, {
+      statusCode: 403,
+      message: "Acesso restrito à permissão queue:read",
+    });
     expect(service.listQueueService).not.toHaveBeenCalled();
   });
 });

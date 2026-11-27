@@ -15,13 +15,13 @@ export default {
       tags: ["Fila de atendimento"],
       summary: "Métricas da fila",
       description:
-        "Métricas consolidadas da fila. Para o Analista, considera apenas as solicitações em que ele é responsável (triagem ou mapeamento); Gestor/Administrador veem o total.",
+        "Métricas consolidadas da fila. `queue:read` em `assigned` considera apenas as solicitações em que o ator é Responsável (triagem ou mapeamento); `all` vê o total.",
       operationId: "getQueueMetrics",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": { description: "Métricas da fila.", ...json("QueueMetrics") },
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (Analista, Gestor ou Administrador)."),
+        "403": error("Sem `queue:read`."),
       },
     },
   },
@@ -33,7 +33,7 @@ export default {
       description:
         "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. " +
         "As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. " +
-        "Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
+        "Os filtros são combináveis entre si e com `search`. `queue:read` em `assigned` vê apenas as solicitações sob sua responsabilidade; `all` vê todas. A busca por notas internas usa a custódia de `internal_note:read`.",
       operationId: "getQueue",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -92,7 +92,7 @@ export default {
         "200": { description: "Página da fila.", ...json("QueueResponse") },
         "400": error("Parâmetros ausentes ou inválidos."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso."),
+        "403": error("Sem `queue:read`."),
       },
     },
   },
@@ -108,7 +108,9 @@ export default {
       responses: {
         "200": { description: "Mapeamento atual.", ...json("MappingResponse") },
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso."),
+        "403": error(
+          "Sem `mapping:read` ou Custódia do Responsável da triagem ou do mapeamento corrente.",
+        ),
         "404": error("Protocolo inexistente."),
       },
     },
@@ -118,7 +120,8 @@ export default {
       description:
         "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. " +
         "`completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); " +
-        "para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`.",
+        "para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`. " +
+        "Conteúdo exige `mapping:write` + Custódia do mapeamento corrente; designação (`mappingAssigneeId`) exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente.",
       operationId: "putMapping",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -165,7 +168,9 @@ export default {
         "200": { description: "Mapeamento atualizado.", ...json("MappingResponse") },
         "400": error("Payload malformado ou vazio."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem permissão para editar o mapeamento."),
+        "403": error(
+          "Sem `mapping:write` (conteúdo) ou `request:assign` (designação), ou sem Custódia compatível.",
+        ),
         "404": error("Protocolo ou mapeamento inexistente."),
         "409": error("Conflito de concorrência na transição."),
         "422": error("Erro de validação de campos ou estado."),

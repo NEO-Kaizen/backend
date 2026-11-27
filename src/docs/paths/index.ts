@@ -1,6 +1,7 @@
 import authPaths from "./auth.ts";
 import requestsPaths from "./requests.ts";
 import usersPaths from "./users.ts";
+import profilesPaths from "./profiles.ts";
 import queuePaths from "./queue.ts";
 import portalConfigPaths from "./portalConfig.ts";
 import prioritizationPaths from "./prioritization.ts";
@@ -14,6 +15,7 @@ export const paths = {
   ...authPaths,
   ...requestsPaths,
   ...usersPaths,
+  ...profilesPaths,
   ...queuePaths,
   ...portalConfigPaths,
   ...prioritizationPaths,

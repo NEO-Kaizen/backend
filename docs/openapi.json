@@ -19,6 +19,10 @@
     { "name": "Solicitações", "description": "Cadastro, consulta e atualização de solicitações" },
     { "name": "Triagem", "description": "Avaliação de triagem de solicitações" },
     { "name": "Usuários", "description": "Cadastro, listagem e métricas de usuários" },
+    {
+      "name": "Perfis",
+      "description": "Perfis base e customizados: catálogo de chaves, composição e ciclo de vida"
+    },
     { "name": "Fila de atendimento", "description": "Métricas, listagem e mapeamento da fila" },
     {
       "name": "Configuração do portal",
@@ -84,34 +88,38 @@
           }
         }
       },
+      "SessionProfileReference": {
+        "description": "Perfil da sessão, com a marca estável do Admin Root.",
+        "allOf": [{ "$ref": "#/components/schemas/ProfileReference" }],
+        "type": "object",
+        "required": ["id", "name", "isRoot"],
+        "properties": {
+          "isRoot": {
+            "type": "boolean",
+            "example": false,
+            "description": "`true` apenas quando a conta pertence ao Perfil Admin Root."
+          }
+        }
+      },
       "AuthenticatedUser": {
         "type": "object",
-        "required": ["id", "name", "email", "avatarUrl", "role", "mustChangePassword"],
+        "required": ["id", "email", "name", "profile", "mustChangePassword"],
         "properties": {
           "id": { "type": "string", "example": "101" },
-          "name": { "type": "string", "example": "Administrador Teste" },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "example": "administrador_teste@email.com"
-          },
+          "email": { "type": "string", "example": "administrador_teste@email.com" },
+          "name": { "type": "string", "example": "administrador" },
           "avatarUrl": {
             "type": "string",
             "nullable": true,
             "example": "/uploads/avatars/101-foto.jpg"
           },
-          "role": {
-            "type": "string",
-            "enum": ["Solicitante", "Analista", "Gestor", "Administrador"],
-            "example": "Administrador"
-          },
+          "profile": { "$ref": "#/components/schemas/SessionProfileReference" },
           "mustChangePassword": { "type": "boolean", "example": false }
         }
       },
       "LoginRequest": {
         "type": "object",
         "required": ["email", "password"],
-        "additionalProperties": false,
         "properties": {
           "email": {
             "type": "string",
@@ -121,7 +129,13 @@
           "password": { "type": "string", "format": "password", "example": "steste123" }
         }
       },
-      "LoginResponse": { "$ref": "#/components/schemas/AuthenticatedUser" },
+      "LoginResponse": {
+        "type": "object",
+        "allOf": [
+          { "$ref": "#/components/schemas/AuthenticatedUser" },
+          { "type": "object", "properties": {} }
+        ]
+      },
       "LogoutResponse": {
         "type": "object",
         "required": ["message"],
@@ -130,24 +144,15 @@
       "ChangePasswordRequest": {
         "type": "object",
         "required": ["currentPassword", "newPassword", "confirmNewPassword"],
-        "additionalProperties": false,
         "properties": {
           "currentPassword": { "type": "string", "format": "password" },
           "newPassword": { "type": "string", "format": "password" },
           "confirmNewPassword": { "type": "string", "format": "password" }
         }
       },
-      "ChangePasswordResponse": { "$ref": "#/components/schemas/AuthenticatedUser" },
-      "Role": {
-        "type": "string",
-        "enum": ["Solicitante", "Analista", "Gestor", "Administrador"],
-        "example": "Analista"
-      },
-      "ProfileName": {
-        "type": "string",
-        "enum": ["solicitante", "analista", "gestor", "administrador"],
-        "description": "Nome do Perfil em `profiles.name` (minúsculo). Hoje `resolveRole` aceita apenas estes quatro nomes; perfis customizados ainda não estão implementados.",
-        "example": "analista"
+      "ChangePasswordResponse": {
+        "type": "object",
+        "allOf": [{ "$ref": "#/components/schemas/AuthenticatedUser" }]
       },
       "UserMetrics": {
         "type": "object",
@@ -196,7 +201,7 @@
             "nullable": true,
             "example": "/uploads/avatars/101-foto.jpg"
           },
-          "profile": { "$ref": "#/components/schemas/Role" },
+          "profile": { "$ref": "#/components/schemas/ProfileReference" },
           "isActive": { "type": "boolean", "example": true },
           "mustChangePassword": { "type": "boolean", "example": false },
           "createdAt": { "type": "string", "format": "date-time" }
@@ -247,12 +252,20 @@
       },
       "UserProfileResponse": {
         "type": "object",
-        "required": ["id", "fullName", "email", "role", "avatarUrl", "requester", "professional"],
+        "required": [
+          "id",
+          "fullName",
+          "email",
+          "profile",
+          "avatarUrl",
+          "requester",
+          "professional"
+        ],
         "properties": {
           "id": { "type": "string", "example": "101" },
           "fullName": { "type": "string", "example": "Maria Silva" },
           "email": { "type": "string", "format": "email", "example": "maria.silva@empresa.com" },
-          "role": { "$ref": "#/components/schemas/Role" },
+          "profile": { "$ref": "#/components/schemas/ProfileReference" },
           "avatarUrl": {
             "type": "string",
             "nullable": true,
@@ -270,28 +283,21 @@
           }
         }
       },
-      "AssignAnalyst": {
+      "AssignableProfessional": {
         "type": "object",
         "required": ["id", "fullName", "email", "specialty", "categories", "notes", "requestLoad"],
         "properties": {
-          "id": { "type": "string", "description": "`users.user_id` como string." },
-          "fullName": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "specialty": {
-            "type": "string",
-            "description": "Cargo do analista; string vazia permitida (\"\".)."
-          },
+          "id": { "type": "string", "example": "101" },
+          "fullName": { "type": "string", "example": "Maria Silva" },
+          "email": { "type": "string", "format": "email", "example": "maria.silva@empresa.com" },
+          "specialty": { "type": "string", "example": "Analista de Sistemas" },
           "categories": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Nomes das categorias atendidas; lista vazia permitida."
+            "example": ["Sistemas", "Automação"]
           },
-          "notes": { "type": "string", "nullable": true },
-          "requestLoad": {
-            "type": "integer",
-            "nullable": true,
-            "description": "Solicitações atribuídas; `null` quando não calculado."
-          }
+          "notes": { "type": "string", "nullable": true, "example": "Atende à tarde." },
+          "requestLoad": { "type": "integer", "example": 3 }
         }
       },
       "RequesterInput": {
@@ -324,15 +330,18 @@
       },
       "CreateUserRequest": {
         "type": "object",
-        "required": ["fullName", "email", "role", "requester"],
+        "required": ["fullName", "email", "profileId", "requester"],
         "properties": {
           "fullName": { "type": "string", "maxLength": 150 },
           "email": { "type": "string", "format": "email" },
-          "role": { "$ref": "#/components/schemas/ProfileName" },
+          "profileId": {
+            "type": "string",
+            "description": "Identidade estável do Perfil (`profiles.profile_id`)."
+          },
           "requester": { "$ref": "#/components/schemas/RequesterInput" },
           "professional": {
             "allOf": [{ "$ref": "#/components/schemas/ProfessionalInput" }],
-            "description": "Obrigatório quando `role = analista`; proibido para os demais perfis."
+            "description": "Opcional; permitido somente para Perfil ativo com flag de Atribuibilidade (`profile_not_assignable` caso contrário)."
           }
         }
       },
@@ -342,7 +351,7 @@
           "id",
           "fullName",
           "email",
-          "role",
+          "profile",
           "isActive",
           "mustChangePassword",
           "createdAt",
@@ -352,7 +361,7 @@
           "id": { "type": "string" },
           "fullName": { "type": "string" },
           "email": { "type": "string", "format": "email" },
-          "role": { "$ref": "#/components/schemas/Role" },
+          "profile": { "$ref": "#/components/schemas/ProfileReference" },
           "isActive": { "type": "boolean" },
           "mustChangePassword": { "type": "boolean" },
           "createdAt": { "type": "string", "format": "date-time" },
@@ -367,10 +376,13 @@
         "properties": {
           "fullName": { "type": "string", "maxLength": 150 },
           "email": { "type": "string", "format": "email" },
-          "role": { "$ref": "#/components/schemas/ProfileName" },
+          "profileId": {
+            "type": "string",
+            "description": "Identidade estável do Perfil de destino."
+          },
           "professional": {
             "allOf": [{ "$ref": "#/components/schemas/ProfessionalInput" }],
-            "description": "Somente para o perfil analista."
+            "description": "Somente para Perfil com flag de Atribuibilidade."
           },
           "requester": {
             "type": "object",
@@ -1343,7 +1355,7 @@
             "type": "string",
             "format": "uuid",
             "nullable": true,
-            "description": "`details_professional.professional_id` do executor do mapeamento (`mappings.professional_id`). Não altera a custódia em `requests.mapping_professional_id`. Permitido ao Administrador, ao responsável da solicitação ou ao designado atual."
+            "description": "`details_professional.professional_id` do executor do mapeamento (`mappings.professional_id`). Não altera a custódia em `requests.mapping_professional_id`. Exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente (na matriz base, Administrador/Admin Root)."
           },
           "scheduledFor": { "type": "string", "format": "date-time", "nullable": true },
           "durationMinutes": { "type": "integer", "minimum": 15, "maximum": 480, "nullable": true },
@@ -1768,21 +1780,30 @@
       },
       "TimelineActor": {
         "type": "object",
-        "required": ["id", "name", "role"],
+        "required": ["id", "name", "profile"],
         "properties": {
           "id": { "type": "string", "example": "101" },
-          "name": { "type": "string", "example": "Analista Teste" },
-          "role": { "type": "string", "enum": ["Analista", "Gestor", "Administrador"] }
+          "name": { "type": "string", "example": "Maria Silva" },
+          "profile": {
+            "type": "object",
+            "nullable": true,
+            "allOf": [{ "$ref": "#/components/schemas/ProfileSnapshot" }],
+            "description": "Snapshot do Perfil. `null` quando o evento não registrou Perfil; em notas antigas, `profile.id` é `null`."
+          }
         }
       },
       "TimelineNote": {
         "type": "object",
         "required": ["type", "id", "content", "createdAt", "author"],
         "properties": {
-          "type": { "type": "string", "enum": ["note"] },
-          "id": { "type": "string", "description": "`internal_note_id` numérico como string." },
-          "content": { "type": "string", "maxLength": 4000 },
-          "createdAt": { "type": "string", "format": "date-time" },
+          "type": { "type": "string", "enum": ["note"], "example": "note" },
+          "id": { "type": "string", "example": "42" },
+          "content": { "type": "string", "example": "Nota importante sobre a solicitação" },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-23T12:00:00.000Z"
+          },
           "author": { "$ref": "#/components/schemas/TimelineActor" }
         }
       },
@@ -1790,12 +1811,8 @@
         "type": "object",
         "required": ["type", "id", "action", "text", "occurredAt", "actor", "changeOrigin"],
         "properties": {
-          "type": { "type": "string", "enum": ["event"] },
-          "id": {
-            "type": "string",
-            "description": "`audit:<audit_id>`; a ação bruta de bypass é normalizada.",
-            "example": "audit:58"
-          },
+          "type": { "type": "string", "enum": ["event"], "example": "event" },
+          "id": { "type": "string", "example": "audit:900" },
           "action": {
             "type": "string",
             "enum": [
@@ -1804,58 +1821,29 @@
               "request.unassign",
               "request.status_change",
               "mapping.assign"
-            ]
+            ],
+            "example": "request.status_change"
           },
-          "text": {
+          "text": { "type": "string", "example": "Status alterado: Em análise" },
+          "occurredAt": {
             "type": "string",
-            "description": "Frase completa já renderizada no backend, em pt-BR.",
-            "example": "Status alterado: Em triagem"
+            "format": "date-time",
+            "example": "2026-11-23T12:00:00.000Z"
           },
-          "occurredAt": { "type": "string", "format": "date-time" },
           "actor": {
             "type": "object",
-            "allOf": [{ "$ref": "#/components/schemas/TimelineActor" }],
             "nullable": true,
-            "description": "`null` para ação de sistema ou usuário removido."
+            "allOf": [{ "$ref": "#/components/schemas/TimelineActor" }],
+            "description": "`null` em ações de sistema."
           },
           "changeOrigin": {
             "type": "string",
+            "nullable": true,
             "enum": ["admin", "system", "internal"],
-            "nullable": true
+            "example": "internal"
           },
-          "justification": {
-            "type": "string",
-            "nullable": true,
-            "description": "Justificativa interna da transição; nunca o retorno público."
-          },
-          "lastTechnicalMessage": {
-            "type": "string",
-            "nullable": true,
-            "description": "Snapshot do retorno público da própria transição."
-          }
-        }
-      },
-      "TimelineItem": {
-        "oneOf": [
-          { "$ref": "#/components/schemas/TimelineNote" },
-          { "$ref": "#/components/schemas/TimelineEvent" }
-        ],
-        "discriminator": { "propertyName": "type" }
-      },
-      "TriageHistoryEntry": {
-        "type": "object",
-        "required": ["triage", "occurredAt"],
-        "properties": {
-          "triage": { "$ref": "#/components/schemas/TriagemResponse" },
-          "occurredAt": { "type": "string", "format": "date-time" }
-        }
-      },
-      "MappingHistoryEntry": {
-        "type": "object",
-        "required": ["mapping", "occurredAt"],
-        "properties": {
-          "mapping": { "$ref": "#/components/schemas/MappingHistoryResponse" },
-          "occurredAt": { "type": "string", "format": "date-time" }
+          "justification": { "type": "string", "nullable": true },
+          "lastTechnicalMessage": { "type": "string", "nullable": true }
         }
       },
       "InternalNotesResponse": {
@@ -1864,28 +1852,21 @@
         "properties": {
           "items": {
             "type": "array",
-            "description": "Página da Linha do tempo em ordem mais recente primeiro.",
-            "items": { "$ref": "#/components/schemas/TimelineItem" }
+            "items": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/TimelineNote" },
+                { "$ref": "#/components/schemas/TimelineEvent" }
+              ]
+            }
           },
           "nextCursor": {
             "type": "string",
             "nullable": true,
-            "description": "Cursor opaco; `null` quando não há página mais antiga."
+            "example": "eyJ0IjoiMjAyNi0xMS0yM1QxMjowMDowMFoi"
           },
-          "unseenCount": {
-            "type": "integer",
-            "description": "Notas de outros autores após o checkpoint de leitura; eventos não contam."
-          },
-          "triages": {
-            "type": "array",
-            "description": "Registros completos, oldest → newest, idênticos em todas as páginas.",
-            "items": { "$ref": "#/components/schemas/TriageHistoryEntry" }
-          },
-          "mappings": {
-            "type": "array",
-            "description": "Registros completos, oldest → newest, idênticos em todas as páginas.",
-            "items": { "$ref": "#/components/schemas/MappingHistoryEntry" }
-          }
+          "unseenCount": { "type": "integer", "example": 0 },
+          "triages": { "type": "array", "items": { "type": "object" } },
+          "mappings": { "type": "array", "items": { "type": "object" } }
         }
       },
       "CreateInternalNoteRequest": {
@@ -1906,11 +1887,17 @@
       },
       "AuditActor": {
         "type": "object",
-        "required": ["kind", "userId", "displayName"],
+        "required": ["kind", "userId", "displayName", "profile"],
         "properties": {
-          "kind": { "type": "string", "enum": ["system", "user"] },
-          "userId": { "type": "integer", "nullable": true },
-          "displayName": { "type": "string", "nullable": true }
+          "kind": { "type": "string", "enum": ["system", "user"], "example": "user" },
+          "userId": { "type": "integer", "nullable": true, "example": 101 },
+          "displayName": { "type": "string", "nullable": true, "example": "Maria Silva" },
+          "profile": {
+            "type": "object",
+            "nullable": true,
+            "allOf": [{ "$ref": "#/components/schemas/ProfileReference" }],
+            "description": "Snapshot do Perfil do ator; `null` em ações de sistema e eventos antigos."
+          }
         }
       },
       "AuditHistorySummary": {
@@ -1924,16 +1911,16 @@
           "occurred_at"
         ],
         "properties": {
-          "audit_id": { "type": "integer", "example": 1 },
-          "entity_type": {
-            "type": "string",
-            "description": "Valor persistido em `audit_history.entity_type`. O catálogo atual é `user`, `prioritization`, `request`, `mapping`, `settings`, `pending_item`; valores anteriores fora do catálogo continuam legíveis.",
-            "example": "request"
-          },
-          "entity_type_label": { "type": "string", "example": "Usuários" },
+          "audit_id": { "type": "integer", "example": 900 },
+          "entity_type": { "type": "string", "example": "request" },
+          "entity_type_label": { "type": "string", "example": "Solicitações" },
           "action_type": { "type": "string", "example": "request.status_change" },
           "actor": { "$ref": "#/components/schemas/AuditActor" },
-          "occurred_at": { "type": "string", "format": "date-time" }
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-23T12:00:00.000Z"
+          }
         }
       },
       "AuditHistoryListResponse": {
@@ -1963,29 +1950,36 @@
           "last_technical_message",
           "ip_address",
           "change_origin",
+          "denied_permission_keys",
           "occurred_at"
         ],
         "properties": {
-          "audit_id": { "type": "integer" },
-          "entity_type": { "type": "string" },
-          "entity_id": { "type": "string" },
-          "action_type": { "type": "string" },
+          "audit_id": { "type": "integer", "example": 900 },
+          "entity_type": { "type": "string", "example": "request" },
+          "entity_id": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "action_type": { "type": "string", "example": "request.access_denied" },
           "actor": { "$ref": "#/components/schemas/AuditActor" },
           "previous_value": { "type": "string", "nullable": true },
           "new_value": { "type": "string", "nullable": true },
           "note": {
             "type": "string",
             "nullable": true,
-            "description": "Justificativa interna da transição."
+            "example": "Permissão ausente: request:read"
           },
-          "last_technical_message": {
+          "last_technical_message": { "type": "string", "nullable": true },
+          "ip_address": { "type": "string", "nullable": true, "example": "203.0.113.10" },
+          "change_origin": { "type": "string", "nullable": true, "example": "system" },
+          "denied_permission_keys": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["request:read"],
+            "description": "Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha. Vazio nas demais ações — a chave que autorizou não é registrada."
+          },
+          "occurred_at": {
             "type": "string",
-            "nullable": true,
-            "description": "Snapshot do retorno público da transição."
-          },
-          "ip_address": { "type": "string", "nullable": true },
-          "change_origin": { "type": "string", "nullable": true },
-          "occurred_at": { "type": "string", "format": "date-time" }
+            "format": "date-time",
+            "example": "2026-11-23T12:00:00.000Z"
+          }
         }
       },
       "DashboardSituation": {
@@ -2160,6 +2154,27 @@
           "statuses",
           "prioritizationWeights"
         ],
+        "properties": {
+          "platformName": { "type": "string", "example": "MAAT" },
+          "solicitationMode": {
+            "type": "string",
+            "enum": ["PUBLIC", "AUTHENTICATED"],
+            "example": "PUBLIC"
+          },
+          "protocolMask": { "type": "string", "example": "MAAT" },
+          "theme": { "$ref": "#/components/schemas/PortalTheme" },
+          "assets": { "$ref": "#/components/schemas/PortalAssets" },
+          "categories": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PortalCategory" }
+          },
+          "statuses": { "type": "array", "items": { "$ref": "#/components/schemas/PortalStatus" } },
+          "prioritizationWeights": { "$ref": "#/components/schemas/PrioritizationWeights" }
+        }
+      },
+      "PortalSections": {
+        "type": "object",
+        "description": "Visão administrativa da configuração. Cada membro está presente apenas quando o ator tem a chave de leitura da seção: `portal_setting:read` → platformName, solicitationMode, protocolMask; `theme:read` → theme, assets; `category:read` → categories; `status:read` → statuses; `prioritization_config:read` → prioritizationWeights.",
         "properties": {
           "platformName": { "type": "string", "example": "MAAT" },
           "solicitationMode": {
@@ -2549,6 +2564,220 @@
           "classification": { "type": "string", "enum": ["Baixa", "Média", "Alta", "Crítica"] },
           "calculatedAt": { "type": "string", "format": "date-time" },
           "calculatedBy": { "type": "integer" }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "isActive",
+          "isRoot",
+          "isAssignableTriage",
+          "isAssignableMapping",
+          "userCount",
+          "permissions"
+        ],
+        "properties": {
+          "id": { "type": "string", "example": "6" },
+          "name": { "type": "string", "example": "Coordenador" },
+          "description": {
+            "type": ["string", "null"],
+            "example": "Tria e redistribui qualquer solicitação"
+          },
+          "isActive": { "type": "boolean", "example": true },
+          "isRoot": {
+            "type": "boolean",
+            "example": false,
+            "description": "`true` apenas no próprio Perfil Admin Root."
+          },
+          "isAssignableTriage": { "type": "boolean", "example": true },
+          "isAssignableMapping": { "type": "boolean", "example": false },
+          "userCount": {
+            "type": "integer",
+            "example": 0,
+            "description": "Contas vinculadas ao Perfil, inclusive inativas."
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Composição efetiva na ordem do catálogo de chaves.",
+            "items": { "$ref": "#/components/schemas/ProfilePermission" }
+          }
+        }
+      },
+      "ProfileReference": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "6",
+            "description": "Identidade estável do Perfil (`String(profiles.profile_id)`)."
+          },
+          "name": {
+            "type": "string",
+            "example": "Analista",
+            "description": "Rótulo vigente do Perfil; nunca autoriza nem identifica."
+          }
+        }
+      },
+      "ProfileSnapshot": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true,
+            "example": "2",
+            "description": "Identidade registrada na época; `null` quando só o nome foi preservado."
+          },
+          "name": {
+            "type": "string",
+            "example": "Analista",
+            "description": "Nome congelado no momento do registro."
+          }
+        }
+      },
+      "ProfilePermission": {
+        "type": "object",
+        "required": ["key", "custody"],
+        "properties": {
+          "key": { "type": "string", "example": "triage:read" },
+          "custody": {
+            "type": "string",
+            "enum": ["global", "own", "assigned", "all"],
+            "example": "all"
+          }
+        }
+      },
+      "ProfileKeyCatalog": {
+        "type": "object",
+        "required": ["permissions", "assignabilityPredicates"],
+        "properties": {
+          "permissions": {
+            "type": "array",
+            "description": "As 37 chaves na ordem de referência da matriz de Perfil.",
+            "items": { "$ref": "#/components/schemas/ProfilePermissionCatalogEntry" }
+          },
+          "assignabilityPredicates": {
+            "type": "object",
+            "required": ["triage", "mapping"],
+            "properties": {
+              "triage": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["request:read", "triage:read", "triage:write"]
+              },
+              "mapping": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["request:read", "mapping:read", "mapping:write"]
+              }
+            }
+          }
+        }
+      },
+      "ProfilePermissionCatalogEntry": {
+        "type": "object",
+        "required": ["key", "custodyType", "allowedCustodies", "dependencies"],
+        "properties": {
+          "key": { "type": "string", "example": "triage:read" },
+          "custodyType": {
+            "type": "string",
+            "enum": ["global", "custodial"],
+            "example": "custodial"
+          },
+          "allowedCustodies": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["global", "own", "assigned", "all"] },
+            "example": ["assigned", "all"]
+          },
+          "dependencies": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": [],
+            "description": "Chaves que precisam estar presentes junto desta."
+          }
+        }
+      },
+      "ProfileCreateRequest": {
+        "type": "object",
+        "required": ["name", "permissions"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 60, "example": "Coordenador" },
+          "description": {
+            "type": ["string", "null"],
+            "maxLength": 255,
+            "example": "Tria e redistribui qualquer solicitação"
+          },
+          "isAssignableTriage": { "type": "boolean", "example": true },
+          "isAssignableMapping": { "type": "boolean", "example": false },
+          "permissions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProfilePermission" },
+            "example": [
+              { "key": "request:read", "custody": "all" },
+              { "key": "request:assign", "custody": "all" },
+              { "key": "request:status_change", "custody": "all" },
+              { "key": "request:status_override", "custody": "global" },
+              { "key": "queue:read", "custody": "all" },
+              { "key": "triage:read", "custody": "all" },
+              { "key": "triage:write", "custody": "all" },
+              { "key": "assignee_directory:read", "custody": "global" }
+            ]
+          }
+        }
+      },
+      "ProfileUpdateRequest": {
+        "type": "object",
+        "description": "Edição parcial e atômica. Campo ausente é intocado; `permissions` presente substitui a composição inteira.",
+        "properties": {
+          "name": { "type": "string", "maxLength": 60, "example": "Coordenador" },
+          "description": {
+            "type": ["string", "null"],
+            "maxLength": 255,
+            "example": "Nova descrição"
+          },
+          "isAssignableTriage": { "type": "boolean", "example": true },
+          "isAssignableMapping": { "type": "boolean", "example": false },
+          "permissions": {
+            "type": "array",
+            "description": "Presente substitui integralmente; nunca faz merge.",
+            "items": { "$ref": "#/components/schemas/ProfilePermission" }
+          }
+        }
+      },
+      "ProfileStatusRequest": {
+        "type": "object",
+        "required": ["isActive"],
+        "properties": { "isActive": { "type": "boolean", "example": false } }
+      },
+      "ProfileStatusResponse": {
+        "type": "object",
+        "required": ["id", "isActive"],
+        "properties": {
+          "id": { "type": "string", "example": "6" },
+          "isActive": { "type": "boolean", "example": false }
+        }
+      },
+      "ProfileDuplicateRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 60, "example": "Coordenador (cópia)" },
+          "description": {
+            "type": ["string", "null"],
+            "maxLength": 255,
+            "description": "Quando ausente, herda a descrição do Perfil de origem."
+          }
+        }
+      },
+      "RequestMutationAcknowledgement": {
+        "type": "object",
+        "required": ["protocol", "updated"],
+        "properties": {
+          "protocol": { "type": "string", "example": "MAAT-8K3P-9X2M" },
+          "updated": { "type": "boolean", "enum": [true] }
         }
       },
       "NotificationStatusChangedPayload": {
@@ -2987,7 +3216,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso (Analista, Gestor ou Administrador).",
+            "description": "Sem `assignee_directory:read`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3045,7 +3274,7 @@
       "get": {
         "tags": ["Solicitações"],
         "summary": "Consulta administrativa de solicitação",
-        "description": "Retorna os blocos completos, status, priorização, responsáveis, anexos, pendências e estado de leitura. Requer perfil Analista (restrito às solicitações atribuídas), Gestor ou Administrador.",
+        "description": "Retorna os blocos completos, status, priorização, responsáveis, anexos, pendências e estado de leitura. Exige `request:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente. Sem `internal_note:read` na linha, `internalObservations` vem `null`; sem `pending_item:read`, `pendingSummary`/`unread` vêm zerados e `correctionAlert` vem `null`.",
         "operationId": "getInternalRequestByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -3073,13 +3302,13 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `request:read`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente.",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3089,7 +3318,7 @@
       "patch": {
         "tags": ["Solicitações"],
         "summary": "Atualização interna de solicitação",
-        "description": "Substitui os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). Chave ausente = campo limpo (NULL). Administrador/Gestor editam qualquer solicitação; Analista apenas as atribuídas a ele.",
+        "description": "Substitui os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). Chave ausente = campo limpo (NULL). Exige `request:write` + Custódia do Responsável da triagem ou do mapeamento corrente; quem escreve sem `request:read` recebe `200 { protocol, updated: true }` em vez do detalhe.",
         "operationId": "patchInternalRequestByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -3111,10 +3340,15 @@
         },
         "responses": {
           "200": {
-            "description": "Solicitação atualizada.",
+            "description": "Solicitação atualizada (detalhe) ou acknowledgement sem `request:read`.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/InternalRequestDetail" }
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/InternalRequestDetail" },
+                    { "$ref": "#/components/schemas/RequestMutationAcknowledgement" }
+                  ]
+                }
               }
             }
           },
@@ -3131,13 +3365,13 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `request:write`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente.",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3157,7 +3391,7 @@
       "get": {
         "tags": ["Triagem"],
         "summary": "Consultar triagem da solicitação",
-        "description": "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Gestor tem leitura; Analista só acessa as atribuídas.",
+        "description": "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Exige `triage:read` + Custódia do Responsável da triagem **ou** do mapeamento corrente; fora dela responde `403`.",
         "operationId": "getTriage",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -3189,13 +3423,13 @@
             }
           },
           "403": {
-            "description": "Usuário sem acesso à solicitação.",
+            "description": "Sem `triage:read` ou Custódia do Responsável da triagem ou do mapeamento corrente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente.",
+            "description": "Protocolo inexistente (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3243,13 +3477,13 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `triage:write` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente.",
+            "description": "Protocolo inexistente (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3307,13 +3541,13 @@
             }
           },
           "403": {
-            "description": "Perfil interno ou verificação indisponível no modo AUTHENTICATED.",
+            "description": "Perfil interno (sessão com `request:track` deve usar a porta interna) ou verificação indisponível no modo AUTHENTICATED.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo não encontrado ou de terceiro.",
+            "description": "Protocolo não encontrado ou de terceiro (anti-enumeração).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3437,13 +3671,13 @@
             }
           },
           "403": {
-            "description": "Sem permissão para alterar o status.",
+            "description": "Sem `request:status_change`; alvo restrito ou fora do modo `free` exige `request:status_override` global (`request_status_override_required`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo ou status de destino inexistente.",
+            "description": "Protocolo inexistente, fora da Custódia ou status de destino inexistente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3467,7 +3701,7 @@
       "patch": {
         "tags": ["Solicitações"],
         "summary": "Atribuir responsável interno",
-        "description": "Define/remove o responsável de triagem (`assigneeId`) ou o designado do mapeamento (`mappingAssigneeId`) — exatamente um por chamada. Nesta rota ambos são `users.user_id` numérico em string. Liberado ao Administrador ou ao Analista responsável pela solicitação; Gestor não atribui.",
+        "description": "Define/remove o responsável de triagem (`assigneeId`) ou o designado do mapeamento (`mappingAssigneeId`) — exatamente um por chamada. Nesta rota ambos são `users.user_id` numérico em string. Exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente; na matriz base, só Administrador e Admin Root atribuem.",
         "operationId": "patchInternalAssignee",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -3509,13 +3743,13 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `request:assign`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente.",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3570,13 +3804,13 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `request:assign`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Protocolo inexistente.",
+            "description": "Protocolo inexistente ou fora da Custódia (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3692,24 +3926,45 @@
     "/users/analysts": {
       "get": {
         "tags": ["Usuários"],
-        "summary": "Listar analistas",
-        "description": "Lista os analistas ativos para o modal de atribuição. Endpoint definitivo, sem query e sem paginação — filtros são feitos no cliente.",
-        "operationId": "listAnalysts",
+        "summary": "Listar profissionais atribuíveis",
+        "description": "Diretório de Responsáveis por etapa: Perfil ativo com flag de Atribuibilidade e o predicado de chaves da etapa. Sem paginação. Exige `assignee_directory:read`.",
+        "operationId": "listAssignableProfessionals",
         "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "protocol",
+            "in": "query",
+            "required": false,
+            "description": "Quando presente, omite o criador da solicitação e responde `404 request_not_found` se o protocolo não existir.",
+            "schema": { "type": "string" }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Lista direta de analistas.",
+            "description": "Lista direta de profissionais atribuíveis.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/AssignAnalyst" }
+                  "items": { "$ref": "#/components/schemas/AssignableProfessional" }
                 }
               }
             }
           },
           "401": {
             "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Sem `assignee_directory:read`.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Protocolo informado não existe (`request_not_found`).",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -3755,11 +4010,11 @@
         "security": [{ "cookieAuth": [] }],
         "parameters": [
           {
-            "name": "profile",
+            "name": "profileId",
             "in": "query",
             "required": false,
-            "description": "Nome do Perfil em `profiles.name`.",
-            "schema": { "type": "string", "example": "analista" }
+            "description": "Identidade estável do Perfil (`profiles.profile_id`).",
+            "schema": { "type": "string", "example": "2" }
           },
           {
             "name": "search",
@@ -3825,7 +4080,7 @@
                   "value": {
                     "fullName": "Maria Silva",
                     "email": "maria.silva@empresa.com",
-                    "role": "analista",
+                    "profileId": "2",
                     "requester": {
                       "area": "TI",
                       "department": "Desenvolvimento",
@@ -3845,7 +4100,7 @@
                   "value": {
                     "fullName": "Carlos Souza",
                     "email": "carlos.souza@empresa.com",
-                    "role": "solicitante",
+                    "profileId": "1",
                     "requester": {
                       "area": "Administrativo",
                       "manager": "Ana Paula",
@@ -3949,7 +4204,7 @@
       "put": {
         "tags": ["Usuários"],
         "summary": "Atualizar usuário",
-        "description": "Edição administrativa parcial (merge): `fullName`, `email`, `role`, `professional` e `requester`. Contas de Administrador só podem ter o bloco `requester` alterado.",
+        "description": "Edição administrativa parcial (merge): `fullName`, `email`, `profileId`, `professional` e `requester`. Contas de Administrador só podem ter o bloco `requester` alterado.",
         "operationId": "updateUser",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4129,11 +4384,364 @@
         }
       }
     },
+    "/profiles": {
+      "get": {
+        "tags": ["Perfis"],
+        "summary": "Listar perfis",
+        "description": "Lista os perfis ativos e inativos com a composição ordenada, as flags de Atribuibilidade, a marca `isRoot` (presente no próprio Perfil Admin Root) e a contagem de contas vinculadas.",
+        "operationId": "listProfiles",
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Perfis cadastrados.",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Profile" } }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem a permissão profile:read.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Perfis"],
+        "summary": "Criar perfil customizado",
+        "description": "Cria um Perfil customizado com as guardas de composição: sem escalação de chave e de vínculo, dependências de chave, custódia fixa das chaves de posse e unicidade de nome (case-insensitive) entre perfis ativos.",
+        "operationId": "createProfile",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProfileCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Perfil criado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Profile" } }
+            }
+          },
+          "400": {
+            "description": "Composição inválida (chave, vínculo, dependência, escopo `assigned` sem flag ou escalação) ou nome já usado por perfil ativo. Códigos: `profile_permission_unknown_key`, `profile_permission_invalid_custody`, `profile_permission_fixed_custody`, `profile_permission_duplicate_key`, `profile_permission_missing_dependency`, `profile_flag_predicate_missing`, `profile_assigned_scope_without_assignability`, `profile_permission_key_escalation`, `profile_permission_custody_escalation`, `profile_name_taken`.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem a permissão profile:manage.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Payload inválido.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/keys": {
+      "get": {
+        "tags": ["Perfis"],
+        "summary": "Catálogo de chaves do editor de perfis",
+        "description": "Devolve as 37 chaves na ordem de referência (tipo, vínculos permitidos, dependências) e os predicados de Atribuibilidade das flags.",
+        "operationId": "getProfileKeyCatalog",
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Catálogo de chaves.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProfileKeyCatalog" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem a permissão profile:read.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/{id}": {
+      "get": {
+        "tags": ["Perfis"],
+        "summary": "Detalhar perfil",
+        "description": "Detalha um Perfil com a composição na ordem do catálogo.",
+        "operationId": "getProfile",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "6" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Perfil.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Profile" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem a permissão profile:read.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Perfil não encontrado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Perfis"],
+        "summary": "Editar perfil (parcial e atômico)",
+        "description": "Edita nome, descrição, flags e/ou composição. Campo ausente é intocado; `permissions` presente substitui integralmente. Remover chave de trabalho exige desligar a flag de Atribuibilidade correspondente na mesma chamada; com solicitações abertas atribuídas a usuários do perfil, a recusa é `409` com os protocolos. Composição com escopo `assigned` exige ao menos uma flag de Atribuibilidade. O Perfil Admin Root só é editado pelo Admin Root, mantém `profile:manage` e não recebe flags.",
+        "operationId": "updateProfile",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "6" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProfileUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil atualizado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Profile" } }
+            }
+          },
+          "400": {
+            "description": "Composição inválida, nome já usado por perfil ativo, remoção de chave de trabalho com a flag de Atribuibilidade ligada, escopo `assigned` sem flag de Atribuibilidade, retirada de `profile:manage` do Perfil Admin Root ou flag no Perfil Admin Root. Códigos: `profile_permission_unknown_key`, `profile_permission_invalid_custody`, `profile_permission_fixed_custody`, `profile_permission_duplicate_key`, `profile_permission_missing_dependency`, `profile_flag_predicate_missing`, `profile_assigned_scope_without_assignability`, `profile_permission_key_escalation`, `profile_permission_custody_escalation`, `profile_name_taken`, `profile_work_key_flag_on`, `profile_root_requires_manage`, `profile_root_not_assignable`.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem a permissão profile:manage ou ator que não é o Admin Root editando o Perfil Admin Root (`profile_root_protected`).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Perfil não encontrado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "409": {
+            "description": "Solicitações abertas atribuídas a usuários do perfil na etapa cuja chave de trabalho seria removida. Realoque-as antes de repetir a edição. Códigos: `profile_work_key_open_requests`.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Payload inválido ou sem nenhum campo para atualização.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/{id}/status": {
+      "patch": {
+        "tags": ["Perfis"],
+        "summary": "Ativar ou desativar perfil",
+        "description": "Desativação bloqueada quando há contas vinculadas (regra uniforme, base incluído). O Perfil Admin Root nunca é desativado. Exclusão física não existe.",
+        "operationId": "changeProfileStatus",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "6" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProfileStatusRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status alterado.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProfileStatusResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Perfil com contas vinculadas, Perfil Admin Root ou nome em uso por outro perfil ativo. Códigos: `profile_has_users`, `profile_root_not_deactivatable`, `profile_name_taken`.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem a permissão profile:manage.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Perfil não encontrado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Payload inválido.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/{id}/duplicate": {
+      "post": {
+        "tags": ["Perfis"],
+        "summary": "Duplicar perfil",
+        "description": "Cria um Perfil customizado a partir da composição e das flags de outro perfil (base ou customizado), com nome novo. Passa pelas mesmas validações da criação contra o conjunto do ator. Duplicar o Perfil Admin Root gera um custom comum.",
+        "operationId": "duplicateProfile",
+        "security": [{ "cookieAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "example": "5" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProfileDuplicateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Perfil customizado criado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Profile" } }
+            }
+          },
+          "400": {
+            "description": "Escalação de chave/vínculo, dependência, predicado de flag, escopo `assigned` sem flag de Atribuibilidade ou nome já usado por perfil ativo. Códigos: `profile_permission_unknown_key`, `profile_permission_invalid_custody`, `profile_permission_fixed_custody`, `profile_permission_duplicate_key`, `profile_permission_missing_dependency`, `profile_flag_predicate_missing`, `profile_assigned_scope_without_assignability`, `profile_permission_key_escalation`, `profile_permission_custody_escalation`, `profile_name_taken`.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem a permissão profile:manage.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "404": {
+            "description": "Perfil de origem não encontrado.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "422": {
+            "description": "Payload inválido.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/queue/metrics": {
       "get": {
         "tags": ["Fila de atendimento"],
         "summary": "Métricas da fila",
-        "description": "Métricas consolidadas da fila. Para o Analista, considera apenas as solicitações em que ele é responsável (triagem ou mapeamento); Gestor/Administrador veem o total.",
+        "description": "Métricas consolidadas da fila. `queue:read` em `assigned` considera apenas as solicitações em que o ator é Responsável (triagem ou mapeamento); `all` vê o total.",
         "operationId": "getQueueMetrics",
         "security": [{ "cookieAuth": [] }],
         "responses": {
@@ -4150,7 +4758,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso (Analista, Gestor ou Administrador).",
+            "description": "Sem `queue:read`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4162,7 +4770,7 @@
       "get": {
         "tags": ["Fila de atendimento"],
         "summary": "Listar fila de atendimento",
-        "description": "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. Os filtros são combináveis entre si e com `search`. O Analista vê apenas as solicitações atribuídas a ele; Gestor/Administrador veem todas.",
+        "description": "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. Os filtros são combináveis entre si e com `search`. `queue:read` em `assigned` vê apenas as solicitações sob sua responsabilidade; `all` vê todas. A busca por notas internas usa a custódia de `internal_note:read`.",
         "operationId": "getQueue",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4272,7 +4880,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso.",
+            "description": "Sem `queue:read`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4310,7 +4918,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso.",
+            "description": "Sem `mapping:read` ou Custódia do Responsável da triagem ou do mapeamento corrente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4326,7 +4934,7 @@
       "put": {
         "tags": ["Fila de atendimento"],
         "summary": "Criar ou atualizar mapeamento",
-        "description": "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. `completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`.",
+        "description": "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. `completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`. Conteúdo exige `mapping:write` + Custódia do mapeamento corrente; designação (`mappingAssigneeId`) exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente.",
         "operationId": "putMapping",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4399,7 +5007,7 @@
             }
           },
           "403": {
-            "description": "Sem permissão para editar o mapeamento.",
+            "description": "Sem `mapping:write` (conteúdo) ou `request:assign` (designação), ou sem Custódia compatível.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4437,6 +5045,35 @@
             "description": "Configuração consolidada do portal.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/PortalConfig" } }
+            }
+          }
+        }
+      }
+    },
+    "/portal-config/sections": {
+      "get": {
+        "tags": ["Configuração do portal"],
+        "summary": "Consultar seções legíveis da configuração do portal",
+        "description": "Configuração do portal recortada pelas seções legíveis ao ator. Exige ao menos uma chave de leitura de seção — `theme:read`, `category:read`, `status:read`, `portal_setting:read` ou `prioritization_config:read` — e devolve apenas as seções que o ator pode ler: `portal_setting:read` → platformName, solicitationMode, protocolMask; `theme:read` → theme, assets; `category:read` → categories; `status:read` → statuses; `prioritization_config:read` → prioritizationWeights. A projeção pública de `GET /portal-config` permanece sem chave.",
+        "operationId": "getReadableSections",
+        "security": [{ "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Configuração recortada pelas seções legíveis ao ator.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/PortalSections" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Sem nenhuma chave de leitura do portal.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           }
         }
@@ -4880,7 +5517,7 @@
       "get": {
         "tags": ["Priorização"],
         "summary": "Listar critérios de priorização",
-        "description": "Lista os critérios ativos e seus pesos. Leitura liberada aos perfis internos (Gestor é somente leitura também aqui).",
+        "description": "Lista os critérios ativos e seus pesos. Exige `prioritization:write` (avaliador) ou `prioritization_config:read` (configuração).",
         "operationId": "listPrioritizationCriteria",
         "security": [{ "cookieAuth": [] }],
         "responses": {
@@ -4899,7 +5536,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso.",
+            "description": "Sem chave de priorização.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4911,7 +5548,7 @@
       "put": {
         "tags": ["Priorização"],
         "summary": "Avaliar pontuação de priorização",
-        "description": "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. Todas as notas dos critérios ativos são obrigatórias. Perfis: Administrador ou Analista responsável pela solicitação.",
+        "description": "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. Todas as notas dos critérios ativos são obrigatórias. Exige `prioritization:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
         "operationId": "evaluatePrioritizationScore",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4953,7 +5590,7 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `prioritization:write` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4971,7 +5608,7 @@
       "get": {
         "tags": ["Relatórios"],
         "summary": "Relatório do dashboard",
-        "description": "Agregados das solicitações para o dashboard gerencial. Gestor e Administrador. `open` = status não terminal; `closed` = terminal; `overdue` = aberta com prazo desejado vencido; `unassigned` = aberta sem responsável de triagem.",
+        "description": "Agregados das solicitações para o dashboard gerencial. Exige `reports:read`. `open` = status não terminal; `closed` = terminal; `overdue` = aberta com prazo desejado vencido; `unassigned` = aberta sem responsável de triagem.",
         "operationId": "getDashboard",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5040,7 +5677,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso (Gestor ou Administrador).",
+            "description": "Sem `reports:read`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5052,7 +5689,7 @@
       "get": {
         "tags": ["Relatórios"],
         "summary": "Exportar solicitações em CSV",
-        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas nas colunas do CSV no fuso `America/Sao_Paulo`; os filtros `createdFrom`/`createdTo` usam UTC.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
+        "description": "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Exige `queue:export` + Custódia.\n\n**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. Datas nas colunas do CSV no fuso `America/Sao_Paulo`; os filtros `createdFrom`/`createdTo` usam UTC.\n\n`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; `unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. `createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
         "operationId": "exportRequestsCsv",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5153,7 +5790,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso (Gestor ou Administrador).",
+            "description": "Sem `queue:export` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5165,7 +5802,7 @@
       "get": {
         "tags": ["Auditoria"],
         "summary": "Listar trilha de auditoria",
-        "description": "Lista paginada dos eventos de auditoria, ordenada por `occurred_at DESC`. Query é estrita (parâmetro desconhecido → `400`). `total` é a contagem antes da paginação; `page`/`limit` ecoam os valores aplicados. Perfis: Administrador ou Gestor. Respostas com `Cache-Control: private, no-store`.",
+        "description": "Lista paginada dos eventos de auditoria, ordenada por `occurred_at DESC`. Query é estrita (parâmetro desconhecido → `400`). `total` é a contagem antes da paginação; `page`/`limit` ecoam os valores aplicados. Exige `audit:read`. Respostas com `Cache-Control: private, no-store`.",
         "operationId": "listAuditHistory",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5214,7 +5851,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso (Administrador ou Gestor).",
+            "description": "Sem `audit:read`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5259,7 +5896,7 @@
             }
           },
           "403": {
-            "description": "Perfil sem acesso (Administrador ou Gestor).",
+            "description": "Sem `audit:read`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5277,7 +5914,7 @@
       "get": {
         "tags": ["Auditoria"],
         "summary": "Linha do tempo de auditoria por protocolo",
-        "description": "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Perfis internos; Analista precisa ser responsável (triagem ou mapeamento).",
+        "description": "Lista os eventos de auditoria de uma solicitação, com `Cache-Control: private, no-store`. Exige `request:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente.",
         "operationId": "getAuditLogsByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5314,7 +5951,7 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `request:read` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5379,7 +6016,7 @@
             }
           },
           "403": {
-            "description": "Perfil Solicitante.",
+            "description": "Sem `internal_note:read` + Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5435,7 +6072,7 @@
             }
           },
           "403": {
-            "description": "Perfil Solicitante.",
+            "description": "Sem `internal_note:read` + Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5488,7 +6125,7 @@
             }
           },
           "403": {
-            "description": "Perfil Solicitante.",
+            "description": "Sem `internal_note:read` + Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5506,7 +6143,7 @@
       "get": {
         "tags": ["Pendências"],
         "summary": "Listar pendências",
-        "description": "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Dual-auth: cookie interno ou identidade do solicitante.",
+        "description": "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Na porta interna exige `pending_item:read` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto); dual-auth com a identidade do solicitante.",
         "operationId": "listPendingItems",
         "security": [{ "cookieAuth": [] }, { "requesterIdentity": [] }],
         "parameters": [
@@ -5540,7 +6177,7 @@
             }
           },
           "404": {
-            "description": "Solicitação não encontrada.",
+            "description": "Solicitação não encontrada ou fora da Custódia.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5550,7 +6187,7 @@
       "post": {
         "tags": ["Pendências"],
         "summary": "Criar pendências",
-        "description": "Cria um lote com observação e/ou campos marcados. Exige Administrador ou o responsável da solicitação. Na mesma transação, a solicitação passa para `Pendente de informações` (o novo status não é devolvido).",
+        "description": "Cria um lote com observação e/ou campos marcados. Exige `pending_item:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto). Na mesma transação, a solicitação passa para `Pendente de informações` (o novo status não é devolvido).",
         "operationId": "createPendingItems",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5592,13 +6229,13 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `pending_item:write`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Solicitação não encontrada.",
+            "description": "Solicitação não encontrada ou fora da Custódia.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5616,7 +6253,7 @@
       "patch": {
         "tags": ["Pendências"],
         "summary": "Revisar pendências",
-        "description": "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige Administrador ou o responsável da solicitação.",
+        "description": "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige `pending_item:review` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
         "operationId": "reviewPendingItems",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5658,13 +6295,13 @@
             }
           },
           "403": {
-            "description": "Perfil ou custódia insuficiente.",
+            "description": "Sem `pending_item:review`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
           },
           "404": {
-            "description": "Solicitação ou lote não encontrado.",
+            "description": "Solicitação/lote não encontrado ou fora da Custódia.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5682,7 +6319,7 @@
       "patch": {
         "tags": ["Pendências"],
         "summary": "Responder pendência",
-        "description": "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos Administradores ativos (RF20 — issue #159).",
+        "description": "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth: sessão com `pending_item:respond` em `own` ou porta pública com o e-mail do Solicitante. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos usuários com `user:manage` (RF20 — issue #159).",
         "operationId": "respondPendingItem",
         "security": [{ "cookieAuth": [] }, { "requesterIdentity": [] }],
         "parameters": [

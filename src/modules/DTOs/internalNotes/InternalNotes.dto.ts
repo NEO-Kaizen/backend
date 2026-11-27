@@ -1,15 +1,20 @@
 import type {
-  InternalRole,
   TimelineChangeOrigin,
   TimelineEventAction,
 } from "../../../shared/types/internalNotes.ts";
+import type { ProfileSnapshot } from "../../../shared/types/profile.ts";
 import type { TriageAssessment } from "../../requests/triage/triage.schema.ts";
 import type { MappingResponseDTO } from "../queue/mapping.dto.ts";
 
 export interface TimelineActorDTO {
   id: string;
   name: string;
-  role: InternalRole;
+  /**
+   * Snapshot do Perfil no momento do registro. `null` quando o evento não
+   * guardou Perfil; em notas antigas, `id` é `null` porque só o nome foi
+   * preservado — nunca inferido do nome.
+   */
+  profile: ProfileSnapshot | null;
 }
 
 export interface TimelineNote {

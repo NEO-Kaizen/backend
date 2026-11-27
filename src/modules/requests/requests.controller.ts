@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
-import type { Role } from "../../shared/types/role.ts";
+import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { saveFiles } from "../../shared/storage/fileStorage.ts";
 import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import {
@@ -82,7 +82,11 @@ function assertProtocolParam(req: Request): string {
 }
 
 /** Ator autenticado (id numérico + e-mail + papel) — `req.user` vem do authMiddleware. */
-function actorFromRequest(req: Request): { id: number; email: string; role: Role } {
+function actorFromRequest(req: Request): {
+  id: number;
+  email: string;
+  permissions: EffectivePermission[];
+} {
   if (!req.user) {
     throw new AppError("Token inválido ou expirado", 401);
   }
@@ -90,7 +94,10 @@ function actorFromRequest(req: Request): { id: number; email: string; role: Role
   if (!Number.isInteger(id)) {
     throw new AppError("Token inválido ou expirado", 401);
   }
-  return { id, email: req.user.email, role: req.user.role };
+  if (!req.permissions) {
+    throw new AppError("Permissões não carregadas para esta operação", 403);
+  }
+  return { id, email: req.user.email, permissions: req.permissions };
 }
 
 // Atualização interna dos blocos editáveis (issue #88) — modo de edição inline
@@ -151,10 +158,11 @@ export const postRequest = async (req: Request, res: Response): Promise<Response
 };
 
 export const getRequestsByEmail = async (req: Request, res: Response): Promise<Response> => {
-  // Modo autenticado: a listagem é sempre escopada à identidade da sessão.
-  if (req.accessMode === "AUTHENTICATED") {
+  // Sessão presente: a listagem é sempre escopada à identidade da sessão,
+  // mesmo com o portal em `PUBLIC` (a sessão decide qual porta o ator usa).
+  if (req.user) {
     if (req.query.email !== undefined) {
-      throw new AppError("O parâmetro 'email' não é aceito no modo autenticado.", 400);
+      throw new AppError("O parâmetro 'email' não é aceito com sessão autenticada.", 400);
     }
 
     const parsed = listAuthenticatedRequestsQuerySchema.safeParse(req.query);

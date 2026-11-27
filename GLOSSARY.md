@@ -187,11 +187,11 @@ Capability nomeada `recurso:ação` — o que um perfil pode fazer, como `triage
 _Evitar_: direito, autorização (autorização é o processo), regra.
 
 **Posse**:
-Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia interna: nasce ao abrir e autoriza acompanhar e responder à própria solicitação. No código, as chaves `request:track` e `pending_item:respond` valem sobre esse vínculo em `own`; com sessão, a identidade é o e-mail da conta, e sem sessão a porta pública usa o e-mail declarado e o protocolo. As duas chaves têm custódia fixa em `own`, e responder pendência exige `request:track`.
+Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia interna: nasce ao abrir e autoriza acompanhar e responder à própria solicitação. No código, as chaves `request:track` e `pending_item:respond` valem sobre esse vínculo em `own`; com sessão, a identidade é `requests.requester_user_id` (o e-mail da conta só vale nas linhas legadas sem vínculo), e sem sessão a porta pública usa o e-mail declarado e o protocolo. As duas chaves têm custódia fixa em `own`, e responder pendência exige `request:track`.
 _Evitar_: propriedade, ownership, dono.
 
 **Custódia**:
-Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.responsible_id`); para `mapping:read`/`mapping:write` e para a visibilidade da fila (`queue:read`/`queue:export`, #102), o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, o e-mail do Solicitante (`requests.requester_email`). Os snapshots de triagem e de mapeamento não concedem acesso.
+Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.professional_id` via `details_professional.user_id`); para as ações comuns (`request:read`, `request:write`, `request:status_change`, `internal_note:*`, `audit:read` e `queue:*`), o Responsável do mapeamento corrente também conta; `mapping:*` é exclusivo do mapeamento corrente; e, para `request:track` e `pending_item:respond`, a conta do Solicitante (`requests.requester_user_id`, com o e-mail apenas nas linhas legadas sem vínculo). Os snapshots de triagem e de mapeamento não concedem acesso.
 _Evitar_: escopo, abrangência, alcance, dono, ownership.
 
 **Atribuibilidade (atribuível)**:
@@ -199,19 +199,27 @@ Propriedade do perfil cujos usuários podem ser escolhidos como _Responsável_ e
 _Evitar_: elegível, selecionável, disponível.
 
 **Extensão de profissional**:
-Registro 1:1 com a conta que habilita o usuário a ser designado _Responsável_. Segue a _Atribuibilidade_: nasce com a conta de perfil atribuível, é reprocessada ao ligar a flag ou ao mover a conta, e o diretório de atribuíveis exige extensão, flag, predicado e conta ativa.
+Registro 1:1 com a conta que serve de âncora persistida da designação de _Responsável_. Sua provisão depende de o Perfil estar ativo e ter uma flag `is_assignable_*`; não depende do predicado de chaves de trabalho. Nasce com a conta e recebe backfill ao ligar a flag ou ao mover a conta. O diretório e a designação exigem, além da extensão, conta e Perfil ativos e a _Atribuibilidade_ completa (flag + predicado).
 _Evitar_: cadastro de analista, dados profissionais.
 
 **Perfil**:
 Conjunto de permissões atribuído a um usuário. Os cinco perfis base — _Solicitante_, _Analista_, _Visualizador_, _Administrador_ e _Admin Root_ — são semeados com a matriz de referência. O _Solicitante_ base tem as três chaves de autoatendimento (`request:create`, `request:track` e `pending_item:respond`) e nenhuma chave interna. Perfis customizados são compostos das mesmas permissões por quem tem `profile:manage`; o cliente cria perfis, não capabilities. O _Solicitante_ descreve um ator externo e não ocupa a hierarquia interna.
 _Evitar_: papel, cargo, função, role.
 
+**Referência de Perfil**:
+Par `{ id, name }` que aponta para um Perfil. `id` é `String(profiles.profile_id)`, a identidade estável usada em URLs e payloads (`profileId`); `name` é o rótulo de exibição, mutável. Em snapshot histórico de Nota interna ou auditoria, o par é congelado; quando só o nome foi registrado, `id` é `null` e nunca é inferido. Nome e ID não autorizam — a decisão é por Permissões e Custódia.
+_Evitar_: role, nome do perfil como identificador.
+
 **Admin Root**:
 Perfil raiz do sistema, identificado por `is_root` e único: existe no máximo uma conta com ele, criada apenas pelo seed, sem auto-registro nem promoção pela API e fora das rotas administrativas. Tem todas as permissões, gerencia qualquer conta — inclusive de autoridade igual — e é o único que edita o perfil Admin Root.
 _Evitar_: super-admin, root, administrador mestre.
 
+**Autoridade de conta**:
+Conjunto de pares chave+vínculo de um Perfil, base da matriz de contas. Um Perfil é estritamente abaixo de outro quando todo par do alvo está contido no conjunto do ator e os conjuntos diferem; a contenção respeita a _Custódia_ (`all` contém `assigned`; `assigned` não contém `all`; `own` só igual a `own`) e as flags `is_assignable_*` ficam fora da comparação. O _Admin Root_ é a exceção: gerencia qualquer conta, exceto as do próprio Perfil.
+_Evitar_: hierarquia de perfis, nível, ranking, poder.
+
 **Responsável**:
-Pessoa designada para conduzir a triagem ou o mapeamento de uma solicitação. O vínculo com a solicitação é a _Custódia_; a propriedade do perfil de poder receber essa designação é a _Atribuibilidade_.
+Pessoa designada para conduzir a triagem ou o mapeamento de uma solicitação. O vínculo com a solicitação é a _Custódia_; a propriedade do perfil de poder receber essa designação é a _Atribuibilidade_. Quem criou a solicitação não pode ser o _Responsável_ dela (`assignee_is_requester`): o vínculo de posse não se acumula com o de custódia.
 _Evitar_: analista (é o perfil, não o vínculo), dono, responsável técnico.
 
 **Designação**:

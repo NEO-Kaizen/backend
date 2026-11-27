@@ -37,8 +37,9 @@ no mesmo PR.
 
 ## Consulta
 
-- Administrador e Gestor leem a listagem administrativa; Analista lê a Linha do tempo
-  de uma solicitação apenas se for responsável (triagem ou mapeamento).
+- A listagem administrativa exige `audit:read`; a Linha do tempo de uma
+  solicitação exige `request:read` + Custódia do Responsável da triagem **ou**
+  do Designado do mapeamento corrente.
 - A listagem é ordenada do evento mais recente para o mais antigo.
 - Respostas administrativas não devem ser armazenadas por navegador ou
   intermediários.

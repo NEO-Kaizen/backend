@@ -1,4 +1,5 @@
 import db from "../../database/conection.ts";
+import { findAssignableProfileIds } from "../../shared/access/assignability.ts";
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
 import { applyQueueFilters } from "./queue.filters.ts";
@@ -25,10 +26,8 @@ const IN_PROGRESS_STATUS_NAMES = [
 export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMetricsResponse> => {
   const query = db("requests").leftJoin("statuses as s", "s.status_id", "requests.status_id");
 
-  // Escopo por Analista (issue #102): conta apenas as solicitações em que o
-  // usuário é responsável de triagem OU de mapeamento. Os joins são 1:1
-  // (`professional_id`/`mapping_professional_id` são únicos), então não inflam
-  // as contagens.
+  // `applyQueueFilters` aplica o mesmo escopo à lista e à exportação:
+  // Responsável da solicitação ou do Mapeamento corrente.
   if (scopedUserId !== undefined) {
     query
       .leftJoin(
@@ -36,17 +35,9 @@ export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMet
         "assignee.professional_id",
         "requests.professional_id",
       )
-      .leftJoin(
-        "details_professional as mapping_assignee",
-        "mapping_assignee.professional_id",
-        "requests.mapping_professional_id",
-      )
-      .andWhere((builder) => {
-        builder
-          .where("assignee.user_id", scopedUserId)
-          .orWhere("mapping_assignee.user_id", scopedUserId);
-      });
+      .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id");
   }
+  applyQueueFilters(query, { scopedUserId });
 
   const result = await query
     .select(
@@ -88,13 +79,7 @@ export const findQueueRequests = async (
       "assignee.professional_id",
       "requests.professional_id",
     )
-    .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id")
-    // Eixo de mapeamento, usado apenas pelo escopo do Analista (#102).
-    .leftJoin(
-      "details_professional as mapping_assignee",
-      "mapping_assignee.professional_id",
-      "requests.mapping_professional_id",
-    );
+    .leftJoin("users as assignee_user", "assignee_user.user_id", "assignee.user_id");
 
   applyQueueFilters(baseQuery, params);
 
@@ -149,15 +134,16 @@ export const fetchAllDepartments = async (): Promise<string[]> => {
 };
 
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {
-  const rows = await db("details_professional as dp")
+  const profileIds = await findAssignableProfileIds({ queryable: db });
+  if (profileIds.length === 0) return [];
+
+  return db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.status", "active")
     .andWhere("u.is_active", true)
     .andWhere("p.is_active", true)
-    .where("p.name", "analista")
+    .whereIn("p.profile_id", profileIds)
     .select(db.raw("u.user_id::text as id"), "u.full_name as name")
     .orderBy("u.full_name", "asc");
-
-  return rows;
 };

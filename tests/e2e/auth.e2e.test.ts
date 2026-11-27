@@ -20,8 +20,11 @@ vi.mock("../../src/modules/auth/auth.repository.ts", () => ({
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
   getAuthState: vi.fn(),
+  listUserPermissions: vi.fn(),
   changePassword: vi.fn(),
 }));
+
+vi.mock("../../src/shared/audit/auditLogger.ts", () => ({ recordAudit: vi.fn() }));
 
 const authRepository = await import("../../src/modules/auth/auth.repository.ts");
 
@@ -65,6 +68,10 @@ async function mockCurrentUser() {
   vi.mocked(authRepository.findUserById).mockImplementation(async () =>
     makeAuthUser({ email: "maria@neo.com", password_hash: passwordHash }),
   );
+  vi.mocked(authRepository.listUserPermissions).mockResolvedValue([
+    { permission_key: "request:create", custody: "global" },
+    { permission_key: "request:track", custody: "own" },
+  ]);
 }
 
 describe("E2E — fluxo de autenticação", () => {
@@ -89,7 +96,13 @@ describe("E2E — fluxo de autenticação", () => {
 
     const me = await client.get("/auth/me");
     expect(me.status).toBe(200);
-    expect(me.body).toEqual(makeSessionResponse({ email: "maria@neo.com" }));
+    expect(me.body).toEqual({
+      ...makeSessionResponse({ email: "maria@neo.com" }),
+      permissions: [
+        { key: "request:create", custody: "global" },
+        { key: "request:track", custody: "own" },
+      ],
+    });
 
     const logout = await client.post("/auth/logout");
     expect(logout.status).toBe(200);

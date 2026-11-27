@@ -10,8 +10,13 @@ A Linha do tempo privada combina três fontes:
 
 ## Acesso
 
-Perfis internos (Analista, Gestor, Administrador). O gate é o da rota; a
-Linha do tempo não reaplica a custódia do Analista.
+Perfis internos com `internal_note:read` + Custódia do Responsável da triagem
+**ou** do Designado do mapeamento corrente. O gate é o da rota; a Linha do
+tempo não reaplica a custódia.
+
+Quem lê a visão interna sem `internal_note:read` na linha recebe
+`internalObservations: null`, mesmo que a solicitação tenha observações
+gravadas.
 
 ## Busca
 
@@ -21,12 +26,13 @@ processo, descrição, problema, resultado esperado, nome e e-mail do solicitant
 A nota só faz a solicitação corresponder; o conteúdo não é devolvido na resposta.
 
 A listagem usa o escopo da fila: o Analista vê solicitações em que é responsável
-de triagem ou de mapeamento. A correspondência por nota é mais estreita e usa a
-custódia de `internal_note:read`:
+de triagem ou de mapeamento. A correspondência por nota usa a custódia de
+`internal_note:read`, a mesma das notas:
 
-- Analista só encontra por nota as solicitações em que é o responsável; ser
-  responsável de mapeamento não amplia essa busca;
-- Gestor e Administrador encontram todas, pois têm custódia `all`;
+- Com `internal_note:read` em `assigned`, a busca por nota encontra
+  solicitações em que o ator é o responsável da triagem **ou** o Designado do
+  mapeamento corrente;
+- Com custódia `all`, encontra todas;
 - Solicitante não acessa a busca interna.
 
 A Linha do tempo continua com o gate de perfil da rota, conforme a seção

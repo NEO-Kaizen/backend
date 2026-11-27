@@ -1,9 +1,13 @@
+import type { PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
+import {
+  denyRequestAccess,
+  hasAnyResponsibleCustody,
+  type PermissionActor,
+} from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
 import type {
   AuditTimelineAction,
   InternalNoteRow,
-  InternalRole,
   MappingHistoryRow,
   TimelineCursor,
   TimelineEventAction,
@@ -21,6 +25,7 @@ import type {
   TimelineNote,
   TriageHistoryEntry,
 } from "../DTOs/internalNotes/InternalNotes.dto.ts";
+import { toActorProfileSnapshot, toProfileSnapshot } from "../../shared/types/profile.ts";
 import * as repository from "./internalNotes.repository.ts";
 import type { ListTimelineQuery, TimelineCursorPayload } from "./internalNotes.schema.ts";
 
@@ -37,16 +42,38 @@ function toNoteDTO(row: InternalNoteRow): TimelineNote {
     author: {
       id: String(row.author_user_id),
       name: row.author_name,
-      role: row.author_role_at_creation,
+      profile: toProfileSnapshot(
+        row.author_profile_id_at_creation,
+        row.author_profile_name_at_creation,
+      ),
     },
   };
 }
 
-async function requireRequestId(protocol: string): Promise<string> {
+export interface InternalNotesActor extends PermissionActor {
+  readonly profileId: string;
+  readonly profileName: string;
+}
+
+async function requireRequestAccess(
+  protocol: string,
+  actor: InternalNotesActor,
+  key: PermissionKey,
+  ipAddress: string | undefined,
+): Promise<string> {
   const request = await repository.findRequestIdByProtocol(protocol);
+
   if (!request) {
-    throw new AppError("Solicitação não encontrada", 404);
+    // Recurso inexistente não é recusa de Permissão: nenhuma chave vai para a trilha.
+    return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`);
   }
+
+  if (
+    !hasAnyResponsibleCustody(actor, key, [request.responsible_user_id, request.mapping_user_id])
+  ) {
+    return denyRequestAccess(protocol, actor.id, ipAddress, `${key} sem custódia`, [key]);
+  }
+
   return String(request.request_id);
 }
 
@@ -118,12 +145,18 @@ function positiveIntOrNull(value: string | null): number | null {
  * distinguindo a origem. A gravação permanece intocada.
  */
 function normalizeEventAction(action: AuditTimelineAction): TimelineEventAction {
-  return action === "request.override_status_admin" ? "request.status_change" : action;
+  return action === "request.override_status_admin" || action === "request.status_override"
+    ? "request.status_change"
+    : action;
 }
 
 /** `request.status_change` e seu override de Admin compartilham render/payload. */
 function isStatusChangeAction(action: AuditTimelineAction): boolean {
-  return action === "request.status_change" || action === "request.override_status_admin";
+  return (
+    action === "request.status_change" ||
+    action === "request.override_status_admin" ||
+    action === "request.status_override"
+  );
 }
 
 function composeEventText(
@@ -134,7 +167,8 @@ function composeEventText(
 ): string {
   switch (row.action_type) {
     case "request.status_change":
-    case "request.override_status_admin": {
+    case "request.override_status_admin":
+    case "request.status_override": {
       if (!row.new_value) return "Status alterado";
       const numericId = positiveIntOrNull(row.new_value);
       const statusName = numericId === null ? row.new_value : statusNames.get(numericId);
@@ -166,19 +200,20 @@ function composeEventText(
 interface ActorSource {
   actor_user_id: number | null;
   actor_name: string | null;
+  actor_profile_id: number | null;
   actor_profile_name: string | null;
 }
 
 function toActorDTO(row: ActorSource): TimelineActorDTO | null {
-  if (row.actor_user_id === null || row.actor_name === null || row.actor_profile_name === null) {
+  if (row.actor_user_id === null || row.actor_name === null) {
     return null;
   }
 
-  const role = resolveRole(row.actor_profile_name);
-  if (role === "Solicitante") {
-    return null;
-  }
-  return { id: String(row.actor_user_id), name: row.actor_name, role };
+  return {
+    id: String(row.actor_user_id),
+    name: row.actor_name,
+    profile: toActorProfileSnapshot(row.actor_profile_id, row.actor_profile_name),
+  };
 }
 
 /** Serializa instante para ISO-8601 UTC com sufixo `Z` e precisão de segundos. */
@@ -298,19 +333,20 @@ async function buildEventDTOs(rows: TimelineEventRow[]): Promise<TimelineEvent[]
 
 export async function listInternalNotes(
   protocol: string,
-  actorUserId: number,
+  actor: InternalNotesActor,
   query: ListTimelineQuery,
+  ipAddress: string | undefined,
 ): Promise<InternalNotesResponse> {
-  const requestId = await requireRequestId(protocol);
+  const requestId = await requireRequestAccess(protocol, actor, "internal_note:read", ipAddress);
   const cursor = toRepositoryCursor(query.cursor);
   const pageLimit = query.limit + 1;
 
-  const readState = await repository.findReadState(requestId, actorUserId);
+  const readState = await repository.findReadState(requestId, actor.id);
 
   const [noteRows, eventRows, unseenCount, triageRows, mappingRows] = await Promise.all([
     repository.listNotesPage(requestId, cursor, pageLimit),
     repository.listEventsPage(protocol, requestId, cursor, pageLimit),
-    repository.countUnseen(requestId, actorUserId, readState?.last_read_note_id),
+    repository.countUnseen(requestId, actor.id, readState?.last_read_note_id),
     repository.listTriageHistory(requestId),
     repository.listMappingHistory(requestId),
   ]);
@@ -331,10 +367,15 @@ export async function listInternalNotes(
 export async function createInternalNote(
   protocol: string,
   payload: CreateInternalNoteRequest,
-  actor: { userId: number; role: InternalRole },
+  actor: InternalNotesActor,
+  ipAddress: string | undefined,
 ): Promise<TimelineNote> {
-  const requestId = await requireRequestId(protocol);
-  const internalNoteId = await repository.insert(requestId, actor, payload.content);
+  const requestId = await requireRequestAccess(protocol, actor, "internal_note:write", ipAddress);
+  const internalNoteId = await repository.insert(
+    requestId,
+    { userId: actor.id, profileId: actor.profileId, profileName: actor.profileName },
+    payload.content,
+  );
   const note = await repository.findById(internalNoteId);
 
   if (!note) {
@@ -346,14 +387,15 @@ export async function createInternalNote(
 export async function markInternalNotesRead(
   protocol: string,
   payload: MarkInternalNotesReadRequest,
-  actorUserId: number,
+  actor: InternalNotesActor,
+  ipAddress: string | undefined,
 ): Promise<void> {
-  const requestId = await requireRequestId(protocol);
+  const requestId = await requireRequestAccess(protocol, actor, "internal_note:read", ipAddress);
   const note = await repository.findById(payload.lastReadNoteId);
 
   if (!note || String(note.request_id) !== requestId) {
     throw new AppError("Observação interna não pertence à solicitação", 400);
   }
 
-  await repository.upsertReadState(requestId, actorUserId, payload.lastReadNoteId);
+  await repository.upsertReadState(requestId, actor.id, payload.lastReadNoteId);
 }

@@ -12,11 +12,15 @@ vi.mock("../../src/modules/auth/auth.repository.ts", () => ({
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
   getAuthState: vi.fn(),
+  listUserPermissions: vi.fn(),
   changePassword: vi.fn(),
 }));
 
+vi.mock("../../src/shared/audit/auditLogger.ts", () => ({ recordAudit: vi.fn() }));
+
 const authRepository = await import("../../src/modules/auth/auth.repository.ts");
 const authService = await import("../../src/modules/auth/auth.service.ts");
+const auditLogger = await import("../../src/shared/audit/auditLogger.ts");
 
 const OLD_PASSWORD = "SenhaAtual@123";
 
@@ -41,7 +45,7 @@ describe("auth.service.authenticate", () => {
     expect(result).toMatchObject({
       id: "1",
       email: "maria@neo.com",
-      role: "Analista",
+      profile: { id: "2", name: "Analista" },
       mustChangePassword: false,
     });
   });
@@ -91,9 +95,14 @@ describe("auth.service.authenticate", () => {
 describe("auth.service.getSessionUser", () => {
   it("devolve a sessão do usuário ativo", async () => {
     vi.mocked(authRepository.findUserById).mockResolvedValue(makeAuthUser({ user_id: 7 }));
+    vi.mocked(authRepository.listUserPermissions).mockResolvedValue([
+      { permission_key: "request:create", custody: "global" },
+      { permission_key: "request:track", custody: "own" },
+    ]);
 
     const result = await authService.getSessionUser(7);
     expect(result.id).toBe("7");
+    expect(result.profile).toEqual({ id: "2", name: "Analista", isRoot: false });
   });
 
   it("rejeita usuário inexistente, inativo ou com perfil inativo", async () => {
@@ -137,15 +146,18 @@ describe("auth.service.changePassword", () => {
     // A troca de senha e a auditoria rodam na mesma transação.
     expect(fakeDbState.transactions).toBe(1);
     expect(fakeDbState.commits).toBe(1);
-    expect(fakeDbState.auditRows).toHaveLength(1);
-    expect(fakeDbState.auditRows[0]).toMatchObject({
-      entity_type: "user",
-      entity_id: "1",
-      action_type: "user.change_password",
-      user_id: 1,
-      ip_address: "127.0.0.1",
-      change_origin: "user",
-    });
+    expect(auditLogger.recordAudit).toHaveBeenCalledOnce();
+    expect(auditLogger.recordAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        entityType: "user",
+        entityId: "1",
+        actionType: "user.change_password",
+        userId: 1,
+        ipAddress: "127.0.0.1",
+        changeOrigin: "user",
+      }),
+    );
   });
 
   it("rejeita senha atual incorreta", async () => {

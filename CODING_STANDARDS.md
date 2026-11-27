@@ -138,7 +138,7 @@ Este documento define **como escrever código** neste repositório. Ele não red
 - `req.query` é read-only no Express 5; valide os valores como `string | string[] | ParsedQs`.
 - Use `res.status(...).json(...)` e responda uma vez.
 - Autenticação: `authMiddleware` (`src/shared/middleware/auth.ts`) valida o cookie JWT e resolve o perfil no banco.
-- Autorização: `requireRole(...)` para perfis e `requireAccessMode()` para o modo de acesso do portal. O papel vem do banco, nunca do JWT.
+- Autorização: rotas protegidas usam `requirePermission(key)`; a custódia da linha é resolvida no service do domínio. Use `requireAccessMode()` para o modo de acesso do portal. O nome do Perfil vem do banco, nunca do JWT, e não participa da decisão de acesso.
 - Rotas de solicitante usam `requesterDualAuth` quando aceitam sessão ou identidade pública.
 - Não confie em role/ID enviado pelo cliente; autorize no servidor em toda operação sobre recurso.
 - CORS não é controle de acesso.
@@ -158,7 +158,7 @@ Este documento define **como escrever código** neste repositório. Ele não red
 
 ## 9. Contratos e documentação
 
-- A especificação OpenAPI em `src/docs/` é a fonte única do contrato HTTP; o código consome o contrato, não o redefine no handler.
+- A especificação OpenAPI em `src/docs/` é a fonte única do contrato HTTP; o código consome o contrato, não o redefine no handler. Swagger UI e `/api-docs/swagger.json` a expõem.
 - Alteração de rota, payload, resposta ou status code atualiza `src/docs/` e `docs/openapi.json` (`npm run docs:openapi`) no mesmo PR; `npm run check` falha se as rotas reais e a spec divergirem.
 - Regras de negócio — o que o domínio decide, não o formato do fio — vivem em `docs/rules/`.
 - Decisões de arquitetura que sejam difíceis de reverter viram ADR em `docs/adr/`.

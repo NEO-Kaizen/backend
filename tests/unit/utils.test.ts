@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import jwt from "jsonwebtoken";
-import { resolveRole } from "../../src/shared/utils/roleUtils.ts";
 import Config from "../../src/configs.ts";
 import { normalizeEmail, normalizeName } from "../../src/shared/utils/normalizeIdentity.ts";
 import { canonicalJson } from "../../src/shared/utils/json.ts";
@@ -18,23 +17,6 @@ import {
 } from "../../src/shared/utils/passwordHandler.ts";
 import { generateToken, verifyToken } from "../../src/shared/utils/jwtUtil.ts";
 import { makeTokenPayload } from "../helpers/factories.ts";
-
-describe("roleUtils.resolveRole", () => {
-  it("mapeia o nome do perfil (case-insensitive) para a Role de exibição", () => {
-    expect(resolveRole("analista")).toBe("Analista");
-    expect(resolveRole("  ADMINISTRADOR ")).toBe("Administrador");
-    expect(resolveRole("Solicitante")).toBe("Solicitante");
-  });
-
-  it("lança AppError 500 para perfil desconhecido", () => {
-    expect(() => resolveRole("superuser")).toThrowError("Perfil inválido");
-    try {
-      resolveRole("superuser");
-    } catch (error) {
-      expect((error as { statusCode: number }).statusCode).toBe(500);
-    }
-  });
-});
 
 describe("normalizeIdentity", () => {
   it("remove acentos, faz trim e minúsculas (sem colapsar espaços internos)", () => {
@@ -104,12 +86,13 @@ describe("passwordHandler", () => {
 });
 
 describe("jwtUtil", () => {
-  it("gera e verifica um token com o payload íntegro", () => {
-    const token = generateToken(makeTokenPayload({ id: "42", role: "Gestor" }));
+  it("gera e verifica um token com o payload íntegro (sem papel no JWT)", () => {
+    const token = generateToken(makeTokenPayload({ id: "42", name: "Usuário Fictício" }));
     const decoded = verifyToken(token);
     expect(decoded.id).toBe("42");
-    expect(decoded.role).toBe("Gestor");
+    expect(decoded.name).toBe("Usuário Fictício");
     expect(decoded.scope).toBe("session");
+    expect(decoded).not.toHaveProperty("role");
   });
 
   it("rejeita token adulterado", () => {
@@ -123,8 +106,8 @@ describe("jwtUtil", () => {
 
     const valid = makeTokenPayload();
     const invalidPayloads: Array<Record<string, unknown>> = [
-      { ...valid, role: "Hacker" },
       { ...valid, password_changed_at: "2026-01-01" },
+      { ...valid, password_changed_at: Number.NaN },
       { ...valid, id: 1 },
       { ...valid, email: 42 },
       { ...valid, name: undefined },

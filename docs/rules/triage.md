@@ -7,9 +7,18 @@ antigo para o mais recente.
 
 ## Autorização
 
-Administrador ou o Analista responsável pela **triagem** pode criar; Gestor tem
-somente leitura e Solicitante nunca acessa rota interna. Sem sessão ou sem
-custódia, a operação é recusada.
+Criar exige `triage:write` + Custódia da solicitação; ler exige `triage:read`
+
+- Custódia. A escrita é exclusiva do Responsável da triagem: o Designado do
+  mapeamento não registra triagem. A leitura vale para o Responsável da
+  triagem **ou** do mapeamento corrente. Solicitante nunca acessa rota interna.
+  Sem sessão ou sem custódia, a operação é recusada.
+
+## Priorização
+
+`prioritization:write` é exclusiva do Responsável da triagem, repetindo o
+comportamento anterior ao RBAC. A ampliação para o Designado do mapeamento
+depende de confirmação do Produto.
 
 ## Regras condicionais
 

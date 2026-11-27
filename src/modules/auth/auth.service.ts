@@ -1,11 +1,14 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import db from "../../database/conection.ts";
-import type { Role } from "../../shared/types/role.ts";
-import { resolveRole } from "../../shared/utils/roleUtils.ts";
+import {
+  buildEffectivePermissions,
+  type EffectivePermission,
+} from "../../shared/catalog/permissionCatalog.ts";
 import { comparePassword, hashPassword } from "../../shared/utils/passwordHandler.ts";
 import type { ChangePasswordRequest } from "../DTOs/auth/ChangePasswordRequest.dto.ts";
 import type { LoginRequestDTO } from "../DTOs/auth/LoginRequest.dto.ts";
+import { toSessionProfile, type SessionProfileReference } from "../../shared/types/profile.ts";
 import * as authRepository from "./auth.repository.ts";
 
 export interface SessionUserResult {
@@ -13,10 +16,15 @@ export interface SessionUserResult {
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  profile: SessionProfileReference;
   mustChangePassword: boolean;
   /** Época (ms) de `users.password_changed_at` — vai no payload do JWT. */
   passwordChangedAt: number;
+}
+
+/** Sessão com a lista efetiva de Permissões do Perfil vigente (§ 8 do RBAC). */
+export interface SessionUserWithPermissions extends SessionUserResult {
+  permissions: EffectivePermission[];
 }
 
 /** Hash de senha inválida usado para equalizar o tempo do bcrypt quando o
@@ -53,28 +61,32 @@ export async function authenticate(credentials: LoginRequestDTO): Promise<Sessio
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    role: resolveRole(user.profile_name),
+    profile: toSessionProfile(user.profile_id, user.profile_name, user.profile_is_root),
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
   };
 }
 
-/** Sessão confiável para `GET /auth/me` — releitura no banco, sem segredos. */
-export async function getSessionUser(userId: number): Promise<SessionUserResult> {
+/** Sessão confiável para `GET /auth/me` — releitura no banco, sem segredos.
+ *  A lista efetiva é recalculada do Perfil vigente a cada requisição. */
+export async function getSessionUser(userId: number): Promise<SessionUserWithPermissions> {
   const user = await authRepository.findUserById(userId);
 
   if (!user || !user.is_active || !user.profile_is_active) {
     throw new AppError("Token inválido ou expirado", 401);
   }
 
+  const grants = await authRepository.listUserPermissions(user.user_id);
+
   return {
     id: String(user.user_id),
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    role: resolveRole(user.profile_name),
+    profile: toSessionProfile(user.profile_id, user.profile_name, user.profile_is_root),
     mustChangePassword: user.must_change_password,
     passwordChangedAt: new Date(user.password_changed_at).getTime(),
+    permissions: buildEffectivePermissions(grants),
   };
 }
 
@@ -129,7 +141,7 @@ export async function changePassword(
     name: user.full_name,
     email: user.email,
     avatarUrl: user.avatar_url,
-    role: resolveRole(user.profile_name),
+    profile: toSessionProfile(user.profile_id, user.profile_name, user.profile_is_root),
     mustChangePassword: false,
     passwordChangedAt: new Date(password_changed_at).getTime(),
   };

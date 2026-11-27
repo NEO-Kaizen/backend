@@ -1,10 +1,23 @@
+/**
+ * Linha do tempo de uma solicitação: Notas internas + eventos de auditoria.
+ *
+ * `author`/`actor` carregam um snapshot do Perfil. Em notas antigas o `id` do
+ * Perfil é `null` (só o nome foi preservado) e em eventos anteriores ao
+ * snapshot o Perfil inteiro é `null` — nenhum ID é inferido do nome.
+ */
 export const TimelineActor = {
   type: "object",
-  required: ["id", "name", "role"],
+  required: ["id", "name", "profile"],
   properties: {
     id: { type: "string", example: "101" },
-    name: { type: "string", example: "Analista Teste" },
-    role: { type: "string", enum: ["Analista", "Gestor", "Administrador"] },
+    name: { type: "string", example: "Maria Silva" },
+    profile: {
+      type: "object",
+      nullable: true,
+      allOf: [{ $ref: "#/components/schemas/ProfileSnapshot" }],
+      description:
+        "Snapshot do Perfil. `null` quando o evento não registrou Perfil; em notas antigas, `profile.id` é `null`.",
+    },
   },
 };
 
@@ -12,10 +25,10 @@ export const TimelineNote = {
   type: "object",
   required: ["type", "id", "content", "createdAt", "author"],
   properties: {
-    type: { type: "string", enum: ["note"] },
-    id: { type: "string", description: "`internal_note_id` numérico como string." },
-    content: { type: "string", maxLength: 4000 },
-    createdAt: { type: "string", format: "date-time" },
+    type: { type: "string", enum: ["note"], example: "note" },
+    id: { type: "string", example: "42" },
+    content: { type: "string", example: "Nota importante sobre a solicitação" },
+    createdAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
     author: { $ref: "#/components/schemas/TimelineActor" },
   },
 };
@@ -24,12 +37,8 @@ export const TimelineEvent = {
   type: "object",
   required: ["type", "id", "action", "text", "occurredAt", "actor", "changeOrigin"],
   properties: {
-    type: { type: "string", enum: ["event"] },
-    id: {
-      type: "string",
-      description: "`audit:<audit_id>`; a ação bruta de bypass é normalizada.",
-      example: "audit:58",
-    },
+    type: { type: "string", enum: ["event"], example: "event" },
+    id: { type: "string", example: "audit:900" },
     action: {
       type: "string",
       enum: [
@@ -39,60 +48,24 @@ export const TimelineEvent = {
         "request.status_change",
         "mapping.assign",
       ],
+      example: "request.status_change",
     },
-    text: {
-      type: "string",
-      description: "Frase completa já renderizada no backend, em pt-BR.",
-      example: "Status alterado: Em triagem",
-    },
-    occurredAt: { type: "string", format: "date-time" },
+    text: { type: "string", example: "Status alterado: Em análise" },
+    occurredAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
     actor: {
       type: "object",
-      allOf: [{ $ref: "#/components/schemas/TimelineActor" }],
       nullable: true,
-      description: "`null` para ação de sistema ou usuário removido.",
+      allOf: [{ $ref: "#/components/schemas/TimelineActor" }],
+      description: "`null` em ações de sistema.",
     },
     changeOrigin: {
       type: "string",
+      nullable: true,
       enum: ["admin", "system", "internal"],
-      nullable: true,
+      example: "internal",
     },
-    justification: {
-      type: "string",
-      nullable: true,
-      description: "Justificativa interna da transição; nunca o retorno público.",
-    },
-    lastTechnicalMessage: {
-      type: "string",
-      nullable: true,
-      description: "Snapshot do retorno público da própria transição.",
-    },
-  },
-};
-
-export const TimelineItem = {
-  oneOf: [
-    { $ref: "#/components/schemas/TimelineNote" },
-    { $ref: "#/components/schemas/TimelineEvent" },
-  ],
-  discriminator: { propertyName: "type" },
-};
-
-export const TriageHistoryEntry = {
-  type: "object",
-  required: ["triage", "occurredAt"],
-  properties: {
-    triage: { $ref: "#/components/schemas/TriagemResponse" },
-    occurredAt: { type: "string", format: "date-time" },
-  },
-};
-
-export const MappingHistoryEntry = {
-  type: "object",
-  required: ["mapping", "occurredAt"],
-  properties: {
-    mapping: { $ref: "#/components/schemas/MappingHistoryResponse" },
-    occurredAt: { type: "string", format: "date-time" },
+    justification: { type: "string", nullable: true },
+    lastTechnicalMessage: { type: "string", nullable: true },
   },
 };
 
@@ -102,28 +75,17 @@ export const InternalNotesResponse = {
   properties: {
     items: {
       type: "array",
-      description: "Página da Linha do tempo em ordem mais recente primeiro.",
-      items: { $ref: "#/components/schemas/TimelineItem" },
+      items: {
+        oneOf: [
+          { $ref: "#/components/schemas/TimelineNote" },
+          { $ref: "#/components/schemas/TimelineEvent" },
+        ],
+      },
     },
-    nextCursor: {
-      type: "string",
-      nullable: true,
-      description: "Cursor opaco; `null` quando não há página mais antiga.",
-    },
-    unseenCount: {
-      type: "integer",
-      description: "Notas de outros autores após o checkpoint de leitura; eventos não contam.",
-    },
-    triages: {
-      type: "array",
-      description: "Registros completos, oldest → newest, idênticos em todas as páginas.",
-      items: { $ref: "#/components/schemas/TriageHistoryEntry" },
-    },
-    mappings: {
-      type: "array",
-      description: "Registros completos, oldest → newest, idênticos em todas as páginas.",
-      items: { $ref: "#/components/schemas/MappingHistoryEntry" },
-    },
+    nextCursor: { type: "string", nullable: true, example: "eyJ0IjoiMjAyNi0xMS0yM1QxMjowMDowMFoi" },
+    unseenCount: { type: "integer", example: 0 },
+    triages: { type: "array", items: { type: "object" } },
+    mappings: { type: "array", items: { type: "object" } },
   },
 };
 

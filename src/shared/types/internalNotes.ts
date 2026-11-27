@@ -1,13 +1,11 @@
-import type { Role } from "./role.ts";
-import type { ChangeOrigin } from "../audit/auditCatalog.ts";
-
-export type InternalRole = Exclude<Role, "Solicitante">;
-
 export interface InternalNoteRow {
   internal_note_id: string;
   request_id: string;
   author_user_id: number;
-  author_role_at_creation: InternalRole;
+  /** Snapshot da identidade do Perfil na criação; `null` em notas antigas. */
+  author_profile_id_at_creation: number | null;
+  /** Snapshot do nome do Perfil na criação; não participa da autorização. */
+  author_profile_name_at_creation: string;
   content: string;
   created_at: Date;
   author_name: string;
@@ -34,13 +32,10 @@ export type TimelineEventAction =
  * `PATCH /requests/:protocol/status` e **normalizada na leitura** para
  * `request.status_change` (issue #124). A gravação permanece intocada.
  */
-export type AuditTimelineAction = TimelineEventAction | "request.override_status_admin";
+export type AuditTimelineAction =
+  TimelineEventAction | "request.override_status_admin" | "request.status_override";
 
-/**
- * Subconjunto de `audit_history.change_origin` usado na timeline.
- * O vínculo deixa explícito que a timeline deriva do catálogo de auditoria.
- */
-export type TimelineChangeOrigin = Extract<ChangeOrigin, "admin" | "system" | "internal"> | null;
+export type TimelineChangeOrigin = "admin" | "system" | "internal" | null;
 
 export interface TimelineCursor {
   t: Date;
@@ -61,6 +56,9 @@ export interface TimelineEventRow {
   occurred_at: Date;
   actor_user_id: number | null;
   actor_name: string | null;
+  /** Snapshot da identidade do Perfil do ator; `null` em eventos antigos. */
+  actor_profile_id: number | null;
+  /** Snapshot do nome do Perfil do ator; `null` em eventos antigos. */
   actor_profile_name: string | null;
 }
 

@@ -209,7 +209,10 @@ export async function fetchDashboardFilterOptions(): Promise<DashboardFilterOpti
 }
 
 /** Retorna todas as solicitações dos filtros ativos, sem paginação. */
-export async function fetchQueueExportRows(filters: QueueExportQuery): Promise<QueueExportRow[]> {
+export async function fetchQueueExportRows(
+  filters: QueueExportQuery,
+  scopedUserId: number | undefined,
+): Promise<QueueExportRow[]> {
   const query = db("requests")
     .join("requesters as requester", "requester.requester_id", "requests.requester_id")
     .join("statuses as status", "status.status_id", "requests.status_id")
@@ -262,7 +265,7 @@ export async function fetchQueueExportRows(filters: QueueExportQuery): Promise<Q
       "completion_event.occurred_at as completedAt",
     );
 
-  applyQueueFilters(query, filters);
+  applyQueueFilters(query, { ...filters, scopedUserId });
   applyQueueSort(query, filters.sortBy, filters.sortOrder);
   return query as Promise<QueueExportRow[]>;
 }

@@ -16,6 +16,7 @@ export interface RequestRef {
   requester_user_id: number | null;
   requester_name: string;
   requester_email: string;
+  responsible_user_id: number | null;
 }
 
 /** Escalar JSON aceito em `pending_items.current_value/corrected_value`. */
@@ -91,6 +92,16 @@ export async function findRequestByProtocol(
   const row = await conn("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .join("requesters", "requesters.requester_id", "requests.requester_id")
+    .leftJoin(
+      "details_professional as responsible_professional",
+      "responsible_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin(
+      "users as responsible_user",
+      "responsible_user.user_id",
+      "responsible_professional.user_id",
+    )
     .where("requests.protocol", protocol.trim())
     .first({
       request_id: "requests.request_id",
@@ -101,6 +112,7 @@ export async function findRequestByProtocol(
       requester_user_id: "requests.requester_user_id",
       requester_name: "requesters.full_name",
       requester_email: "requesters.corporate_email",
+      responsible_user_id: "responsible_user.user_id",
     });
   return (row as RequestRef | undefined) ?? null;
 }
@@ -113,6 +125,16 @@ export async function findRequestById(
   const row = await conn("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .join("requesters", "requesters.requester_id", "requests.requester_id")
+    .leftJoin(
+      "details_professional as responsible_professional",
+      "responsible_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin(
+      "users as responsible_user",
+      "responsible_user.user_id",
+      "responsible_professional.user_id",
+    )
     .where("requests.request_id", requestId)
     .first({
       request_id: "requests.request_id",
@@ -123,6 +145,7 @@ export async function findRequestById(
       requester_user_id: "requests.requester_user_id",
       requester_name: "requesters.full_name",
       requester_email: "requesters.corporate_email",
+      responsible_user_id: "responsible_user.user_id",
     });
   return (row as RequestRef | undefined) ?? null;
 }
@@ -423,16 +446,6 @@ async function recordPendingItemStatusChangeAudit(
   });
 }
 
-export async function findProfessionalIdByUserId(userId: number): Promise<string | null> {
-  const row = await db("details_professional").where({ user_id: userId }).first("professional_id");
-  return (row?.professional_id as string | undefined) ?? null;
-}
-
-export async function findProfessionalIdByRequestId(requestId: string): Promise<string | null> {
-  const row = await db("requests").where({ request_id: requestId }).first("professional_id");
-  return (row?.professional_id as string | undefined) ?? null;
-}
-
 export async function findPendingItemsByBatchId(
   batchId: string,
   requestId: string,
@@ -631,7 +644,6 @@ export async function addPendingItemAttachmentTx(input: {
       file_path: input.saved.storageKey,
       content_type: input.saved.mimeType,
       size_bytes: input.saved.sizeBytes,
-      is_restricted: false,
       uploaded_by: "requester",
       uploaded_at: trx.fn.now(),
     });

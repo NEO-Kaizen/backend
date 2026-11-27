@@ -134,7 +134,7 @@ describe("HTTP real — POST /requests multipart", () => {
     const withEmail = await client.get("/requests?email=maria@neo.com");
     expect(withEmail.status).toBe(400);
     expect(withEmail.body).toMatchObject({
-      message: "O parâmetro 'email' não é aceito no modo autenticado.",
+      message: "O parâmetro 'email' não é aceito com sessão autenticada.",
     });
 
     const scoped = await client.get("/requests?page=1&pageSize=10");

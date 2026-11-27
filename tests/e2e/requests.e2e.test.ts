@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
+import { BASE_PROFILES } from "../../src/shared/catalog/baseProfiles.ts";
 import {
   makeAuthState,
   makeCreateRequestResponse,
@@ -26,6 +27,7 @@ vi.mock("../../src/database/conection.ts", async () => {
 
 vi.mock("../../src/modules/auth/auth.repository.ts", () => ({
   getAuthState: vi.fn(),
+  listUserPermissions: vi.fn(),
 }));
 
 vi.mock("../../src/modules/portalConfig/portalConfig.repository.ts", () => ({
@@ -57,8 +59,22 @@ beforeAll(async () => {
   server = await startTestServer();
 });
 
+function permissionRowsFor(profileLabel: string) {
+  const profile = BASE_PROFILES.find(
+    (candidate) => candidate.profileName.toLowerCase() === profileLabel.toLowerCase(),
+  );
+
+  return (profile?.permissions ?? []).map(({ key, custody }) => ({
+    permission_key: key,
+    custody,
+  }));
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
+  // Sessões destes testes são do Perfil Analista: as chaves internas usadas
+  // pelas rotas (request:write, request:status_change) vêm da matriz real.
+  vi.mocked(authRepository.listUserPermissions).mockResolvedValue(permissionRowsFor("Analista"));
 });
 
 afterEach(() => {
@@ -339,7 +355,7 @@ describe("E2E — modo AUTHENTICATED", () => {
     const withEmail = await client.get("/requests?email=outra@neo.com", headers);
     expectErrorEnvelope(withEmail, {
       statusCode: 400,
-      message: "O parâmetro 'email' não é aceito no modo autenticado.",
+      message: "O parâmetro 'email' não é aceito com sessão autenticada.",
     });
     expect(service.listRequestsByEmail).not.toHaveBeenCalled();
 
@@ -382,7 +398,7 @@ describe("E2E — validação do PATCH interno", () => {
 
     const response = await client.request("PATCH", `/requests/${PROTOCOL}/internal`, {
       body: {},
-      headers: { cookie: `session_id=${makeToken({ role: "Analista" })}` },
+      headers: { cookie: `session_id=${makeToken()}` },
     });
 
     expectErrorEnvelope(response, {
@@ -429,7 +445,7 @@ describe("E2E — rotas internas exigem sessão", () => {
   it("valida o corpo da troca de status (400 sem justificativa)", async () => {
     publicMode();
     vi.mocked(authRepository.getAuthState).mockResolvedValue(makeAuthState());
-    const token = makeToken({ role: "Analista" });
+    const token = makeToken();
     const client = new TestClient(server.baseUrl);
 
     const response = await client.request("PATCH", `/requests/${PROTOCOL}/status`, {

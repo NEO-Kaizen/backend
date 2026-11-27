@@ -1,19 +1,4 @@
 /** Vocabulário de exibição do Perfil (capitalizado) usado nas respostas. */
-export const Role = {
-  type: "string",
-  enum: ["Solicitante", "Analista", "Gestor", "Administrador"],
-  example: "Analista",
-};
-
-/** Nome do Perfil em `profiles.name` (minúsculo), usado nos payloads de escrita. */
-export const ProfileName = {
-  type: "string",
-  enum: ["solicitante", "analista", "gestor", "administrador"],
-  description:
-    "Nome do Perfil em `profiles.name` (minúsculo). Hoje `resolveRole` aceita apenas estes quatro nomes; perfis customizados ainda não estão implementados.",
-  example: "analista",
-};
-
 export const UserMetrics = {
   type: "object",
   required: ["total", "active", "pending", "admins"],
@@ -58,7 +43,7 @@ export const UserSummary = {
     fullName: { type: "string", example: "Maria Silva" },
     email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
-    profile: { $ref: "#/components/schemas/Role" },
+    profile: { $ref: "#/components/schemas/ProfileReference" },
     isActive: { type: "boolean", example: true },
     mustChangePassword: { type: "boolean", example: false },
     createdAt: { type: "string", format: "date-time" },
@@ -101,12 +86,12 @@ export const ProfessionalProfileBlock = {
 
 export const UserProfileResponse = {
   type: "object",
-  required: ["id", "fullName", "email", "role", "avatarUrl", "requester", "professional"],
+  required: ["id", "fullName", "email", "profile", "avatarUrl", "requester", "professional"],
   properties: {
     id: { type: "string", example: "101" },
     fullName: { type: "string", example: "Maria Silva" },
     email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
-    role: { $ref: "#/components/schemas/Role" },
+    profile: { $ref: "#/components/schemas/ProfileReference" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/1-foto.jpg" },
     requester: {
       type: "object",
@@ -121,28 +106,21 @@ export const UserProfileResponse = {
   },
 };
 
-export const AssignAnalyst = {
+export const AssignableProfessional = {
   type: "object",
   required: ["id", "fullName", "email", "specialty", "categories", "notes", "requestLoad"],
   properties: {
-    id: { type: "string", description: "`users.user_id` como string." },
-    fullName: { type: "string" },
-    email: { type: "string", format: "email" },
-    specialty: {
-      type: "string",
-      description: 'Cargo do analista; string vazia permitida ("".).',
-    },
+    id: { type: "string", example: "101" },
+    fullName: { type: "string", example: "Maria Silva" },
+    email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
+    specialty: { type: "string", example: "Analista de Sistemas" },
     categories: {
       type: "array",
       items: { type: "string" },
-      description: "Nomes das categorias atendidas; lista vazia permitida.",
+      example: ["Sistemas", "Automação"],
     },
-    notes: { type: "string", nullable: true },
-    requestLoad: {
-      type: "integer",
-      nullable: true,
-      description: "Solicitações atribuídas; `null` quando não calculado.",
-    },
+    notes: { type: "string", nullable: true, example: "Atende à tarde." },
+    requestLoad: { type: "integer", example: 3 },
   },
 };
 
@@ -178,15 +156,19 @@ export const ProfessionalInput = {
 
 export const CreateUserRequest = {
   type: "object",
-  required: ["fullName", "email", "role", "requester"],
+  required: ["fullName", "email", "profileId", "requester"],
   properties: {
     fullName: { type: "string", maxLength: 150 },
     email: { type: "string", format: "email" },
-    role: { $ref: "#/components/schemas/ProfileName" },
+    profileId: {
+      type: "string",
+      description: "Identidade estável do Perfil (`profiles.profile_id`).",
+    },
     requester: { $ref: "#/components/schemas/RequesterInput" },
     professional: {
       allOf: [{ $ref: "#/components/schemas/ProfessionalInput" }],
-      description: "Obrigatório quando `role = analista`; proibido para os demais perfis.",
+      description:
+        "Opcional; permitido somente para Perfil ativo com flag de Atribuibilidade (`profile_not_assignable` caso contrário).",
     },
   },
 };
@@ -197,7 +179,7 @@ export const CreateUserResponse = {
     "id",
     "fullName",
     "email",
-    "role",
+    "profile",
     "isActive",
     "mustChangePassword",
     "createdAt",
@@ -207,7 +189,7 @@ export const CreateUserResponse = {
     id: { type: "string" },
     fullName: { type: "string" },
     email: { type: "string", format: "email" },
-    role: { $ref: "#/components/schemas/Role" },
+    profile: { $ref: "#/components/schemas/ProfileReference" },
     isActive: { type: "boolean" },
     mustChangePassword: { type: "boolean" },
     createdAt: { type: "string", format: "date-time" },
@@ -223,10 +205,13 @@ export const UpdateUserRequest = {
   properties: {
     fullName: { type: "string", maxLength: 150 },
     email: { type: "string", format: "email" },
-    role: { $ref: "#/components/schemas/ProfileName" },
+    profileId: {
+      type: "string",
+      description: "Identidade estável do Perfil de destino.",
+    },
     professional: {
       allOf: [{ $ref: "#/components/schemas/ProfessionalInput" }],
-      description: "Somente para o perfil analista.",
+      description: "Somente para Perfil com flag de Atribuibilidade.",
     },
     requester: {
       type: "object",

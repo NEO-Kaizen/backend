@@ -1,16 +1,16 @@
 ﻿/**
- * Gera `docs/type-inference.md` a partir do cÃ³digo-fonte real.
+ * Gera `docs/type-inference.md` a partir do código-fonte real.
  *
  * Uso:
  *   node scripts/type-inventory.mjs           # grava o documento
  *   node scripts/type-inventory.mjs --check   # falha se o documento estiver desatualizado
  *
- * CritÃ©rios de contagem:
+ * Critérios de contagem:
  * - arquivos: todos os `src/**\/*.ts` do `tsconfig.json`, exceto `.d.ts`;
  * - tipos nomeados: interfaces, aliases, classes e enums declarados no source file;
- * - declaraÃ§Ãµes sem anotaÃ§Ã£o: variÃ¡veis (inclusive destructuring, `for...of`/`for...in`
- *   e variÃ¡vel de `catch`), parÃ¢metros e retornos de funÃ§Ãµes/mÃ©todos/acessores;
- * - `any`: tipo efetivo do checker (`ts.TypeFlags.Any`) para cada declaraÃ§Ã£o acima.
+ * - declarações sem anotação: variáveis (inclusive destructuring, `for...of`/`for...in`
+ *   e variável de `catch`), parâmetros e retornos de funções/métodos/acessores;
+ * - `any`: tipo efetivo do checker (`ts.TypeFlags.Any`) para cada declaração acima.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -39,7 +39,7 @@ function relativePath(fileName) {
 
 function loadProgram() {
   const configPath = ts.findConfigFile(rootDir, ts.sys.fileExists, "tsconfig.json");
-  if (!configPath) throw new Error("tsconfig.json nÃ£o encontrado");
+  if (!configPath) throw new Error("tsconfig.json não encontrado");
 
   const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
   if (configFile.error) {
@@ -96,7 +96,7 @@ function functionLabel(node) {
   if (node.name && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))) {
     return `${node.name.text}()`;
   }
-  return "<anÃ´nima>()";
+  return "<anônima>()";
 }
 
 /** @param {string} text */
@@ -203,65 +203,65 @@ function plural(count, singular, pluralForm) {
 
 /** @param {"variable" | "parameter" | "return"} kind */
 function declarationLabel(kind) {
-  if (kind === "variable") return "variÃ¡vel";
-  if (kind === "parameter") return "parÃ¢metro";
-  return "retorno da funÃ§Ã£o";
+  if (kind === "variable") return "variável";
+  if (kind === "parameter") return "parâmetro";
+  return "retorno da função";
 }
 
 function render(files, totals) {
   const lines = [];
 
-  lines.push("# InventÃ¡rio de tipagens TypeScript", "");
+  lines.push("# Inventário de tipagens TypeScript", "");
   lines.push(
-    "> Arquivo gerado por `npm run docs:types` a partir dos arquivos `src/**/*.ts` e do `tsconfig.json` do projeto. NÃ£o edite manualmente: rode o comando para atualizar. NÃ£o inclui dependÃªncias nem arquivos `.d.ts`.",
+    "> Arquivo gerado por `npm run docs:types` a partir dos arquivos `src/**/*.ts` e do `tsconfig.json` do projeto. Não edite manualmente: rode o comando para atualizar. Não inclui dependências nem arquivos `.d.ts`.",
     "",
   );
 
   lines.push("## Resumo", "");
   lines.push(`- Arquivos-fonte analisados: **${totals.files}**.`);
   lines.push(
-    `- Tipos nomeados: **${totals.namedTypes}** â€” ${plural(totals.interfaces, "interface", "interfaces")}, ${plural(totals.aliases, "alias `type`", "aliases `type`")}, ${plural(totals.classes, "classe", "classes")} e ${plural(totals.enums, "enum", "enums")}.`,
+    `- Tipos nomeados: **${totals.namedTypes}** — ${plural(totals.interfaces, "interface", "interfaces")}, ${plural(totals.aliases, "alias `type`", "aliases `type`")}, ${plural(totals.classes, "classe", "classes")} e ${plural(totals.enums, "enum", "enums")}.`,
   );
   lines.push(
-    `- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **${totals.declarations}** â€” ${plural(totals.variables, "variÃ¡vel", "variÃ¡veis")}, ${plural(totals.parameters, "parÃ¢metro", "parÃ¢metros")} e ${plural(totals.returns, "retorno de funÃ§Ã£o/mÃ©todo", "retornos de funÃ§Ãµes/mÃ©todos")}.`,
+    `- Declarações sem anotação explícita: **${totals.declarations}** — ${plural(totals.variables, "variável", "variáveis")}, ${plural(totals.parameters, "parâmetro", "parâmetros")} e ${plural(totals.returns, "retorno de função/método", "retornos de funções/métodos")}.`,
   );
   lines.push(
-    `- DeclaraÃ§Ãµes com tipo efetivo \`any\` detectado pelo checker: **${totals.anyDeclarations}**; ocorrÃªncias com a palavra-chave \`any\` explÃ­cita no cÃ³digo-fonte: **${totals.explicitAny}**.`,
+    `- Declarações com tipo efetivo \`any\` detectado pelo checker: **${totals.anyDeclarations}**; ocorrências com a palavra-chave \`any\` explícita no código-fonte: **${totals.explicitAny}**.`,
   );
   lines.push(
-    `- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **${totals.filesWithDeclarations}**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.`,
+    `- Arquivos com pelo menos uma declaração sem anotação: **${totals.filesWithDeclarations}**; arquivos sem ocorrências são omitidos das seções 2 e 3.`,
   );
   lines.push(
-    `- Erros de typecheck no momento da geraÃ§Ã£o: **${totals.typecheckErrors}** (mesmo \`tsconfig.json\`; 0 significa que \`npm run typecheck\` passa).`,
+    `- Erros de typecheck no momento da geração: **${totals.typecheckErrors}** (mesmo \`tsconfig.json\`; 0 significa que \`npm run typecheck\` passa).`,
     "",
   );
 
   lines.push("## Como interpretar", "");
   lines.push(
-    "- **Tipados:** as definiÃ§Ãµes abaixo mostram os tipos nomeados (interfaces, aliases, classes e enums) como estÃ£o declarados no cÃ³digo. As anotaÃ§Ãµes de propriedades e membros aparecem nas prÃ³prias definiÃ§Ãµes.",
+    "- **Tipados:** as definições abaixo mostram os tipos nomeados (interfaces, aliases, classes e enums) como estão declarados no código. As anotações de propriedades e membros aparecem nas próprias definições.",
   );
   lines.push(
-    "- **Sem anotaÃ§Ã£o explÃ­cita:** a declaraÃ§Ã£o nÃ£o traz `: Tipo` no local indicado. Isso **nÃ£o** significa necessariamente falta de tipo: o compilador pode inferi-lo pelo inicializador, contexto ou assinatura. A lista inclui variÃ¡veis (inclusive destructuring, `for...of`/`for...in` e variÃ¡vel de `catch`), parÃ¢metros e retornos de funÃ§Ãµes, mÃ©todos e getters.",
+    "- **Sem anotação explícita:** a declaração não traz `: Tipo` no local indicado. Isso **não** significa necessariamente falta de tipo: o compilador pode inferi-lo pelo inicializador, contexto ou assinatura. A lista inclui variáveis (inclusive destructuring, `for...of`/`for...in` e variável de `catch`), parâmetros e retornos de funções, métodos e getters.",
   );
   lines.push(
-    "- **`any`:** o checker determinou tipo efetivo `any` para os itens listados. Em destructuring, o item Ã© marcado quando o padrÃ£o ou qualquer elemento tem tipo `any`. A lista deve ser revisada priorizando as fronteiras com bibliotecas e APIs sem tipo suficientemente especÃ­fico.",
+    "- **`any`:** o checker determinou tipo efetivo `any` para os itens listados. Em destructuring, o item é marcado quando o padrão ou qualquer elemento tem tipo `any`. A lista deve ser revisada priorizando as fronteiras com bibliotecas e APIs sem tipo suficientemente específico.",
   );
   lines.push(
-    "- **Linhas:** referem-se ao estado do cÃ³digo no momento da geraÃ§Ã£o. Como os nÃºmeros mudam a cada alteraÃ§Ã£o em `src/`, valide com `npm run docs:types:check` antes de publicar mudanÃ§as de tipagem.",
+    "- **Linhas:** referem-se ao estado do código no momento da geração. Como os números mudam a cada alteração em `src/`, valide com `npm run docs:types:check` antes de publicar mudanças de tipagem.",
     "",
   );
 
-  lines.push("## 1. Tipos nomeados e suas definiÃ§Ãµes", "");
+  lines.push("## 1. Tipos nomeados e suas definições", "");
   for (const file of files) {
     if (file.namedTypes.length === 0) continue;
     lines.push(`### [${file.fileName}](../${file.fileName})`, "");
     for (const type of file.namedTypes) {
-      lines.push(`#### L${type.line} â€” ${type.kind} ${type.name}`, "");
+      lines.push(`#### L${type.line} — ${type.kind} ${type.name}`, "");
       lines.push("```ts", type.text, "```", "");
     }
   }
 
-  lines.push("## 2. DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita", "");
+  lines.push("## 2. Declarações sem anotação explícita", "");
   for (const file of files) {
     if (file.declarations.length === 0) continue;
     lines.push(`### [${file.fileName}](../${file.fileName})`, "");
@@ -270,7 +270,7 @@ function render(files, totals) {
     );
     for (const declaration of sorted) {
       lines.push(
-        `- L${declaration.line} â€” ${declarationLabel(declaration.kind)}: \`${declaration.name}\``,
+        `- L${declaration.line} — ${declarationLabel(declaration.kind)}: \`${declaration.name}\``,
       );
     }
     lines.push("");
@@ -283,7 +283,7 @@ function render(files, totals) {
     }))
     .filter((file) => file.anyDeclarations.length > 0);
 
-  lines.push("## 3. DeclaraÃ§Ãµes com tipo efetivo `any`", "");
+  lines.push("## 3. Declarações com tipo efetivo `any`", "");
   for (const file of anyFiles) {
     lines.push(`### [${file.fileName}](../${file.fileName})`, "");
     const sorted = [...file.anyDeclarations].sort(
@@ -291,7 +291,7 @@ function render(files, totals) {
     );
     for (const declaration of sorted) {
       lines.push(
-        `- L${declaration.line} â€” ${declarationLabel(declaration.kind)}: \`${declaration.name}\``,
+        `- L${declaration.line} — ${declarationLabel(declaration.kind)}: \`${declaration.name}\``,
       );
     }
     lines.push("");
@@ -369,17 +369,17 @@ async function main() {
       : "";
     if (current !== markdown) {
       console.error(
-        "docs/type-inference.md estÃ¡ desatualizado em relaÃ§Ã£o ao cÃ³digo. Rode `npm run docs:types`.",
+        "docs/type-inference.md está desatualizado em relação ao código. Rode `npm run docs:types`.",
       );
       process.exit(1);
     }
-    console.log("docs/type-inference.md estÃ¡ atualizado.");
+    console.log("docs/type-inference.md está atualizado.");
     return;
   }
 
   fs.writeFileSync(docPath, markdown, "utf8");
   console.log(
-    `docs/type-inference.md gerado: ${totals.files} arquivos, ${totals.namedTypes} tipos nomeados, ${totals.declarations} declaraÃ§Ãµes sem anotaÃ§Ã£o, ${totals.anyDeclarations} com any efetivo.`,
+    `docs/type-inference.md gerado: ${totals.files} arquivos, ${totals.namedTypes} tipos nomeados, ${totals.declarations} declarações sem anotação, ${totals.anyDeclarations} com any efetivo.`,
   );
 }
 

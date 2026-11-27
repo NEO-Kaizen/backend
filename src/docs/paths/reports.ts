@@ -14,7 +14,7 @@ export default {
       tags: ["Relatórios"],
       summary: "Relatório do dashboard",
       description:
-        "Agregados das solicitações para o dashboard gerencial. Gestor e Administrador. " +
+        "Agregados das solicitações para o dashboard gerencial. Exige `reports:read`. " +
         "`open` = status não terminal; `closed` = terminal; `overdue` = aberta com prazo desejado vencido; `unassigned` = aberta sem responsável de triagem.",
       operationId: "getDashboard",
       security: [{ cookieAuth: [] }],
@@ -68,7 +68,7 @@ export default {
         "200": { description: "Dados do dashboard.", ...json("DashboardResponse") },
         "400": error("Filtro inválido ou intervalo invertido."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (Gestor ou Administrador)."),
+        "403": error("Sem `reports:read`."),
       },
     },
   },
@@ -78,7 +78,7 @@ export default {
       tags: ["Relatórios"],
       summary: "Exportar solicitações em CSV",
       description:
-        "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Gestor e Administrador.\n\n" +
+        "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Exige `queue:export` + Custódia.\n\n" +
         "**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. " +
         "Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. " +
         "Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n" +
@@ -146,7 +146,7 @@ export default {
         },
         "400": error("Filtros inválidos."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (Gestor ou Administrador)."),
+        "403": error("Sem `queue:export` ou Custódia da linha."),
       },
     },
   },

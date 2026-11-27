@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import db from "../../../database/conection.ts";
 import { recordAudit } from "../../../shared/audit/auditLogger.ts";
+import { recordAccessDeniedAttempt } from "../../../shared/audit/accessDenied.ts";
+import {
+  hasAdministrativeAuditOrigin,
+  hasPermissionCustody,
+} from "../../../shared/access/custody.ts";
+import type { PermissionKey } from "../../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../../shared/errors/AppError.ts";
 import { ValidationError } from "../../../shared/errors/ValidationError.ts";
 import type { CommittedNotification } from "../../../shared/notifications/emitNotification.ts";
@@ -10,40 +16,47 @@ import {
   type StatusTarget,
 } from "../../../shared/notifications/statusChangedNotification.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
+import type { NamedPermissionActor } from "../../../shared/access/permissionActor.ts";
 import * as repository from "./triage.repository.ts";
 import type { RequestContextRow, StatusRow } from "./triage.repository.ts";
 
-interface Actor {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
+/** Custódia de escrita da Triagem: user_id ligado a `requests.professional_id` (§5 RBAC). */
+function hasTriageWriteCustody(
+  actor: NamedPermissionActor,
+  assigneeUserId: number | null,
+): boolean {
+  return hasPermissionCustody(
+    actor.permissions,
+    "triage:write",
+    { userId: actor.id, email: actor.email },
+    [assigneeUserId],
+  );
 }
 
-function isAdminOrAssignee(actor: Actor, assigneeUserId: number | null): boolean {
-  if (actor.role === "Administrador") return true;
-  if (assigneeUserId === null) return false;
-  return assigneeUserId === actor.id;
+/** Leitura da Triagem vale para o Responsável da triagem ou do mapeamento corrente. */
+function hasTriageReadCustody(actor: NamedPermissionActor, request: RequestContextRow): boolean {
+  return hasPermissionCustody(
+    actor.permissions,
+    "triage:read",
+    { userId: actor.id, email: actor.email },
+    [request.assignee_user_id, request.mapping_assignee_user_id],
+  );
 }
 
-async function recordTriageAccessDenied(
+function recordTriageAccessDenied(
   protocol: string,
-  actor: Actor,
+  actor: NamedPermissionActor,
   ipAddress: string | undefined,
   detail: string,
+  deniedPermissionKeys: readonly PermissionKey[],
 ): Promise<void> {
-  await db.transaction(async (trx) => {
-    await recordAudit(trx, {
-      entityType: "request",
-      actionType: "request.access_denied",
-      entityId: protocol,
-      userId: actor.id,
-      previousValue: null,
-      newValue: null,
-      note: `Triagem negada: ${detail}`,
-      ipAddress,
-      changeOrigin: "system",
-    });
+  return recordAccessDeniedAttempt({
+    entityType: "request",
+    entityId: protocol,
+    userId: actor.id,
+    note: `Triagem negada: ${detail}`,
+    ipAddress,
+    deniedPermissionKeys,
   });
 }
 
@@ -53,7 +66,7 @@ interface CommitTriageDecisionInput {
   triage: TriageAssessment;
   categoryId: number | null;
   exitStatus: StatusRow;
-  actor: Actor;
+  actor: NamedPermissionActor;
   ipAddress?: string;
 }
 
@@ -99,7 +112,7 @@ async function commitTriageDecision(
       note: triage.conclusionJustification,
       lastTechnicalMessage: exitStatus.isPublic ? triage.lastTechnicalMessage : null,
       ipAddress,
-      changeOrigin: actor.role === "Administrador" ? "admin" : "internal",
+      changeOrigin: hasAdministrativeAuditOrigin(actor.permissions) ? "admin" : "internal",
     });
 
     // Liberação automática do responsável na conclusão da triagem. Evento só
@@ -143,17 +156,21 @@ async function commitTriageDecision(
   });
 }
 
-export async function getTriage(protocol: string, actor: Actor): Promise<TriageAssessment | null> {
+export async function getTriage(
+  protocol: string,
+  actor: NamedPermissionActor,
+  ipAddress?: string,
+): Promise<TriageAssessment | null> {
   const request = await repository.findRequestContext(protocol);
   if (!request) {
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  // Leitura: Gestor é read-only e pode consultar qualquer triagem; escrita
-  // (createTriage) segue restrita a Admin ou assignee.
-  const canAccess =
-    actor.role === "Gestor" || isAdminOrAssignee(actor, request.assignee_user_id ?? null);
+  const canAccess = hasTriageReadCustody(actor, request);
   if (!canAccess) {
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia para ler a Triagem", [
+      "triage:read",
+    ]);
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
@@ -163,7 +180,7 @@ export async function getTriage(protocol: string, actor: Actor): Promise<TriageA
 export async function createTriage(
   protocol: string,
   payload: CreateTriagePayload,
-  actor: Actor,
+  actor: NamedPermissionActor,
   ipAddress?: string,
 ): Promise<TriageAssessment> {
   const request = await repository.findRequestContext(protocol);
@@ -171,27 +188,31 @@ export async function createTriage(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  // Priorizado (isRestricted) bloqueia triagem de não-Admin — inclusive
-  // assignee → movimentação de/r para Priorizado só via `PATCH /status` com
-  // bypass Admin (delta §3.1). Fluxo encerrado (isTerminal) não reabre.
+  // Status terminal não reabre o fluxo.
   if (request.status_is_terminal) {
     throw new AppError("Solicitação encerrada.", 422);
   }
 
-  if (request.status_is_restricted && actor.role !== "Administrador") {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação priorizada");
+  // O bypass administrativo vigente exige `request:status_override` global;
+  // a Custódia de `triage:write` ainda é checada separadamente.
+  if (request.status_is_restricted && !hasAdministrativeAuditOrigin(actor.permissions)) {
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "solicitação em Status restrito", [
+      "request:status_override",
+    ]);
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "A Triagem não pode ser registrada enquanto a solicitação estiver em status restrito.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );
   }
 
-  const canAccess = isAdminOrAssignee(actor, request.assignee_user_id ?? null);
+  const canAccess = hasTriageWriteCustody(actor, request.assignee_user_id ?? null);
   if (!canAccess) {
-    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem custódia da solicitação");
+    await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia da solicitação", [
+      "triage:write",
+    ]);
     throw new AppError(
-      "Ação restrita ao Administrador ou ao Analista responsável pela demanda.",
+      "Você não tem permissão ou Custódia para registrar a Triagem.",
       403,
       "INSUFFICIENT_ROLE_PERMISSIONS",
     );

@@ -1,10 +1,10 @@
-import type { Role } from "../../../shared/types/role.ts";
+import type { SessionProfileReference } from "../../../shared/types/profile.ts";
 
 export interface LoginResponseDTO {
   id: string;
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  profile: SessionProfileReference;
   mustChangePassword: boolean;
 }

@@ -23,7 +23,7 @@ auditoria "coringa".
 2. **Identificador estritamente interno** (só FK/JOIN, nunca no contrato) →
    **`serial`/`bigserial`** (`int`/`bigint`).
    - Compacto e rápido de indexar; sem semântica global necessária.
-   - Exemplos: `profiles.profile_id`, `users.user_id`,
+   - Exemplos: `users.user_id`,
      `categories.category_id`, `statuses.status_id`, `priorities.priority_id`,
      `request_time_preferences.request_time_preference_id`,
      `audit_history.audit_id`, `request_internal_notes.internal_note_id`.
@@ -42,6 +42,14 @@ auditoria "coringa".
    serial exposto: se o id do agregado vier a ser exposto, é regra 1 (uuid).
    `requests.request_id` (`bigint`, sequência manual `requests_request_seq`) é
    histórico aceito; ids novos seguem as regras acima.
+
+## Exceções documentadas
+
+- `profiles.profile_id` é `serial`, mas **vem sendo exposto** como
+  `String(profile_id)` desde `GET /profiles/:id`; a issue #199 consolidou essa
+  identidade como `ProfileReference.id`/`profileId` em todo o contrato. Migrar
+  para uuid exigiria trocar URLs e payloads sem ganho de segurança no modelo
+  atual; fica registrado como exceção, não como padrão para tabelas novas.
 
 ## Regras derivadas
 

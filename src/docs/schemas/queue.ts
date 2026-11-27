@@ -201,7 +201,7 @@ export const MappingPayload = {
       format: "uuid",
       nullable: true,
       description:
-        "`details_professional.professional_id` do executor do mapeamento (`mappings.professional_id`). Não altera a custódia em `requests.mapping_professional_id`. Permitido ao Administrador, ao responsável da solicitação ou ao designado atual.",
+        "`details_professional.professional_id` do executor do mapeamento (`mappings.professional_id`). Não altera a custódia em `requests.mapping_professional_id`. Exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente (na matriz base, Administrador/Admin Root).",
     },
     scheduledFor: { type: "string", format: "date-time", nullable: true },
     durationMinutes: { type: "integer", minimum: 15, maximum: 480, nullable: true },

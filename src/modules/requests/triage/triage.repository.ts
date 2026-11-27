@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import { AppError } from "../../../shared/errors/AppError.ts";
+import { CURRENT_MAPPING_ASSIGNEE_JOIN } from "../../../shared/access/currentMapping.ts";
 import db from "../../../database/conection.ts";
 import type { TriageAssessment } from "./triage.schema.ts";
 
@@ -20,6 +21,7 @@ export interface RequestContextRow {
   protocol: string;
   professional_id: string | null;
   assignee_user_id: number | null;
+  mapping_assignee_user_id: number | null;
   status_id: number;
   status_name: string | null;
   status_is_restricted: boolean;
@@ -30,23 +32,25 @@ export interface RequestContextRow {
 }
 
 export async function findRequestContext(protocol: string): Promise<RequestContextRow | undefined> {
-  return db("requests as r")
-    .leftJoin("details_professional as dp", "dp.professional_id", "r.professional_id")
-    .leftJoin("statuses as s", "s.status_id", "r.status_id")
-    .leftJoin("categories as c", "c.category_id", "r.category_id")
-    .where("r.protocol", protocol)
+  return db("requests")
+    .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id")
+    .leftJoin("statuses as s", "s.status_id", "requests.status_id")
+    .leftJoin("categories as c", "c.category_id", "requests.category_id")
+    .joinRaw(CURRENT_MAPPING_ASSIGNEE_JOIN)
+    .where("requests.protocol", protocol)
     .first({
-      request_id: "r.request_id",
-      protocol: "r.protocol",
-      professional_id: "r.professional_id",
+      request_id: "requests.request_id",
+      protocol: "requests.protocol",
+      professional_id: "requests.professional_id",
       assignee_user_id: "dp.user_id",
-      status_id: "r.status_id",
+      mapping_assignee_user_id: "mapping_user.user_id",
+      status_id: "requests.status_id",
       status_name: "s.name",
       status_is_restricted: "s.is_restricted",
       status_is_terminal: "s.is_terminal",
       category_name: "c.name",
-      requester_user_id: "r.requester_user_id",
-      title: "r.title",
+      requester_user_id: "requests.requester_user_id",
+      title: "requests.title",
     });
 }
 

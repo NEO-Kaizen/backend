@@ -1,34 +1,28 @@
-import type { Role } from "../../../shared/types/role.ts";
 import type { RequestCategoryName } from "../../../shared/types/requests.ts";
+import type { ProfileReference } from "../../../shared/types/profile.ts";
 
 export interface UserSummary {
   id: string;
   fullName: string;
   email: string;
   avatarUrl: string | null;
-  profile: Role;
+  profile: ProfileReference;
   isActive: boolean;
   mustChangePassword: boolean;
   createdAt: string;
 }
 
-export interface AssignAnalyst {
+export interface AssignableProfessional {
   id: string;
   fullName: string;
   email: string;
   specialty: string;
   categories: RequestCategoryName[];
   notes: string | null;
-  requestLoad: number | null;
+  requestLoad: number;
 }
 
-// compat alias — as regras em `docs/rules/assignment.md` usam AssignAnalyst;
-// manter `Analyst` como alias até remover usos legados
-export type Analyst = AssignAnalyst;
-
-export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {
-  /** Vocabulário de exibição — capitalizado (ex.: "Analista"). */
-  role: Role;
+export interface CreateUserResponse extends Omit<UserSummary, "avatarUrl"> {
   /** Exibida uma única vez — não recuperável depois. */
   temporaryPassword: string;
 }

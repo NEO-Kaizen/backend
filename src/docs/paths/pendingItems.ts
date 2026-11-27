@@ -16,7 +16,7 @@ export default {
       tags: ["Pendências"],
       summary: "Listar pendências",
       description:
-        "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Dual-auth: cookie interno ou identidade do solicitante.",
+        "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Na porta interna exige `pending_item:read` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto); dual-auth com a identidade do solicitante.",
       operationId: "listPendingItems",
       security: dualAuth,
       parameters: [protocolParam],
@@ -24,14 +24,14 @@ export default {
         "200": { description: "Lote vigente.", ...json("ListPendingItemsResponse") },
         "400": error("Protocolo inválido."),
         "401": error("Não autenticado ou identidade inválida."),
-        "404": error("Solicitação não encontrada."),
+        "404": error("Solicitação não encontrada ou fora da Custódia."),
       },
     },
     post: {
       tags: ["Pendências"],
       summary: "Criar pendências",
       description:
-        "Cria um lote com observação e/ou campos marcados. Exige Administrador ou o responsável da solicitação. " +
+        "Cria um lote com observação e/ou campos marcados. Exige `pending_item:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto). " +
         "Na mesma transação, a solicitação passa para `Pendente de informações` (o novo status não é devolvido).",
       operationId: "createPendingItems",
       security: [{ cookieAuth: [] }],
@@ -48,8 +48,8 @@ export default {
         "201": { description: "Lote criado.", ...json("CreatePendingItemsResponse") },
         "400": error("Parâmetros inválidos (protocolo, body, fieldKey fora do catálogo)."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil ou custódia insuficiente."),
-        "404": error("Solicitação não encontrada."),
+        "403": error("Sem `pending_item:write`."),
+        "404": error("Solicitação não encontrada ou fora da Custódia."),
         "409": error("Solicitação concluída/cancelada ou lote já em aberto."),
       },
     },
@@ -60,7 +60,7 @@ export default {
       tags: ["Pendências"],
       summary: "Revisar pendências",
       description:
-        "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige Administrador ou o responsável da solicitação.",
+        "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige `pending_item:review` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
       operationId: "reviewPendingItems",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -76,8 +76,8 @@ export default {
         "200": { description: "Itens revisados.", ...json("ReviewPendingItemsResponse") },
         "400": error("Parâmetros inválidos."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil ou custódia insuficiente."),
-        "404": error("Solicitação ou lote não encontrado."),
+        "403": error("Sem `pending_item:review`."),
+        "404": error("Solicitação/lote não encontrado ou fora da Custódia."),
         "409": error("Item não está no estado permitido."),
       },
     },
@@ -88,7 +88,7 @@ export default {
       tags: ["Pendências"],
       summary: "Responder pendência",
       description:
-        "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos Administradores ativos (RF20 — issue #159).",
+        "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth: sessão com `pending_item:respond` em `own` ou porta pública com o e-mail do Solicitante. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos usuários com `user:manage` (RF20 — issue #159).",
       operationId: "respondPendingItem",
       security: dualAuth,
       parameters: [protocolParam, pendingItemParam],

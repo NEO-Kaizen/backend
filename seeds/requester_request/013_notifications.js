@@ -56,7 +56,7 @@ async function findUnassignedAdminIds(knex) {
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .whereIn("u.email", UNASSIGNED_ADMIN_EMAILS)
     .andWhere("u.is_active", true)
-    .andWhere("p.name", "administrador")
+    .andWhereRaw("lower(p.name) = ?", ["administrador"])
     .andWhere("p.is_active", true)
     .select("u.user_id")
     .orderBy("u.user_id", "asc");

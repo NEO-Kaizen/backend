@@ -10,8 +10,8 @@
 - Atrasadas: prazo desejado anterior a hoje e Status não terminal. Vencer hoje
   ainda não é atraso.
 
-O Analista vê somente as solicitações em que é responsável (triagem ou
-mapeamento); Gestor e Administrador veem tudo.
+Com `queue:export` em `assigned`, o ator vê somente as solicitações em que é
+Responsável (triagem ou mapeamento); com `all`, vê tudo.
 
 ## Dashboard
 
@@ -30,7 +30,7 @@ Ver [`users-and-profiles.md`](users-and-profiles.md).
 
 - Exporta **todas** as solicitações que casam com os filtros, sem paginação.
 - Herda a mesma semântica de `search` da fila, incluindo descrição, problema e
-  notas internas. A rota é restrita a Gestor/Administrador.
+  notas internas. A rota exige `queue:export` + Custódia.
 - A exigência de “sem responsável” não pode ser combinada com um responsável
   específico.
 - Valores iniciados por `=`, `+`, `-` ou `@` são neutralizados para não virarem

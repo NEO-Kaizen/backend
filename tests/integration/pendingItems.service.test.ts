@@ -6,6 +6,11 @@ import type {
   PendingItemRow,
   RequestRef,
 } from "../../src/modules/pendingItems/pendingItems.repository.ts";
+import { BASE_PROFILES } from "../../src/shared/catalog/baseProfiles.ts";
+import {
+  buildEffectivePermissions,
+  type PermissionGrantSource,
+} from "../../src/shared/catalog/permissionCatalog.ts";
 import { findActiveAdminUserIds } from "../../src/modules/users/users.repository.ts";
 import { emitPendingItemRespondedNotification } from "../../src/shared/notifications/pendingItemRespondedNotification.ts";
 
@@ -13,6 +18,12 @@ vi.mock("../../src/database/conection.ts", async () => {
   const { createFakeDb } = await import("../helpers/fakeDb.ts");
   return { default: createFakeDb() };
 });
+
+// A trilha de acesso recusado resolve o snapshot do Perfil do ator com um JOIN
+// em `users` que o fakeDb não modela; o comportamento observado aqui é o 404.
+vi.mock("../../src/shared/audit/auditLogger.ts", () => ({
+  recordAudit: vi.fn(),
+}));
 
 vi.mock("../../src/modules/pendingItems/pendingItems.repository.ts", async (importOriginal) => {
   const actual =
@@ -55,6 +66,20 @@ const REQUEST_ID = "req-1";
 const PENDING_ITEM_ID = "pi-1";
 const OWNER_ID = 104;
 
+type BaseProfileName = "Solicitante" | "Analista" | "Gestor" | "Administrador" | "Admin Root";
+
+/** Concessões reais da matriz de perfis base (`src/shared/catalog/baseProfiles.ts`). */
+function grantRowsOf(profileName: BaseProfileName): PermissionGrantSource[] {
+  const profile = BASE_PROFILES.find((candidate) => candidate.profileName === profileName);
+  if (!profile) throw new Error(`Perfil base ausente: ${profileName}`);
+
+  return profile.permissions.map(({ key, custody }) => ({ permission_key: key, custody }));
+}
+
+function permissionsOf(profileName: BaseProfileName) {
+  return buildEffectivePermissions(grantRowsOf(profileName));
+}
+
 function makeRequest(overrides: Partial<RequestRef> = {}): RequestRef {
   return {
     request_id: REQUEST_ID,
@@ -63,6 +88,7 @@ function makeRequest(overrides: Partial<RequestRef> = {}): RequestRef {
     status: "Pendente de informações",
     status_id: 5,
     requester_user_id: OWNER_ID,
+    responsible_user_id: null,
     // Snapshot divergente do cadastro da conta — a reprodução da issue #202.
     requester_name: "Ana Paula Santos",
     requester_email: "ana.santos@empresa.com",
@@ -70,15 +96,20 @@ function makeRequest(overrides: Partial<RequestRef> = {}): RequestRef {
   };
 }
 
-function makeCaller(overrides: Partial<AuthenticatedUser> = {}): PendingCaller {
+function makeCaller(
+  overrides: Partial<AuthenticatedUser> = {},
+  profileName: BaseProfileName = "Solicitante",
+): PendingCaller {
   return {
     user: {
       id: String(OWNER_ID),
       name: "Solicitante Teste",
       email: "solicitante.teste@empresa.com",
-      role: "Solicitante",
+      profileId: "1",
+      profileName: "Solicitante",
       ...overrides,
     },
+    permissions: permissionsOf(profileName),
     requesterIdentity: null,
   };
 }
@@ -121,7 +152,7 @@ describe("pendingItems.service — Posse do Solicitante autenticado", () => {
   it("lista para o dono vinculado por requester_user_id mesmo com snapshot divergente", async () => {
     arrangeList(makeRequest());
 
-    await expect(service.listPendingItems(PROTOCOL, makeCaller())).resolves.toEqual({
+    await expect(service.listPendingItems(PROTOCOL, makeCaller(), undefined)).resolves.toEqual({
       batchId: null,
       requestAttachment: false,
       items: [],
@@ -134,13 +165,17 @@ describe("pendingItems.service — Posse do Solicitante autenticado", () => {
     await expect(
       service.listPendingItems(
         PROTOCOL,
-        makeCaller({
-          id: "112",
-          name: "Ana Paula Santos",
-          email: "ana.santos@empresa.com",
-        }),
+        makeCaller(
+          {
+            id: "112",
+            name: "Ana Paula Santos",
+            email: "ana.santos@empresa.com",
+          },
+          "Solicitante",
+        ),
+        undefined,
       ),
-    ).rejects.toMatchObject({ statusCode: 401 });
+    ).rejects.toMatchObject({ statusCode: 404, code: "request_not_found" });
   });
 
   it("usa o fallback de nome e e-mail para solicitações legadas sem vínculo", async () => {
@@ -151,23 +186,25 @@ describe("pendingItems.service — Posse do Solicitante autenticado", () => {
       email: "ana.santos@empresa.com",
     });
 
-    await expect(service.listPendingItems(PROTOCOL, caller)).resolves.toEqual({
+    await expect(service.listPendingItems(PROTOCOL, caller, undefined)).resolves.toEqual({
       batchId: null,
       requestAttachment: false,
       items: [],
     });
   });
 
-  it("recusa legado sem vínculo quando o nome diverge", async () => {
+  it("na sessão o nome não participa da Posse (só o e-mail identifica o legado)", async () => {
     arrangeList(makeRequest({ requester_user_id: null }));
     const caller = makeCaller({
       id: "999",
-      name: "Outra Pessoa",
+      name: "Outro Nome",
       email: "ana.santos@empresa.com",
     });
 
-    await expect(service.listPendingItems(PROTOCOL, caller)).rejects.toMatchObject({
-      statusCode: 401,
+    await expect(service.listPendingItems(PROTOCOL, caller, undefined)).resolves.toEqual({
+      batchId: null,
+      requestAttachment: false,
+      items: [],
     });
   });
 
@@ -179,24 +216,48 @@ describe("pendingItems.service — Posse do Solicitante autenticado", () => {
       email: "outra@empresa.com",
     });
 
-    await expect(service.listPendingItems(PROTOCOL, caller)).rejects.toMatchObject({
-      statusCode: 401,
+    await expect(service.listPendingItems(PROTOCOL, caller, undefined)).rejects.toMatchObject({
+      statusCode: 404,
+      code: "request_not_found",
     });
   });
 
-  it("deixa perfil interno passar sem checagem de custódia", async () => {
-    arrangeList(makeRequest());
-    const caller = makeCaller({
-      id: "1",
-      name: "Analista Teste",
-      email: "analista.teste@empresa.com",
-      role: "Analista",
-    });
+  it("libera perfil interno com Custódia assigned sobre o Responsável", async () => {
+    arrangeList(makeRequest({ requester_user_id: OWNER_ID, responsible_user_id: OWNER_ID }));
+    const caller = makeCaller(
+      {
+        id: String(OWNER_ID),
+        name: "Analista Teste",
+        email: "analista.teste@empresa.com",
+        profileId: "2",
+        profileName: "Analista",
+      },
+      "Analista",
+    );
 
-    await expect(service.listPendingItems(PROTOCOL, caller)).resolves.toEqual({
+    await expect(service.listPendingItems(PROTOCOL, caller, undefined)).resolves.toEqual({
       batchId: null,
       requestAttachment: false,
       items: [],
+    });
+  });
+
+  it("recusa perfil interno sem Custódia sobre o Responsável", async () => {
+    arrangeList(makeRequest({ requester_user_id: 1, responsible_user_id: 1 }));
+    const caller = makeCaller(
+      {
+        id: String(OWNER_ID),
+        name: "Analista Teste",
+        email: "analista.teste@empresa.com",
+        profileId: "2",
+        profileName: "Analista",
+      },
+      "Analista",
+    );
+
+    await expect(service.listPendingItems(PROTOCOL, caller, undefined)).rejects.toMatchObject({
+      statusCode: 404,
+      code: "request_not_found",
     });
   });
 });
@@ -222,7 +283,6 @@ describe("pendingItems.service.respondPendingItem — Posse do Solicitante auten
       PROTOCOL,
       PENDING_ITEM_ID,
       { response: "Segue o relatório revisado." },
-      null,
       undefined,
       makeCaller(),
     );
@@ -251,11 +311,10 @@ describe("pendingItems.service.respondPendingItem — Posse do Solicitante auten
         PROTOCOL,
         PENDING_ITEM_ID,
         { response: "Tentativa indevida" },
-        null,
         undefined,
         makeCaller({ id: "112" }),
       ),
-    ).rejects.toMatchObject({ statusCode: 401 });
+    ).rejects.toMatchObject({ statusCode: 404, code: "request_not_found" });
 
     expect(repository.findPendingItemById).not.toHaveBeenCalled();
     expect(repository.applyPendingItemResponse).not.toHaveBeenCalled();

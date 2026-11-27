@@ -1,7 +1,5 @@
-import type { ProfileName } from "../../../shared/types/role.ts";
-
 export interface CreateProfessionalInput {
-  /** Cargo do analista (vira `job_title` → `specialty` no card). */
+  /** Cargo da Extensão de profissional (`job_title` → `specialty` no diretório). */
   jobTitle: string;
   /** Especialidades (vira `specialties`, texto separado por vírgula). */
   specialties: string[];
@@ -20,9 +18,9 @@ export interface RequesterInput {
 export interface CreateUserRequest {
   fullName: string;
   email: string;
-  /** Nome do perfil no banco (`profiles.name`), ex.: "analista". */
-  role: ProfileName;
-  /** Obrigatório quando `role = "analista"`; proibido para os demais perfis. */
+  /** Identidade estável do Perfil. */
+  profileId: string;
+  /** Opcional; permitido somente para Perfil ativo com flag de Atribuibilidade. */
   professional?: CreateProfessionalInput;
   requester: RequesterInput;
 }
@@ -30,7 +28,8 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   fullName?: string;
   email?: string;
-  role?: ProfileName;
+  /** Identidade estável do Perfil de destino. */
+  profileId?: string;
   professional?: CreateProfessionalInput;
   requester?: {
     area?: string;
@@ -41,7 +40,7 @@ export interface UpdateUserRequest {
 }
 
 export interface ListUsersQuery {
-  profile?: ProfileName;
+  profileId?: string;
   search?: string;
   page: number;
   pageSize: number;

@@ -31,6 +31,20 @@ function actorUserId(req: Request): number {
   return id;
 }
 
+// ---------------------------------------------------------------------------
+// R0 — GET /portal-config/sections (seções legíveis, por chave)
+// ---------------------------------------------------------------------------
+
+export const getSections = async (req: Request, res: Response): Promise<Response> => {
+  if (!req.permissions) {
+    throw new AppError("Permissões não carregadas para esta operação", 403);
+  }
+
+  const response = await service.getReadableSections(req.permissions);
+
+  return res.status(200).json(response);
+};
+
 // Chaves de asset com prefixo de URL do binário salvo (storage: `{key}-{uuid}`).
 const ASSET_KEY_TO_URL_PATH: Record<AssetKey, string> = {
   logoLightUrl: "logo-light",

@@ -9,28 +9,43 @@ import type {
   QueueResponse,
   QueueMetricsResponse,
 } from "../../shared/types/queue.types.ts";
-import type { AuthenticatedUser } from "../../shared/types/user.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
+import { custodyFor, resolveResponsibleScope } from "../../shared/access/custody.ts";
+import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 
 /**
- * Identificador do Analista usado como dois limites distintos:
- * - escopo da fila (issue #102): triagem ou mapeamento;
- * - custódia de `internal_note:read` na busca por notas.
- *
- * `Gestor` e `Administrador` não têm recorte. Retorna o `user_id` do próprio
- * ator (mesmo identificador usado pelo frontend); `0` não existe em
- * `users.user_id` e atua como fail-safe para um id inválido.
+ * Escopo de visibilidade da fila pela Custódia de `queue:read`: `all` vê tudo,
+ * `assigned` vê só as solicitações em que é Responsável. O responsável do
+ * mapeamento não amplia o escopo (§ 5 do contrato RBAC).
  */
-const resolveAnalystUserId = (actor?: AuthenticatedUser): number | undefined => {
-  if (actor?.role !== "Analista") return undefined;
+const resolveQueueScope = (actor: PermissionActor): number | undefined => {
+  const scope = resolveResponsibleScope(actor.permissions, "queue:read", actor.id);
+  if (!scope) {
+    throw new AppError("Custódia inválida para queue:read.", 403);
+  }
 
-  const userId = Number(actor.id);
-  return Number.isInteger(userId) && userId > 0 ? userId : 0;
+  return scope.kind === "assigned" ? scope.userId : undefined;
+};
+
+/**
+ * Custódia da busca por notas internas: `internal_note:read` em `assigned`
+ * restringe a correspondência às solicitações sob responsabilidade do ator;
+ * `all` não adiciona recorte ao `EXISTS`. Quem não tem a chave recebe `0` —
+ * um `user_id` inexistente — para que a busca não encontre nenhuma nota.
+ */
+const resolveNoteCustodianUserId = (actor: PermissionActor): number | undefined => {
+  const custody = custodyFor(actor.permissions, "internal_note:read");
+
+  if (custody === "all") return undefined;
+  if (custody === "assigned") return actor.id;
+
+  return 0;
 };
 
 export const getQueueMetricsService = async (
-  actor?: AuthenticatedUser,
+  actor: PermissionActor,
 ): Promise<QueueMetricsResponse> => {
-  return await fetchQueueMetrics(resolveAnalystUserId(actor));
+  return await fetchQueueMetrics(resolveQueueScope(actor));
 };
 
 /** Serializa `created_at` (vem como `Date` do pg ou string) em ISO para o contrato. */
@@ -40,7 +55,7 @@ function toIso(value: string | Date): string {
 
 export const listQueueService = async (
   filters: QueueQuery,
-  actor?: AuthenticatedUser,
+  actor: PermissionActor,
 ): Promise<QueueResponse> => {
   const { page, pageSize, assigneeId, sortBy, sortOrder, ...queueFilters } = filters;
   const offset = (page - 1) * pageSize;
@@ -48,7 +63,8 @@ export const listQueueService = async (
   const repoUnassigned = Boolean(queueFilters.unassigned || assigneeId === "unassigned");
   const repoAssigneeId =
     typeof assigneeId === "string" && assigneeId !== "unassigned" ? assigneeId : undefined;
-  const analystUserId = resolveAnalystUserId(actor);
+  const scopedUserId = resolveQueueScope(actor);
+  const noteCustodianUserId = resolveNoteCustodianUserId(actor);
 
   const [{ items, total }, assignees, departments] = await Promise.all([
     findQueueRequests({
@@ -57,10 +73,10 @@ export const listQueueService = async (
       unassigned: repoUnassigned,
       sortBy,
       sortOrder,
-      // Escopo da fila e custódia da nota são regras diferentes, mas para o
-      // Analista usam o mesmo vínculo corrente com a solicitação.
-      scopedUserId: analystUserId,
-      noteCustodianUserId: analystUserId,
+      // Escopo da fila e custódia da nota são regras diferentes, resolvidas
+      // por chaves distintas (`queue:read` e `internal_note:read`).
+      scopedUserId,
+      noteCustodianUserId,
       limit: pageSize,
       offset,
     }),

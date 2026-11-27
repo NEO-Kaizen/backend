@@ -1,6 +1,7 @@
 import { ErrorResponse, ValidationErrorResponse } from "./common.ts";
 
 import {
+  SessionProfileReference,
   AuthenticatedUser,
   LoginRequest,
   LoginResponse,
@@ -10,15 +11,13 @@ import {
 } from "./auth.ts";
 
 import {
-  Role,
-  ProfileName,
   UserMetrics,
   UserSummary,
   UserListResponse,
   RequesterProfileBlock,
   ProfessionalProfileBlock,
   UserProfileResponse,
-  AssignAnalyst,
+  AssignableProfessional,
   RequesterInput,
   ProfessionalInput,
   CreateUserRequest,
@@ -107,9 +106,6 @@ import {
   TimelineActor,
   TimelineNote,
   TimelineEvent,
-  TimelineItem,
-  TriageHistoryEntry,
-  MappingHistoryEntry,
   InternalNotesResponse,
   CreateInternalNoteRequest,
   MarkInternalNotesReadRequest,
@@ -134,6 +130,7 @@ import {
 
 import {
   PortalConfig,
+  PortalSections,
   PortalTheme,
   PortalAssets,
   PortalCategory,
@@ -173,11 +170,28 @@ import {
   NotificationMarkAllReadResponse,
 } from "./notifications.ts";
 
+import { RequestMutationAcknowledgement } from "./requestsInternal.ts";
+
+import {
+  Profile,
+  ProfileReference,
+  ProfileSnapshot,
+  ProfilePermission,
+  ProfileKeyCatalog,
+  ProfilePermissionCatalogEntry,
+  ProfileCreateRequest,
+  ProfileUpdateRequest,
+  ProfileStatusRequest,
+  ProfileStatusResponse,
+  ProfileDuplicateRequest,
+} from "./profile.ts";
+
 export const schemas = {
   ErrorResponse,
   ValidationErrorResponse,
 
   // Auth
+  SessionProfileReference,
   AuthenticatedUser,
   LoginRequest,
   LoginResponse,
@@ -186,15 +200,13 @@ export const schemas = {
   ChangePasswordResponse,
 
   // Users
-  Role,
-  ProfileName,
   UserMetrics,
   UserSummary,
   UserListResponse,
   RequesterProfileBlock,
   ProfessionalProfileBlock,
   UserProfileResponse,
-  AssignAnalyst,
+  AssignableProfessional,
   RequesterInput,
   ProfessionalInput,
   CreateUserRequest,
@@ -282,9 +294,6 @@ export const schemas = {
   TimelineActor,
   TimelineNote,
   TimelineEvent,
-  TimelineItem,
-  TriageHistoryEntry,
-  MappingHistoryEntry,
   InternalNotesResponse,
   CreateInternalNoteRequest,
   MarkInternalNotesReadRequest,
@@ -306,6 +315,7 @@ export const schemas = {
 
   // Portal config
   PortalConfig,
+  PortalSections,
   PortalTheme,
   PortalAssets,
   PortalCategory,
@@ -327,6 +337,20 @@ export const schemas = {
   PrioritizationCriteriaList,
   EvaluatePrioritizationRequest,
   EvaluatePrioritizationResponse,
+
+  // Perfis
+  Profile,
+  ProfileReference,
+  ProfileSnapshot,
+  ProfilePermission,
+  ProfileKeyCatalog,
+  ProfilePermissionCatalogEntry,
+  ProfileCreateRequest,
+  ProfileUpdateRequest,
+  ProfileStatusRequest,
+  ProfileStatusResponse,
+  ProfileDuplicateRequest,
+  RequestMutationAcknowledgement,
 
   // Notifications
   NotificationStatusChangedPayload,
