@@ -88,6 +88,7 @@ import {
   DuplicateCheckDemand,
   DuplicateAlertItem,
   DuplicateCheckResponse,
+  DuplicateDetectionPatchBody,
 } from "./duplicates.ts";
 
 import { TriageAssignee, TriagemResponse, CreateTriagePayload } from "./triage.ts";
@@ -248,6 +249,7 @@ export const schemas = {
   DuplicateCheckDemand,
   DuplicateAlertItem,
   DuplicateCheckResponse,
+  DuplicateDetectionPatchBody,
 
   // Queue + mapping
   QueueMetrics,
@@ -324,6 +326,7 @@ export const schemas = {
   PortalCategoriesPatchBody,
   PortalStatusesPatchBody,
   PortalPrioritizationWeightsPatchBody,
+  DuplicateDetectionPatchBody,
 
   // Prioritization
   PrioritizationCriterion,

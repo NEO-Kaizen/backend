@@ -179,6 +179,7 @@ export async function upsertCategories(
         name: category.name,
         description: category.description || null,
         status: category.isActive ? "active" : "inactive",
+        is_publicly_listable: category.isPubliclyListable,
         display_order: categories.indexOf(category),
       })
       .onConflict("category_id")
@@ -186,6 +187,7 @@ export async function upsertCategories(
         name: category.name,
         description: category.description || null,
         status: category.isActive ? "active" : "inactive",
+        is_publicly_listable: category.isPubliclyListable,
         display_order: categories.indexOf(category),
       });
   }
@@ -231,6 +233,7 @@ export async function upsertStatuses(
       mapping_mode: mappingMode,
       tone: status.tone,
       is_active: status.isActive,
+      is_duplicate_corpus_eligible: status.isDuplicateCorpusEligible ?? true,
     } as const;
     await trx("statuses").insert(row).onConflict("status_id").merge(row);
   }
@@ -279,4 +282,19 @@ export async function updateCriteriaWeights(
       .where({ criterion_id: criterionId })
       .update({ weight, updated_at: new Date().toISOString() });
   }
+}
+
+export async function updateDuplicateDetectionSettings(
+  trx: Knex.Transaction,
+  enabled: boolean,
+  completedWindowMonths: number,
+  actorUserId: number,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await trx("system_settings").where({ settings_id: 1 }).update({
+    duplicate_detection_enabled: enabled,
+    duplicate_completed_window_months: completedWindowMonths,
+    updated_by: String(actorUserId),
+    updated_at: now,
+  });
 }

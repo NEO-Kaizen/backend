@@ -109,6 +109,7 @@ export const portalCategorySchema = z
     name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
     description: z.string().max(200, "Máximo de 200 caracteres."),
     isActive: z.boolean(),
+    isPubliclyListable: z.boolean().default(false),
   })
   .strict();
 
@@ -164,6 +165,7 @@ export const portalStatusSchema = z
       error: "Tom inválido — opções: error, success, info, warning ou neutral.",
     }),
     isActive: z.boolean(),
+    isDuplicateCorpusEligible: z.boolean().default(true),
   })
   .strict()
   .superRefine((status, ctx) => {
@@ -290,3 +292,14 @@ export const portalAssetsPatchSchema = z
     message: "Informe ao menos uma chave de asset.",
     path: ["assets"],
   });
+
+export const duplicateDetectionSchema = z
+  .object({
+    enabled: z.boolean(),
+    completedWindowMonths: z
+      .number()
+      .int("Janela deve ser inteira.")
+      .min(1, "Mínimo de 1 mês.")
+      .max(36, "Máximo de 36 meses."),
+  })
+  .strict();

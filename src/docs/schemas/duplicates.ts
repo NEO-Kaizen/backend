@@ -81,3 +81,22 @@ export const DuplicateCheckResponse = {
     },
   },
 };
+
+export const DuplicateDetectionPatchBody = {
+  type: "object",
+  required: ["enabled", "completedWindowMonths"],
+  additionalProperties: false,
+  properties: {
+    enabled: {
+      type: "boolean",
+      description: "Flag de detecção de duplicidade.",
+    },
+    completedWindowMonths: {
+      type: "integer",
+      description:
+        "Janela de conclusão em meses (1..36). Padrão 3 meses.",
+      minimum: 1,
+      maximum: 36,
+    },
+  },
+};
