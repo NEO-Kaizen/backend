@@ -1514,7 +1514,12 @@ export interface ProjectionSourceRow {
   title: string;
   need_description: string;
   problem_opportunity: string;
-  concluded_at: Date | null;
+  /**
+   * Texto ISO UTC com microssegundos. O driver `pg` converte `timestamptz` para
+   * `Date` e perde a fração abaixo de milissegundo; a projeção precisa copiar o
+   * valor exato de `requests.concluded_at`.
+   */
+  concluded_at: string | null;
   is_within_window: boolean;
   handles_restricted_info: boolean | null;
   category_name: string;
@@ -1527,7 +1532,7 @@ export interface ProjectionSourceRow {
 }
 ```
 
-#### L64 â€” interface ExistingProjection
+#### L69 â€” interface ExistingProjection
 
 ```ts
 export interface ExistingProjection {
@@ -1538,7 +1543,7 @@ export interface ExistingProjection {
 }
 ```
 
-#### L307 â€” interface GetDuplicateCompletedWindowOptions
+#### L314 â€” interface GetDuplicateCompletedWindowOptions
 
 ```ts
 export interface GetDuplicateCompletedWindowOptions {
@@ -1688,14 +1693,15 @@ interface ProjectionValues {
   publication_status: PublicationStatus;
   is_publicly_listable: boolean;
   redaction_version: string;
-  public_concluded_at: Date | null;
+  /** Texto ISO UTC com microssegundos, copiado exatamente de `requests`. */
+  public_concluded_at: string | null;
   published_at: Date | Knex.Raw | null;
   suppressed_at: Date | Knex.Raw | null;
   suppression_reason: SuppressionReason | null;
 }
 ```
 
-#### L51 â€” interface SuppressionSignals
+#### L52 â€” interface SuppressionSignals
 
 ```ts
 export interface SuppressionSignals {
@@ -4423,26 +4429,26 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
-- L71 â€” variÃ¡vel: `PROJECTION_COLUMNS`
-- L88 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
-- L112 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, public_concluded_at, updated_at, }`
-- L171 â€” variÃ¡vel: `{ request_id, created_at, title, need_description, problem_opportunity, concluded_at, is_within_window, handles_restricted_info, category_name, category_is_publicly_listable, status_id, status_is_active, status_is_terminal, status_is_restricted, status_is_duplicate_corpus_eligible, }`
-- L229 â€” variÃ¡vel: `{ public_id, publication_status, published_at, suppressed_at }`
-- L280 â€” variÃ¡vel: `row`
-- L299 â€” variÃ¡vel: `source`
-- L321 â€” variÃ¡vel: `source`
-- L326 â€” variÃ¡vel: `window`
-- L345 â€” variÃ¡vel: `source`
-- L346 â€” variÃ¡vel: `window`
-- L353 â€” parÃ¢metro: `builder`
-- L353 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L375 â€” variÃ¡vel: `part`
-- L400 â€” variÃ¡vel: `source`
-- L428 â€” variÃ¡vel: `source`
-- L439 â€” parÃ¢metro: `row`
-- L439 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L440 â€” variÃ¡vel: `{ request_id }`
-- L457 â€” variÃ¡vel: `source`
+- L76 â€” variÃ¡vel: `PROJECTION_COLUMNS`
+- L93 â€” variÃ¡vel: `PUBLISHED_PROJECTION_FILTER`
+- L117 â€” variÃ¡vel: `{ request_id, public_id, public_title, public_summary, public_category, public_status, public_period, publication_status, is_publicly_listable, redaction_version, version, public_concluded_at, updated_at, }`
+- L176 â€” variÃ¡vel: `{ request_id, created_at, title, need_description, problem_opportunity, concluded_at, is_within_window, handles_restricted_info, category_name, category_is_publicly_listable, status_id, status_is_active, status_is_terminal, status_is_restricted, status_is_duplicate_corpus_eligible, }`
+- L234 â€” variÃ¡vel: `{ public_id, publication_status, published_at, suppressed_at }`
+- L287 â€” variÃ¡vel: `row`
+- L306 â€” variÃ¡vel: `source`
+- L328 â€” variÃ¡vel: `source`
+- L333 â€” variÃ¡vel: `window`
+- L352 â€” variÃ¡vel: `source`
+- L353 â€” variÃ¡vel: `window`
+- L360 â€” parÃ¢metro: `builder`
+- L360 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L382 â€” variÃ¡vel: `part`
+- L407 â€” variÃ¡vel: `source`
+- L435 â€” variÃ¡vel: `source`
+- L446 â€” parÃ¢metro: `row`
+- L446 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L447 â€” variÃ¡vel: `{ request_id }`
+- L464 â€” variÃ¡vel: `source`
 
 ### [src/modules/duplicates/duplicates.schema.ts](../src/modules/duplicates/duplicates.schema.ts)
 
@@ -4525,18 +4531,18 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/projection.ts](../src/modules/duplicates/projection.ts)
 
-- L107 â€” variÃ¡vel: `isCompleted`
-- L116 â€” variÃ¡vel: `fallback`
-- L125 â€” variÃ¡vel: `redacted`
-- L155 â€” variÃ¡vel: `resolvedWindow`
-- L158 â€” variÃ¡vel: `source`
-- L163 â€” variÃ¡vel: `suppressionReason`
-- L164 â€” variÃ¡vel: `template`
-- L166 â€” variÃ¡vel: `isPubliclyListable`
-- L170 â€” variÃ¡vel: `existing`
-- L175 â€” variÃ¡vel: `now`
-- L176 â€” variÃ¡vel: `publishedAt`
-- L180 â€” variÃ¡vel: `suppressedAt`
+- L108 â€” variÃ¡vel: `isCompleted`
+- L117 â€” variÃ¡vel: `fallback`
+- L126 â€” variÃ¡vel: `redacted`
+- L156 â€” variÃ¡vel: `resolvedWindow`
+- L159 â€” variÃ¡vel: `source`
+- L164 â€” variÃ¡vel: `suppressionReason`
+- L165 â€” variÃ¡vel: `template`
+- L167 â€” variÃ¡vel: `isPubliclyListable`
+- L171 â€” variÃ¡vel: `existing`
+- L176 â€” variÃ¡vel: `now`
+- L177 â€” variÃ¡vel: `publishedAt`
+- L181 â€” variÃ¡vel: `suppressedAt`
 
 ### [src/modules/duplicates/query.ts](../src/modules/duplicates/query.ts)
 
