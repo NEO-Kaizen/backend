@@ -24,12 +24,14 @@ function createDeps(overrides: {
   documents?: SimilarityDocument[];
   changes?: IndexPollChange[];
   readChanges?: (since: Date) => Promise<readonly IndexPollChange[]>;
+  sweepCompletedWindow?: () => Promise<void>;
 }) {
   const apply = vi.fn();
   const remove = vi.fn();
   const clear = vi.fn();
   const readAll = vi.fn(async () => overrides.documents ?? []);
   const readChanges = vi.fn(overrides.readChanges ?? (async () => overrides.changes ?? []));
+  const sweepCompletedWindow = vi.fn(overrides.sweepCompletedWindow ?? (async () => undefined));
 
   return {
     apply,
@@ -37,8 +39,10 @@ function createDeps(overrides: {
     clear,
     readAll,
     readChanges,
+    sweepCompletedWindow,
     options: {
       readEnabled: vi.fn(async () => overrides.enabled ?? true),
+      sweepCompletedWindow,
       readAll,
       readChanges,
       apply,
@@ -128,6 +132,41 @@ describe("poller do índice de duplicidade", () => {
     await poller.runOnce();
 
     expect(deps.clear).toHaveBeenCalledOnce();
+    expect(deps.sweepCompletedWindow).not.toHaveBeenCalled();
+    expect(deps.readAll).not.toHaveBeenCalled();
+    expect(deps.readChanges).not.toHaveBeenCalled();
+  });
+
+  it("executa a varredura da janela antes de ler mudanças", async () => {
+    const order: string[] = [];
+    const deps = createDeps({
+      sweepCompletedWindow: async () => {
+        order.push("sweepCompletedWindow");
+      },
+      readChanges: async () => {
+        order.push("readChanges");
+        return [];
+      },
+    });
+    const poller = createIndexPoller({ ...deps.options, initialized: true });
+
+    await poller.runOnce();
+
+    expect(order).toEqual(["sweepCompletedWindow", "readChanges"]);
+  });
+
+  it("falha na varredura da janela é reportada e não lê mudanças", async () => {
+    const onError = vi.fn();
+    const deps = createDeps({
+      sweepCompletedWindow: async () => {
+        throw new Error("falha na varredura");
+      },
+    });
+    const poller = createIndexPoller({ ...deps.options, initialized: true, onError });
+
+    await poller.runOnce();
+
+    expect(onError).toHaveBeenCalledOnce();
     expect(deps.readAll).not.toHaveBeenCalled();
     expect(deps.readChanges).not.toHaveBeenCalled();
   });

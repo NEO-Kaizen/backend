@@ -13,6 +13,8 @@ custódia, a operação é recusada.
 
 ## Regras condicionais
 
+- Solicitação em Status terminal não recebe triagem (`422 Solicitação
+encerrada`); a reabertura é pela troca direta, conforme a issue #148.
 - `adherentJustification` só existe quando a solicitação não é aderente ao escopo;
   fora desse caso é limpo.
 - `newCategory` só é aplicado quando há troca de categoria e precisa ser o nome

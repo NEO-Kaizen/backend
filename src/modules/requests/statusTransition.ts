@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/AppError.ts";
 import type { Knex } from "knex";
 import { publishRequestProjection } from "../duplicates/projection.ts";
+import { buildConcludedAtUpdate } from "./concludedAt.ts";
 
 export interface StatusTransitionTarget {
   status_id: number;
@@ -22,6 +23,7 @@ export async function applyStatusTransition(
 ): Promise<string> {
   const updates: Record<string, unknown> = {
     status_id: input.target.status_id,
+    ...buildConcludedAtUpdate(trx, input.target.status_id),
     updated_by: input.updatedBy,
     updated_at: trx.fn.now(),
   };

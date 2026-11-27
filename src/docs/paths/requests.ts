@@ -162,7 +162,7 @@ export default {
         "Público no modo `PUBLIC` e com sessão obrigatória no modo `AUTHENTICATED`; sujeito a rate limit por IP. " +
         "A resposta nunca ecoa o texto enviado e pode trazer apenas `publicId`, `title`, `summary`, `category`, `status` e `period`. " +
         'Flag desligada, índice indisponível ou falha de busca degradam para `200` com `confidence: "none"` e `items: []`. ' +
-        "Solicitações em aberto aparecem apenas com o resumo de template; concluídas entram com texto tarjado (issue #210). " +
+        "Solicitações em aberto aparecem apenas com o resumo de template; concluídas dentro da janela configurável entram com texto tarjado e caem para o template quando o gate de PII encontra suspeita (issue #210). " +
         "O Alerta não vincula registros nem altera Status — a Marcação de duplicidade é o ato formal do RF25.",
       operationId: "postDuplicateCheck",
       security: [{}, { cookieAuth: [] }],

@@ -35,6 +35,7 @@ import type {
 } from "../DTOs/requests/RequestResponse.dto.ts";
 import type { PaginatedResponse } from "../../shared/types/pagination.ts";
 import { publishRequestProjection } from "../duplicates/projection.ts";
+import { buildConcludedAtUpdate } from "./concludedAt.ts";
 
 const INITIAL_STATUS = "Solicitação enviada";
 
@@ -807,11 +808,14 @@ export async function updateStatus(
 ): Promise<void> {
   const statusId = await findStatusId(statusName, trx);
 
-  await trx("requests").where({ request_id: requestId }).update({
-    status_id: statusId,
-    updated_by: updatedBy,
-    updated_at: trx.fn.now(),
-  });
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({
+      status_id: statusId,
+      ...buildConcludedAtUpdate(trx, statusId),
+      updated_by: updatedBy,
+      updated_at: trx.fn.now(),
+    });
 
   // RN-010 legado também altera o Status: republica/suprime a projeção.
   await publishRequestProjection(trx, requestId);
@@ -936,11 +940,17 @@ export async function updateStatusById(
   statusId: number,
   updatedBy: string,
 ): Promise<void> {
-  await trx("requests").where({ request_id: requestId }).update({
-    status_id: statusId,
-    updated_by: updatedBy,
-    updated_at: trx.fn.now(),
-  });
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({
+      status_id: statusId,
+      ...buildConcludedAtUpdate(trx, statusId),
+      updated_by: updatedBy,
+      updated_at: trx.fn.now(),
+    });
+
+  // Mudança de Status fora do Motor também republica/suprime a projeção.
+  await publishRequestProjection(trx, requestId);
 }
 
 // --- Atualização interna dos blocos (issue #88) -----------------------------

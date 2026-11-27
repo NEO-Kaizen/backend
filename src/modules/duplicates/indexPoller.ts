@@ -14,6 +14,11 @@ export type IndexPollChange =
 
 export interface IndexPollerOptions {
   readEnabled: () => Promise<boolean>;
+  /**
+   * Reconciliação da janela de conclusão (issue #210), executada antes de ler
+   * a projeção. Falha nela é tratada como falha do poll: o cursor não avança.
+   */
+  sweepCompletedWindow: () => Promise<void>;
   readAll: () => Promise<readonly SimilarityDocument[]>;
   readChanges: (since: Date) => Promise<readonly IndexPollChange[]>;
   apply: (document: SimilarityDocument) => void;
@@ -59,6 +64,8 @@ export function createIndexPoller(options: IndexPollerOptions): IndexPoller {
       enabledState = false;
       return;
     }
+
+    await options.sweepCompletedWindow();
 
     const runAt = now();
 

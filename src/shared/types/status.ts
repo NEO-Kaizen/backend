@@ -19,5 +19,10 @@ export const STATUS_IDS = {
 
 export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
 
+/** O Status é o 16 (Concluído), independentemente de flags administráveis. */
+export function isCompletedStatus(statusId: number): boolean {
+  return statusId === STATUS_IDS.completed;
+}
+
 /** Status protegidos contra renomeação, remoção e desativação. */
 export const CORE_STATUS_IDS = Object.values(STATUS_IDS) as readonly StatusId[];

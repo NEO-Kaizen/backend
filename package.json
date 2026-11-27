@@ -24,6 +24,7 @@
     "test:db": "vitest run --project db",
     "test:db:up": "docker compose --profile test up -d --wait postgres-test",
     "test:db:down": "docker compose --profile test rm -sf postgres-test",
+    "backfill:concluded-at": "node --env-file-if-exists=.env scripts/backfill-concluded-at.mjs",
     "verify": "npm run check && npm test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

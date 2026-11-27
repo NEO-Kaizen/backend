@@ -1,4 +1,5 @@
 import type { SimilarityDocument, SimilarityHit } from "../../shared/types/duplicates.ts";
+import { sweepCompletedWindow } from "./completedWindowSweep.ts";
 import {
   isDuplicateDetectionEnabled,
   isPublishedProjection,
@@ -54,6 +55,10 @@ export async function rebuildDuplicateIndex(): Promise<void> {
       return;
     }
 
+    // A varredura roda também no rebuild para que a janela seja aplicada mesmo
+    // que o poll não tenha passado desde a última mudança de configuração.
+    await sweepCompletedWindow();
+
     const projections = await listPublishedProjections();
     index.rebuild(projections.map(toSimilarityDocument));
     ready = true;
@@ -82,6 +87,7 @@ export function startDuplicateIndexPolling(): void {
 
   poller = createIndexPoller({
     readEnabled: isDuplicateDetectionEnabled,
+    sweepCompletedWindow,
     readAll: async () => {
       const projections = await listPublishedProjections();
       return projections.map(toSimilarityDocument);

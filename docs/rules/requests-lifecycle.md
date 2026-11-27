@@ -67,6 +67,27 @@ retrato público. O protocolo é gerado na criação e não é reutilizado.
 - A auditoria do Administrador usa `request.override_status_admin`; na Linha do
   tempo interna o evento é normalizado para `request.status_change`.
 
+## Data de conclusão
+
+`requests.concluded_at` acompanha o Status 16 (Concluído):
+
+- entrar no 16 grava `now()`; permanecer no 16 (reaplicação do Status) preserva
+  a data e preenche um legado nulo; sair limpa a coluna;
+- a regra vale para todas as vias que mudam Status — troca direta, conclusão de
+  mapeamento, desfecho da Triagem, pendências, RN-010 e `updateStatusById`;
+- a escrita roda na mesma transação da mudança de Status, antes da publicação
+  da projeção pública de duplicidade;
+- reabrir uma solicitação concluída limpa a data e o corpus volta ao template de
+  aberta;
+- a varredura da janela pode republicar uma concluída que voltou para dentro da
+  janela, mas sempre relê a Solicitação e reavalia todas as regras;
+- `updated_at` e `last_external_update_at` não substituem essa data. O backfill
+  da issue #210 reconstrói a sequência pela Auditoria e relata concluídas sem
+  evento, sem inventar data.
+
+`requests.concluded_at` é distinto de `mappings.concluded_at`, que registra a
+conclusão de um esforço de mapeamento.
+
 ## Restrição e status terminal
 
 - `isRestricted` (hoje `Priorizado`): a triagem bloqueia Analista e permite
@@ -77,7 +98,8 @@ retrato público. O protocolo é gerado na criação e não é reutilizado.
   pendência ainda usa os nomes `Concluído`/`Cancelado`, não a flag; um Status
   terminal customizado escaparia da regra.
 - A troca direta **não** bloqueia a saída de um Status terminal hoje. Reabrir
-  solicitações encerradas está previsto na issue #148.
+  solicitações encerradas está previsto na issue #148; ao sair do 16, a data de
+  conclusão é limpa e a projeção de duplicidade volta ao template de aberta.
 
 ## Regras transversais
 

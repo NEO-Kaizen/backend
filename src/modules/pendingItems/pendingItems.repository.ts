@@ -4,6 +4,7 @@ import db from "../../database/conection.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { publishRequestProjection } from "../duplicates/projection.ts";
+import { buildConcludedAtUpdate } from "../requests/concludedAt.ts";
 import type { PendingItem } from "../DTOs/pendingItems/PendingItems.dto.ts";
 import type { PendingFieldValue } from "../../shared/types/pendingItems.ts";
 
@@ -294,11 +295,14 @@ async function updateRequestStatusId(
   statusId: number,
   updatedBy: string,
 ): Promise<void> {
-  await trx("requests").where({ request_id: requestId }).update({
-    status_id: statusId,
-    updated_by: updatedBy,
-    updated_at: trx.fn.now(),
-  });
+  await trx("requests")
+    .where({ request_id: requestId })
+    .update({
+      status_id: statusId,
+      ...buildConcludedAtUpdate(trx, statusId),
+      updated_by: updatedBy,
+      updated_at: trx.fn.now(),
+    });
 
   // Pendências também mudam o Status fora do Motor: projeta na mesma transação.
   await publishRequestProjection(trx, requestId);
