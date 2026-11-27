@@ -219,6 +219,47 @@ describe("DB — concluídas com texto tarjado e janela", () => {
     expect(projection.public_concluded_at).toBeInstanceOf(Date);
   });
 
+  it("public_concluded_at copia requests.concluded_at sem perder microssegundos", async () => {
+    const created = await createRequest();
+    await concludeByPatch(created.protocol);
+
+    const request = await requestRow(created.protocol);
+    const microsecondConclusion = "2026-11-27 11:25:01.895072+00";
+
+    await testDb("requests")
+      .where({ request_id: request.request_id })
+      .update({ concluded_at: testDb.raw("?::timestamptz", [microsecondConclusion]) });
+
+    // Upsert de uma projeção existente.
+    await publishWithWindow(created.protocol, 3);
+
+    const updated = await testDb("requests as r")
+      .join("request_public_projections as p", "p.request_id", "r.request_id")
+      .where("r.protocol", created.protocol)
+      .select(
+        testDb.raw("p.public_concluded_at = r.concluded_at as equal"),
+        testDb.raw("to_char(p.public_concluded_at, 'US') as projection_us"),
+      )
+      .first();
+
+    expect(updated).toMatchObject({ equal: true, projection_us: "895072" });
+
+    // Inserção de uma projeção nova.
+    await testDb("request_public_projections").where({ request_id: request.request_id }).del();
+    await publishWithWindow(created.protocol, 3);
+
+    const inserted = await testDb("requests as r")
+      .join("request_public_projections as p", "p.request_id", "r.request_id")
+      .where("r.protocol", created.protocol)
+      .select(
+        testDb.raw("p.public_concluded_at = r.concluded_at as equal"),
+        testDb.raw("to_char(p.public_concluded_at, 'US') as projection_us"),
+      )
+      .first();
+
+    expect(inserted).toMatchObject({ equal: true, projection_us: "895072" });
+  });
+
   it("reabertura limpa concluded_at e volta ao template de aberta", async () => {
     const created = await createRequest();
     await concludeByPatch(created.protocol);

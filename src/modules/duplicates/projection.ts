@@ -41,7 +41,8 @@ interface ProjectionValues {
   publication_status: PublicationStatus;
   is_publicly_listable: boolean;
   redaction_version: string;
-  public_concluded_at: Date | null;
+  /** Texto ISO UTC com microssegundos, copiado exatamente de `requests`. */
+  public_concluded_at: string | null;
   published_at: Date | Knex.Raw | null;
   suppressed_at: Date | Knex.Raw | null;
   suppression_reason: SuppressionReason | null;

@@ -49,7 +49,12 @@ export interface ProjectionSourceRow {
   title: string;
   need_description: string;
   problem_opportunity: string;
-  concluded_at: Date | null;
+  /**
+   * Texto ISO UTC com microssegundos. O driver `pg` converte `timestamptz` para
+   * `Date` e perde a fração abaixo de milissegundo; a projeção precisa copiar o
+   * valor exato de `requests.concluded_at`.
+   */
+  concluded_at: string | null;
   is_within_window: boolean;
   handles_restricted_info: boolean | null;
   category_name: string;
@@ -192,7 +197,7 @@ function parseProjectionSourceRow(row: Record<string, unknown>): ProjectionSourc
     typeof title !== "string" ||
     typeof need_description !== "string" ||
     typeof problem_opportunity !== "string" ||
-    !isNullableDate(concluded_at) ||
+    !(concluded_at === null || typeof concluded_at === "string") ||
     typeof is_within_window !== "boolean" ||
     !(handles_restricted_info === null || typeof handles_restricted_info === "boolean") ||
     typeof category_name !== "string" ||
@@ -259,7 +264,6 @@ export async function findProjectionSource(
       title: "r.title",
       need_description: "r.need_description",
       problem_opportunity: "r.problem_opportunity",
-      concluded_at: "r.concluded_at",
       handles_restricted_info: "r.handles_restricted_info",
       category_name: "c.name",
       category_is_publicly_listable: "c.is_publicly_listable",
@@ -270,6 +274,9 @@ export async function findProjectionSource(
       status_is_duplicate_corpus_eligible: "s.is_duplicate_corpus_eligible",
     })
     .select(
+      trx.raw(
+        "to_char(r.concluded_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') as concluded_at",
+      ),
       trx.raw(
         "(r.concluded_at IS NOT NULL AND r.concluded_at >= now() - make_interval(months => ?)) as is_within_window",
         [window.months],
