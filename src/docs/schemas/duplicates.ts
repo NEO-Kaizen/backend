@@ -93,8 +93,7 @@ export const DuplicateDetectionPatchBody = {
     },
     completedWindowMonths: {
       type: "integer",
-      description:
-        "Janela de conclusão em meses (1..36). Padrão 3 meses.",
+      description: "Janela de conclusão em meses (1..36). Padrão 3 meses.",
       minimum: 1,
       maximum: 36,
     },

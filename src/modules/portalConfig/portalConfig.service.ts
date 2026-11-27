@@ -86,6 +86,7 @@ export async function getPortalConfig(): Promise<PortalConfigResponse> {
       name: cat.name,
       description: cat.description ?? "",
       isActive: cat.status === "active",
+      isPubliclyListable: cat.is_publicly_listable,
     })),
     statuses: statuses.map(statusToPortal),
     prioritizationWeights: Object.fromEntries(
@@ -401,12 +402,7 @@ export async function updateDuplicateDetection(
       duplicateCompletedWindowMonths: settings.duplicate_completed_window_months,
     };
 
-    await repository.updateDuplicateDetectionSettings(
-      trx,
-      enabled,
-      completedWindowMonths,
-      userId,
-    );
+    await repository.updateDuplicateDetectionSettings(trx, enabled, completedWindowMonths, userId);
 
     const updated = await repository.getSettingsRow(trx);
     const newValue = {

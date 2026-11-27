@@ -293,7 +293,7 @@ export const portalAssetsPatchSchema = z
     path: ["assets"],
   });
 
-export const duplicateDetectionSchema = z
+export const updateDuplicateDetectionSchema = z
   .object({
     enabled: z.boolean(),
     completedWindowMonths: z

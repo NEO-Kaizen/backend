@@ -178,12 +178,13 @@ export const PortalAssets = {
 
 export const PortalCategory = {
   type: "object",
-  required: ["id", "name", "description", "isActive"],
+  required: ["id", "name", "description", "isActive", "isPubliclyListable"],
   properties: {
     id: { type: "integer", example: 1 },
     name: { type: "string", maxLength: 40, example: "Infraestrutura" },
     description: { type: "string", maxLength: 200, example: "Solicitações de TI e infraestrutura" },
     isActive: { type: "boolean", example: true },
+    isPubliclyListable: { type: "boolean", example: true },
   },
 };
 
@@ -204,6 +205,7 @@ export const PortalStatus = {
     "isRestricted",
     "tone",
     "isActive",
+    "isDuplicateCorpusEligible",
   ],
   properties: {
     id: { type: "integer", minimum: 1, maximum: 50, example: 1 },
@@ -220,6 +222,7 @@ export const PortalStatus = {
       example: "neutral",
     },
     isActive: { type: "boolean", example: true },
+    isDuplicateCorpusEligible: { type: "boolean", example: true },
   },
 };
 

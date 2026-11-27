@@ -110,6 +110,7 @@ export interface PortalCategory {
   name: string;
   description: string;
   isActive: boolean;
+  isPubliclyListable: boolean;
 }
 
 /**
@@ -198,6 +199,7 @@ export interface CategoryRow {
   description: string | null;
   status: "active" | "inactive";
   display_order: number | null;
+  is_publicly_listable: boolean;
 }
 
 /** Linha da tabela `statuses` — projeção usada pelo portal config (v4). */
@@ -213,4 +215,5 @@ export interface StatusRow {
   tone: StatusTone;
   order_number: number;
   is_active: boolean;
+  is_duplicate_corpus_eligible: boolean;
 }

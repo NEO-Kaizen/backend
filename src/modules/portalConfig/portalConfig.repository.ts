@@ -260,6 +260,11 @@ export async function upsertStatuses(
       .whereNotIn("status_id", keepIds)
       .andWhere({ is_active: true })
       .update({ is_active: false });
+
+    await trx("statuses")
+      .whereNotIn("status_id", keepIds)
+      .andWhere({ is_duplicate_corpus_eligible: true })
+      .update({ is_duplicate_corpus_eligible: false });
   }
 
   await trx.raw(
@@ -291,10 +296,12 @@ export async function updateDuplicateDetectionSettings(
   actorUserId: number,
 ): Promise<void> {
   const now = new Date().toISOString();
-  await trx("system_settings").where({ settings_id: 1 }).update({
-    duplicate_detection_enabled: enabled,
-    duplicate_completed_window_months: completedWindowMonths,
-    updated_by: String(actorUserId),
-    updated_at: now,
-  });
+  await trx("system_settings")
+    .where({ settings_id: 1 })
+    .update({
+      duplicate_detection_enabled: enabled,
+      duplicate_completed_window_months: completedWindowMonths,
+      updated_by: String(actorUserId),
+      updated_at: now,
+    });
 }

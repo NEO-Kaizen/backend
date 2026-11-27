@@ -1221,6 +1221,20 @@
           }
         }
       },
+      "DuplicateDetectionPatchBody": {
+        "type": "object",
+        "required": ["enabled", "completedWindowMonths"],
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean", "description": "Flag de detecção de duplicidade." },
+          "completedWindowMonths": {
+            "type": "integer",
+            "description": "Janela de conclusão em meses (1..36). Padrão 3 meses.",
+            "minimum": 1,
+            "maximum": 36
+          }
+        }
+      },
       "QueueMetrics": {
         "type": "object",
         "required": [
@@ -2297,7 +2311,7 @@
       },
       "PortalCategory": {
         "type": "object",
-        "required": ["id", "name", "description", "isActive"],
+        "required": ["id", "name", "description", "isActive", "isPubliclyListable"],
         "properties": {
           "id": { "type": "integer", "example": 1 },
           "name": { "type": "string", "maxLength": 40, "example": "Infraestrutura" },
@@ -2306,7 +2320,8 @@
             "maxLength": 200,
             "example": "Solicitações de TI e infraestrutura"
           },
-          "isActive": { "type": "boolean", "example": true }
+          "isActive": { "type": "boolean", "example": true },
+          "isPubliclyListable": { "type": "boolean", "example": true }
         }
       },
       "PortalStatus": {
@@ -2321,7 +2336,8 @@
           "mappingMode",
           "isRestricted",
           "tone",
-          "isActive"
+          "isActive",
+          "isDuplicateCorpusEligible"
         ],
         "properties": {
           "id": { "type": "integer", "minimum": 1, "maximum": 50, "example": 1 },
@@ -2337,7 +2353,8 @@
             "enum": ["error", "success", "info", "warning", "neutral"],
             "example": "neutral"
           },
-          "isActive": { "type": "boolean", "example": true }
+          "isActive": { "type": "boolean", "example": true },
+          "isDuplicateCorpusEligible": { "type": "boolean", "example": true }
         }
       },
       "PrioritizationWeights": {
@@ -4775,6 +4792,64 @@
                   "properties": {
                     "prioritizationWeights": {
                       "$ref": "#/components/schemas/PrioritizationWeights"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem acesso (apenas Administrador).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/portal-config/duplicates": {
+      "patch": {
+        "tags": ["Configuração do portal"],
+        "summary": "Alterar configuração de detecção de duplicidade",
+        "description": "Altera a flag de detecção de duplicidade e a janela de conclusão. Exige perfil `Administrador`.",
+        "operationId": "updatePortalDuplicateDetection",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DuplicateDetectionPatchBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuração de detecção de duplicidade alterada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["enabled", "completedWindowMonths"],
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "Flag de detecção de duplicidade."
+                    },
+                    "completedWindowMonths": {
+                      "type": "integer",
+                      "description": "Janela de conclusão em meses (1..36). Padrão 3 meses."
                     }
                   }
                 }
