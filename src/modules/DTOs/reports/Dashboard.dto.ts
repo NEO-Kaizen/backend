@@ -3,20 +3,13 @@ import type { StatusTone } from "../../../shared/types/systemTheme.ts";
 
 export type DashboardSituation = "open" | "closed" | "overdue" | "unassigned";
 
-/**
- * Filtro de prioridade do dashboard.
- * `"unassigned"` significa "solicitações ainda não priorizadas" (sentinela do
- * sentinela definida em `docs/rules/reports.md`), não "sem responsável".
- */
-export type DashboardPriorityFilter = number | "unassigned";
-
 export interface DashboardQuery {
   from?: string;
   to?: string;
   situation?: DashboardSituation;
   statusId?: number;
   categoryId?: number;
-  priorityId?: DashboardPriorityFilter;
+  priorityId?: number | "unassigned";
 }
 
 export interface DashboardSummary {
@@ -32,11 +25,6 @@ export interface DashboardStatusMetric {
   name: string;
   count: number;
   tone: StatusTone;
-  /**
-   * Nome legado de `statuses.is_terminal` (ver `docs/rules/reports.md`).
-   * O Motor de Status v4 expõe o mesmo conceito como `isTerminal` em
-   * `PortalStatus`; mantido por compatibilidade do contrato do dashboard.
-   */
   closesRequest: boolean;
 }
 
@@ -70,7 +58,7 @@ export interface DashboardResponse {
     situation: DashboardSituation | null;
     statusId: number | null;
     categoryId: number | null;
-    priorityId: DashboardPriorityFilter | null;
+    priorityId: number | "unassigned" | null;
   };
   filterOptions: DashboardFilterOptions;
   summary: DashboardSummary;

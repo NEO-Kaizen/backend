@@ -1,6 +1,5 @@
 /**
- * Remove is_visible_to_requester — toda pendência é para o solicitante
- * (ver `docs/rules/pending-items.md`, opção 2).
+ * Remove is_visible_to_requester — toda pendência é para o solicitante (contract 03, opção 2).
  * @param {import("knex").Knex} knex
  */
 export async function up(knex) {

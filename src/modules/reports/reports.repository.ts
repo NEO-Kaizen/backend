@@ -1,12 +1,11 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
-import { BUSINESS_TIME_ZONE, whereBusinessDayRange } from "../../shared/datetime/businessDay.ts";
-import type { QueueExportQuery } from "../../shared/types/queue.types.ts";
+import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { DashboardQuery } from "../DTOs/reports/Dashboard.dto.ts";
 import type { QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
 import { applyQueueFilters } from "../queue/queue.filters.ts";
-import { applyQueueSort } from "../queue/queue.sort.ts";
 
+const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 const OPENED_MONTH_SQL = `DATE_TRUNC(
   'month',
   r.created_at AT TIME ZONE '${BUSINESS_TIME_ZONE}'
@@ -67,7 +66,16 @@ export interface DashboardFilterOptionRows {
 }
 
 function applyDashboardFilters(query: Knex.QueryBuilder, filters: DashboardQuery): void {
-  whereBusinessDayRange(query, "r.created_at", { from: filters.from, to: filters.to });
+  if (filters.from) {
+    query.whereRaw(`r.created_at >= (?::date AT TIME ZONE ?)`, [filters.from, BUSINESS_TIME_ZONE]);
+  }
+
+  if (filters.to) {
+    query.whereRaw(`r.created_at < ((?::date + INTERVAL '1 day') AT TIME ZONE ?)`, [
+      filters.to,
+      BUSINESS_TIME_ZONE,
+    ]);
+  }
 
   if (filters.situation === "open") {
     query.where("s.is_terminal", false);
@@ -210,7 +218,7 @@ export async function fetchDashboardFilterOptions(): Promise<DashboardFilterOpti
 
 /** Retorna todas as solicitações dos filtros ativos, sem paginação. */
 export async function fetchQueueExportRows(
-  filters: QueueExportQuery,
+  filters: QueueFilterQuery,
   scopedUserId: number | undefined,
 ): Promise<QueueExportRow[]> {
   const query = db("requests")
@@ -243,7 +251,7 @@ export async function fetchQueueExportRows(
         WHERE status.is_terminal = TRUE
           AND ah.entity_type = 'request'
           AND ah.entity_id = requests.protocol
-          AND ah.action_type IN ('request.status_change', 'request.override_status_admin')
+          AND ah.action_type = 'request.status_change'
           AND ah.new_value = status.name
         ORDER BY ah.occurred_at DESC
         LIMIT 1
@@ -263,9 +271,9 @@ export async function fetchQueueExportRows(
       db.raw('COALESCE(requests.updated_at, requests.created_at) as "updatedAt"'),
       "requests.internal_notes as internalNotes",
       "completion_event.occurred_at as completedAt",
-    );
+    )
+    .orderBy("requests.created_at", "desc");
 
   applyQueueFilters(query, { ...filters, scopedUserId });
-  applyQueueSort(query, filters.sortBy, filters.sortOrder);
   return query as Promise<QueueExportRow[]>;
 }

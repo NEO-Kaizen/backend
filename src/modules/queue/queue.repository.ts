@@ -1,27 +1,9 @@
 import db from "../../database/conection.ts";
 import { findAssignableProfileIds } from "../../shared/access/assignability.ts";
+import { IN_PROGRESS_STATUSES, TERMINAL_STATUSES } from "../../shared/types/requests.ts";
 import type { FindQueueParams } from "../DTOs/queue/queue.dto.ts";
 import type { QueueItem, QueueMetricsResponse } from "../../shared/types/queue.types.ts";
 import { applyQueueFilters } from "./queue.filters.ts";
-import { applyQueueSort } from "./queue.sort.ts";
-
-/**
- * Status que contam como "em andamento" nas métricas da fila (Home/Fila).
- *
- * TODO: esta lista inclui status não-core — 8 (`Em análise de viabilidade`),
- * 14 (`Em desenvolvimento`) e 15 (`Em homologação`) — e compara por nome, então
- * renomear/desativar/repurposar um deles altera a métrica silenciosamente.
- * Substituir por uma flag `is_in_progress` na tabela `statuses` (decisão de
- * produto) e remover esta constante. Até lá, a lista fica local à consulta para
- * não virar contrato compartilhado.
- */
-const IN_PROGRESS_STATUS_NAMES = [
-  "Em triagem",
-  "Em mapeamento",
-  "Em análise de viabilidade",
-  "Em desenvolvimento",
-  "Em homologação",
-] as const;
 
 export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMetricsResponse> => {
   const query = db("requests").leftJoin("statuses as s", "s.status_id", "requests.status_id");
@@ -46,13 +28,14 @@ export const fetchQueueMetrics = async (scopedUserId?: number): Promise<QueueMet
         'COUNT(CASE WHEN requests.professional_id IS NULL THEN 1 END)::int as "unassignedRequests"',
       ),
       db.raw(
-        `COUNT(CASE WHEN s.name IN (${IN_PROGRESS_STATUS_NAMES.map(() => "?").join(",")}) THEN 1 END)::int as "inProgressRequests"`,
-        [...IN_PROGRESS_STATUS_NAMES],
+        `COUNT(CASE WHEN s.name IN (${IN_PROGRESS_STATUSES.map(() => "?").join(",")}) THEN 1 END)::int as "inProgressRequests"`,
+        [...IN_PROGRESS_STATUSES],
       ),
       // Atrasadas: prazo (`date`) já vencido — vence hoje ainda não é atraso —
-      // e status não terminal (flag do catálogo v4).
+      // e status não terminal (sem entrega concluída/cancelada).
       db.raw(
-        'COUNT(CASE WHEN requests.desired_deadline < CURRENT_DATE AND s.is_terminal = FALSE THEN 1 END)::int as "overdueRequests"',
+        `COUNT(CASE WHEN requests.desired_deadline < CURRENT_DATE AND s.name NOT IN (${TERMINAL_STATUSES.map(() => "?").join(",")}) THEN 1 END)::int as "overdueRequests"`,
+        [...TERMINAL_STATUSES],
       ),
     )
     .first();
@@ -85,52 +68,27 @@ export const findQueueRequests = async (
 
   const countQuery = baseQuery.clone().count("* as total").first();
 
-  const itemsQuery = baseQuery.select(
-    "requests.protocol",
-    "requests.created_at as createdAt",
-    "requests.process_name as processName",
-    "priority_tbl.level as priority",
-    "status.name as status",
-    // Expor user_id como assigneeId conforme `docs/rules/assignment.md` (frontend usa user_id)
-    db.raw('assignee_user.user_id::text as "assigneeId"'),
-    "assignee_user.full_name as assignee",
-    "requester.full_name as requesterName",
-    "requester.corporate_email as requesterEmail",
-  );
-
-  applyQueueSort(itemsQuery, params.sortBy, params.sortOrder);
-  itemsQuery.limit(limit).offset(offset);
+  const itemsQuery = baseQuery
+    .select(
+      "requests.protocol",
+      "requests.created_at as createdAt",
+      "requests.process_name as processName",
+      "priority_tbl.level as priority",
+      "status.name as status",
+      // Expor user_id como assigneeId para contract-assign-action.md (frontend usa user_id)
+      db.raw('assignee_user.user_id::text as "assigneeId"'),
+      "assignee_user.full_name as assignee",
+      "requester.full_name as requesterName",
+      "requester.corporate_email as requesterEmail",
+    )
+    .orderBy("requests.created_at", "desc")
+    .limit(limit)
+    .offset(offset);
 
   const [countResult, items] = await Promise.all([countQuery, itemsQuery]);
   const total = countResult ? Number(countResult.total) : 0;
 
   return { items, total };
-};
-
-/**
- * Departamentos distintos e globais do solicitante, sem depender dos filtros
- * nem da paginação da fila. A deduplicação é case-insensitive, alinhada ao
- * filtro `department`; valores com caixas diferentes preservam a primeira
- * grafia em ordem alfabética.
- */
-export const fetchAllDepartments = async (): Promise<string[]> => {
-  const rows = (await db("requests")
-    .join("requesters as requester", "requester.requester_id", "requests.requester_id")
-    .select(db.raw(`trim(requester.department) as department`))
-    .whereNotNull("requester.department")
-    .andWhereRaw("trim(requester.department) <> ''")
-    .distinct()
-    .orderByRaw("trim(requester.department) asc")) as Array<{ department: string }>;
-
-  const seen = new Set<string>();
-  return rows
-    .map((row) => row.department)
-    .filter((department) => {
-      const key = department.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
 };
 
 export const fetchAllAssignees = async (): Promise<{ id: string; name: string }[]> => {

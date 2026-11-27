@@ -1,11 +1,9 @@
-import type { SolicitationMode } from "./portalConfig.ts";
-
 /** Modo de abertura do portal — `solicitation_mode` do contrato. */
-export type PortalSolicitationMode = SolicitationMode;
+export type PortalSolicitationMode = "PUBLIC" | "AUTHENTICATED";
 
 /**
- * Linha da tabela `system_settings` — configuração global singleton (regras em
- * `docs/rules/portal-config.md`).
+ * Linha da tabela `system_settings` — configuração global singleton (contrato
+ * `portal-config-api.md`).
  *
  * Retorno direto do Knex (colunas em snake_case, datas normalizadas pelo
  * PostgreSQL). O singleton é garantido no banco: `settings_id = 1` (PK + CHECK).
@@ -20,7 +18,7 @@ export type PortalSolicitationMode = SolicitationMode;
 export interface SystemSettingsRow {
   settings_id: number;
   platform_name: string;
-  solicitation_mode: SolicitationMode;
+  solicitation_mode: PortalSolicitationMode;
   protocol_mask: string;
   theme_id: number | null;
   logo_light_url: string | null;

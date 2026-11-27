@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { hash, genSalt, compare } from "bcrypt";
 import { AppError } from "../errors/AppError.ts";
 
-export async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string) {
   try {
     const salt = await genSalt(10);
 
@@ -14,7 +14,7 @@ export async function hashPassword(password: string): Promise<string> {
   }
 }
 
-export async function comparePassword(password: string, hashedPassword: string): Promise<boolean> {
+export async function comparePassword(password: string, hashedPassword: string) {
   try {
     const match = await compare(password, hashedPassword);
 

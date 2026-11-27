@@ -1,15 +1,3 @@
-import { STATUS_MODES } from "../../shared/types/portalConfig.ts";
-
-// ---------------------------------------------------------------------------
-// Status mode (Motor de Status v4)
-// ---------------------------------------------------------------------------
-
-export const StatusMode = {
-  type: "string",
-  enum: [...STATUS_MODES],
-  example: "none",
-};
-
 // ---------------------------------------------------------------------------
 // Status tone (reuse)
 // ---------------------------------------------------------------------------
@@ -66,47 +54,19 @@ export const ThemeTokens = {
     "statuses",
   ],
   properties: {
-    background: {
-      type: "string",
-      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
-      example: "#FFFFFF",
-    },
-    surface: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#F8FAFC" },
-    border: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#E2E8F0" },
-    textPrimary: {
-      type: "string",
-      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
-      example: "#0F172A",
-    },
-    textSecondary: {
-      type: "string",
-      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
-      example: "#475569",
-    },
-    heading: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#0F172A" },
-    richBlack: {
-      type: "string",
-      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
-      example: "#020617",
-    },
-    primary: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#2563EB" },
-    secondary: {
-      type: "string",
-      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
-      example: "#64748B",
-    },
-    tint: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#DBEAFE" },
-    onPrimary: {
-      type: "string",
-      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
-      example: "#FFFFFF",
-    },
-    onDark: { type: "string", pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", example: "#FFFFFF" },
-    onGradient: {
-      type: "string",
-      pattern: "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$",
-      example: "#FFFFFF",
-    },
+    background: { type: "string", example: "#FFFFFF" },
+    surface: { type: "string", example: "#F8FAFC" },
+    border: { type: "string", example: "#E2E8F0" },
+    textPrimary: { type: "string", example: "#0F172A" },
+    textSecondary: { type: "string", example: "#475569" },
+    heading: { type: "string", example: "#0F172A" },
+    richBlack: { type: "string", example: "#020617" },
+    primary: { type: "string", example: "#2563EB" },
+    secondary: { type: "string", example: "#64748B" },
+    tint: { type: "string", example: "#DBEAFE" },
+    onPrimary: { type: "string", example: "#FFFFFF" },
+    onDark: { type: "string", example: "#FFFFFF" },
+    onGradient: { type: "string", example: "#FFFFFF" },
     gradient: { $ref: "#/components/schemas/ThemeGradient" },
     statuses: {
       type: "object",
@@ -182,7 +142,7 @@ export const PortalCategory = {
   properties: {
     id: { type: "integer", example: 1 },
     name: { type: "string", maxLength: 40, example: "Infraestrutura" },
-    description: { type: "string", maxLength: 200, example: "Solicitações de TI e infraestrutura" },
+    description: { type: "string", maxLength: 200, example: "Demandas de TI e infraestrutura" },
     isActive: { type: "boolean", example: true },
   },
 };
@@ -211,8 +171,8 @@ export const PortalStatus = {
     isCore: { type: "boolean", example: true },
     isPublic: { type: "boolean", example: true },
     isTerminal: { type: "boolean", example: false },
-    triageMode: { $ref: "#/components/schemas/StatusMode" },
-    mappingMode: { $ref: "#/components/schemas/StatusMode" },
+    triageMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
+    mappingMode: { type: "string", enum: ["none", "free", "conclusion_only"], example: "none" },
     isRestricted: { type: "boolean", example: false },
     tone: {
       type: "string",
@@ -224,7 +184,7 @@ export const PortalStatus = {
 };
 
 // ---------------------------------------------------------------------------
-// Prioritization weights (10 criteria, integer 1-10)
+// Prioritization weights (11 criteria, integer 1-10)
 // ---------------------------------------------------------------------------
 
 export const PrioritizationWeights = {
@@ -323,7 +283,6 @@ export const PortalSections = {
 
 export const PortalAccessPatchBody = {
   type: "object",
-  additionalProperties: false,
   required: ["solicitationMode"],
   properties: {
     solicitationMode: {
@@ -336,7 +295,6 @@ export const PortalAccessPatchBody = {
 
 export const PortalIdentityPatchBody = {
   type: "object",
-  additionalProperties: false,
   properties: {
     platformName: { type: "string", minLength: 1, maxLength: 80, example: "MAAT" },
     protocolMask: {
@@ -350,7 +308,6 @@ export const PortalIdentityPatchBody = {
 
 export const PortalThemePatchBody = {
   type: "object",
-  additionalProperties: false,
   required: ["theme"],
   properties: {
     theme: { $ref: "#/components/schemas/PortalTheme" },
@@ -359,7 +316,6 @@ export const PortalThemePatchBody = {
 
 export const PortalCategoriesPatchBody = {
   type: "object",
-  additionalProperties: false,
   required: ["categories"],
   properties: {
     categories: {
@@ -373,7 +329,6 @@ export const PortalCategoriesPatchBody = {
 
 export const PortalStatusesPatchBody = {
   type: "object",
-  additionalProperties: false,
   required: ["statuses"],
   properties: {
     statuses: {
@@ -387,7 +342,6 @@ export const PortalStatusesPatchBody = {
 
 export const PortalPrioritizationWeightsPatchBody = {
   type: "object",
-  additionalProperties: false,
   required: ["prioritizationWeights"],
   properties: {
     prioritizationWeights: { $ref: "#/components/schemas/PrioritizationWeights" },

@@ -1,6 +1,6 @@
 /**
- * Ordem de exibição e unicidade case-insensitive das categorias (especificação
- * OpenAPI em `src/docs/`, seção "categories"):
+ * Ordem de exibição e unicidade case-insensitive das categorias (contrato
+ * `portal-config-api.md`, seção "categories"):
  *
  * - `display_order` — inteiro com a ordem do card (índice do array); backfill
  *   com a ordem atual (`category_id`), mantendo o comportamento existente;

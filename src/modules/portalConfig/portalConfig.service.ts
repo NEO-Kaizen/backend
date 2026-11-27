@@ -15,7 +15,6 @@ import type {
   PortalStatus,
   PrioritizationWeights,
   PrioritizationWeightsSection,
-  SolicitationMode,
   StatusesSection,
   StatusRow,
   ThemeSection,
@@ -147,7 +146,7 @@ export async function getPortalConfig(): Promise<PortalConfigResponse> {
 // ---------------------------------------------------------------------------
 
 export async function updateAccess(
-  solicitationMode: SolicitationMode,
+  solicitationMode: string,
   userId: number,
 ): Promise<AccessSection> {
   return db.transaction(async (trx) => {
@@ -167,7 +166,7 @@ export async function updateAccess(
       newValue: canonicalJson({ solicitationMode }),
     });
 
-    return { solicitationMode };
+    return { solicitationMode: solicitationMode as AccessSection["solicitationMode"] };
   });
 }
 

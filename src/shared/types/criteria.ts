@@ -1,7 +1,7 @@
 import type { PrioritizationCriterion } from "./portalConfig.ts";
 
 /**
- * Ponte entre as chaves definidas em `docs/rules/portal-config.md`
+ * Ponte entre as chaves do contrato `portal-config-api.md`
  * (`PRIORITIZATION_CRITERIA`, en) e os `criterion_id` da tabela `criteria`
  * (pt snake_case) — issue #51.
  */

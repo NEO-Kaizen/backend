@@ -26,12 +26,12 @@ export async function up(knex) {
       .inTable("details_professional")
       .onDelete("SET NULL");
 
-    // Formato do fio: `scheduledFor` ISO-8601 com offset — persistido em UTC
+    // Contrato: `scheduledFor` ISO-8601 com offset — persistido em UTC
     // (timestamptz); o GET devolve com "Z".
     table.timestamp("scheduled_for", { useTz: true });
-    // Formato do fio: `durationMinutes` inteiro, 15–480 (check abaixo).
+    // Contrato: `durationMinutes` inteiro, 15–480 (check abaixo).
     table.integer("duration_minutes");
-    // Formato do fio: `modality` = "REMOTE" | "IN_PERSON".
+    // Contrato: `modality` = "REMOTE" | "IN_PERSON".
     table.enu("modality", ["REMOTE", "IN_PERSON"], {
       useNative: true,
       enumName: "mapping_modality",

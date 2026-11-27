@@ -180,8 +180,7 @@ export const assignRequestSchema = z
 
 export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;
 
-// Wire format em `src/docs/paths/requests.ts` (`patchInternalAssignee`): PATCH
-// /requests/{protocol}/internal/assignee. Regras em `docs/rules/assignment.md`.
+// Contrato contract-assign-action.md — PATCH /requests/:protocol/internal/assignee
 // Frontend envia user_id string (ex.: "20"), nunca professional_id. XOR: exatamente um campo presente.
 const analystIdSchema = z.string().trim().min(1, "analystId não pode ser vazio.");
 
@@ -207,17 +206,8 @@ export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 // --- PATCH /requests/:protocol/status (issue #124 — Motor de Status v4) -----
 // Único endpoint de troca de status: responsável com custódia só para status
 // de etapa `free` e `isRestricted=false`; Administrador faz bypass (qualquer
-// `isActive`). Status terminais não bloqueiam a saída hoje — reabrir uma
-// solicitação encerrada por esta rota é decisão pendente (issue #148). Toda
-// mudança exige justificativa (ver `docs/rules/requests-lifecycle.md`).
-
-export const cancelRequestSchema = z
-  .object({
-    justification: requiredString(4000),
-  })
-  .strict();
-
-export type CancelRequestPayload = z.infer<typeof cancelRequestSchema>;
+// `isActive`); saída de terminal bloqueada para todos. Toda mudança exige
+// justificativa (delta §3.3).
 
 export const updateStatusSchema = z
   .object({

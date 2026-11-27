@@ -24,14 +24,14 @@ export type ThemeTokenKey = (typeof THEME_TOKEN_KEYS)[number];
 export type ThemePalette = "light" | "dark";
 
 /**
- * Linha da tabela `system_themes` — Aparência do portal (regras em
- * `docs/rules/portal-config.md`), TABELA PRÓPRIA, fora do `system_settings`.
+ * Linha da tabela `system_themes` — tema do portal (contrato
+ * `portal-config-api.md`), TABELA PRÓPRIA, fora do `system_settings`.
  *
  * Colunas explícitas por paleta (sem JSONB): tokens hex, gradiente e os 5
  * statuses por tom na paleta `light` e `dark`. Singleton (`theme_id = 1`).
  *
- * Cores hex `#RRGGBB` ou `#RRGGBBAA` (VARCHAR(9)); `NULL` quando a Aparência
- * ainda não foi definida — o frontend aplica os defaults locais por token.
+ * Cores hex `#RRGGBB` ou `#RRGGBBAA` (VARCHAR(9)); `NULL` quando o tema ainda
+ * não foi definido — o frontend aplica os defaults locais por token.
  */
 export interface SystemThemeRow {
   theme_id: number;

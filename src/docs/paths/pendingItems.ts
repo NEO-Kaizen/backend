@@ -1,123 +1,573 @@
-import { protocolParam } from "../components/parameters.ts";
-import { error, json } from "../components/responses.ts";
-
-const dualAuth = [{ cookieAuth: [] }, { requesterIdentity: [] }];
-
-const pendingItemParam = {
-  name: "pendingItemId",
-  in: "path",
-  required: true,
-  schema: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
-};
-
 export default {
   "/requests/{protocol}/pending-items": {
     get: {
       tags: ["Pendências"],
-      summary: "Listar pendências",
+      summary: "Listar Pendências",
       description:
-        "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Na porta interna exige `pending_item:read` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto); dual-auth com a identidade do solicitante.",
+        "Lista as Pendências de uma solicitação via dual-auth (cookie ou header `X-Requester-Identity`). Com sessão, a porta interna exige `pending_item:read` sob Custódia; a porta do Solicitante aceita `pending_item:respond` em `own`. Sem sessão, a identidade pública continua validando protocolo + nome + e-mail. Retorna o envelope do lote vigente (`batchId`, `requestAttachment` e `items`).",
       operationId: "listPendingItems",
-      security: dualAuth,
-      parameters: [protocolParam],
+      security: [],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
       responses: {
-        "200": { description: "Lote vigente.", ...json("ListPendingItemsResponse") },
-        "400": error("Protocolo inválido."),
-        "401": error("Não autenticado ou identidade inválida."),
-        "404": error("Solicitação não encontrada ou fora da Custódia."),
+        "200": {
+          description: "Envelope do lote de pendências vigente.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["batchId", "requestAttachment", "items"],
+                properties: {
+                  batchId: {
+                    type: "string",
+                    nullable: true,
+                    example: "a6e8923e-7661-4827-9a6d-4898d9c70739",
+                  },
+                  requestAttachment: { type: "boolean", example: false },
+                  items: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: [
+                        "id",
+                        "protocol",
+                        "batchId",
+                        "type",
+                        "field",
+                        "comment",
+                        "status",
+                        "correctedValue",
+                        "responseText",
+                        "responseAttachments",
+                        "createdAt",
+                      ],
+                      properties: {
+                        id: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
+                        protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+                        batchId: {
+                          type: "string",
+                          example: "a6e8923e-7661-4827-9a6d-4898d9c70739",
+                        },
+                        type: {
+                          type: "string",
+                          enum: ["field_edit", "observation"],
+                          example: "field_edit",
+                        },
+                        field: {
+                          type: "object",
+                          nullable: true,
+                          required: ["fieldKey", "fieldLabel", "currentValue"],
+                          properties: {
+                            fieldKey: { type: "string", example: "operational.desiredDeadline" },
+                            fieldLabel: { type: "string", example: "Prazo desejado" },
+                            currentValue: {
+                              type: ["string", "number", "boolean", "null"],
+                              example: null,
+                            },
+                          },
+                        },
+                        comment: { type: "string", example: "Ajustar prazo para próxima segunda." },
+                        status: {
+                          type: "string",
+                          enum: ["requested", "responded", "validated"],
+                          example: "requested",
+                        },
+                        correctedValue: {
+                          type: ["string", "number", "boolean", "null"],
+                          example: null,
+                        },
+                        responseText: { type: ["string", "null"], example: null },
+                        responseAttachments: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            required: [
+                              "fileName",
+                              "mimeType",
+                              "sizeBytes",
+                              "downloadUrl",
+                              "canDownload",
+                            ],
+                            properties: {
+                              fileName: { type: "string", example: "comprovante.pdf" },
+                              mimeType: { type: "string", example: "application/pdf" },
+                              sizeBytes: { type: "number", example: 1024 },
+                              downloadUrl: { type: ["string", "null"], example: null },
+                              canDownload: { type: "boolean", example: false },
+                            },
+                          },
+                        },
+                        deadline: { type: ["string", "null"], example: null },
+                        createdAt: {
+                          type: "string",
+                          format: "date-time",
+                          example: "2026-10-15T13:30:00.000Z",
+                        },
+                        respondedAt: { type: ["string", "null"], example: null },
+                        validatedAt: { type: ["string", "null"], example: null },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Parâmetro `protocol` inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Não autenticado ou identidade inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description:
+            "Sessão sem `pending_item:read` nem `pending_item:respond` para a porta do Solicitante.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação não encontrada ou fora da Custódia/Posse do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
     post: {
       tags: ["Pendências"],
-      summary: "Criar pendências",
+      summary: "Criar Pendências",
       description:
-        "Cria um lote com observação e/ou campos marcados. Exige `pending_item:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto). " +
-        "Na mesma transação, a solicitação passa para `Pendente de informações` (o novo status não é devolvido).",
+        "Cria Pendências para uma solicitação. Exige `pending_item:write` sob Custódia do Responsável corrente. Aceita `observation` (texto livre) e/ou `items` (edições de campo).",
       operationId: "createPendingItems",
       security: [{ cookieAuth: [] }],
-      parameters: [protocolParam],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: { $ref: "#/components/schemas/CreatePendingItemsBody" },
+            schema: {
+              type: "object",
+              properties: {
+                observation: {
+                  type: "string",
+                  maxLength: 2000,
+                  example: "Verificar anexos de homologação.",
+                },
+                requestAttachment: { type: "boolean", example: false },
+                items: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    required: ["fieldKey", "comment"],
+                    properties: {
+                      fieldKey: { type: "string", example: "operational.desiredDeadline" },
+                      comment: {
+                        type: "string",
+                        maxLength: 2000,
+                        example: "Ajustar prazo para próxima segunda.",
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
       responses: {
-        "201": { description: "Lote criado.", ...json("CreatePendingItemsResponse") },
-        "400": error("Parâmetros inválidos (protocolo, body, fieldKey fora do catálogo)."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `pending_item:write`."),
-        "404": error("Solicitação não encontrada ou fora da Custódia."),
-        "409": error("Solicitação concluída/cancelada ou lote já em aberto."),
+        "201": {
+          description: "Pendências criadas com sucesso.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["batchId", "requestAttachment", "items"],
+                properties: {
+                  batchId: { type: "string", example: "a6e8923e-7661-4827-9a6d-4898d9c70739" },
+                  requestAttachment: { type: "boolean", example: false },
+                  items: {
+                    type: "array",
+                    items: { type: "object" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Parâmetros inválidos (protocolo ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `pending_item:write`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação não encontrada ou fora da Custódia/Posse do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "Conflito (solicitação já concluída/cancelada ou já existe lote em aberto).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
-
   "/requests/{protocol}/pending-items/review": {
     patch: {
       tags: ["Pendências"],
-      summary: "Revisar pendências",
+      summary: "Revisar Pendências",
       description:
-        "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige `pending_item:review` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
+        "Revisa (valida/reabre) Pendências de um lote. Exige `pending_item:review` sob Custódia do Responsável corrente.",
       operationId: "reviewPendingItems",
       security: [{ cookieAuth: [] }],
-      parameters: [protocolParam],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: { $ref: "#/components/schemas/ReviewPendingItemsBody" },
+            schema: {
+              type: "object",
+              required: ["batchId", "items"],
+              properties: {
+                batchId: { type: "string", example: "a6e8923e-7661-4827-9a6d-4898d9c70739" },
+                requestAttachment: { type: "boolean", example: false },
+                items: {
+                  type: "array",
+                  minItems: 1,
+                  items: {
+                    type: "object",
+                    required: ["id", "decision"],
+                    discriminator: {
+                      propertyName: "decision",
+                      mapping: {
+                        validate: "#/components/schemas/ReviewDecisionValidate",
+                        reopen: "#/components/schemas/ReviewDecisionReopen",
+                      },
+                    },
+                    properties: {
+                      id: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
+                      decision: {
+                        type: "string",
+                        enum: ["validate", "reopen"],
+                        example: "validate",
+                      },
+                      note: { type: "string", maxLength: 2000, example: "Parece correto." },
+                      comment: {
+                        type: "string",
+                        maxLength: 2000,
+                        example: "Precisa de correção no campo X.",
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
       responses: {
-        "200": { description: "Itens revisados.", ...json("ReviewPendingItemsResponse") },
-        "400": error("Parâmetros inválidos."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `pending_item:review`."),
-        "404": error("Solicitação/lote não encontrado ou fora da Custódia."),
-        "409": error("Item não está no estado permitido."),
+        "200": {
+          description: "Pendências revisadas com sucesso.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["batchId", "items"],
+                properties: {
+                  batchId: { type: "string", example: "a6e8923e-7661-4827-9a6d-4898d9c70739" },
+                  items: {
+                    type: "array",
+                    items: { type: "object" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Parâmetros inválidos (protocolo ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `pending_item:review`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação/lote não encontrado ou fora da Custódia do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "Conflito de status do item (ex.: item não está em `responded`).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
-
   "/requests/{protocol}/pending-items/{pendingItemId}": {
     patch: {
       tags: ["Pendências"],
       summary: "Responder pendência",
       description:
-        "Responde um item por vez. `field_edit` recebe `correctedValue`; `observation` recebe `response`. Dual-auth: sessão com `pending_item:respond` em `own` ou porta pública com o e-mail do Solicitante. Na mesma transação, a resposta gera uma Notificação ao Responsável ou, sem Responsável designado, aos usuários com `user:manage` (RF20 — issue #159).",
+        "Responde a uma pendência específica. Com sessão, exige `pending_item:respond` em `own` e Posse sobre a solicitação; sem sessão, usa a identidade pública validada. Para `field_edit` envia `correctedValue`; para `observation` envia `response`.",
       operationId: "respondPendingItem",
-      security: dualAuth,
-      parameters: [protocolParam, pendingItemParam],
+      security: [],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+        {
+          name: "pendingItemId",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
+        },
+      ],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: { $ref: "#/components/schemas/RespondPendingItemBody" },
+            schema: {
+              type: "object",
+              properties: {
+                correctedValue: {
+                  type: ["string", "number", "boolean", "null"],
+                  example: "2026-11-20",
+                },
+                response: { type: "string", maxLength: 2000, example: "Resposta do solicitante." },
+              },
+            },
           },
         },
       },
       responses: {
-        "200": { description: "Item respondido.", ...json("PendingItem") },
-        "400": error("Parâmetros inválidos."),
-        "401": error("Não autenticado ou identidade inválida."),
-        "404": error("Solicitação ou pendência não encontrada."),
-        "409": error("Pendência já respondida ou em estado não permitido."),
+        "200": {
+          description: "Pendência respondida com sucesso.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: [
+                  "id",
+                  "protocol",
+                  "batchId",
+                  "type",
+                  "field",
+                  "comment",
+                  "status",
+                  "correctedValue",
+                  "responseText",
+                  "responseAttachments",
+                  "createdAt",
+                ],
+                properties: {
+                  id: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
+                  protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+                  batchId: { type: "string", example: "a6e8923e-7661-4827-9a6d-4898d9c70739" },
+                  type: {
+                    type: "string",
+                    enum: ["field_edit", "observation"],
+                    example: "field_edit",
+                  },
+                  field: {
+                    type: "object",
+                    nullable: true,
+                    required: ["fieldKey", "fieldLabel", "currentValue"],
+                    properties: {
+                      fieldKey: { type: "string", example: "operational.desiredDeadline" },
+                      fieldLabel: { type: "string", example: "Prazo desejado" },
+                      currentValue: {
+                        type: ["string", "number", "boolean", "null"],
+                        example: null,
+                      },
+                    },
+                  },
+                  comment: { type: "string", example: "Ajustar prazo para próxima segunda." },
+                  status: {
+                    type: "string",
+                    enum: ["requested", "responded", "validated"],
+                    example: "responded",
+                  },
+                  correctedValue: { type: ["string", "number", "boolean", "null"], example: null },
+                  responseText: { type: ["string", "null"], example: null },
+                  responseAttachments: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: ["fileName", "mimeType", "sizeBytes", "downloadUrl", "canDownload"],
+                      properties: {
+                        fileName: { type: "string", example: "comprovante.pdf" },
+                        mimeType: { type: "string", example: "application/pdf" },
+                        sizeBytes: { type: "number", example: 1024 },
+                        downloadUrl: { type: ["string", "null"], example: null },
+                        canDownload: { type: "boolean", example: false },
+                      },
+                    },
+                  },
+                  deadline: { type: ["string", "null"], example: null },
+                  createdAt: {
+                    type: "string",
+                    format: "date-time",
+                    example: "2026-10-15T13:30:00.000Z",
+                  },
+                  respondedAt: { type: ["string", "null"], example: null },
+                  validatedAt: { type: ["string", "null"], example: null },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Parâmetros inválidos (protocolo, pendingItemId ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Não autenticado ou identidade inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `pending_item:respond` em `own`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação/pendência não encontrada ou fora da Posse do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "Pendência já respondida ou não está em estado permitido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
-
   "/requests/{protocol}/pending-items/{pendingItemId}/attachments": {
     post: {
       tags: ["Pendências"],
       summary: "Anexar arquivo à pendência",
-      description: "Upload separado por item. PDF, DOCX, XLSX, PNG ou JPG, até 10 MB. Dual-auth.",
+      description:
+        "Anexa um arquivo a uma pendência. Com sessão, exige `pending_item:respond` em `own` e Posse sobre a solicitação; sem sessão, usa a identidade pública validada.",
       operationId: "attachPendingItem",
-      security: dualAuth,
-      parameters: [protocolParam, pendingItemParam],
+      security: [],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+        {
+          name: "pendingItemId",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "00000000-0000-4000-8000-000000000099" },
+        },
+      ],
       requestBody: {
         required: true,
         content: {
@@ -133,38 +583,143 @@ export default {
         },
       },
       responses: {
-        "201": { description: "Anexo adicionado.", ...json("PendingAttachment") },
-        "400": error("Arquivo acima de 10 MB ou formato não permitido."),
-        "401": error("Não autenticado ou identidade inválida."),
-        "404": error("Solicitação ou pendência não encontrada."),
+        "201": {
+          description: "Anexo adicionado com sucesso.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["fileName", "mimeType", "sizeBytes", "downloadUrl", "canDownload"],
+                properties: {
+                  fileName: { type: "string", example: "comprovante.pdf" },
+                  mimeType: { type: "string", example: "application/pdf" },
+                  sizeBytes: { type: "number", example: 1024 },
+                  downloadUrl: { type: ["string", "null"], example: null },
+                  canDownload: { type: "boolean", example: false },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Arquivo acima de 10 MB ou formato não permitido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Não autenticado ou identidade inválida.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sessão sem `pending_item:respond` em `own`.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Solicitação/pendência não encontrada ou fora da Posse do ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
-
   "/requests/{protocol}/public/verify": {
     post: {
       tags: ["Pendências"],
-      summary: "Verificação pública de identidade",
+      summary: "Verificação pública de pendência",
       description:
-        "Verifica protocolo + nome + e-mail sem emitir JWT/cookie. Sujeito a rate-limit (10 tentativas / 10 min por IP + protocolo). " +
-        "A resposta é genérica: não revela qual campo divergiu nem se o protocolo existe.",
+        "Endpoint público para verificação de pendência sem autenticação (modo PUBLIC). Sujeito a rate-limit (429).",
       operationId: "publicVerify",
       security: [],
-      parameters: [protocolParam],
+      parameters: [
+        {
+          name: "protocol",
+          in: "path",
+          required: true,
+          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+        },
+      ],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: { $ref: "#/components/schemas/PublicVerifyBody" },
+            schema: {
+              type: "object",
+              required: ["name", "email"],
+              properties: {
+                name: { type: "string", minLength: 3, maxLength: 150, example: "Maria Oliveira" },
+                email: {
+                  type: "string",
+                  format: "email",
+                  example: "maria.oliveira@instituicao.gov.br",
+                },
+                protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+              },
+            },
           },
         },
       },
       responses: {
-        "200": { description: "Identidade verificada.", ...json("PublicVerifyResponse") },
-        "400": error("Parâmetros inválidos."),
-        "401": error("Identidade inválida ou protocolo não encontrado."),
-        "403": error("Verificação indisponível no modo de acesso atual."),
-        "429": error("Muitas tentativas (rate-limit)."),
+        "200": {
+          description: "Verificação realizada com sucesso.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["protocol", "canAccess"],
+                properties: {
+                  protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
+                  canAccess: { type: "boolean", example: true },
+                },
+              },
+            },
+          },
+        },
+        "400": {
+          description: "Parâmetros inválidos (protocolo ou body).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Identidade inválida ou protocolo não encontrado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Verificação indisponível no modo atual.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "429": {
+          description: "Muitas tentativas. Tente novamente em alguns minutos (rate-limit).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },

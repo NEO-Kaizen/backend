@@ -8,17 +8,17 @@ Este documento define **como escrever código** neste repositório. Ele não red
 
 | Vou…                                               | Leia                                  |
 | -------------------------------------------------- | ------------------------------------- |
-| escrever ou alterar rota, controller ou middleware | §5 e §7; contrato em `src/docs/` (§9) |
+| escrever ou alterar rota, controller ou middleware | §5 e §7; contrato em OpenAPI          |
 | escrever service ou regra de domínio               | §4 e §5                               |
 | escrever repository, query ou migration            | §6; persistência em `docs/database/`  |
-| escrever teste                                     | §10 e `docs/testing.md` (Vitest)      |
+| escrever teste                                     | §10; decisão pendente na issue #135   |
 | revisar um PR                                      | §11; skill `pr` e skill `code-review` |
 | mexer em erro ou envelope                          | §5; issue #132                        |
 | mexer em tipagem                                   | §3; issue #133                        |
 
 **Linguagem normativa:** **Sempre** = obrigatório; **Prefira** = default; **Nunca** = guardrail.
 
-**Critério de conclusão:** `npm run check` e `npm test` passam, os documentos de contrato afetados foram atualizados e o checklist §11 está completo.
+**Critério de conclusão:** `npm run check` passa, os documentos de contrato afetados foram atualizados e o checklist §11 está completo. Quando a suíte existir, `npm test` também precisa passar.
 
 ## Vocabulário
 
@@ -158,34 +158,23 @@ Este documento define **como escrever código** neste repositório. Ele não red
 
 ## 9. Contratos e documentação
 
-- A especificação OpenAPI em `src/docs/` é a fonte única do contrato HTTP; o código consome o contrato, não o redefine no handler. Swagger UI e `/api-docs/swagger.json` a expõem.
-- Alteração de rota, payload, resposta ou status code atualiza `src/docs/` e `docs/openapi.json` (`npm run docs:openapi`) no mesmo PR; `npm run check` falha se as rotas reais e a spec divergirem.
-- Regras de negócio — o que o domínio decide, não o formato do fio — vivem em `docs/rules/`.
-- Decisões de arquitetura que sejam difíceis de reverter viram ADR em `docs/adr/`.
+- O contrato HTTP vive na especificação OpenAPI em `src/docs/`; Swagger UI e `/api-docs/swagger.json` a expõem. Ela é a fonte da verdade de rotas, payloads, respostas e status codes.
+- Os documentos em `docs/*.md` podem descrever regras de negócio, decisões e exemplos comportamentais, mas não são fonte da verdade de rotas. Atualize OpenAPI e a documentação comportamental afetada no mesmo PR.
 - Exemplos de contrato não contêm PII.
+- Decisões de arquitetura que sejam difíceis de reverter viram ADR em `docs/adr/`.
 - Use o vocabulário do `GLOSSARY.md` em títulos, mensagens e documentos.
 
 ## 10. Testes
 
 **Sempre** teste comportamento, não implementação.
 
-- A suíte usa **Vitest** (decisão da issue #135) e é dividida nos projects
-  `unit`, `integration`, `e2e` e `db`; detalhes em `docs/testing.md`.
-- **Unit** sem I/O. **Integration** exercita services/middlewares com os
-  repositories mockados na fronteira. **E2E** usa o app Express real e HTTP,
-  com persistência mockada. **DB** usa PostgreSQL real para repositories,
-  services e fluxos HTTP — é a camada que prova constraints, transações,
-  rollback e auditoria.
-- Não declare persistência coberta por teste de mock: se o comportamento
-  depende do banco, ele pertence ao project `db`.
-- Evite mockar colaboradores internos; quando precisar isolar a camada,
-  mocke a fronteira (repository, HTTP externo), não o service inteiro.
+- A suíte ainda não está configurada; a decisão de runner e harness está na issue #135.
+- Enquanto a suíte não existir, valide manualmente os caminhos felizes e de erro e registre as evidências no PR.
+- Quando a suíte entrar, prefira `node:test` + `node:assert/strict` + `fetch` se a decisão da issue #135 confirmar essa stack.
 - Injete clock, ID e RNG quando o comportamento depender deles.
 - Sem `sleep`; use fake timers do runner e aguarde sinais/promessas.
-- Cubra caminhos de erro, limites e regras de negócio; cobertura é consequência,
-  não meta.
-- O gate local/CI é `npm run verify` (`check` + `test`). A suíte `db` exige
-  `npm run test:db:up`; as demais camadas não dependem de banco.
+- Unit sem I/O; integração nas fronteiras (HTTP, banco, fila).
+- Cubra caminhos de erro e regras de negócio; cobertura é consequência, não meta.
 
 ## 11. Checklist de code review
 
@@ -201,13 +190,12 @@ Este documento define **como escrever código** neste repositório. Ele não red
 - [ ] Contrato HTTP e exemplos atualizados no mesmo PR.
 - [ ] Comentários explicam o porquê; sem código morto.
 - [ ] Dependência nova justificada; a stdlib não foi reimplementada por pacote.
-- [ ] `npm run check` e `npm test` verdes (ou `npm run verify`).
+- [ ] `npm run check` e `npm test` (quando existir) verdes.
 - [ ] Exceções a este documento registradas no PR.
 
 ## Referências
 
-- Node.js — [ESM](https://nodejs.org/docs/latest-v24.x/api/esm.html) · [Type stripping](https://nodejs.org/docs/latest-v24.x/api/typescript.html)
-- Vitest — [Documentation](https://vitest.dev/guide/)
+- Node.js — [ESM](https://nodejs.org/docs/latest-v24.x/api/esm.html) · [Type stripping](https://nodejs.org/docs/latest-v24.x/api/typescript.html) · [Test runner](https://nodejs.org/docs/latest-v24.x/api/test.html)
 - TypeScript — [Handbook](https://www.typescriptlang.org/docs/handbook/intro.html) · [Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
 - Express — [Error handling](https://expressjs.com/en/guide/error-handling.html) · [Migrating 5](https://expressjs.com/en/guide/migrating-5.html)
 - Zod — [Documentation](https://zod.dev/)

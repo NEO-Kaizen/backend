@@ -1,8 +1,7 @@
 /**
- * Adiciona o token `heading` (cor dos títulos h1–h6) às paletas — ver a
- * especificação OpenAPI em `src/docs/` (`THEME_TOKEN_KEYS` e `PATCH /theme`)
- * e as regras em `docs/rules/portal-config.md`. Colunas `light_heading` /
- * `dark_heading` em `system_themes`, hex
+ * Adiciona o token `heading` (cor dos títulos h1–h6) às paletas do tema —
+ * contrato `portal-config-api-0_4.md` (§Tipos, `THEME_TOKEN_KEYS` e §4 PATCH
+ * /theme). Colunas `light_heading` / `dark_heading` em `system_themes`, hex
  * `#RRGGBB`/`#RRGGBBAA`, NULL enquanto o tema não define o token (o frontend
  * aplica o default local por token).
  *
