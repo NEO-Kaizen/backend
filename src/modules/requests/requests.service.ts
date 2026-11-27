@@ -281,11 +281,10 @@ export async function findInternalByProtocol(
 
   // Blocos sensíveis do DTO seguem as chaves próprias: o designado do
   // mapeamento lê a solicitação, mas não Observações internas nem Pendências.
-  const canReadInternalNotes = hasResponsibleCustody(
-    actor,
-    "internal_note:read",
+  const canReadInternalNotes = hasAnyResponsibleCustody(actor, "internal_note:read", [
     request["assignee_user_id"],
-  );
+    request["mapping_user_id"],
+  ]);
   const canReadPendingItems = hasResponsibleCustody(
     actor,
     "pending_item:read",

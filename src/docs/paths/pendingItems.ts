@@ -76,7 +76,7 @@ export default {
         "200": { description: "Itens revisados.", ...json("ReviewPendingItemsResponse") },
         "400": error("Parâmetros inválidos."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `pending_item:write` ou Custódia da linha."),
+        "403": error("Sem `pending_item:review` ou Custódia da linha."),
         "404": error("Solicitação ou lote não encontrado."),
         "409": error("Item não está no estado permitido."),
       },

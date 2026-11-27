@@ -109,7 +109,20 @@ export function applyQueueFilters(query: Knex.QueryBuilder, filters: QueueReposi
             .andWhere("note.content", "ilike", searchPattern);
 
           if (noteCustodianUserId !== undefined) {
-            notesQuery.andWhere("assignee_user.user_id", noteCustodianUserId);
+            if (noteCustodianUserId > 0) {
+              // A custódia de `internal_note:read` soma o Responsável da
+              // triagem e o Designado do mapeamento corrente, como as notas.
+              notesQuery.andWhere((custody) => {
+                custody.where("assignee_user.user_id", noteCustodianUserId);
+                applyMappingAssigneeMatch(custody, {
+                  field: "user_id",
+                  value: noteCustodianUserId,
+                });
+              });
+            } else {
+              // Sentinela 0: ator sem `internal_note:read` não casa nota alguma.
+              notesQuery.andWhere("assignee_user.user_id", noteCustodianUserId);
+            }
           }
         });
     });

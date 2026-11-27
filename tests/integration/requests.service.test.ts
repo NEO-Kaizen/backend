@@ -301,6 +301,25 @@ describe("requests.service.findInternalByProtocol — custódia de leitura", () 
     expect(result.internalObservations).toBe("segredo interno");
   });
 
+  it("permite ao designado do mapeamento ler Observações internas com a chave", async () => {
+    vi.mocked(repository.findInternalRequestByProtocol).mockResolvedValue(
+      internalRow({ assignee_user_id: null, mapping_user_id: 7 }) as never,
+    );
+    vi.mocked(repository.findAttachmentsByRequestId).mockResolvedValue([]);
+    vi.mocked(repository.findSchedulePreferencesByRequestId).mockResolvedValue([]);
+    vi.mocked(repository.findEvaluationByProtocol).mockResolvedValue(undefined);
+
+    const result = await requestsService.findInternalByProtocol(
+      PROTOCOL,
+      actorWith([
+        { permission_key: "request:read", custody: "assigned" },
+        { permission_key: "internal_note:read", custody: "assigned" },
+      ]),
+    );
+
+    expect(result.internalObservations).toBe("segredo interno");
+  });
+
   it("recusa quem não é responsável da triagem nem do mapeamento", async () => {
     vi.mocked(repository.findInternalRequestByProtocol).mockResolvedValue(
       internalRow({ assignee_user_id: 99, mapping_user_id: 98 }) as never,

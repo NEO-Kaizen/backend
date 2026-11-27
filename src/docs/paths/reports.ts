@@ -146,7 +146,7 @@ export default {
         },
         "400": error("Filtros inválidos."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `reports:read`."),
+        "403": error("Sem `queue:export` ou Custódia da linha."),
       },
     },
   },

@@ -108,7 +108,7 @@ export default {
       responses: {
         "200": { description: "Mapeamento atual.", ...json("MappingResponse") },
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `queue:read`."),
+        "403": error("Sem `mapping:read` ou Custódia do mapeamento corrente."),
         "404": error("Protocolo inexistente."),
       },
     },

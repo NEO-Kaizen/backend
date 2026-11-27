@@ -28,10 +28,11 @@ Designado do mapeamento corrente. A escrita (`request:write`), a atribuição
 (`request:assign`) e a troca de Status (`request:status_change`) continuam
 exclusivas do Responsável da triagem.
 
-A visão interna do Designado do mapeamento sai sem Observações internas
-(`internalObservations: null`) e com os blocos de Pendência zerados
-(`pendingSummary`/`unread` zerados, `correctionAlert: null`), porque ele não tem
-`internal_note:read` nem `pending_item:read` na linha.
+O Designado do mapeamento lê e escreve Observações internas (`internal_note:read`
+e `internal_note:write` somam o Responsável da triagem ou do mapeamento). Os
+blocos de Pendência saem zerados (`pendingSummary`/`unread` zerados,
+`correctionAlert: null`), porque `pending_item:read` continua exclusivo do
+Responsável da triagem.
 
 > Incluir `gestor` como atribuível é uma decisão pendente; ver
 > [`README.md`](README.md).

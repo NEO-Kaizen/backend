@@ -249,7 +249,7 @@ describe("HTTP real — busca textual do contrato RF04", () => {
     }
   });
 
-  it("busca por título e resultado esperado sem ampliar a custódia de notas", async () => {
+  it("busca por título e resultado esperado com a custódia de notas somando triagem e mapeamento", async () => {
     const analyst = await insertUser({ email: "analista@neo.com", fullName: "Analista de Teste" });
     const [professional] = (await testDb("details_professional")
       .insert({ user_id: analyst.user_id, job_title: "Analista" })
@@ -300,7 +300,7 @@ describe("HTTP real — busca textual do contrato RF04", () => {
     expect(await search("Titulo Alfa")).toEqual(["TESTE-0001"]);
     expect(await search("Resultado Beta")).toEqual(["TESTE-0002"]);
     expect(await search("NotaAlfaReservada")).toEqual(["TESTE-0001"]);
-    expect(await search("NotaBetaReservada")).toEqual([]);
+    expect(await search("NotaBetaReservada")).toEqual(["TESTE-0002"]);
   });
 });
 

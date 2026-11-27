@@ -278,7 +278,7 @@ export default {
         "201": { description: "Triagem criada.", ...json("TriagemResponse") },
         "400": error("Payload inválido."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `request:assign` ou Custódia da linha."),
+        "403": error("Sem `triage:write` ou Custódia da linha."),
         "404": error("Protocolo inexistente (`request_not_found`)."),
         "409": error("Conflito de estado (ex.: transição concorrente)."),
         "422": error("Erro de validação da triagem; pode conter `fields`."),

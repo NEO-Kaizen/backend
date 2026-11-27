@@ -65,10 +65,11 @@ describe("applyQueueFilters", () => {
       noteCustodianUserId: 7,
     });
 
-    // 9 correspondências de search + custódia da nota + escopo (assignee + mapping).
-    expect(bindings).toEqual([...Array(9).fill("%kickoff%"), 7, 7, false, 7, 7]);
+    // 9 correspondências de search + custódia da nota (triagem OU mapeamento)
+    // + escopo da fila (triagem OU mapeamento).
+    expect(bindings).toEqual([...Array(9).fill("%kickoff%"), 7, false, 7, 7, 7, false, 7, 7]);
     expect(sql.match(/"assignee_user"\."user_id" = \?/g)).toHaveLength(2);
-    expect(sql.match(/"mapping_assignee"\."user_id" = \?/g)).toHaveLength(1);
+    expect(sql.match(/"mapping_assignee"\."user_id" = \?/g)).toHaveLength(2);
   });
 
   it("sem noteCustodianUserId (Gestor/Administrador) a nota não é recortada", () => {

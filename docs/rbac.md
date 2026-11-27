@@ -35,7 +35,7 @@ A custódia não vai no token e não envelhece com ele. As fontes do vínculo co
 | `requests.mapping_professional_id`                                    | Custódia inicial de Mapeamento/Fila antes de existir qualquer linha de Mapeamento                                   |
 | `requests.requester_user_id`; sem vínculo, `requests.requester_email` | posse: `request:track` e `pending_item:respond`, comparando com a conta (id; e-mail só nas linhas legadas/anônimas) |
 
-A visibilidade da fila (`queue:read`/`queue:export`) inclui o responsável do mapeamento corrente; a custódia de `internal_note:read`, usada pela busca por notas, continua restrita a `requests.professional_id`.
+A visibilidade da fila (`queue:read`/`queue:export`) e a custódia de `internal_note:read` — usada também pela busca por notas — somam o responsável da triagem e o do mapeamento corrente.
 
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
@@ -329,7 +329,7 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 | `mapping:read`, `mapping:write`                                  | Responsável da solicitação **ou** `mappings.professional_id` da linha aberta mais recente; antes de existir uma linha, `requests.mapping_professional_id` |
 | `prioritization:write`                                           | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
 | `pending_item:read`, `pending_item:write`, `pending_item:review` | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
-| `internal_note:read`, `internal_note:write`                      | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
+| `internal_note:read`, `internal_note:write`                      | `details_professional.user_id` ligado a `requests.professional_id` **ou** a `requests.mapping_professional_id`                                            |
 | `audit:read`                                                     | `details_professional.user_id` ligado a `requests.professional_id` **ou** a `requests.mapping_professional_id`, com uma porta por domínio                 |
 | `queue:read`, `queue:export`                                     | Responsável da solicitação **ou** do Mapeamento aberto mais recente; antes da primeira linha, `requests.mapping_professional_id`; `all` dispensa filtro   |
 | `request:track`, `pending_item:respond`                          | posse: `requests.requester_user_id`; sem vínculo, `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                           |
@@ -341,10 +341,10 @@ Regras de aplicação:
 - A rota tem o gate grosso: sessão válida e a chave. O serviço do domínio aplica a custódia, em um lugar só por domínio.
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
 - A leitura da visão interna (`request:read`) e da Linha do tempo (`audit:read`) somam o Responsável da triagem e o do Mapeamento corrente: designar o mapeamento zera `requests.professional_id` por exclusividade. A escrita (`request:write`), a atribuição (`request:assign`) e a troca de Status (`request:status_change`) continuam exclusivas do Responsável da triagem.
-- Quem lê a visão interna sem `internal_note:read` recebe `internalObservations: null`; sem `pending_item:read`, os blocos de Pendência saem zerados.
+- Quem lê a visão interna sem `internal_note:read` recebe `internalObservations: null`; sem `pending_item:read`, os blocos de Pendência saem zerados. O Designado do mapeamento tem as duas chaves nas notas (custódia soma o mapeamento) e não nas Pendências (custódia só da triagem).
 - Sem sessão, não há ator: a porta pública do modo `PUBLIC` é a única que não avalia chaves. Ela usa o e-mail declarado e o protocolo.
 - Snapshots de triagem e de mapeamento não concedem acesso. A linha aberta mais recente do Mapeamento é a fonte vigente; quando ainda não existe linha de Mapeamento, vale a designação inicial da solicitação. Mapeamento concluído é histórico.
-- A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: só casa nota de solicitação cujo Responsável é o ator. O responsável de mapeamento não amplia essa busca, embora amplie a fila. Quem não tem a chave não casa nota alguma.
+- A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: casa nota de solicitação cujo Responsável da triagem **ou** do mapeamento corrente é o ator. Quem não tem a chave não casa nota alguma.
 - Solicitação órfã não é visível ao Analista custodial; ela é atribuída por quem tem `request:assign` em `all`.
 
 ## 6. Atribuir e ser atribuível

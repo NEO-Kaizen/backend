@@ -3454,7 +3454,7 @@
             }
           },
           "403": {
-            "description": "Sem `request:assign` ou Custódia da linha.",
+            "description": "Sem `triage:write` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4823,7 +4823,7 @@
             }
           },
           "403": {
-            "description": "Sem `queue:read`.",
+            "description": "Sem `mapping:read` ou Custódia do mapeamento corrente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -5695,7 +5695,7 @@
             }
           },
           "403": {
-            "description": "Sem `reports:read`.",
+            "description": "Sem `queue:export` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -6200,7 +6200,7 @@
             }
           },
           "403": {
-            "description": "Sem `pending_item:write` ou Custódia da linha.",
+            "description": "Sem `pending_item:review` ou Custódia da linha.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
