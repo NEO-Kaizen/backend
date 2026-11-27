@@ -69,8 +69,9 @@ function applyMappingAssigneeMatch(
  * Dois limites são distintos: `scopedUserId` é o escopo da fila (triagem ou
  * mapeamento); `noteCustodianUserId` é a custódia de `internal_note:read` e
  * vale somente para a correspondência em notas. O responsável de mapeamento
- * amplia a fila, mas não amplia a busca por nota. Os filtros de data e
- * departamento (issue #215) entram no mesmo conjunto e, portanto, também
+ * amplia a fila e também a busca por nota: a correspondência soma o Responsável
+ * da triagem e o Designado do mapeamento corrente, como as notas. Os filtros de
+ * data e departamento (issue #215) entram no mesmo conjunto e, portanto, também
  * valem para a exportação CSV. As datas usam o dia em UTC, conforme o
  * contrato RF04; o dashboard mantém o dia comercial `America/Sao_Paulo`.
  */

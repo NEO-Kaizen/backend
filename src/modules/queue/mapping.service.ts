@@ -72,11 +72,9 @@ async function recordMappingAccessDenied(
 function hasMappingCustody(
   actor: MappingActor,
   key: "mapping:read" | "mapping:write",
-  requestAssigneeUserId: number | null,
   mappingAssigneeUserId: number | null,
 ): boolean {
   return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
-    requestAssigneeUserId,
     mappingAssigneeUserId,
   ]);
 }
@@ -319,7 +317,7 @@ export const getMappingService = async (
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  if (!hasMappingCustody(actor, "mapping:read", null, context.mapping_assignee_user_id)) {
+  if (!hasMappingCustody(actor, "mapping:read", context.mapping_assignee_user_id)) {
     await recordMappingAccessDenied(
       context.protocol,
       actor.id,
@@ -364,7 +362,7 @@ export const upsertMappingService = async (
       throw new AppError("Solicitação não encontrada", 404);
     }
 
-    if (!hasMappingCustody(actor, "mapping:write", null, context.mapping_assignee_user_id)) {
+    if (!hasMappingCustody(actor, "mapping:write", context.mapping_assignee_user_id)) {
       await recordMappingAccessDenied(
         context.protocol,
         actor.id,

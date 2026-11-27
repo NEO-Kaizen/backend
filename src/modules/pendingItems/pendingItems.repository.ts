@@ -102,12 +102,6 @@ export async function findRequestByProtocol(
       "responsible_user.user_id",
       "responsible_professional.user_id",
     )
-    .leftJoin(
-      "details_professional as mapping_professional",
-      "mapping_professional.professional_id",
-      "requests.mapping_professional_id",
-    )
-    .leftJoin("users as mapping_user", "mapping_user.user_id", "mapping_professional.user_id")
     .where("requests.protocol", protocol.trim())
     .first({
       request_id: "requests.request_id",
@@ -141,12 +135,6 @@ export async function findRequestById(
       "responsible_user.user_id",
       "responsible_professional.user_id",
     )
-    .leftJoin(
-      "details_professional as mapping_professional",
-      "mapping_professional.professional_id",
-      "requests.mapping_professional_id",
-    )
-    .leftJoin("users as mapping_user", "mapping_user.user_id", "mapping_professional.user_id")
     .where("requests.request_id", requestId)
     .first({
       request_id: "requests.request_id",
