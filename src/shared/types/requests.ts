@@ -1,9 +1,28 @@
 /**
- * Nome de status carregado de `statuses.name` — configurável, portanto aberto.
- *
- * A referência do seed vive nas migrations. Nomes não servem para decidir regra
- * de negócio: use os ids core (`./status.ts`) ou flags da tabela `statuses`.
+ * Fonte única dos status de solicitação — alimenta a union `RequestStatus`, a
+ * validação (Zod) e as métricas da fila. Mantenha os nomes alinhados à tabela
+ * `statuses` (migration `202609100013_insert_reference_data`).
  */
+export const REQUEST_STATUSES = [
+  "Solicitação enviada",
+  "Aguardando triagem",
+  "Em triagem",
+  "Pendente de informações",
+  "Aguardando mapeamento",
+  "Mapeamento agendado",
+  "Em mapeamento",
+  "Em análise de viabilidade",
+  "Elegível",
+  "Não elegível",
+  "Priorizado",
+  "Backlog",
+  "Direcionado para outra área",
+  "Em desenvolvimento",
+  "Em homologação",
+  "Concluído",
+  "Cancelado",
+] as const;
+
 export type RequestStatus = string;
 
 /** Fonte única das prioridades — alimenta a union e a validação (Zod). */
@@ -11,13 +30,16 @@ export const REQUEST_PRIORITIES = ["Baixa", "Média", "Alta", "Crítica"] as con
 
 export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
 
-/**
- * Status terminais sem entrega — excluídos das métricas de atraso da fila.
- *
- * @deprecated Prefira a flag `statuses.is_terminal`, que é a fonte de verdade
- * do Motor de Status v4. Mantido enquanto a consulta da fila ainda compara por
- * nome.
- */
+/** Status considerados "em andamento" para as métricas da fila (Home/Fila). */
+export const IN_PROGRESS_STATUSES = [
+  "Em triagem",
+  "Em mapeamento",
+  "Em análise de viabilidade",
+  "Em desenvolvimento",
+  "Em homologação",
+] as const;
+
+/** Status terminais sem entrega — excluídos das métricas de atraso da fila. */
 export const TERMINAL_STATUSES = ["Concluído", "Cancelado"] as const;
 
 export type TriageResult =
@@ -33,17 +55,17 @@ export type OperationalImpact = "Baixo" | "Médio" | "Alto" | "Crítico";
 
 export type YesNoDetail = false | string;
 
-/**
- * Nome de categoria do cadastro (`categories.name`) — configurável (1..50).
- *
- * O seed inicial está em
- * `migrations/requester_request/202609100013_insert_reference_data.js`
- * (`CATEGORIES`). Não há lista fixa em tipos: o Administrador cria, renomeia e
- * desativa categorias pelo portal config.
- *
- * Alias apenas documental — não impõe os valores em nível de tipo.
- */
-export type RequestCategoryName = string;
+export type RequestCategory =
+  | "Automação"
+  | "Melhoria de processo"
+  | "Indicador"
+  | "Dashboard ou relatório"
+  | "Análise de dados"
+  | "Padronização"
+  | "Revisão de processo"
+  | "Apoio técnico"
+  | "Estudo de viabilidade"
+  | "Outros";
 
 export interface AttachmentMetadata {
   fileName: string; // nome original do arquivo — máx. 255
@@ -57,7 +79,7 @@ export interface RequesterBlock {
   area: string; // obrigatório — máx. 100
   department?: string; // opcional (padrão; Admin pode tornar obrigatório) — máx. 100
   // renderização híbrida: <Select> se houver departamentos
-  // cadastrados; texto livre caso contrário
+  // cadastrados; texto livre caso contrário (§1.1)
   manager: string; // obrigatório — gestor responsável, máx. 150
   additionalContact?: string; // opcional — telefone, ramal ou e-mail secundário, máx. 100
 }
@@ -67,7 +89,7 @@ export interface DemandBlock {
   requestType: string; // obrigatório — Tipo de Solicitação (modalidade macro,
   // ex.: Automação, Manutenção, Nova Demanda), máx. 80
   category: string; // obrigatório — Categoria da Demanda (validada contra o
-  // cadastro ativo de `categories`), máx. 80
+  // cadastro ativo; nomes em RequestCategory são a referência base), máx. 80
   processName: string; // obrigatório — nome formal do processo atual, máx. 150
   description: string; // obrigatório — Descrição da Necessidade, máx. 4.000
   problem: string; // obrigatório — Problema ou Oportunidade Identificada, máx. 4.000
@@ -118,11 +140,9 @@ export interface RequesterTable {
 export interface AssignmentContextRow {
   request_id: string;
   protocol: string;
-  title: string;
   professional_id: string | null;
   mapping_professional_id: string | null;
   status: RequestStatus;
-  category: string;
   screening_result: string | null;
   /** Conta do Solicitante; `null` nas linhas anônimas e legadas sem vínculo. */
   requester_user_id: number | null;
@@ -146,25 +166,21 @@ export interface AssignmentCandidateRow {
   is_assignable_mapping: boolean;
 }
 
-/**
- * Projeção conhecida de `findInternalRequestByProtocol`.
- *
- * Lista exatamente as colunas selecionadas pela consulta (incluindo aliases e
- * joins). Campos de mapeamento são sempre projetados: quando a coluna não
- * existe, a query injeta `NULL::uuid/int/text`.
- *
- * Sem índice aberto: acessos a chaves fora da projeção devem ser erro de
- * compilação, não `unknown`.
- */
 export interface InternalRequestRow {
-  // requests
-  request_id: string; // bigint serializado pelo pg
-  requester_id: string; // uuid
-  professional_id: string | null;
-  requester_user_id: number | null;
+  request_id: string;
   protocol: string;
+  status: string;
+  requester_user_id?: number | null;
+  requester_name: string;
+  requester_email: string;
+  requester_area: string | null;
+  requester_department: string | null;
+  requester_manager: string | null;
+  requester_additional_contact: string | null;
   title: string;
   request_type: string;
+  category?: string | null;
+  category_name?: string | null;
   process_name: string;
   need_description: string;
   problem_opportunity: string;
@@ -177,14 +193,14 @@ export interface InternalRequestRow {
   approximate_volume: string;
   people_involved: number;
   average_duration: string;
-  estimated_monthly_effort: string | number; // decimal do pg chega como string
+  estimated_monthly_effort: string | number;
   has_manual_controls: boolean;
   manual_controls_detail: string | null;
   main_risks: string;
   client_impact: string;
-  operational_impact: OperationalImpact; // enum nativo operational_impact_level
-  desired_deadline: string | Date; // coluna date
-  perceived_criticality: RequestPriority; // enum nativo request_priority
+  operational_impact: string;
+  desired_deadline: string | Date;
+  perceived_criticality: string;
   has_process_documentation: boolean | null;
   process_documentation_detail: string | null;
   has_similar_solution: boolean | null;
@@ -194,30 +210,5 @@ export interface InternalRequestRow {
   handles_restricted_info: boolean | null;
   restricted_info_detail: string | null;
   additional_notes: string | null;
-  internal_notes: string | null;
-  meeting_scheduled_for: Date | string | null;
-  meeting_link: string | null;
-  last_technical_message: string | null;
-  last_external_update_at: Date | string | null;
-  created_at: Date | string;
-  updated_at: Date | string;
-
-  // joins e aliases
-  category: string;
-  status: string;
-  public_status: string;
-  priority: string | null;
-  assignee_user_id: number | null;
-  professional_name: string | null;
-  professional_email: string | null;
-  requester_name: string;
-  requester_email: string;
-  requester_area: string | null;
-  requester_department: string | null;
-  requester_manager: string | null;
-  requester_additional_contact: string | null;
-  mapping_professional_id: string | null;
-  mapping_user_id: number | null;
-  mapping_name: string | null;
-  mapping_email: string | null;
+  [key: string]: unknown;
 }

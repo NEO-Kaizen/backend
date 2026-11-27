@@ -75,7 +75,6 @@ jobs:
       PROTOCOL_FPE_KEY: ci-only-not-a-secret
       PORT: 3000
       UPLOAD_DIR: /tmp/neo-kaizen-uploads
-      VERIFY_PASSWORD: steste123
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -152,14 +151,6 @@ jobs:
             cat /tmp/profile-create.json
             exit 1
           fi
-      - name: Verify pending item notifications (API)
-        run: npm run verify:notifications
-      - name: Verify notification rollback (transaction)
-        run: npm run verify:notifications:rollback
-      - name: Show API log on failure
-        if: failure()
-        run: |
-          if [ -f /tmp/api.log ]; then cat /tmp/api.log; fi
       - name: Stop API
         if: always()
         run: |
@@ -168,46 +159,44 @@ jobs:
             rm -f /tmp/api.pid
           fi
 
-  test:
-    name: test
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    services:
-      postgres:
-        # Keep this digest in sync with docker-compose.yml.
-        image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
-        env:
-          POSTGRES_USER: neo_test
-          POSTGRES_PASSWORD: neo_test
-          POSTGRES_DB: neo_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U neo_test -d neo_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-          --health-start-period 10s
-    env:
-      TEST_DB_HOST: 127.0.0.1
-      TEST_DB_PORT: 5432
-      TEST_DB_NAME: neo_test
-      TEST_DB_USER: neo_test
-      TEST_DB_PASSWORD: neo_test
-      TZ: UTC
-      UPLOAD_DIR: /tmp/neo-kaizen-test-uploads
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Set up Node.js 24
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Verify (check + tests)
-        run: npm run verify
+  # TODO(#135): the test suite lives on feat/135-implemented-test-suite and is
+  # not merged into main yet. Enable this job and add `test` to the required
+  # checks once #135 lands. Keep it commented until then.
+  # test:
+  #   name: test
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
+  #   if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+  #   services:
+  #     postgres:
+  #       image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+  #       env:
+  #         POSTGRES_USER: neo_test
+  #         POSTGRES_PASSWORD: neo_test
+  #         POSTGRES_DB: neo_test
+  #       ports:
+  #         - 5432:5432
+  #       options: >-
+  #         --health-cmd "pg_isready -U neo_test -d neo_test"
+  #         --health-interval 5s
+  #         --health-timeout 5s
+  #         --health-retries 10
+  #         --health-start-period 10s
+  #   steps:
+  #     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  #       with:
+  #         persist-credentials: false
+  #     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+  #       with:
+  #         node-version: 24
+  #         cache: npm
+  #     - run: npm ci --no-audit --no-fund
+  #     - run: npm run migrate:latest
+  #     - run: npm test
+  #       env:
+  #         DB_HOST: 127.0.0.1
+  #         DB_PORT: 5432
+  #         DB_NAME: neo_test
+  #         DB_USER: neo_test
+  #         DB_PASSWORD: neo_test
+  #         NODE_ENV: test

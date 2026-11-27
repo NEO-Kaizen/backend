@@ -35,33 +35,29 @@ export async function getSettingsRow(trx?: Knex.Transaction): Promise<SystemSett
  * deve derrubar o servidor se a linha faltar).
  */
 export async function getSolicitationMode(): Promise<PortalSolicitationMode> {
-  const row: Pick<SystemSettingsRow, "solicitation_mode"> | undefined = await db("system_settings")
-    .where({ settings_id: 1 })
-    .first("solicitation_mode");
+  const row = (await db("system_settings").where({ settings_id: 1 }).first("solicitation_mode")) as
+    Pick<SystemSettingsRow, "solicitation_mode"> | undefined;
 
   return row?.solicitation_mode ?? "PUBLIC";
 }
 
 export async function getThemeRow(trx?: Knex.Transaction): Promise<SystemThemeRow | undefined> {
   const source = trx ?? db;
-  const row: SystemThemeRow | undefined = await source("system_themes")
-    .where({ theme_id: 1 })
-    .first();
-  return row;
+  return source("system_themes").where({ theme_id: 1 }).first() as Promise<
+    SystemThemeRow | undefined
+  >;
 }
 
 export async function listCategories(trx?: Knex.Transaction): Promise<CategoryRow[]> {
   const source = trx ?? db;
-  const rows: CategoryRow[] = await source("categories").orderBy("display_order", "asc");
-  return rows;
+  return source("categories").orderBy("display_order", "asc") as Promise<CategoryRow[]>;
 }
 
 export async function listStatuses(trx?: Knex.Transaction): Promise<StatusRow[]> {
   const source = trx ?? db;
   // Retorna também os inativos (`isActive: false`): o contrato mantém o status
   // na lista (sem exclusão) e apenas o exclui de novos fluxos.
-  const rows: StatusRow[] = await source("statuses").orderBy("order_number", "asc");
-  return rows;
+  return source("statuses").orderBy("order_number", "asc") as Promise<StatusRow[]>;
 }
 
 interface CriteriaRow {
@@ -71,11 +67,10 @@ interface CriteriaRow {
 
 export async function listCriteria(trx?: Knex.Transaction): Promise<CriteriaRow[]> {
   const source = trx ?? db;
-  const rows: CriteriaRow[] = await source("criteria")
+  return source("criteria")
     .where({ active: true })
     .orderBy("display_order", "asc")
-    .select("criterion_id", "weight");
-  return rows;
+    .select("criterion_id", "weight") as Promise<CriteriaRow[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,7 +91,7 @@ export async function lockTheme(trx: Knex.Transaction): Promise<void> {
 
 export async function updateSettingsAccess(
   trx: Knex.Transaction,
-  solicitationMode: PortalSolicitationMode,
+  solicitationMode: string,
   actorUserId: number,
 ): Promise<void> {
   await trx("system_settings").where({ settings_id: 1 }).update({

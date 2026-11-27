@@ -1,16 +1,11 @@
-import {
-  findQueueRequests,
-  fetchQueueMetrics,
-  fetchAllAssignees,
-  fetchAllDepartments,
-} from "./queue.repository.ts";
+import { findQueueRequests, fetchQueueMetrics, fetchAllAssignees } from "./queue.repository.ts";
 import type {
   QueueQuery,
   QueueResponse,
   QueueMetricsResponse,
 } from "../../shared/types/queue.types.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { custodyFor, resolveResponsibleScope } from "../../shared/access/custody.ts";
+import { resolveResponsibleScope } from "../../shared/access/custody.ts";
 import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 
 /**
@@ -25,21 +20,6 @@ const resolveQueueScope = (actor: PermissionActor): number | undefined => {
   }
 
   return scope.kind === "assigned" ? scope.userId : undefined;
-};
-
-/**
- * Custódia da busca por notas internas: `internal_note:read` em `assigned`
- * restringe a correspondência às solicitações sob responsabilidade do ator;
- * `all` não adiciona recorte ao `EXISTS`. Quem não tem a chave recebe `0` —
- * um `user_id` inexistente — para que a busca não encontre nenhuma nota.
- */
-const resolveNoteCustodianUserId = (actor: PermissionActor): number | undefined => {
-  const custody = custodyFor(actor.permissions, "internal_note:read");
-
-  if (custody === "all") return undefined;
-  if (custody === "assigned") return actor.id;
-
-  return 0;
 };
 
 export const getQueueMetricsService = async (
@@ -57,31 +37,25 @@ export const listQueueService = async (
   filters: QueueQuery,
   actor: PermissionActor,
 ): Promise<QueueResponse> => {
-  const { page, pageSize, assigneeId, sortBy, sortOrder, ...queueFilters } = filters;
+  const { page, pageSize, search, status, priority, assigneeId, unassigned } = filters;
   const offset = (page - 1) * pageSize;
 
-  const repoUnassigned = Boolean(queueFilters.unassigned || assigneeId === "unassigned");
+  const repoUnassigned = Boolean(unassigned || assigneeId === "unassigned");
   const repoAssigneeId =
     typeof assigneeId === "string" && assigneeId !== "unassigned" ? assigneeId : undefined;
-  const scopedUserId = resolveQueueScope(actor);
-  const noteCustodianUserId = resolveNoteCustodianUserId(actor);
 
-  const [{ items, total }, assignees, departments] = await Promise.all([
+  const [{ items, total }, assignees] = await Promise.all([
     findQueueRequests({
-      ...queueFilters,
+      search,
+      status,
+      priority,
       assigneeId: repoAssigneeId,
       unassigned: repoUnassigned,
-      sortBy,
-      sortOrder,
-      // Escopo da fila e custódia da nota são regras diferentes, resolvidas
-      // por chaves distintas (`queue:read` e `internal_note:read`).
-      scopedUserId,
-      noteCustodianUserId,
+      scopedUserId: resolveQueueScope(actor),
       limit: pageSize,
       offset,
     }),
     fetchAllAssignees(),
-    fetchAllDepartments(),
   ]);
 
   const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
@@ -108,6 +82,5 @@ export const listQueueService = async (
     total,
     totalPages,
     assignees,
-    departments,
   };
 };

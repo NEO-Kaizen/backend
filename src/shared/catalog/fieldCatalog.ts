@@ -41,12 +41,7 @@ export const FIELD_KEYS = [
 
 export type FieldKey = (typeof FIELD_KEYS)[number];
 
-const FIELD_KEY_LOOKUP: ReadonlySet<string> = new Set(FIELD_KEYS);
-
-/** Estreita `string` para `FieldKey` — use na borda antes de chamar o catálogo. */
-export function isFieldKey(value: string): value is FieldKey {
-  return FIELD_KEY_LOOKUP.has(value);
-}
+export const FIELD_KEY_SET = new Set<string>(FIELD_KEYS as unknown as string[]);
 
 export const FIELD_LABELS: Record<FieldKey, string> = {
   "requester.fullName": "Nome completo",
@@ -85,11 +80,7 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
 };
 
 export function getFieldLabel(fieldKey: string): string {
-  return isFieldKey(fieldKey) ? FIELD_LABELS[fieldKey] : fieldKey;
-}
-
-function assertNever(value: never): never {
-  throw new Error(`FieldKey não tratado: ${String(value)}`);
+  return FIELD_LABELS[fieldKey as FieldKey] ?? fieldKey;
 }
 
 function toYesNoDetailString(
@@ -107,86 +98,102 @@ function extractCurrentValue(
 ): string | number | boolean | null {
   switch (fieldKey) {
     case "requester.fullName":
-      return row.requester_name;
+      return row.requester_name as string;
     case "requester.corporateEmail":
-      return row.requester_email;
+      return row.requester_email as string;
     case "requester.area":
-      return row.requester_area ?? "";
+      return (row.requester_area as string | null) ?? "";
     case "requester.department":
-      return row.requester_department ?? null;
+      return (row.requester_department as string | null) ?? null;
     case "requester.manager":
-      return row.requester_manager ?? "";
+      return (row.requester_manager as string | null) ?? "";
     case "requester.additionalContact":
-      return row.requester_additional_contact ?? null;
+      return (row.requester_additional_contact as string | null) ?? null;
     case "demand.title":
-      return row.title;
+      return row.title as string;
     case "demand.requestType":
-      return row.request_type;
+      return row.request_type as string;
     case "demand.category":
-      return row.category ?? "";
+      return (row.category as string) ?? (row.category_name as string) ?? "";
     case "demand.processName":
-      return row.process_name;
+      return row.process_name as string;
     case "demand.description":
-      return row.need_description;
+      return row.need_description as string;
     case "demand.problem":
-      return row.problem_opportunity;
+      return row.problem_opportunity as string;
     case "demand.expectedResult":
-      return row.expected_result;
+      return row.expected_result as string;
     case "demand.justification":
-      return row.justification;
+      return row.justification as string;
     case "operational.processDescription":
-      return row.process_description;
+      return row.process_description as string;
     case "operational.processSteps":
-      return row.process_steps;
+      return row.process_steps as string;
     case "operational.systemsUsed":
-      return row.systems_used;
+      return row.systems_used as string;
     case "operational.executionFrequency":
-      return row.execution_frequency;
+      return row.execution_frequency as string;
     case "operational.volumetry":
-      return row.approximate_volume;
+      return row.approximate_volume as string;
     case "operational.peopleInvolved":
-      return row.people_involved;
+      return row.people_involved as number;
     case "operational.averageExecutionTime":
-      return row.average_duration;
+      return row.average_duration as string;
     case "operational.monthlyEffortHours":
       return Number(row.estimated_monthly_effort);
-    case "operational.hasManualControls":
-      return toYesNoDetailString(row.has_manual_controls, row.manual_controls_detail);
+    case "operational.hasManualControls": {
+      const flag = row.has_manual_controls as boolean;
+      const detail = row.manual_controls_detail as string | null;
+      return toYesNoDetailString(flag, detail) as string | boolean | null;
+    }
     case "operational.mainRisks":
-      return row.main_risks;
+      return row.main_risks as string;
     case "operational.clientImpact":
-      return row.client_impact;
+      return row.client_impact as string;
     case "operational.operationalImpact":
-      return row.operational_impact;
+      return row.operational_impact as string;
     case "operational.desiredDeadline": {
-      const value = row.desired_deadline;
-      if (!value) return null;
-      const date = value instanceof Date ? value : new Date(value);
-      return date.toISOString().slice(0, 10);
+      const v = row.desired_deadline as string | Date;
+      if (!v) return null;
+      const d = v instanceof Date ? v : new Date(v);
+      return d.toISOString().slice(0, 10);
     }
     case "operational.perceivedCriticality":
-      return row.perceived_criticality;
+      return row.perceived_criticality as string;
     case "complementary.hasProcessDocumentation":
-      return toYesNoDetailString(row.has_process_documentation, row.process_documentation_detail);
+      return toYesNoDetailString(
+        row.has_process_documentation as boolean | null,
+        row.process_documentation_detail as string | null,
+      ) as string | boolean | null;
     case "complementary.hasSimilarSolution":
-      return toYesNoDetailString(row.has_similar_solution, row.similar_solution_detail);
+      return toYesNoDetailString(
+        row.has_similar_solution as boolean | null,
+        row.similar_solution_detail as string | null,
+      ) as string | boolean | null;
     case "complementary.dependsOnOtherAreas":
-      return toYesNoDetailString(row.depends_on_other_areas, row.other_areas_detail);
+      return toYesNoDetailString(
+        row.depends_on_other_areas as boolean | null,
+        row.other_areas_detail as string | null,
+      ) as string | boolean | null;
     case "complementary.handlesRestrictedInfo":
-      return toYesNoDetailString(row.handles_restricted_info, row.restricted_info_detail);
+      return toYesNoDetailString(
+        row.handles_restricted_info as boolean | null,
+        row.restricted_info_detail as string | null,
+      ) as string | boolean | null;
     case "complementary.additionalNotes":
-      return row.additional_notes ?? null;
+      return (row.additional_notes as string | null) ?? null;
     default:
-      return assertNever(fieldKey);
+      return null;
   }
 }
 
 export function getFieldSnapshot(
-  fieldKey: FieldKey,
+  fieldKey: string,
   row: InternalRequestRow,
 ): { label: string; value: string | number | boolean | null } {
+  const normalized = fieldKey as FieldKey;
   return {
-    label: getFieldLabel(fieldKey),
-    value: extractCurrentValue(fieldKey, row),
+    label: getFieldLabel(normalized),
+    value: extractCurrentValue(normalized, row),
   };
 }

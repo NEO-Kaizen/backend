@@ -22,10 +22,6 @@ _Evitar_: máscara de formatação, template.
 Pessoa que registra uma solicitação e acompanha seu andamento. Pode atuar de forma anônima — a porta pública, sem conta nem perfil — ou autenticada, com uma conta regida pelas chaves `request:create`, `request:track` e `pending_item:respond`. Em ambos os casos, o vínculo com a solicitação é a _Posse_, não a custódia interna.
 _Evitar_: cliente, usuário externo, requisitante.
 
-**Departamento**:
-Unidade organizacional informada no cadastro do Solicitante. Na busca, o recorte é pelo valor exato e case-insensitive; não é hierarquia nem similaridade, e a ausência do dado não corresponde a nenhum recorte.
-_Evitar_: área, setor, unidade.
-
 **Anexo**:
 Arquivo enviado junto da solicitação, vinculado a ela e disponível para consulta do time interno.
 _Evitar_: documento, upload, arquivo.
@@ -50,32 +46,6 @@ _Evitar_: gravidade, urgência, severidade.
 Atributo que situa a solicitação no fluxo: Status, Prioridade e Categoria. São atributos da solicitação, nunca perguntas do formulário. Só a Categoria é pedida ao solicitante — e é ela que escolhe o formulário que ele preenche.
 _Evitar_: tipo, rótulo, tag.
 
-## Duplicidade
-
-**Duplicidade**:
-Relação entre duas solicitações que descrevem a mesma necessidade. É o mesmo conceito no RF16, que a detecta, e no RF25, que a trata.
-_Evitar_: sugestão, duplicata, similaridade (é a medida, não a relação).
-
-**Similaridade**:
-Grau de proximidade entre os textos de duas solicitações, usado como sinal para o alerta. Não é veredito de duplicidade.
-_Evitar_: score, pontuação, match.
-
-**Alerta de duplicidade**:
-Aviso ao solicitante, ao concluir a aba de Demanda, de que existem solicitações com características em comum. Não vincula registros nem altera status; é a detecção do RF16.
-_Evitar_: sugestão, aviso de duplicata, alerta de similaridade.
-
-**Marcação de duplicidade**:
-Ato formal do RF25 que vincula uma _Solicitação duplicada_ à _Solicitação principal_ e altera o status. Diferente do alerta, que só informa.
-_Evitar_: vinculação, associação, merge.
-
-**Solicitação duplicada**:
-Solicitação marcada como duplicada no RF25, vinculada à _Solicitação principal_.
-_Evitar_: duplicata, duplicado.
-
-**Solicitação principal**:
-Solicitação que representa a necessidade comum e à qual as _Solicitações duplicadas_ são vinculadas no RF25.
-_Evitar_: demanda pai, protocolo pai, original.
-
 ## Análise e priorização
 
 **Triagem**:
@@ -89,10 +59,6 @@ _Evitar_: resultado da triagem, decisão, status da triagem.
 **Mapeamento**:
 Sessão de levantamento com as áreas envolvidas na solução, com participantes, responsável designado e registro próprio.
 _Evitar_: reunião, call, workshop.
-
-**Agendamento**:
-Data, horário, modalidade e meio de acesso da sessão de _Mapeamento_ com o solicitante.
-_Evitar_: agenda, reunião, call.
 
 **Análise de viabilidade**:
 Etapa em que se avalia a possibilidade técnica e operacional de atender a solicitação já mapeada.
@@ -142,44 +108,6 @@ _Evitar_: log, histórico, trilha de mudanças.
 Registro imutável de uma ação que foi recusada — por falta de permissão ou por regra de negócio. Preservado mesmo quando a ação não aconteceu. A _recusa_ é o ato; a _tentativa_ é o registro dele. O conjunto é a _trilha de tentativas_.
 _Evitar_: erro, negação, log.
 
-## Notificações e audiência
-
-**Notificação**:
-Aviso dirigido a um destinatário sobre um acontecimento de uma solicitação, exibido dentro da aplicação e com estado de leitura próprio.
-_Evitar_: alerta, aviso, push, mensagem do sistema.
-
-**Evento**:
-Acontecimento do ciclo de vida de uma solicitação capaz de originar _Notificações_ — mudança de status, pendência, agendamento ou designação.
-_Evitar_: gatilho, trigger, ocorrência.
-
-**Centro de não lidas**:
-Lugar único da aplicação onde a pessoa autenticada vê suas _Notificações_ e marca as lidas.
-_Evitar_: inbox, sino, painel de avisos, central de notificações.
-
-**Matriz de audiência**:
-Correspondência entre _Eventos_, destinatários e _Allowlists_.
-_Evitar_: RBAC (é _Perfil_ e _Permissão_), mapa de visibilidade.
-
-**Allowlist**:
-Lista explícita dos campos que um _Payload_ pode carregar para uma audiência.
-_Evitar_: whitelist, filtro de campos.
-
-**Payload**:
-Conteúdo efetivo de uma _Notificação_, já reduzido à _Allowlist_ da audiência.
-_Evitar_: corpo, dados, objeto de resposta.
-
-**Destinatário**:
-Usuário que recebe uma _Notificação_.
-_Evitar_: usuário notificado, receptor.
-
-**Canal**:
-Mecanismo de entrega de _Notificações_ (na v1, canal in-app; preparado para e-mail no RF31).
-_Evitar_: meio, adaptador de envio.
-
-**Stream**:
-Canal contínuo de entrega de _Notificações_ em tempo real via Server-Sent Events (SSE).
-_Evitar_: websocket, conexão aberta, canal ao vivo.
-
 ## Acesso
 
 **Permissão**:
@@ -191,7 +119,7 @@ Vínculo do _Solicitante_ com a solicitação que ele abriu. Não é custódia i
 _Evitar_: propriedade, ownership, dono.
 
 **Custódia**:
-Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.professional_id` via `details_professional.user_id`); para as ações comuns (`request:read`, `request:write`, `request:status_change`, `internal_note:*`, `audit:read` e `queue:*`), o Responsável do mapeamento corrente também conta; `mapping:*` é exclusivo do mapeamento corrente; e, para `request:track` e `pending_item:respond`, a conta do Solicitante (`requests.requester_user_id`, com o e-mail apenas nas linhas legadas sem vínculo). Os snapshots de triagem e de mapeamento não concedem acesso.
+Vínculo entre um usuário e uma linha que o autoriza a agir sobre ela. Uma permissão é `global` (não depende da linha) ou `custodial` (só vale sobre linhas em custódia). Na matriz, a chave custodial é concedida em `assigned` (Responsável corrente) ou `all` (sem filtro de linha); `own` (posse) é exclusivo de `request:track` e `pending_item:respond`. As fontes são o _Responsável_ corrente (`requests.professional_id` via `details_professional.user_id`); para as chaves de mapeamento, o responsável do mapeamento corrente também conta; e, para `request:track` e `pending_item:respond`, a conta do Solicitante (`requests.requester_user_id`, com o e-mail apenas nas linhas legadas sem vínculo). Os snapshots de triagem e de mapeamento não concedem acesso.
 _Evitar_: escopo, abrangência, alcance, dono, ownership.
 
 **Atribuibilidade (atribuível)**:
@@ -221,10 +149,6 @@ _Evitar_: hierarquia de perfis, nível, ranking, poder.
 **Responsável**:
 Pessoa designada para conduzir a triagem ou o mapeamento de uma solicitação. O vínculo com a solicitação é a _Custódia_; a propriedade do perfil de poder receber essa designação é a _Atribuibilidade_. Quem criou a solicitação não pode ser o _Responsável_ dela (`assignee_is_requester`): o vínculo de posse não se acumula com o de custódia.
 _Evitar_: analista (é o perfil, não o vínculo), dono, responsável técnico.
-
-**Designação**:
-Ato do administrador de escolher o _Responsável_ de uma solicitação ou de um _Mapeamento_.
-_Evitar_: atribuição, alocação, assign.
 
 **Modo de acesso**:
 Configuração que determina se a abertura de solicitação exige autenticação ou está liberada ao público.

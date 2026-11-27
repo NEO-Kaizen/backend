@@ -10,7 +10,7 @@ import { getMappingService, upsertMappingService } from "./mapping.service.ts";
 
 /** Valida e devolve `req.params.protocol` — mesmo padrão do módulo `requests`. */
 function assertProtocolParam(req: Request): string {
-  const protocol = req.params.protocol;
+  const protocol = req.params.protocol as string;
 
   if (!protocol || typeof protocol !== "string" || protocol.trim() === "") {
     throw new AppError("Protocolo é obrigatório", 400);

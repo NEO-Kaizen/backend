@@ -52,8 +52,8 @@ Endpoints da fila aplicando o escopo por perfil no backend.
 - `src/modules/queue/queue.service.ts`
 - `src/modules/queue/queue.repository.ts`
 - `src/modules/queue/mapping.repository.ts` (responsável de mapeamento)
-- `docs/rules/pending-items.md`
-- `docs/rules/assignment.md`
+- `docs/requests-internal-query-contract.md`
+- `docs/requests-assignment-contract.md`
 
 ## Evidências esperadas
 

@@ -1,6 +1,5 @@
 /**
- * Expande os assets do portal conforme a especificação OpenAPI em `src/docs/`
- * (seção assets):
+ * Expande os assets do portal para o contrato `portal-config-api2.md` (§5):
  * um par claro/escuro por tipo, mais o flag `logoUsePrimaryColor`.
  *
  * Antes  : logo_url | avatar_url | favicon_url | login_image_url
@@ -10,7 +9,7 @@
  *          favicon_light_url | favicon_dark_url
  *
  * Backfill: valores existentes das colunas únicas são copiados para AMBAS as
- * variantes (light/dark) daquele tipo — a especificação define `*DarkUrl` vazio
+ * variantes (light/dark) daquele tipo — o contrato define `*DarkUrl` vazio
  * como fallback para a variante clara, então copiar para as duas preserva o
  * asset vigente sem risco de perda. O flag `logoUsePrimaryColor` nasce false
  * (reproduz o comportamento atual: logo renderizado por completo, sem tint).
@@ -41,7 +40,7 @@ export async function up(knex) {
     );
   }
 
-  // Remove as colunas antigas (a especificação atual não as expõe mais).
+  // Remove as colunas antigas (o contrato api2 não as expõe mais).
   await knex.schema.alterTable("system_settings", (table) => {
     for (const [oldName] of OLD_TO_NEW) {
       table.dropColumn(oldName);

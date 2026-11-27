@@ -1,4 +1,3 @@
-import type { Knex } from "knex";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import {
@@ -9,7 +8,6 @@ import {
   CODE_ASSIGNEE_NOT_ASSIGNABLE,
 } from "../../shared/access/assignability.ts";
 import db from "../../database/conection.ts";
-import { REQUEST_PRIORITIES } from "../../shared/types/requests.ts";
 import type {
   RequestStatus,
   OperationalImpact,
@@ -18,7 +16,6 @@ import type {
   DemandBlock,
   AssignmentCandidateRow,
 } from "../../shared/types/requests.ts";
-import { STATUS_IDS } from "../../shared/types/status.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
   Meeting,
@@ -58,31 +55,21 @@ import {
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 import { applyStatusTransition } from "./statusTransition.ts";
-import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
-import {
-  emitStatusChangedNotification,
-  type StatusTarget,
-} from "../../shared/notifications/statusChangedNotification.ts";
-import { emitResponsibleAssignedNotification } from "../../shared/notifications/responsibleAssignedNotification.ts";
-import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
 
 import type {
   AssignAnalystPayload,
   AssignRequestPayload,
-  CancelRequestPayload,
   UpdateRequestPayload,
   UpdateStatusPayload,
 } from "./requests.schema.ts";
 import {
   custodyFor,
   denyRequestAccess,
-  hasAnyResponsibleCustody,
   hasResponsibleCustody,
   isRequesterOwner,
   recordAccessDeniedAttempt,
   type PermissionActor,
 } from "../../shared/access/requestAccess.ts";
-import { hasAdministrativeAuditOrigin } from "../../shared/access/custody.ts";
 import type { UpdateStatusResponse } from "../DTOs/requests/RequestRequests.dto.ts";
 import type { PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
 
@@ -270,27 +257,8 @@ export async function findInternalByProtocol(
     protocol,
     ipAddress,
     "request:read sem custódia",
-    // A visão interna é legível pelo Responsável da triagem **ou** do
-    // Mapeamento corrente: designar o mapeamento zera `professional_id` por
-    // exclusividade, e o designado não pode perder a leitura da linha.
-    (row) =>
-      hasAnyResponsibleCustody(actor, "request:read", [
-        row["assignee_user_id"],
-        row["mapping_user_id"],
-      ]),
+    (row) => hasResponsibleCustody(actor, "request:read", row["assignee_user_id"]),
     ["request:read"],
-  );
-
-  // Blocos sensíveis do DTO seguem as chaves próprias: o designado do
-  // mapeamento lê a solicitação, mas não Observações internas nem Pendências.
-  const canReadInternalNotes = hasAnyResponsibleCustody(actor, "internal_note:read", [
-    request["assignee_user_id"],
-    request["mapping_user_id"],
-  ]);
-  const canReadPendingItems = hasResponsibleCustody(
-    actor,
-    "pending_item:read",
-    request["assignee_user_id"],
   );
 
   const requestId = request["request_id"] as string;
@@ -310,18 +278,8 @@ export async function findInternalByProtocol(
       }
     : null;
 
-  // Pendências (contract-pendencias_03): pendingSummary/unread/correctionAlert
-  // derivados sem tabela de leitura. Sem `pending_item:read` na linha, o bloco
-  // sai vazio em vez de expor a existência de pendências.
+  // Pendências (contract-pendencias_03): pendingSummary/unread/correctionAlert derivados sem tabela de leitura.
   const pendingSummary = await (async () => {
-    if (!canReadPendingItems) {
-      return {
-        summary: { total: 0, requested: 0, responded: 0, validated: 0 },
-        correctionAlert: null,
-        unread: { count: 0, hasUnread: false, lastUnreadAt: null as string | null },
-      };
-    }
-
     try {
       const summary = await pendingItemsRepo.pendingSummaryByRequestId(requestId);
       const correctionAlert = await pendingItemsRepo.findCorrectionAlert(requestId);
@@ -391,7 +349,7 @@ export async function findInternalByProtocol(
   return {
     protocol: request["protocol"] as string,
     status: request["status"] as string,
-    priority: parseRequestPriority((request["priority"] as string | null) ?? null),
+    priority: (request["priority"] as string | null) ?? null,
     prioritization: {
       score: evaluation ? evaluation.score : null,
       maxScore: 50,
@@ -456,9 +414,7 @@ export async function findInternalByProtocol(
     })),
     openedAt,
     lastUpdate,
-    internalObservations: canReadInternalNotes
-      ? extractInternalObservations(request["internal_notes"] as string | null)
-      : null,
+    internalObservations: extractInternalObservations(request["internal_notes"] as string | null),
   };
 }
 
@@ -472,17 +428,6 @@ export async function findInternalByProtocol(
  * ou qualquer outra chave customizada — continua sendo o `internalObservations`
  * do contrato.
  */
-/**
- * A coluna `priority` é texto livre no banco; só os valores do vocabulário
- * conhecido viram `RequestPriority` na resposta (histórico pode estar fora).
- */
-function parseRequestPriority(value: string | null): RequestPriority | null {
-  if (value === null) return null;
-  return (REQUEST_PRIORITIES as readonly string[]).includes(value)
-    ? (value as RequestPriority)
-    : null;
-}
-
 function extractInternalObservations(raw: string | null | undefined): string | null {
   if (!raw) return null;
 
@@ -609,60 +554,12 @@ function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails 
   };
 }
 
-function isCancellationEligible(request: { status_id: number; has_triage: boolean }): boolean {
-  return request.status_id === STATUS_IDS.requestSent && !request.has_triage;
-}
-
-export async function cancelRequest(
-  protocol: string,
-  payload: CancelRequestPayload,
-  actor: { id: number; email: string },
-  ipAddress: string | undefined,
-): Promise<{ status: "Cancelado" }> {
-  return db.transaction(async (trx) => {
-    const locked = await repository.lockRequestForCancellation(trx, protocol, actor.id);
-    // Consulte triages em um novo comando após qualquer espera pelo bloqueio.
-    const request = locked && (await repository.findCancellationContext(locked.request_id, trx));
-    if (!request || request.requester_user_id !== actor.id) {
-      throw new AppError("Protocolo não encontrado", 404);
-    }
-    if (!isCancellationEligible(request)) {
-      throw new AppError("Esta solicitação não pode mais ser cancelada.", 422, "rf07_not_eligible");
-    }
-
-    const lastTechnicalMessage = "Solicitação cancelada pelo titular.";
-    await applyStatusTransition(trx, {
-      requestId: request.request_id,
-      target: { status_id: STATUS_IDS.canceled, name: "Cancelado", isPublic: true },
-      updatedBy: actor.email,
-      lastTechnicalMessage,
-      expectedStatusId: STATUS_IDS.requestSent,
-    });
-    await recordAudit(trx, {
-      entityType: "request",
-      entityId: request.protocol,
-      actionType: "request.status_change",
-      userId: actor.id,
-      previousValue: "Solicitação enviada",
-      newValue: "Cancelado",
-      note: payload.justification,
-      lastTechnicalMessage,
-      ipAddress,
-      changeOrigin: "requester",
-    });
-
-    return { status: "Cancelado" };
-  });
-}
-
 async function buildAuthenticatedDetails(
   row: Record<string, unknown>,
-  userId: number,
 ): Promise<RequesterRequestDetails> {
   const requestId = row["request_id"] as string;
-  const [attachments, cancellation, schedulePreferences] = await Promise.all([
+  const [attachments, schedulePreferences] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
-    repository.findCancellationContext(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
   ]);
 
@@ -674,7 +571,6 @@ async function buildAuthenticatedDetails(
 
   return {
     ...base,
-    canCancel: cancellation?.requester_user_id === userId && isCancellationEligible(cancellation),
     operational: {
       ...impacts,
       processDescription: row["process_description"] as string,
@@ -743,7 +639,7 @@ async function getAuthenticatedTracking(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  return { mode: "authenticated", details: await buildAuthenticatedDetails(row, Number(user.id)) };
+  return { mode: "authenticated", details: await buildAuthenticatedDetails(row) };
 }
 
 async function getPublicTracking(
@@ -924,8 +820,7 @@ export async function updateInternalRequest(
     protocol.trim(),
     ipAddress,
     "request:write sem custódia",
-    (row) =>
-      hasAnyResponsibleCustody(actor, "request:write", [row.assignee_user_id, row.mapping_user_id]),
+    (row) => hasResponsibleCustody(actor, "request:write", row.assignee_user_id),
     ["request:write"],
   );
 
@@ -951,10 +846,7 @@ export async function updateInternalRequest(
   const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (
     updatedRequest &&
-    hasAnyResponsibleCustody(actor, "request:read", [
-      updatedRequest.assignee_user_id,
-      updatedRequest.mapping_assignee_user_id,
-    ])
+    hasResponsibleCustody(actor, "request:read", updatedRequest.assignee_user_id)
   ) {
     return findInternalByProtocol(protocol.trim(), actor, ipAddress);
   }
@@ -1070,11 +962,7 @@ export async function assignResponsible(
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) =>
-      hasAnyResponsibleCustody(actor, "request:assign", [
-        row.assignee_user_id,
-        row.mapping_assignee_user_id,
-      ]),
+    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
     ["request:assign"],
   );
 
@@ -1101,20 +989,10 @@ export async function assignResponsible(
     request.status === RN010_FROM_STATUS &&
     request.screening_result === RN010_ELIGIBLE_SCREENING;
 
-  // Exclusividade triagem/mapeamento (issue #161): designar Responsável na
-  // triagem desatribui o designado do mapeamento — mesmo contrato da rota
-  // interna. Sem isso a rota legada deixaria os dois lados preenchidos.
-  const previousMapping = request.mapping_professional_id;
-  const auditPrevMapping = previousMapping
-    ? ((await repository.findAssignmentCandidateById(previousMapping))?.user_id ?? null)
-    : null;
-
-  let committedNotifications: CommittedNotification[] = [];
-
   await db.transaction(async (trx) => {
     await repository.updateAssignee(trx, request.request_id, nextId, actor.email);
 
-    const auditId = await recordAudit(trx, {
+    await recordAudit(trx, {
       entityType: "request",
       entityId: request.protocol,
       actionType: `request.${action}`,
@@ -1125,30 +1003,8 @@ export async function assignResponsible(
       changeOrigin: "admin",
     });
 
-    // Exclusividade: atribuir triagem desatribui mapeamento (apenas na
-    // designação).
-    if (auditNext !== null && previousMapping) {
-      await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
-      await recordAudit(trx, {
-        entityType: "request",
-        entityId: request.protocol,
-        actionType: "request.unassign",
-        userId: actor.id,
-        previousValue: auditPrevMapping ? String(auditPrevMapping) : null,
-        newValue: null,
-        ipAddress,
-        changeOrigin: "admin",
-      });
-    }
-
     if (shouldAdvanceStatus) {
-      await repository.updateStatus(
-        trx,
-        request.request_id,
-        RN010_TO_STATUS,
-        RN010_FROM_STATUS,
-        actor.email,
-      );
+      await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
 
       await recordAudit(trx, {
         entityType: "request",
@@ -1161,29 +1017,7 @@ export async function assignResponsible(
         changeOrigin: "system",
       });
     }
-
-    // Designação de Responsável (issue #161): notifica o analista designado —
-    // o ator que designou não recebe. Sem troca de designado, não há
-    // Notificação duplicada.
-    if (assignee !== null) {
-      committedNotifications = await notifyResponsibleAssignedIfNeeded(trx, {
-        auditId,
-        requestId: request.request_id,
-        actorUserId: actor.id,
-        recipientUserId: Number(assignee.id),
-        previousUserId: auditPrev,
-        otherRoleUserId: auditPrevMapping,
-        protocol: request.protocol,
-        title: request.title,
-        category: request.category,
-        status: shouldAdvanceStatus ? RN010_TO_STATUS : request.status,
-      });
-    }
   });
-
-  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
-  // fonte de verdade para quem reconectar via `Last-Event-ID`.
-  publishCommittedNotifications(committedNotifications);
 
   return {
     protocol: request.protocol,
@@ -1204,11 +1038,7 @@ export async function assignAnalyst(
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) =>
-      hasAnyResponsibleCustody(actor, "request:assign", [
-        row.assignee_user_id,
-        row.mapping_assignee_user_id,
-      ]),
+    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
     ["request:assign"],
   );
 
@@ -1216,8 +1046,6 @@ export async function assignAnalyst(
   // Perfil. A validação do alvo ocorre no service para definir ou reatribuir.
   const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
   const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
-
-  let committedNotifications: CommittedNotification[] = [];
 
   if (hasAssignee) {
     const raw = payload.assigneeId as string | null | undefined;
@@ -1265,7 +1093,7 @@ export async function assignAnalyst(
           resolved.professionalId,
           actor.email,
         );
-        const auditId = await recordAudit(trx, {
+        await recordAudit(trx, {
           entityType: "request",
           entityId: request.protocol,
           actionType: `request.${action}`,
@@ -1292,13 +1120,7 @@ export async function assignAnalyst(
           await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
         }
         if (shouldAdvance) {
-          await repository.updateStatus(
-            trx,
-            request.request_id,
-            RN010_TO_STATUS,
-            RN010_FROM_STATUS,
-            actor.email,
-          );
+          await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
           await recordAudit(trx, {
             entityType: "request",
             entityId: request.protocol,
@@ -1310,21 +1132,6 @@ export async function assignAnalyst(
             changeOrigin: "system",
           });
         }
-
-        // Designação de Responsável (issue #161): notifica o analista
-        // designado — o ator que designou não recebe.
-        committedNotifications = await notifyResponsibleAssignedIfNeeded(trx, {
-          auditId,
-          requestId: request.request_id,
-          actorUserId: actor.id,
-          recipientUserId: Number(resolved.id),
-          previousUserId: auditPrev,
-          otherRoleUserId: auditPrevMapping,
-          protocol: request.protocol,
-          title: request.title,
-          category: request.category,
-          status: shouldAdvance ? RN010_TO_STATUS : request.status,
-        });
       });
     }
   } else if (hasMapping) {
@@ -1370,7 +1177,7 @@ export async function assignAnalyst(
           resolved.professionalId,
           actor.email,
         );
-        const auditId = await recordAudit(trx, {
+        await recordAudit(trx, {
           entityType: "request",
           entityId: request.protocol,
           actionType: `request.${action}`,
@@ -1396,90 +1203,19 @@ export async function assignAnalyst(
         } else {
           await repository.updateAssignee(trx, request.request_id, null, actor.email);
         }
-
-        // Designação de Responsável (issue #161): notifica o analista
-        // designado do mapeamento — o ator que designou não recebe.
-        committedNotifications = await notifyResponsibleAssignedIfNeeded(trx, {
-          auditId,
-          requestId: request.request_id,
-          actorUserId: actor.id,
-          recipientUserId: Number(resolved.id),
-          previousUserId: auditPrev,
-          otherRoleUserId: auditPrevAssignee,
-          protocol: request.protocol,
-          title: request.title,
-          category: request.category,
-          status: request.status,
-        });
       });
     }
   }
 
-  // Aviso pós-commit: se a transação falhar, nada é publicado.
-  publishCommittedNotifications(committedNotifications);
-
   const updatedRequest = await repository.findAssignmentContextByProtocol(protocol.trim());
   if (
     updatedRequest &&
-    hasAnyResponsibleCustody(actor, "request:read", [
-      updatedRequest.assignee_user_id,
-      updatedRequest.mapping_assignee_user_id,
-    ])
+    hasResponsibleCustody(actor, "request:read", updatedRequest.assignee_user_id)
   ) {
     return findInternalByProtocol(protocol.trim(), actor, ipAddress);
   }
 
   return { protocol: protocol.trim(), updated: true };
-}
-
-/**
- * Designação real (primeira designação ou troca de designado) — a única
- * condição em que a emissão de "Designação de Responsável" (issue #161) acontece.
- */
-async function notifyResponsibleAssignedIfNeeded(
-  trx: Knex.Transaction,
-  input: {
-    auditId: string;
-    requestId: string;
-    actorUserId: number;
-    recipientUserId: number;
-    previousUserId: number | null;
-    /** Usuário do papel oposto (triagem ↔ mapeamento) antes da exclusividade. */
-    otherRoleUserId: number | null;
-    protocol: string;
-    title: string;
-    category: string;
-    status: string;
-  },
-): Promise<CommittedNotification[]> {
-  if (!hasDesignationChanged(input.previousUserId, input.recipientUserId, input.otherRoleUserId)) {
-    return [];
-  }
-
-  return emitResponsibleAssignedNotification(trx, {
-    auditId: input.auditId,
-    requestId: input.requestId,
-    actorUserId: input.actorUserId,
-    recipientUserId: input.recipientUserId,
-    protocol: input.protocol,
-    title: input.title,
-    category: input.category,
-    status: input.status,
-  });
-}
-
-/**
- * Designação real: primeira atribuição ou troca de analista. Na troca de papel
- * (triagem ↔ mapeamento) o mesmo analista já era o designado do outro lado —
- * a exclusividade apenas move o vínculo, sem gerar nova Notificação (#161).
- */
-function hasDesignationChanged(
-  previousUserId: number | null,
-  nextUserId: number,
-  otherRoleUserId: number | null,
-): boolean {
-  if (otherRoleUserId === nextUserId) return false;
-  return previousUserId === null || previousUserId !== nextUserId;
 }
 
 // --- PATCH /requests/:protocol/status (Motor de Status v4) -------------------
@@ -1499,11 +1235,7 @@ export async function updateRequestStatus(
     protocol.trim(),
     ipAddress,
     "request:status_change sem custódia",
-    (row) =>
-      hasAnyResponsibleCustody(actor, "request:status_change", [
-        row.assignee_user_id,
-        row.mapping_assignee_user_id,
-      ]),
+    (row) => hasResponsibleCustody(actor, "request:status_change", row.assignee_user_id),
     ["request:status_change"],
   );
 
@@ -1551,9 +1283,9 @@ export async function updateRequestStatus(
   const actionType: "request.status_change" | "request.status_override" = requiresOverride
     ? "request.status_override"
     : "request.status_change";
-  const changeOrigin = hasAdministrativeAuditOrigin(actor.permissions) ? "admin" : "internal";
+  const changeOrigin = "internal";
 
-  const { lastUpdate, committed } = await db.transaction(async (trx) => {
+  const lastUpdate = await db.transaction(async (trx) => {
     const persistedAt = await applyStatusTransition(trx, {
       requestId: request.request_id,
       target: {
@@ -1566,7 +1298,7 @@ export async function updateRequestStatus(
       expectedStatusId: request.current_status_id,
     });
 
-    const auditId = await recordAudit(trx, {
+    await recordAudit(trx, {
       entityType: "request",
       entityId: request.protocol,
       actionType,
@@ -1581,35 +1313,8 @@ export async function updateRequestStatus(
       changeOrigin,
     });
 
-    const statusTarget: StatusTarget = {
-      statusId: target.status_id,
-      isPublic: target.isPublic,
-      isRestricted: target.is_restricted,
-    };
-
-    // A mudança efetiva e a elegibilidade (Status público e não restrito,
-    // solicitante autenticado) são decididas por
-    // `emitStatusChangedNotification`; transições internas ou restritas
-    // continuam sem Notificação.
-    const committedNotifications = await emitStatusChangedNotification(trx, {
-      source: "status_patch",
-      auditId,
-      requestId: request.request_id,
-      protocol: request.protocol,
-      title: request.title,
-      newStatus: target.name,
-      actorUserId: actor.id,
-      requesterUserId: request.requester_user_id,
-      previousStatusId: request.current_status_id,
-      targetStatus: statusTarget,
-    });
-
-    return { lastUpdate: persistedAt, committed: committedNotifications };
+    return persistedAt;
   });
-
-  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
-  // fonte de verdade para quem reconectar via `Last-Event-ID`.
-  publishCommittedNotifications(committed);
 
   return {
     protocol: request.protocol,

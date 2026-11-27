@@ -4,15 +4,6 @@
 
 Antes de adicionar ou alterar módulos, endpoints, migrations, seeds ou testes, leia `CODING_STANDARDS.md`.
 
-### Contrato HTTP
-
-**A especificação OpenAPI em `src/docs/` é a fonte única do contrato HTTP.** Ela define rotas, métodos, parâmetros, payloads, respostas, enums e códigos de erro, e é servida em `GET /api-docs` em desenvolvimento. Arquivos em `docs/` nunca redefinem esse contrato — quando houver divergência de contrato HTTP, vale a especificação.
-
-- Mudou rota, payload, resposta ou código de erro → atualize `src/docs/`, gere o artefato com `npm run docs:openapi` e rode `npm run docs:openapi:check` no mesmo PR.
-- Regra de negócio (como o domínio decide, não o formato do fio) → `docs/rules/`.
-- Decisão difícil de reverter → ADR em `docs/adr/`.
-- Persistência/schema → `docs/database/`; acesso → `docs/rbac.md`.
-
 ### Issue tracker
 
 Issues e specs vivem no GitHub em `NEO-Kaizen/backend`, operadas com a CLI `gh`. Veja `docs/agents/issue-tracker.md`.
@@ -23,7 +14,7 @@ Apenas `pronto-para-agente` e `pronto-para-humano` são labels de triagem; as de
 
 ### Domain docs
 
-Contexto único: `GLOSSARY.md`, `docs/rules/` e `docs/adr/` na raiz do repositório. Veja `docs/agents/domain.md`.
+Contexto único: `GLOSSARY.md` e `docs/adr/` na raiz do repositório. Veja `docs/agents/domain.md`.
 
 ## Convenções de Git
 

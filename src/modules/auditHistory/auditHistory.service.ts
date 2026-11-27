@@ -1,9 +1,9 @@
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
   custodyFor,
-  denyRequestAccess,
-  hasAnyResponsibleCustody,
+  hasResponsibleCustody,
   recordAccessDeniedAttempt,
+  requireResponsibleCustody,
 } from "../../shared/access/requestAccess.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import type {
@@ -14,14 +14,13 @@ import type {
 } from "../DTOs/auditHistory/AuditHistory.dto.ts";
 import * as repository from "./auditHistory.repository.ts";
 import type { AuditAccessScope } from "./auditHistory.repository.ts";
-import { auditCatalog, isAuditEntityName } from "../../shared/audit/auditCatalog.ts";
+import { auditCatalog, type AuditEntityName } from "../../shared/audit/auditCatalog.ts";
 import { toActorProfileSnapshot } from "../../shared/types/profile.ts";
 import { findRequestStatusContext } from "../requests/requests.repository.ts";
 
-/** Rótulo do catálogo; valores históricos fora dele caem no próprio nome persistido. */
-function entityTypeLabel(entityType: string): string {
-  return isAuditEntityName(entityType) ? auditCatalog[entityType].label : entityType;
-}
+const entityLabels: Record<AuditEntityName, string> = Object.fromEntries(
+  Object.entries(auditCatalog).map(([key, val]) => [key, val.label]),
+) as Record<AuditEntityName, string>;
 
 /** Recorte da Custódia `audit:read` para as consultas administrativas. */
 function auditScopeFor(actor: PermissionActor): AuditAccessScope {
@@ -45,10 +44,8 @@ export async function listAuditHistoryLogs(
 
   const formatted: AuditHistorySummary[] = items.map((row) => ({
     audit_id: Number(row.audit_id),
-    // Valores históricos podem estar fora do catálogo atual; o contrato expõe
-    // o valor persistido e o label cai no fallback.
     entity_type: row.entity_type,
-    entity_type_label: entityTypeLabel(row.entity_type),
+    entity_type_label: entityLabels[row.entity_type as AuditEntityName] ?? row.entity_type,
     action_type: row.action_type,
     actor: {
       kind: row.user_id === null ? "system" : "user",
@@ -120,11 +117,7 @@ export async function getAuditHistoryDetail(
     const protocol = await repository.findAuditTargetProtocol(row.entity_type, row.entity_id);
     const request = protocol ? await findRequestStatusContext(protocol) : undefined;
     const isVisible =
-      request !== undefined &&
-      hasAnyResponsibleCustody(actor, "audit:read", [
-        request.assignee_user_id,
-        request.mapping_assignee_user_id,
-      ]);
+      request !== undefined && hasResponsibleCustody(actor, "audit:read", request.assignee_user_id);
 
     if (!isVisible) {
       await recordAccessDeniedAttempt(
@@ -143,7 +136,7 @@ export async function getAuditHistoryDetail(
 
 /**
  * Timeline de auditoria por protocolo (`GET /audit-logs/:protocol`, issue
- * #124). A chave `request:read` é o gate da rota; a linha é resolvida pela
+ * #124). A chave `audit:read` é o gate da rota; a linha é resolvida pela
  * Custódia do Responsável corrente, sem revelar existência fora dela.
  */
 export async function listAuditLogsByProtocol(
@@ -153,18 +146,15 @@ export async function listAuditLogsByProtocol(
 ): Promise<AuditHistoryDetail[]> {
   const normalized = protocol.trim();
 
-  const request = await findRequestStatusContext(normalized);
-  if (
-    !request ||
-    !hasAnyResponsibleCustody(actor, "request:read", [
-      request.assignee_user_id,
-      request.mapping_assignee_user_id,
-    ])
-  ) {
-    return denyRequestAccess(normalized, actor.id, ipAddress, "request:read sem custódia", [
-      "request:read",
-    ]);
-  }
+  const request = await requireResponsibleCustody(
+    await findRequestStatusContext(normalized),
+    actor,
+    "audit:read",
+    normalized,
+    ipAddress,
+    "audit:read sem custódia",
+    (row) => row.assignee_user_id,
+  );
 
   const rows = await repository.listAuditHistoryByProtocol(request.protocol);
   return rows.map((row) => toDetail(row));

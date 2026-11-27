@@ -7,14 +7,12 @@
 // Fluxo do `PUT` (tudo na MESMA transação — fecha janela TOCTOU):
 // 1. re-lê contexto da solicitação (status + responsável);
 // 2. localiza o alvo (`id` explícito ou mapeamento aberto mais recente);
-// 3. aplica a designação (`mappingAssigneeId`) se fornecida — `request:assign`;
-// 4. autoriza leitura e escrita pela chave e pela Custódia do mapeamento
-//    corrente (a triagem não edita o mapeamento);
+// 3. aplica a designação (`mappingAssigneeId`) se fornecida;
+// 4. autoriza leitura e escrita pela chave e pela Custódia da solicitação ou
+//    do mapeamento corrente;
 // 5. mescla os campos (ausente mantém / `null` limpa);
 // 6. resolve participantes, persiste, audita e (se concluir) avança o status
-//    para `Mapeamento agendado`;
-// 7. se concluiu para `Mapeamento agendado`, emite a Notificação de Agendamento
-//    (issue #160) na mesma transação e publica o aviso pós-commit.
+//    para `Mapeamento agendado`.
 import db from "../../database/conection.ts";
 import {
   assertAssigneeTargetEligible,
@@ -25,13 +23,8 @@ import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { recordAccessDeniedAttempt } from "../../shared/audit/accessDenied.ts";
-import type { PermissionKey } from "../../shared/catalog/permissionCatalog.ts";
 import { hasAdministrativeAuditOrigin, hasPermissionCustody } from "../../shared/access/custody.ts";
 import { applyStatusTransition } from "../requests/statusTransition.ts";
-import { STATUS_IDS } from "../../shared/types/status.ts";
-import { emitMappingScheduledNotification } from "../../shared/notifications/mappingScheduledNotification.ts";
-import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
-import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 import type {
   MappingActor,
   MappingAssignee,
@@ -45,21 +38,12 @@ import * as repository from "./mapping.repository.ts";
 import type { MappingRow } from "./mapping.repository.ts";
 import type { Knex } from "knex";
 
-/**
- * Conclusão do Mapeamento para o Status `Mapeamento agendado` — a única que
- * gera Evento `mapping_scheduled`; nomea a regra que se repetia no service.
- */
-function isSchedulingConclusion(concludeTarget: repository.MappingTargetRow | null): boolean {
-  return concludeTarget?.status_id === STATUS_IDS.mappingScheduled;
-}
-
 /** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
 async function recordMappingAccessDenied(
   protocol: string,
   actorId: number,
   detail: string,
   ipAddress?: string,
-  deniedPermissionKeys: readonly PermissionKey[] = ["mapping:write"],
 ): Promise<void> {
   await recordAccessDeniedAttempt({
     entityType: "request",
@@ -67,47 +51,20 @@ async function recordMappingAccessDenied(
     userId: actorId,
     note: `Mapeamento negado: ${detail}`,
     ipAddress,
-    deniedPermissionKeys,
+    deniedPermissionKeys: ["mapping:write"],
   });
 }
 
-function hasMappingWriteCustody(
+function hasMappingCustody(
   actor: MappingActor,
+  key: "mapping:read" | "mapping:write",
+  requestAssigneeUserId: number | null,
   mappingAssigneeUserId: number | null,
 ): boolean {
-  return hasPermissionCustody(
-    actor.permissions,
-    "mapping:write",
-    { userId: actor.id, email: actor.email },
-    [mappingAssigneeUserId],
-  );
-}
-
-/** Leitura do Mapeamento vale para o Responsável da triagem ou do mapeamento corrente. */
-function hasMappingReadCustody(
-  actor: MappingActor,
-  context: repository.MappingRequestContext,
-): boolean {
-  return hasPermissionCustody(
-    actor.permissions,
-    "mapping:read",
-    { userId: actor.id, email: actor.email },
-    [context.assignee_user_id, context.mapping_assignee_user_id],
-  );
-}
-
-/**
- * Designar o executor do mapeamento é `request:assign` + Custódia da linha
- * (Responsável da triagem ou do mapeamento corrente), não `mapping:write`:
- * quem edita o conteúdo não escolhe o designado.
- */
-function hasAssignCustody(actor: MappingActor, context: repository.MappingRequestContext): boolean {
-  return hasPermissionCustody(
-    actor.permissions,
-    "request:assign",
-    { userId: actor.id, email: actor.email },
-    [context.assignee_user_id, context.mapping_assignee_user_id],
-  );
+  return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
+    requestAssigneeUserId,
+    mappingAssigneeUserId,
+  ]);
 }
 
 /** Serializa instante para ISO-8601 UTC com sufixo `Z` e precisão de segundos. */
@@ -145,7 +102,7 @@ function participantId(userId: number | null): string | null {
   return userId !== null ? String(userId) : null;
 }
 
-/** Designado serializado para a resposta (`userId` para a comparação de `docs/rules/assignment.md`). */
+/** Designado serializado para a resposta (`userId` para a comparação do contrato §9). */
 function toMappingAssignee(
   candidate: repository.MappingAssigneeCandidate | null,
 ): MappingAssignee | null {
@@ -348,7 +305,14 @@ export const getMappingService = async (
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  if (!hasMappingReadCustody(actor, context)) {
+  if (
+    !hasMappingCustody(
+      actor,
+      "mapping:read",
+      context.assignee_user_id,
+      context.mapping_assignee_user_id,
+    )
+  ) {
     await recordMappingAccessDenied(
       context.protocol,
       actor.id,
@@ -382,10 +346,7 @@ export const upsertMappingService = async (
   actor: MappingActor,
   ipAddress?: string,
 ): Promise<MappingResponseDTO> => {
-  const { response, committed } = await db.transaction<{
-    response: MappingResponseDTO;
-    committed: CommittedNotification[];
-  }>(async (trx) => {
+  return db.transaction<MappingResponseDTO>(async (trx) => {
     // Contexto lido DENTRO da transação: status e responsável são recém-lidos
     // antes das escritas (fecha janela TOCTOU com conclusão/reatribuição).
     const context = await repository.findMappingRequestContext(trx, protocol.trim());
@@ -393,7 +354,14 @@ export const upsertMappingService = async (
       throw new AppError("Solicitação não encontrada", 404);
     }
 
-    if (!hasMappingWriteCustody(actor, context.mapping_assignee_user_id)) {
+    if (
+      !hasMappingCustody(
+        actor,
+        "mapping:write",
+        context.assignee_user_id,
+        context.mapping_assignee_user_id,
+      )
+    ) {
       await recordMappingAccessDenied(
         context.protocol,
         actor.id,
@@ -415,8 +383,8 @@ export const upsertMappingService = async (
     }
 
     // Status restrito bloqueia o PUT; mudanças de status ocorrem via
-    // `PATCH /status` (delta v4 §3.2: "Priorizado só via override" — ver
-    // `docs/rules/requests-lifecycle.md`, seção Restrição e status terminal).
+    // `PATCH /status`
+    // (delta v4 §3.2: "Priorizado só via override").
     if (context.is_restricted) {
       await recordMappingAccessDenied(context.protocol, actor.id, "demanda priorizada", ipAddress);
       throw new AppError(
@@ -439,17 +407,16 @@ export const upsertMappingService = async (
 
     const previousProfessionalId = mapping ? mapping.professional_id : null;
 
-    // Designação e conteúdo são ações independentes: conteúdo exige
-    // `mapping:write` com Custódia do mapeamento corrente; designação exige
-    // `request:assign` com Custódia da linha (ver `docs/rules/assignment.md`).
+    // Uma alteração de designação e os campos do mapeamento são ações
+    // independentes; ambas exigem `mapping:write` e Custódia corrente.
     // - `mappingAssigneeId: null` em CRIAÇÃO não tem o que remover: equivale a
     //   herdar o responsável (evita mapeamento órfão que ninguém edita).
     const explicitDesignation = payload.mappingAssigneeId !== undefined;
     const isNullOnCreate = !mapping && explicitDesignation && payload.mappingAssigneeId === null;
     const designationAction = explicitDesignation && !isNullOnCreate;
 
-    // A chave custodial `mapping:write` autoriza conteúdo apenas quando o ator
-    // é o Designado do mapeamento corrente (ou Admin).
+    // A chave custodial `mapping:write` autoriza alterações de conteúdo e de
+    // designação quando o ator é Responsável da solicitação ou do mapeamento.
     const contentAction =
       payload.scheduledFor !== undefined ||
       payload.durationMinutes !== undefined ||
@@ -471,21 +438,6 @@ export const upsertMappingService = async (
     // Ausente (ou `null` em criação) = mantém o atual / herda o responsável.
     let effectiveProfessionalId: string | null;
     if (payload.mappingAssigneeId !== undefined && !isNullOnCreate) {
-      if (!hasAssignCustody(actor, context)) {
-        await recordMappingAccessDenied(
-          context.protocol,
-          actor.id,
-          "sem permissão para designar o mapeamento",
-          ipAddress,
-          ["request:assign"],
-        );
-        throw new AppError(
-          "Você não tem permissão para designar o responsável do mapeamento.",
-          403,
-          "INSUFFICIENT_ROLE_PERMISSIONS",
-        );
-      }
-
       const candidate = await repository.findMappingAssigneeCandidate(
         trx,
         payload.mappingAssigneeId,
@@ -540,7 +492,7 @@ export const upsertMappingService = async (
           "Validação falhou",
         );
       }
-      if (!isSchedulingConclusion(target)) {
+      if (target.status_id !== 6) {
         if (payload.justification === undefined) {
           throw new ValidationError(
             {
@@ -573,7 +525,7 @@ export const upsertMappingService = async (
     }
 
     const resolvedParticipants =
-      concluding && !isSchedulingConclusion(concludeTarget)
+      concluding && concludeTarget?.status_id !== 6
         ? []
         : payload.participants !== undefined
           ? await resolveParticipants(trx, payload.participants)
@@ -592,7 +544,7 @@ export const upsertMappingService = async (
         values,
         targetStatus: concludeTarget?.status_id ?? null,
         justification:
-          concludeTarget && !isSchedulingConclusion(concludeTarget) ? payload.justification : null,
+          concludeTarget && concludeTarget.status_id !== 6 ? payload.justification : null,
         lastTechnicalMessage: concludeTarget?.isPublic ? payload.lastTechnicalMessage : null,
         createdBy: actor.email,
       });
@@ -606,7 +558,7 @@ export const upsertMappingService = async (
       concluding,
       designationAction ? effectiveProfessionalId : undefined,
       concludeTarget?.status_id ?? null,
-      concludeTarget && !isSchedulingConclusion(concludeTarget) ? payload.justification : null,
+      concludeTarget && concludeTarget.status_id !== 6 ? payload.justification : null,
       concludeTarget?.isPublic ? payload.lastTechnicalMessage : null,
     );
 
@@ -629,15 +581,13 @@ export const upsertMappingService = async (
       ...values,
       mappingAssigneeId: effectiveProfessionalId,
       targetStatus: concludeTarget?.status_id ?? mapping?.target_status_id ?? null,
-      justification: isSchedulingConclusion(concludeTarget)
-        ? null
-        : (payload.justification ?? null),
+      justification: concludeTarget?.status_id === 6 ? null : (payload.justification ?? null),
       lastTechnicalMessage: concludeTarget?.isPublic
         ? (payload.lastTechnicalMessage ?? null)
         : null,
     };
 
-    const mappingAuditId = await recordAudit(trx, {
+    await recordAudit(trx, {
       entityType: "mapping",
       actionType: concluding ? "mapping.complete" : "mapping.save",
       entityId: mappingId,
@@ -677,10 +627,8 @@ export const upsertMappingService = async (
       await trx("requests")
         .where({ request_id: context.request_id })
         .update({
-          meeting_scheduled_for: isSchedulingConclusion(concludeTarget)
-            ? values.scheduledFor
-            : null,
-          meeting_link: isSchedulingConclusion(concludeTarget) ? values.meetingLink : null,
+          meeting_scheduled_for: concludeTarget.status_id === 6 ? values.scheduledFor : null,
+          meeting_link: concludeTarget.status_id === 6 ? values.meetingLink : null,
           last_external_update_at: trx.fn.now(),
         });
 
@@ -693,7 +641,7 @@ export const upsertMappingService = async (
         newValue: concludeTarget.name,
         // `note` = justificativa interna (id 6 não exige); o retorno público
         // vira snapshot dedicado apenas quando o destino é público.
-        note: isSchedulingConclusion(concludeTarget) ? null : (payload.justification ?? null),
+        note: concludeTarget.status_id === 6 ? null : (payload.justification ?? null),
         lastTechnicalMessage: concludeTarget.isPublic
           ? (payload.lastTechnicalMessage ?? null)
           : null,
@@ -704,7 +652,7 @@ export const upsertMappingService = async (
       // Liberação automática do designado quando o mapeamento é concluído de
       // fato (`targetStatus !== 6`) — agendar (6) mantém o designado. Evento só
       // quando havia vínculo: `mapping.assign` com `newValue: null` = remoção.
-      if (!isSchedulingConclusion(concludeTarget) && context.mapping_professional_id !== null) {
+      if (concludeTarget.status_id !== 6 && context.mapping_professional_id !== null) {
         await repository.clearRequestMappingAssignee(trx, context.request_id, actor.email);
         await recordAudit(trx, {
           entityType: "mapping",
@@ -734,27 +682,7 @@ export const upsertMappingService = async (
       effectiveProfessionalId,
     );
 
-    // Notificação de Agendamento (issue #160): só na conclusão para o Status
-    // `Mapeamento agendado`. Rascunho não notifica; conclusão para outros Status
-    // (mapeamento concluído de fato) também não — o Evento é o Agendamento.
-    // Reagendamento nasce como novo Mapeamento concluído: novo `mapping.complete`
-    // (novo `eventKey`) → nova Notificação.
-    const scheduledAt = toIsoSeconds(values.scheduledFor);
-    const committedNotifications =
-      concluding && isSchedulingConclusion(concludeTarget) && scheduledAt !== null
-        ? await emitMappingScheduledNotification(trx, {
-            auditId: mappingAuditId,
-            requestId: context.request_id,
-            protocol: context.protocol,
-            title: context.title,
-            scheduledAt,
-            actorUserId: actor.id,
-            requesterUserId: context.requester_user_id,
-            requestMappingAssigneeUserId: context.mapping_assignee_user_id,
-          })
-        : [];
-
-    const response = mappingResponseFromValues(
+    return mappingResponseFromValues(
       context.protocol,
       mappingId,
       concludeTarget?.status_id ?? mapping?.target_status_id ?? null,
@@ -762,13 +690,5 @@ export const upsertMappingService = async (
       savedParticipants,
       toMappingAssignee(assigneeCandidate),
     );
-
-    return { response, committed: committedNotifications };
   });
-
-  // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
-  // fonte de verdade para quem reconectar via `Last-Event-ID`.
-  publishCommittedNotifications(committed);
-
-  return response;
 };

@@ -26,38 +26,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  # PostgreSQL descartável da suíte `db` (npm run test:db:up).
-  # Fica no profile `test` para não subir junto do ambiente de desenvolvimento
-  # e usa tmpfs: cada `npm run test:db:down` recria o banco do zero.
-  postgres-test:
-    image: postgres:18-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
-    profiles:
-      - test
-    environment:
-      POSTGRES_USER: neo_test
-      POSTGRES_PASSWORD: neo_test
-      POSTGRES_DB: neo_test
-    ports:
-      - "127.0.0.1:55432:5432"
-    tmpfs:
-      - /var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U neo_test -d neo_test"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
-      - DAC_READ_SEARCH
-      - FOWNER
-    security_opt:
-      - no-new-privileges:true
-
   app:
     build:
       context: .

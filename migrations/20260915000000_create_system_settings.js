@@ -1,8 +1,7 @@
 /**
- * Configuração global do portal — singleton (issues #54 e a especificação
- * OpenAPI em `src/docs/`).
+ * Configuração global do portal — singleton (issues #54 e portal-config-api.md).
  *
- * A configuração é dividida em duas camadas de persistência:
+ * O contrato `portal-config-api.md` é dividido em duas camadas de persistência:
  *
  * 1. `system_themes` — TABELA PRÓPRIA do tema (light/dark), com colunas
  *    EXPLÍCITAS por token (sem JSONB): tokens hex, gradiente e os 5 statuses
@@ -14,8 +13,8 @@
  * `categories`, `statuses` e `prioritizationWeights` (criteria) ficam nas
  * tabelas próprias já existentes — NÃO entram aqui.
  *
- * A Aparência pode iniciar vazia (NULL): a especificação permite o backend
- * iniciar sem Aparência e o frontend aplica os defaults locais por token. Por isso
+ * O tema pode iniciar vazio (NULL): o contrato permite o backend iniciar sem
+ * tema e o frontend aplica os defaults locais por token. Por isso
  * `system_settings.theme_id` aceita NULL.
  *
  * Padrão: colunas snake_case; cores hex VARCHAR(9) — CHECK `#RRGGBB` ou
@@ -95,11 +94,11 @@ export async function up(knex) {
   );
 
   // ---------------------------------------------------------------------------
-  // 2. Resto da configuração no singleton system_settings — identity, access, assets.
+  // 2. Resto do contrato no singleton system_settings — identity, access, assets.
   // ---------------------------------------------------------------------------
   await knex.schema.createTable("system_settings", (table) => {
     table.smallint("settings_id").notNullable().defaultTo(1).primary();
-    // Access — solicitationMode da especificação (PUBLIC | AUTHENTICATED).
+    // Access — solicitationMode do contrato (PUBLIC | AUTHENTICATED).
     table
       .enu("solicitation_mode", ["PUBLIC", "AUTHENTICATED"], {
         useNative: true,
@@ -115,7 +114,7 @@ export async function up(knex) {
     // tabela system_themes).
     table.smallint("theme_id").references("theme_id").inTable("system_themes").onDelete("SET NULL");
 
-    // Assets — parte visual: uma URL/caminho por chave da especificação.
+    // Assets — parte visual: uma URL/caminho por chave do contrato.
     table.string("logo_url", 500);
     table.string("avatar_url", 500);
     table.string("favicon_url", 500);
@@ -129,7 +128,7 @@ export async function up(knex) {
   });
 
   // Registros padrão — singleton. O tema nasce vazio (cores NULL) para o
-  // frontend aplicar seus defaults locais por token (permitido pela especificação);
+  // frontend aplicar seus defaults locais por token (permitido pelo contrato);
   // system_settings aponta para o tema (theme_id = 1), mesmo sem cores.
   await knex("system_themes").insert({ theme_id: 1 });
   await knex("system_settings").insert({ settings_id: 1, theme_id: 1 });

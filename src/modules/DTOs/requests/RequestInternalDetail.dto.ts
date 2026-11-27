@@ -1,5 +1,5 @@
 // DTO de GET /requests/:protocol/internal — contrato fechado com o frontend
-// em docs/rules/pending-items.md (tela `/(admin)/fila/[protocolo]`).
+// em docs/requests-internal-query-contract.md (tela `/(admin)/fila/[protocolo]`).
 // Difere explicitamente do DTO público (GET /requests/:protocol, issue #34):
 // nunca retorna dados internos de triagem além de `internalObservations`.
 
@@ -9,26 +9,17 @@ import type {
   ComplementaryBlock,
   DemandBlock,
   OperationalBlock,
-  RequestPriority,
   RequesterBlock,
   YesNoDetail,
 } from "../../../shared/types/requests.ts";
-import type {
-  CorrectionAlert,
-  InternalAttachment,
-  PendingSummary,
-  UnreadState,
-} from "../../../shared/types/pendingItems.ts";
 
 // Re-export para quem consome este arquivo como "contrato interno".
 export type { ComplementaryBlock, DemandBlock, OperationalBlock, RequesterBlock, YesNoDetail };
-export type { CorrectionAlert, InternalAttachment, PendingSummary, UnreadState };
 
 export interface Assignee {
-  /** `details_professional.user_id` serializado, ou `null` quando ausente. */
   id: string | null;
-  name: string;
-  email: string | null;
+  name: string | null;
+  email?: string | null;
 }
 
 export interface Prioritization {
@@ -42,10 +33,36 @@ export interface Meeting {
   link: string | null;
 }
 
+export interface CorrectionAlert {
+  count: number;
+  batchId: string;
+}
+
+export interface UnreadState {
+  count: number;
+  hasUnread: boolean;
+  lastUnreadAt: string | null;
+}
+
+export interface PendingSummary {
+  total: number;
+  requested: number;
+  responded: number;
+  validated: number;
+}
+
+export interface InternalAttachment {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  downloadUrl: string | null;
+  canDownload: boolean;
+}
+
 export interface RequestInternalDetailDTO {
   protocol: string;
-  status: string; // nome configurável — contrato define string
-  priority: RequestPriority | null; // domínio fechado (REQUEST_PRIORITIES)
+  status: string;
+  priority: string | null;
   prioritization: Prioritization;
   assignee: Assignee | null;
   mappingAssignee?: Assignee | null;

@@ -88,23 +88,3 @@ export const InternalNotesResponse = {
     mappings: { type: "array", items: { type: "object" } },
   },
 };
-
-export const CreateInternalNoteRequest = {
-  type: "object",
-  required: ["content"],
-  properties: {
-    content: { type: "string", minLength: 1, maxLength: 4000 },
-  },
-};
-
-export const MarkInternalNotesReadRequest = {
-  type: "object",
-  required: ["lastReadNoteId"],
-  properties: {
-    lastReadNoteId: {
-      type: "string",
-      pattern: "^[1-9]\\d*$",
-      description: "`internal_note_id` numérico como string.",
-    },
-  },
-};

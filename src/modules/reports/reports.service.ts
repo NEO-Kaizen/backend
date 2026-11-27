@@ -4,8 +4,7 @@ import type {
   DashboardResponse,
 } from "../DTOs/reports/Dashboard.dto.ts";
 import type { QueueCsvExport, QueueExportRow } from "../DTOs/reports/QueueExport.dto.ts";
-import { BUSINESS_TIME_ZONE } from "../../shared/datetime/businessDay.ts";
-import type { QueueExportQuery } from "../../shared/types/queue.types.ts";
+import type { QueueFilterQuery } from "../../shared/types/queue.types.ts";
 import type { RequestPriority } from "../../shared/types/requests.ts";
 import type { StatusTone } from "../../shared/types/systemTheme.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
@@ -13,6 +12,7 @@ import { resolveResponsibleScope } from "../../shared/access/custody.ts";
 import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 import * as repository from "./reports.repository.ts";
 
+const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 const CSV_HEADERS = [
   "Protocolo",
   "Data de Abertura",
@@ -163,7 +163,7 @@ function rowToCsv(row: QueueExportRow): string {
 }
 
 export async function exportQueueCsv(
-  filters: QueueExportQuery,
+  filters: QueueFilterQuery,
   actor: PermissionActor,
 ): Promise<QueueCsvExport> {
   // A exportação usa a mesma Custódia da Fila: `all` exporta tudo; `assigned`

@@ -1,9 +1,5 @@
 # Perfis e perfis customizados
 
-> **Status:** modelo-alvo do RF22. As rotas `/profiles*` descritas aqui ainda
-> **não estão implementadas** no backend; o contrato HTTP vigente é a OpenAPI
-> em `src/docs/`.
-
 Este documento descreve como os perfis são criados, editados e compostos. As chaves, a custódia, a atribuibilidade e a matriz dos perfis base estão em [`rbac.md`](./rbac.md).
 
 ## 1. Perfil base × perfil customizado
@@ -60,7 +56,7 @@ Não há exclusão física: desativar é a operação de saída. Um perfil com u
 
 - O DTO de perfil expõe `userCount`: quantas contas usam o perfil.
 - O nome do perfil é único, comparação case-insensitive, entre perfis ativos. Criar ou renomear para um nome já ativo é `400`.
-- O DTO de usuário expõe `profile: { id, name }` (`ProfileReference`): `id` é `String(profiles.profile_id)`, a identidade estável, e `name` é só rótulo. Ver `docs/adr/0007-referencia-de-perfil.md`.
+- O DTO de usuário expõe `profile: { id, name }` (`ProfileReference`): `id` é `String(profiles.profile_id)`, a identidade estável, e `name` é só rótulo. Ver `docs/adr/0002-referencia-de-perfil.md`.
 - Criação e edição de conta enviam `profileId`; o nome nunca identifica nem autoriza.
 - Snapshots de Nota interna e de auditoria congelam `id` + `name` do Perfil da época. Registro anterior ao snapshot expõe `id = null` e o nome histórico, nunca um ID inferido.
 - Perfil inativo não recebe conta nova nem designação.

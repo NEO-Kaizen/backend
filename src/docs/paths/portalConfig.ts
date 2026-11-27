@@ -1,5 +1,3 @@
-import { error } from "../components/responses.ts";
-
 export default {
   "/portal-config": {
     get: {
@@ -15,6 +13,14 @@ export default {
           content: {
             "application/json": {
               schema: { $ref: "#/components/schemas/PortalConfig" },
+            },
+          },
+        },
+        "401": {
+          description: "Não autenticado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
             },
           },
         },
@@ -42,8 +48,22 @@ export default {
             },
           },
         },
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem nenhuma chave de leitura do portal."),
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem nenhuma chave de leitura do portal.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -52,7 +72,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar modo de acesso do portal",
       description:
-        "Altera o modo de abertura do portal (`PUBLIC` ou `AUTHENTICATED`). Exige perfil `Administrador`.",
+        "Altera o modo de abertura do portal (`PUBLIC` ou `AUTHENTICATED`). Exige a permissão `portal_setting:manage`.",
       operationId: "updatePortalAccess",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -82,9 +102,30 @@ export default {
             },
           },
         },
-        "400": error("Body inválido."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "400": {
+          description: "Body inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem a permissão exigida para a operação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -93,7 +134,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar identidade do portal",
       description:
-        "Altera o nome da plataforma (`platformName`) e/ou a máscara do protocolo (`protocolMask`). Exige perfil `Administrador`.",
+        "Altera o nome da plataforma (`platformName`) e/ou a máscara do protocolo (`protocolMask`). Exige a permissão `portal_setting:manage`.",
       operationId: "updatePortalIdentity",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -111,7 +152,6 @@ export default {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["platformName", "protocolMask"],
                 properties: {
                   platformName: { type: "string", example: "MAAT" },
                   protocolMask: { type: "string", example: "MAAT" },
@@ -120,18 +160,39 @@ export default {
             },
           },
         },
-        "400": error("Body inválido (informe ao menos um campo)."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "400": {
+          description: "Body inválido (informe ao menos um campo).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem a permissão exigida para a operação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
   "/portal-config/theme": {
     patch: {
       tags: ["Configuração do portal"],
-      summary: "Alterar Aparência do portal",
+      summary: "Alterar tema do portal",
       description:
-        "Altera a Aparência completa (light/dark) de forma atômica. Exige perfil `Administrador`.",
+        "Altera o tema completo (light/dark) de forma atômica. Exige a permissão `theme:manage`.",
       operationId: "updatePortalTheme",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -144,20 +205,37 @@ export default {
       },
       responses: {
         "200": {
-          description: "Aparência alterada com sucesso.",
+          description: "Tema alterado com sucesso.",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                required: ["theme"],
-                properties: { theme: { $ref: "#/components/schemas/PortalTheme" } },
-              },
+              schema: { $ref: "#/components/schemas/PortalTheme" },
             },
           },
         },
-        "400": error("Body inválido."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "400": {
+          description: "Body inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem a permissão exigida para a operação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -166,7 +244,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar assets do portal",
       description:
-        "Altera assets (logo, avatar, login image, favicon em claro/escuro) via multipart/form-data. Aceita JSON na parte `assets` e/ou arquivos binários. Exige perfil `Administrador`.",
+        "Altera assets (logo, avatar, login image, favicon em claro/escuro) via multipart/form-data. Aceita JSON na parte `assets` e/ou arquivos binários. Exige a permissão `theme:manage`.",
       operationId: "updatePortalAssets",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -238,19 +316,34 @@ export default {
           description: "Assets alterados com sucesso.",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                required: ["assets"],
-                properties: { assets: { $ref: "#/components/schemas/PortalAssets" } },
-              },
+              schema: { $ref: "#/components/schemas/PortalAssets" },
             },
           },
         },
-        "400": error("Body inválido, JSON malformado ou nenhum asset informado."),
-        "413": error("Arquivo excede o limite de tamanho da chave."),
-        "415": error("MIME/extensão não permitido para a chave."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "400": {
+          description: "Body inválido, JSON malformado ou nenhum asset informado.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem a permissão exigida para a operação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -259,7 +352,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar categorias do portal",
       description:
-        "Substitui a lista completa de categorias de forma atômica. Exige perfil `Administrador`.",
+        "Substitui a lista completa de categorias de forma atômica. Exige a permissão `category:manage`.",
       operationId: "updatePortalCategories",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -288,9 +381,38 @@ export default {
             },
           },
         },
-        "400": error("Body inválido."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "400": {
+          description: "Body inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem a permissão exigida para a operação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "Conflito (categoria núcleo ausente, nome duplicado, etc.).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -299,7 +421,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar status do ciclo do portal",
       description:
-        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige perfil `Administrador`.",
+        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige a permissão `status:manage`.",
       operationId: "updatePortalStatuses",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -328,12 +450,38 @@ export default {
             },
           },
         },
-        "400": error("Body inválido."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (apenas Administrador)."),
-        "409": error(
-          "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`.",
-        ),
+        "400": {
+          description: "Body inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem a permissão exigida para a operação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "409": {
+          description: "Conflito (status núcleo faltando, renomeado, desativado, etc.).",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },
@@ -342,7 +490,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar pesos de priorização",
       description:
-        "Altera os pesos (inteiro 1–10) de todos os critérios de priorização de forma atômica. Exige perfil `Administrador`.",
+        "Altera os pesos (inteiro 1–10) de todos os critérios de priorização de forma atômica. Exige a permissão `prioritization_config:manage`.",
       operationId: "updatePortalPrioritizationWeights",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -370,9 +518,30 @@ export default {
             },
           },
         },
-        "400": error("Body inválido."),
-        "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "400": {
+          description: "Body inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "401": {
+          description: "Sem sessão ou token inválido.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "403": {
+          description: "Sem a permissão exigida para a operação.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
       },
     },
   },

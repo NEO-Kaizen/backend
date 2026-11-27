@@ -1,7 +1,6 @@
 /**
  * Motor de Status v4 — colunas novas de `statuses` + backfill do Anexo A
- * (issue #124; regras em `docs/rules/requests-lifecycle.md`, contrato em
- * `src/docs/paths/requests.ts`).
+ * (issue #124, delta `portal-config-statuses-amend.md`).
  *
  * 1. Enums nativos `status_triage_mode` / `status_mapping_mode`
  *    (`none | free | conclusion_only`); colunas `is_core`, `is_restricted`,

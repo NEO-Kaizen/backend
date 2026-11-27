@@ -15,10 +15,9 @@ auditoria "coringa".
    (`gen_random_uuid()`).
    - Não enumera nem expõe sequência; seguro para criação externa, merge e
      distribuição.
-   - Exemplos: `requesters.requester_id`, `details_professional.professional_id`,
-     `pending_items.pending_item_id`, `attachments.attachment_id`,
-     `mappings.mapping_id`, `mapping_participants.participant_id` e
-     `triages.triage_id`.
+   - Exemplos: `requesters.requester_id`, `professionals.professional_id`,
+     `pending_items.pending_item_id`, `attachments.attachment_id`, e o novo
+     `mappings.mapping_id`.
 
 2. **Identificador estritamente interno** (só FK/JOIN, nunca no contrato) →
    **`serial`/`bigserial`** (`int`/`bigint`).
@@ -26,7 +25,7 @@ auditoria "coringa".
    - Exemplos: `users.user_id`,
      `categories.category_id`, `statuses.status_id`, `priorities.priority_id`,
      `request_time_preferences.request_time_preference_id`,
-     `audit_history.audit_id`, `request_internal_notes.internal_note_id`.
+     `audit_history.audit_id`.
 
 3. **Chave natural de negócio** (legível/relevante fora do banco, até em URL) →
    coluna `varchar` com `unique`; o PK da tabela continua surrogate (regra 1 ou 2).
@@ -60,36 +59,30 @@ auditoria "coringa".
   já auditado sem migração de compatibilidade.
 - **Comparações entre formatos diferentes exigem conversão explícita.** Ex.:
   `professional_id` (uuid) ≠ `user_id` (int) → o vínculo é uma coluna própria
-  (`details_professional.user_id`), nunca coincidência de tipo.
+  (`professionals.user_id`), nunca coincidência de tipo.
 - **Não misturar chave natural com surrogate em rotas:** URL usa `protocol`;
   FKs internas usam `request_id`.
 
 ## Estado atual (mapeado das migrations)
 
-| Tabela                              | PK                           | Tipo                 | Gerador                | Regra                  |
-| ----------------------------------- | ---------------------------- | -------------------- | ---------------------- | ---------------------- |
-| `profiles`                          | `profile_id`                 | `serial` (int)       | `increments()`         | 2                      |
-| `users`                             | `user_id`                    | `serial` (int)       | `increments()`         | 2                      |
-| `audit_history`                     | `audit_id`                   | `bigserial` (bigint) | `bigIncrements()`      | 2                      |
-| `prioritization_evaluations`        | `protocol`                   | `varchar(25)`        | natural key            | 3                      |
-| `system_themes`                     | `theme_id`                   | `smallint`           | singleton              | 4                      |
-| `system_settings`                   | `settings_id`                | `smallint`           | singleton              | 4                      |
-| `requesters`                        | `requester_id`               | `uuid`               | `gen_random_uuid()`    | 1                      |
-| `categories`                        | `category_id`                | `serial` (int)       | `increments()`         | 2                      |
-| `priorities`                        | `priority_id`                | `serial` (int)       | `increments()`         | 2                      |
-| `statuses`                          | `status_id`                  | `serial` (int)       | `increments()`         | 2                      |
-| `details_professional`              | `professional_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
-| `requests`                          | `request_id`                 | `bigint`             | `requests_request_seq` | 5 (proxy `protocol` 3) |
-| `pending_items`                     | `pending_item_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
-| `attachments`                       | `attachment_id`              | `uuid`               | `gen_random_uuid()`    | 1                      |
-| `request_time_preferences`          | `request_time_preference_id` | `serial` (int)       | `increments()`         | 2                      |
-| `criteria`                          | `criterion_id`               | `varchar(50)`        | slug                   | 3 (exceção de seed)    |
-| `mappings`                          | `mapping_id`                 | `uuid`               | `gen_random_uuid()`    | 1                      |
-| `mapping_participants`              | `participant_id`             | `uuid`               | `gen_random_uuid()`    | 1                      |
-| `triages`                           | `triage_id`                  | `uuid`               | aplicação              | 1                      |
-| `request_internal_notes`            | `internal_note_id`           | `bigserial` (bigint) | `bigIncrements()`      | 2                      |
-| `request_internal_note_read_states` | (`request_id`, `user_id`)    | `bigint` + `int`     | chave composta         | 2 (agregado interno)   |
-| `notifications`                     | `notification_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
+| Tabela                       | PK                           | Tipo                 | Gerador                | Regra                  |
+| ---------------------------- | ---------------------------- | -------------------- | ---------------------- | ---------------------- |
+| `profiles`                   | `profile_id`                 | `serial` (int)       | `increments()`         | 2                      |
+| `users`                      | `user_id`                    | `serial` (int)       | `increments()`         | 2                      |
+| `audit_history`              | `audit_id`                   | `bigserial` (bigint) | `bigIncrements()`      | 2                      |
+| `prioritization_evaluations` | `protocol`                   | `varchar(25)`        | natural key            | 3                      |
+| `system_themes`              | `theme_id`                   | `smallint`           | singleton              | 4                      |
+| `system_settings`            | `settings_id`                | `smallint`           | singleton              | 4                      |
+| `requesters`                 | `requester_id`               | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `categories`                 | `category_id`                | `serial` (int)       | `increments()`         | 2                      |
+| `priorities`                 | `priority_id`                | `serial` (int)       | `increments()`         | 2                      |
+| `statuses`                   | `status_id`                  | `serial` (int)       | `increments()`         | 2                      |
+| `professionals`              | `professional_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `requests`                   | `request_id`                 | `bigint`             | `requests_request_seq` | 5 (proxy `protocol` 3) |
+| `pending_items`              | `pending_item_id`            | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `attachments`                | `attachment_id`              | `uuid`               | `gen_random_uuid()`    | 1                      |
+| `request_time_preferences`   | `request_time_preference_id` | `serial` (int)       | `increments()`         | 2                      |
+| `criteria`                   | `criterion_id`               | `varchar(50)`        | slug                   | 3 (exceção de seed)    |
 
 ## Decisão aplicada: `mappings`
 
@@ -98,8 +91,4 @@ auditoria "coringa".
 - `mappings.request_id` → **`bigint`** — FK interna para `requests.request_id`,
   regra 2/5.
 
-> `professionals` foi renomeada para `details_professional` pela migration
-> `20260917013250_rename_professionals_to_details_professional.js`; o PK
-> `professional_id` foi preservado.
-
-Referência: [`docs/database/requests-persistence.md`](requests-persistence.md).
+Referência: [`docs/issues/queue-mapping-endpoints.md`](../issues/queue-mapping-endpoints.md).

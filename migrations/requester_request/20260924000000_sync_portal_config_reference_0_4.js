@@ -1,22 +1,20 @@
 /**
- * Sincroniza dados de referência do portal com o Anexo A da antiga
- * especificação (ver `docs/superseded.md`) e
- * `frontend/src/lib/config/portal-defaults.ts` — sem reescrever
+ * Sincroniza dados de referência do portal com `portal-config-api-0_4.md`
+ * (Anexo A) e `frontend/src/lib/config/portal-defaults.ts` — sem reescrever
  * migrations antigas.
  *
  * 1. `categories` — descrições conforme Anexo A (nomes/ids já batem);
  * 2. `statuses` 1–17 — matriz de `tone`/`visibility`/`closes_request` do Anexo A
  *    (o backfill antigo deixava tudo `PUBLIC`/`info`, exceto 16/17);
- * 3. `statuses` 18/19 — alinha ids à referência de triagem / FE:
+ * 3. `statuses` 18/19 — alinha ids ao contrato de triagem / FE:
  *    `18 Fora do escopo`, `19 Duplicada` (`INTERNAL`/`neutral`/saída de triagem);
  *    linhas legadas 18–22 que conflitam são renomeadas/inativadas (nunca
  *    DELETE — há FK em `requests.status_id`);
  * 4. `system_settings` — `logo_use_primary_color = true` e URLs de asset vazias
  *    preenchidas com os defaults estáticos do Anexo A.
  *
- * Pesos (`criteria.weight`) permanecem seed `10` (ver `docs/rules/portal-config.md`);
- * o Anexo A da antiga especificação (ver `docs/superseded.md`) é a fonte a
- * corrigir na doc, não aqui.
+ * Pesos (`criteria.weight`) permanecem seed `10` (`prioritization-api.md`);
+ * o Anexo A do contrato é a fonte a corrigir na doc, não aqui.
  */
 
 const CATEGORY_DESCRIPTIONS = {
@@ -53,7 +51,7 @@ const STATUS_1_17 = {
   17: { tone: "error", visibility: "PUBLIC", closes: true },
 };
 
-/** Saídas de triagem conforme `docs/rules/triage.md` (7 flags). */
+/** Saídas de triagem conforme contract-triage §4 (7 flags). */
 const TRIAGE_EXIT_IDS = [4, 9, 12, 13, 17, 18, 19];
 
 const ASSET_URL_DEFAULTS = [
@@ -93,7 +91,7 @@ export async function up(knex) {
   }
 
   // -------------------------------------------------------------------------
-  // 3. Statuses 18/19 — referência de triagem / FE.
+  // 3. Statuses 18/19 — contrato triagem / FE.
   //    Estado legado pós-20260920000000:
   //      18 Elegível para avaliação | 19 Fora do escopo | 20 Direcionada...
   //      21 Duplicada | 22 Cancelada
@@ -117,12 +115,12 @@ export async function up(knex) {
     await knex("statuses").where({ status_id: 19 }).update({ name: "Duplicada" });
     await knex("statuses").where({ status_id: 18 }).update({ name: "Fora do escopo" });
 
-    // Inativa legados 20–22 (não há na referência 19-status do FE).
+    // Inativa legados 20–22 (não há no contrato 19-status do FE).
     await knex("statuses")
       .whereIn("status_id", [20, 21, 22])
       .update({ is_active: false, is_triage_exit: false });
 
-    // Upsert do alvo 18/19 (mesmas flags da referência).
+    // Upsert do alvo 18/19 (mesmas flags do contrato).
     for (const [id, name] of [
       [18, "Fora do escopo"],
       [19, "Duplicada"],
@@ -193,7 +191,7 @@ export async function up(knex) {
 }
 
 export async function down(knex) {
-  // Dados de referência — restauração manual (a especificação é a fonte; não há
+  // Dados de referência — restauração manual (contrato é a fonte; não há
   // snapshot anterior confiável para categories/statuses 18–19).
   // Reverter apenas o flag de assets para o default de coluna.
   await knex("system_settings").where({ settings_id: 1 }).update({ logo_use_primary_color: false });
