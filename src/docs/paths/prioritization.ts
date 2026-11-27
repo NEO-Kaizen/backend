@@ -1,127 +1,53 @@
+import { protocolParam } from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
+
 export default {
   "/prioritization/criteria": {
     get: {
       tags: ["Priorização"],
-      summary: "Listar critérios de Priorização",
+      summary: "Listar critérios de priorização",
       description:
-        "Lista os critérios ativos. Exige `prioritization:write` para avaliação ou `prioritization_config:read` para configuração.",
+        "Lista os critérios ativos e seus pesos. Exige `prioritization:write` (avaliador) ou `prioritization_config:read` (configuração).",
       operationId: "listPrioritizationCriteria",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Lista de critérios de Priorização.",
-          content: {
-            "application/json": {
-              schema: {
-                type: "array",
-                items: { $ref: "#/components/schemas/PrioritizationCriteria" },
-              },
-            },
-          },
+          description: "Critérios ativos.",
+          ...json("PrioritizationCriteriaList"),
         },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem chave de priorização."),
       },
     },
   },
+
   "/prioritization/{protocol}/score": {
     put: {
       tags: ["Priorização"],
-      summary: "Avaliar pontuação de Priorização",
+      summary: "Avaliar pontuação de priorização",
       description:
-        "Avalia a Priorização de uma solicitação. Exige `prioritization:write` e Custódia sobre o Responsável corrente da solicitação. A leitura dos critérios necessários ao cálculo está incluída nessa permissão.",
+        "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. " +
+        "Todas as notas dos critérios ativos são obrigatórias. Exige `prioritization:write` + Custódia da solicitação.",
       operationId: "evaluatePrioritizationScore",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                notes: {
-                  type: "object",
-                  additionalProperties: {
-                    type: "integer",
-                    minimum: 1,
-                    maximum: 5,
-                  },
-                  description: "Notas de 1 a 5 para cada critério de priorização.",
-                  example: {
-                    impacto_operacional: 4,
-                    risco_operacional: 3,
-                    urgencia: 4,
-                    volumetria: 3,
-                    esforco_manual: 2,
-                    impacto_cliente: 4,
-                    prazo_regulatorio: 3,
-                    areas_impactadas: 3,
-                    alinhamento_estrategico: 4,
-                    complexidade_estimada: 3,
-                  },
-                },
-                justification: {
-                  type: "string",
-                  maxLength: 500,
-                  example:
-                    "Solicitação priorizada com base no impacto operacional e urgência do negócio.",
-                },
-              },
-              required: ["notes"],
-            },
+            schema: { $ref: "#/components/schemas/EvaluatePrioritizationRequest" },
           },
         },
       },
       responses: {
         "200": {
-          description: "Pontuação avaliada com sucesso.",
+          description: "Priorização avaliada.",
+          ...json("EvaluatePrioritizationResponse"),
         },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `prioritization:write` ou sem Custódia sobre a solicitação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo inexistente.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Payload inválido ou notas incompletas."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `prioritization:write` ou Custódia da linha."),
+        "404": error("Protocolo inexistente."),
       },
     },
   },

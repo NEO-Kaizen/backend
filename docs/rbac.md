@@ -35,6 +35,8 @@ A custódia não vai no token e não envelhece com ele. As fontes do vínculo co
 | `requests.mapping_professional_id`                                    | Custódia inicial de Mapeamento/Fila antes de existir qualquer linha de Mapeamento                                   |
 | `requests.requester_user_id`; sem vínculo, `requests.requester_email` | posse: `request:track` e `pending_item:respond`, comparando com a conta (id; e-mail só nas linhas legadas/anônimas) |
 
+A visibilidade da fila (`queue:read`/`queue:export`) inclui o responsável do mapeamento corrente; a custódia de `internal_note:read`, usada pela busca por notas, continua restrita a `requests.professional_id`.
+
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
 ### 1.3 Os três vínculos
@@ -329,7 +331,7 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 | `internal_note:read`, `internal_note:write`                                | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
 | `audit:read`                                                               | `details_professional.user_id` ligado a `requests.professional_id`, com uma porta por domínio                                                             |
 | `queue:read`, `queue:export`                                               | Responsável da solicitação **ou** do Mapeamento aberto mais recente; antes da primeira linha, `requests.mapping_professional_id`; `all` dispensa filtro   |
-| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                                                                      |
+| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_user_id`; sem vínculo, `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                           |
 | chaves `global`                                                            | nenhuma verificação de linha                                                                                                                              |
 
 Regras de aplicação:
@@ -339,6 +341,7 @@ Regras de aplicação:
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
 - Sem sessão, não há ator: a porta pública do modo `PUBLIC` é a única que não avalia chaves. Ela usa o e-mail declarado e o protocolo.
 - Snapshots de triagem e de mapeamento não concedem acesso. A linha aberta mais recente do Mapeamento é a fonte vigente; quando ainda não existe linha de Mapeamento, vale a designação inicial da solicitação. Mapeamento concluído é histórico.
+- A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: só casa nota de solicitação cujo Responsável é o ator. O responsável de mapeamento não amplia essa busca, embora amplie a fila. Quem não tem a chave não casa nota alguma.
 - Solicitação órfã não é visível ao Analista custodial; ela é atribuída por quem tem `request:assign` em `all`.
 
 ## 6. Atribuir e ser atribuível
@@ -422,6 +425,8 @@ sem mudar a permissão.
 | `PATCH /portal-config/prioritization-weights`                                                         | `prioritization_config:manage`                                                                                                                                                                                                                               |
 | rotas de formulário                                                                                   | removidas na Rodada 01; as chaves `form:read` / `form:manage` saíram do catálogo                                                                                                                                                                             |
 | `GET /auth/me`                                                                                        | sessão válida, sem chave específica                                                                                                                                                                                                                          |
+| `GET /notifications`, `GET /notifications/stream`, `GET /notifications/unread-count`                  | sessão; autoatendimento sem chave — o destinatário é sempre o usuário da sessão                                                                                                                                                                              |
+| `PATCH /notifications/:notificationId/read`, `PATCH /notifications/read-all`                          | sessão; autoatendimento sem chave — só a própria Notificação                                                                                                                                                                                                 |
 
 A leitura administrativa do portal é por seção: a resposta devolve apenas as seções que o ator pode ler. A projeção pública de `GET /portal-config` continua sem chave.
 
@@ -476,7 +481,7 @@ Estas regras não são expressáveis como chave e continuam no código:
 - Autoria estabelece posse; as chaves de posse operam sobre ela e não aceitam outro vínculo (§ 1.3). Autoria não concede `request:read` nem custódia interna.
 - A custódia é por linha e é lida a cada operação. Snapshots e token não concedem acesso.
 - `request:status_override` libera o alvo protegido em `PATCH /status`; não substitui `request:status_change` nem sua Custódia. Na Triagem, a mesma chave global permite atuar sobre uma solicitação cujo Status atual é restrito, mas não substitui `triage:write` + Custódia nem torna o Status de saída restrito elegível.
-- `queue:read` e `queue:export` são a própria Fila do ator: `assigned` inclui o Responsável da solicitação ou do Mapeamento corrente; `all` dispensa o filtro.
+- `queue:read` e `queue:export` são a própria Fila do ator: `assigned` inclui o Responsável da solicitação ou do Mapeamento corrente; `all` dispensa o filtro. A visibilidade da fila não amplia a custódia de notas usada na busca.
 - Sem escalação cobre chave e vínculo: o concedente não amplia o que possui (`all` > `assigned`; `own` fixo nas chaves de posse; `profile:manage` incluída).
 - Contas, por autoridade (§ 4.2): quem tem `user:manage` gerencia perfis estritamente abaixo; o Admin Root gerencia qualquer conta, inclusive de autoridade igual; contas com o perfil Admin Root ficam fora de rota; ninguém gerencia a própria conta pelas rotas administrativas.
 - O Admin Root é único: no máximo uma conta `is_root`, criada só pelo seed; o perfil não perde `profile:manage` nem é desativado, e não é atribuível.

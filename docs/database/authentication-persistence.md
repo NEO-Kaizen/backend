@@ -146,7 +146,7 @@ A tabela `profile_permissions` guarda a composição de Permissões de cada Perf
 
 ### Composição dos perfis base
 
-A composição dos cinco perfis base é semeada por `013_base_profile_permissions.js`, que lê a matriz de referência de `src/shared/catalog/baseProfiles.ts` — nenhuma cópia das chaves ou dos vínculos na seed. A conta Admin Root é criada por `014_admin_root_account.js`, apenas se não existir Admin Root, a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD` (documentadas em `.env.example`).
+A composição dos cinco perfis base é semeada por `014_base_profile_permissions.js`, que lê a matriz de referência de `src/shared/catalog/baseProfiles.ts` — nenhuma cópia das chaves ou dos vínculos na seed. A conta Admin Root é criada por `015_admin_root_account.js`, apenas se não existir Admin Root, a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD` (documentadas em `.env.example`).
 
 Duas migrations de dados acompanham a Rodada 01 do RBAC: `20261125120000_backfill_rbac_dependencies.js` inclui as dependências de chave em perfis existentes (`request:create` → `request:track`, `request:assign` → `assignee_directory:read`, `user:manage` → `profile:read`), de forma idempotente; `20261125120100_remove_form_permission_grants.js` remove as concessões das chaves descontinuadas `form:read` e `form:manage`. Ambas têm `down` no-op deliberado: remover concessões aditivas ou reconstruir um estado anterior não distinguível quebraria perfis legítimos.
 
@@ -160,27 +160,36 @@ Cada usuário possui um identificador único, um e-mail utilizado para identific
 
 ### Estrutura
 
-| Campo           | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                     |
-| --------------- | ------------ | ----------- | --------------------------- | ---------------------------------------------- |
-| `user_id`       | INTEGER      | Sim         | Primary Key, auto increment | Identificador único do usuário                 |
-| `full_name`     | VARCHAR(150) | Sim         | NOT NULL                    | Nome completo do usuário                       |
-| `email`         | VARCHAR(254) | Sim         | UNIQUE, NOT NULL            | E-mail utilizado para identificação do usuário |
-| `password_hash` | VARCHAR(255) | Sim         | NOT NULL                    | Armazena exclusivamente o hash da senha        |
-| `profile_id`    | INTEGER      | Sim         | Foreign Key, NOT NULL       | Identifica o perfil associado ao usuário       |
-| `is_active`     | BOOLEAN      | Sim         | DEFAULT TRUE                | Indica se o usuário está ativo                 |
-| `created_at`    | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro             |
-| `updated_at`    | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada   |
+| Campo                  | Tipo         | Obrigatório | Restrição / Default                                       | Finalidade                                     |
+| ---------------------- | ------------ | ----------- | --------------------------------------------------------- | ---------------------------------------------- |
+| `user_id`              | INTEGER      | Sim         | Primary Key, auto increment                               | Identificador único do usuário                 |
+| `full_name`            | VARCHAR(150) | Sim         | NOT NULL                                                  | Nome completo do usuário                       |
+| `email`                | VARCHAR(254) | Sim         | UK `users_email_unique`, UK `uk_users_email_ci`, NOT NULL | E-mail utilizado para identificação do usuário |
+| `password_hash`        | VARCHAR(255) | Sim         | NOT NULL                                                  | Armazena exclusivamente o hash da senha        |
+| `profile_id`           | INTEGER      | Sim         | Foreign Key, NOT NULL                                     | Identifica o perfil associado ao usuário       |
+| `is_active`            | BOOLEAN      | Sim         | DEFAULT TRUE                                              | Indica se o usuário está ativo                 |
+| `must_change_password` | BOOLEAN      | Sim         | DEFAULT TRUE (revisão #130)                               | Exige troca de senha no primeiro acesso        |
+| `created_at`           | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                                 | Data e hora de criação do registro             |
+| `updated_at`           | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                                 | Data e hora da última atualização registrada   |
 
 ### Restrições
 
 - `user_id` é a chave primária da tabela;
 - `email` não pode ser nulo;
-- `email` deve possuir valor único;
+- `email` deve possuir valor único, inclusive ignorando caixa
+  (`uk_users_email_ci`, sobre `lower(email)`);
+- `users_email_unique` foi mantido de propósito: a unicidade simples já é
+  implicada pelo índice `lower(email)`, mas é ele que atende `WHERE email = $1`
+  no login (o índice de expressão não serve para busca exata pela coluna);
 - `password_hash` não pode ser nulo;
 - `profile_id` não pode ser nulo;
 - `profile_id` referencia `profiles.profile_id`;
 - no máximo uma conta pode usar o Perfil marcado com `is_root`: o trigger `trg_users_single_root` recusa a segunda conta, inclusive em `INSERT`/`UPDATE` diretos;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
+- `must_change_password` possui valor padrão `TRUE` desde a revisão #130,
+  alinhado ao cadastro feito pela aplicação. Os seeds informam o valor
+  explicitamente (`false` nos usuários de teste, `true` nos cenários de troca
+  pendente), para não depender do default;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
 ### Relacionamento com `profiles`
@@ -215,7 +224,7 @@ A geração e a validação do hash são responsabilidades do Backend. O banco d
 
 O e-mail é utilizado como identificador para autenticação e possui restrição `UNIQUE`.
 
-Para manter uma representação consistente dos endereços de e-mail, a aplicação deverá normalizar o valor para letras minúsculas antes da persistência e da consulta.
+Para manter uma representação consistente dos endereços de e-mail, a aplicação normaliza o valor para letras minúsculas antes da persistência e da consulta. O banco reforça a mesma regra com `uk_users_email_ci` (`UNIQUE (lower(email))`), criado na revisão do banco (issue #130).
 
 Essa regra deverá ser validada em conjunto com o Backend antes da conclusão da Issue.
 
@@ -249,9 +258,9 @@ O e-mail é utilizado como identificador para o processo de autenticação, mas 
 
 ### Unicidade do e-mail
 
-A coluna `email` possui restrição `UNIQUE` para impedir que dois usuários sejam cadastrados com o mesmo endereço de e-mail.
+A coluna `email` possui restrição `UNIQUE` para impedir que dois usuários sejam cadastrados com o mesmo endereço de e-mail. O índice `uk_users_email_ci` estende a regra para variações de caixa.
 
-A normalização do e-mail para letras minúsculas será responsabilidade da aplicação e deverá ser validada em conjunto com o Backend.
+A normalização do e-mail para letras minúsculas é feita pela aplicação e garantida pelo banco desde a revisão do banco (issue #130).
 
 ### Armazenamento de senha
 
@@ -283,9 +292,9 @@ A atualização posterior de `updated_at` será responsabilidade da aplicação.
 
 Os perfis base são `Solicitante`, `Analista`, `Gestor`, `Administrador` e `Admin Root`; seus nomes em `profiles.name` são os rótulos de exibição retornados pela API.
 
-As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `013_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura os perfis base por `lower(name)` e o Admin Root pela marca `is_root` — nunca pelo nome — e nunca cria uma segunda linha: não reativa nem altera `is_active`/nome de perfil existente e não remove concessões fora da matriz. A migration `20261123140000_rename_base_profile_names_to_display_labels.js` atualiza os nomes canônicos antigos para os rótulos de exibição.
+As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `014_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura os perfis base por `lower(name)` e o Admin Root pela marca `is_root` — nunca pelo nome — e nunca cria uma segunda linha: não reativa nem altera `is_active`/nome de perfil existente e não remove concessões fora da matriz. A migration `20261123140000_rename_base_profile_names_to_display_labels.js` atualiza os nomes canônicos antigos para os rótulos de exibição.
 
-A conta Admin Root é única e nasce apenas da seed `014_admin_root_account.js`, a partir das variáveis de ambiente `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME`; nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta.
+A conta Admin Root é única e nasce apenas da seed `015_admin_root_account.js`, a partir das variáveis de ambiente `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME`; nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta.
 
 Essa decisão garante que qualquer ambiente que execute as migrations receba automaticamente os perfis necessários para o funcionamento inicial da aplicação.
 
@@ -485,7 +494,7 @@ A Issue permanece em validação enquanto as migrations não forem executadas e 
 `profiles.profile_id` é a identidade estável do Perfil e é exposta na API como
 string (`ProfileReference.id`, `profileId` nas escritas) — a mesma identidade de
 `GET /profiles/:id`. `profiles.name` é rótulo mutável: nunca identifica nem
-autoriza. Ver `docs/adr/0002-referencia-de-perfil.md`.
+autoriza. Ver `docs/adr/0007-referencia-de-perfil.md`.
 
 O snapshot de Perfil não vive em `users`: ele é congelado no registro histórico
 que o exibiu.

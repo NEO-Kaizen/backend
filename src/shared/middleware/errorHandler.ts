@@ -15,7 +15,7 @@ export function errorHandler(
       message: err.message,
     };
 
-    // Código de erro estável para a UI (delta `portal-config-statuses-amend.md`).
+    // Código de erro estável para a UI (ver `docs/rules/requests-lifecycle.md`).
     if (err.code) {
       body.code = err.code;
     }

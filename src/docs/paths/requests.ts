@@ -1,14 +1,16 @@
+import { protocolParam } from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
+
 export default {
   "/requests": {
     get: {
       tags: ["Solicitações"],
-      summary: "Listar Solicitações por e-mail",
+      summary: "Listar solicitações por e-mail",
       description:
-        "Lista Solicitações vinculadas a um e-mail de solicitante, ordenadas da mais recente para a mais antiga. " +
-        "Sem sessão no modo `PUBLIC`, o e-mail vem da query (obrigatório) e a porta pública não avalia chaves. " +
-        "Com sessão (em `PUBLIC` ou `AUTHENTICATED`), exige `request:track` em `own`, lista apenas as " +
-        "Solicitações do e-mail da sessão e recusa `?email=` com 400.",
+        "Lista paginada das solicitações vinculadas a um e-mail de solicitante, da mais recente para a mais antiga. " +
+        "No modo `PUBLIC` o e-mail vem da query (obrigatório); no modo `AUTHENTICATED` a sessão define o e-mail e `?email=` é recusado com 400.",
       operationId: "getRequestsByEmail",
+      security: [{}, { cookieAuth: [] }],
       parameters: [
         {
           name: "email",
@@ -21,60 +23,27 @@ export default {
           name: "status",
           in: "query",
           required: false,
-          description: "Filtrar por status da solicitação.",
+          description: "Nome exato de um status válido.",
           schema: { type: "string", example: "Em triagem" },
         },
         {
           name: "page",
           in: "query",
           required: false,
-          description: "Número da página (>= 1).",
           schema: { type: "integer", minimum: 1, default: 1 },
         },
         {
           name: "pageSize",
           in: "query",
           required: false,
-          description: "Itens por página (1 a 10 no modo público).",
+          description: "Itens por página (1 a 10).",
           schema: { type: "integer", minimum: 1, maximum: 10, default: 10 },
         },
       ],
       responses: {
-        "200": {
-          description: "Array de Solicitações (vazio se não houver).",
-          content: {
-            "application/json": {
-              schema: {
-                type: "array",
-                items: { $ref: "#/components/schemas/RequestSummary" },
-              },
-            },
-          },
-        },
-        "400": {
-          description: "Query param `email` ausente ou inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Modo `AUTHENTICATED` sem sessão válida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sessão sem `request:track`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Página de solicitações.", ...json("PaginatedRequestSummary") },
+        "400": error("Query `email` ausente/inválida ou status inexistente."),
+        "401": error("Modo AUTHENTICATED sem sessão válida."),
       },
     },
     post: {
@@ -82,9 +51,9 @@ export default {
       summary: "Criar solicitação",
       description:
         "Cadastra uma nova solicitação, gera o protocolo e persiste os blocos do formulário. " +
-        "Sem sessão no modo `PUBLIC`, é público. Com sessão (em `PUBLIC` ou `AUTHENTICATED`), exige " +
-        "`request:create`, e a identidade é resolvida pelo usuário logado (campos do payload são validados, mas sobrescritos).",
+        "Público no modo `PUBLIC`; no modo `AUTHENTICATED` exige sessão e a identidade vem do usuário logado.",
       operationId: "postRequest",
+      security: [{}, { cookieAuth: [] }],
       requestBody: {
         required: true,
         content: {
@@ -95,90 +64,80 @@ export default {
               properties: {
                 payload: {
                   type: "string",
+                  "x-payload-schema": { $ref: "#/components/schemas/CreateRequestPayload" },
                   description:
-                    "JSON.stringify de { requester, demand, operational, complementary?, schedulePreferences? }.",
-                  example:
-                    '{"requester":{"fullName":"Maria Silva","corporateEmail":"maria.silva@empresa.com","area":"TI","department":"Desenvolvimento","manager":"José Silva","additionalContact":""},"demand":{"title":"Automatizar diárias","requestType":"Sistema","category":"Automação","processName":"Conferência de diárias","description":"...","problem":"...","expectedResult":"...","justification":"..."},"operational":{"processDescription":"...","processSteps":"...","systemsUsed":"Excel","executionFrequency":"Mensal","volumetry":"100","peopleInvolved":2,"averageExecutionTime":"4h","monthlyEffortHours":16,"hasManualControls":false,"mainRisks":"...","clientImpact":"Médio","operationalImpact":"Médio","desiredDeadline":"2026-12-31","perceivedCriticality":"Média"},"schedulePreferences":["2026-09-15T13:30","2026-09-16T10:00"]}',
+                    "JSON.stringify de `CreateRequestPayload` (requester, demand, operational, complementary?, schedulePreferences?).",
+                  example: JSON.stringify({
+                    requester: {
+                      fullName: "Maria Silva",
+                      corporateEmail: "maria.silva@empresa.com",
+                      area: "TI",
+                      department: "Desenvolvimento",
+                      manager: "José Silva",
+                      additionalContact: "",
+                    },
+                    demand: {
+                      title: "Automatizar conciliação bancária",
+                      requestType: "Automação",
+                      category: "Automação",
+                      processName: "Conciliação bancária mensal",
+                      description: "Descrição da necessidade.",
+                      problem: "Problema ou oportunidade.",
+                      expectedResult: "Resultado esperado.",
+                      justification: "Justificativa.",
+                    },
+                    operational: {
+                      processDescription: "Descrição resumida.",
+                      processSteps: "1. Receber; 2. Conferir.",
+                      systemsUsed: "Excel",
+                      executionFrequency: "Mensal",
+                      volumetry: "500 transações/mês",
+                      peopleInvolved: 2,
+                      averageExecutionTime: "15 minutos",
+                      monthlyEffortHours: 16,
+                      hasManualControls: false,
+                      mainRisks: "Risco de divergência.",
+                      clientImpact: "Impacto no cliente interno.",
+                      operationalImpact: "Médio",
+                      desiredDeadline: "2026-12-31",
+                      perceivedCriticality: "Média",
+                    },
+                    schedulePreferences: ["2026-09-15T13:30"],
+                  }),
                 },
                 attachments: {
                   type: "array",
-                  items: {
-                    type: "string",
-                    format: "binary",
-                  },
-                  description: "0 a 5 arquivos (max. 10 MB cada): PDF, DOCX, XLSX, PNG, JPG.",
+                  items: { type: "string", format: "binary" },
                   maxItems: 5,
+                  description: "0 a 5 arquivos (10 MB cada): PDF, DOCX, XLSX, PNG ou JPG.",
                 },
               },
             },
-            encoding: {
-              payload: {
-                contentType: "application/json",
-              },
-            },
+            encoding: { payload: { contentType: "application/json" } },
           },
         },
       },
       responses: {
-        "201": {
-          description: "Solicitação criada com sucesso.",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["protocol", "status", "createdAt"],
-                properties: {
-                  protocol: { type: "string", example: "MAAT-8K3P-9X2M" },
-                  status: { type: "string", example: "Solicitação enviada" },
-                  createdAt: {
-                    type: "string",
-                    format: "date-time",
-                    example: "2026-08-25T14:03:11.000Z",
-                  },
-                },
-              },
-            },
-          },
-        },
-        "400": {
-          description:
-            "Payload inválido, anexo acima de 10 MB, formato não permitido ou mais de 5 anexos.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Modo `AUTHENTICATED` sem sessão válida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sessão sem `request:create`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "201": { description: "Solicitação criada.", ...json("CreateRequestResponse") },
+        "400": error(
+          "Payload inválido, anexo acima de 10 MB, formato não permitido ou mais de 5 anexos.",
+        ),
+        "401": error("Modo AUTHENTICATED sem sessão válida."),
       },
     },
   },
+
   "/requests/assignees": {
     get: {
       tags: ["Solicitações"],
       summary: "Listar responsáveis atribuíveis",
       description:
-        "Exige `assignee_directory:read`. Retorna profissionais com conta, Perfil e extensão ativos, flag de Atribuibilidade habilitada e permissões exigidas pela etapa.",
+        "Lista os Responsáveis atribuíveis (profissional ativo, usuário ativo e perfil analista). Leitura liberada aos perfis internos.",
       operationId: "getAssignees",
       security: [{ cookieAuth: [] }],
       responses: {
         "200": {
-          description: "Lista de Responsáveis atribuíveis.",
+          description: "Responsáveis atribuíveis, ordenados por nome.",
           content: {
             "application/json": {
               schema: {
@@ -188,667 +147,264 @@ export default {
             },
           },
         },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `assignee_directory:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `assignee_directory:read`."),
       },
     },
   },
+
   "/requests/{protocol}": {
     get: {
       tags: ["Solicitações"],
       summary: "Consultar solicitação pelo protocolo",
       description:
-        "Consulta sem sessão no modo `PUBLIC` ou autenticada com sessão: com sessão, exige `request:track` em `own` " +
-        "e retorna 404 se não pertencer ao usuário logado. Qualquer Perfil autenticado que tenha aberto a " +
-        "solicitação usa esta projeção do Solicitante.",
+        "Consulta pública (`PUBLIC`) ou autenticada (`AUTHENTICATED`, restrita às solicitações do usuário logado).",
       operationId: "getRequestsByProtocol",
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          description: "Protocolo de rastreio (ex: MAAT-8K3P-9X2M).",
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      security: [{}, { cookieAuth: [] }],
+      parameters: [protocolParam],
       responses: {
-        "200": {
-          description: "Detalhes da solicitação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo não encontrado ou fora da Posse do ator.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Modo `AUTHENTICATED` sem sessão válida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sessão sem `request:track`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Detalhe público da solicitação.", ...json("PublicRequestDetail") },
+        "400": error("Protocolo inválido."),
+        "401": error("Modo AUTHENTICATED sem sessão válida."),
+        "404": error("Protocolo não encontrado ou de terceiro (anti-enumeração)."),
       },
     },
   },
+
   "/requests/{protocol}/internal": {
     get: {
       tags: ["Solicitações"],
       summary: "Consulta administrativa de solicitação",
       description:
-        "Retorna os 4 blocos completos do cadastro, status, prioridade, responsável, anexos e observações internas. " +
-        "Exige `request:read`; a Custódia `assigned` limita a leitura às linhas sob responsabilidade do ator, e `all` permite qualquer linha.",
+        "Retorna os blocos completos, status, priorização, responsáveis, anexos, pendências e estado de leitura. " +
+        "Requer perfil Analista (restrito às solicitações atribuídas), Gestor ou Administrador.",
       operationId: "getInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       responses: {
-        "200": {
-          description: "Detalhes internos da solicitação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/RequestInternalDetail" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem cookie ou token inválido/expirado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator autenticado sem `request:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo inexistente ou fora da Custódia de leitura.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Detalhe interno da solicitação.", ...json("InternalRequestDetail") },
+        "401": error("Sem cookie ou token inválido/expirado."),
+        "403": error("Sem `request:assign` ou Custódia da linha."),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
       },
     },
     patch: {
       tags: ["Solicitações"],
       summary: "Atualização interna de solicitação",
       description:
-        "Atualiza os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). " +
-        "Substituição completa: chave ausente = campo limpo (NULL). " +
-        "Exige `request:write` e Custódia sobre a linha. `request:write` requer também `request:read`; Custódias de leitura e escrita podem ter alcances diferentes.",
+        "Substitui os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). " +
+        "Chave ausente = campo limpo (NULL). Exige `request:write` + Custódia; quem escreve sem `request:read` recebe `200 { protocol, updated: true }` em vez do detalhe.",
       operationId: "patchInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: { $ref: "#/components/schemas/InternalRequestUpdate" },
+            schema: { $ref: "#/components/schemas/UpdateInternalRequestPayload" },
           },
         },
       },
       responses: {
         "200": {
-          description: "Solicitação atualizada.",
+          description: "Solicitação atualizada (detalhe) ou acknowledgement sem `request:read`.",
           content: {
             "application/json": {
               schema: {
                 oneOf: [
-                  { $ref: "#/components/schemas/RequestInternalDetail" },
+                  { $ref: "#/components/schemas/InternalRequestDetail" },
                   { $ref: "#/components/schemas/RequestMutationAcknowledgement" },
                 ],
               },
             },
           },
         },
-        "401": {
-          description: "Sem cookie de sessão.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `request:write`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo inexistente ou fora da Custódia de escrita.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "422": {
-          description: "Erro de validação com campo `fields`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
-            },
-          },
-        },
+        "400": error("Payload inválido."),
+        "401": error("Sem cookie de sessão."),
+        "403": error("Sem `request:write` ou Custódia da linha."),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
+        "422": error("Erro de validação com `fields`.", "ValidationErrorResponse"),
       },
     },
   },
+
   "/requests/{protocol}/triage": {
     get: {
       tags: ["Triagem"],
       summary: "Consultar triagem da solicitação",
       description:
-        "Consulta a triagem persistida. Exige `triage:read` e Custódia sobre o Responsável corrente da solicitação; snapshots não concedem acesso.",
+        "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Exige `triage:read` + Custódia; fora dela responde `403`.",
       operationId: "getTriage",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       responses: {
         "200": {
-          description: "Avaliação de triagem (ou null se ainda não existir).",
+          description: "Triagem vigente (ou null).",
           content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/TriagemResponse" },
+              schema: {
+                type: "object",
+                allOf: [{ $ref: "#/components/schemas/TriagemResponse" }],
+                nullable: true,
+              },
             },
           },
         },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Usuário sem acesso a solicitação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo inexistente.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `triage:read` ou Custódia da linha."),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
       },
     },
     post: {
       tags: ["Triagem"],
       summary: "Criar triagem da solicitação",
       description:
-        "Cria uma triagem (cada chamada gera uma nova avaliação). Exige `triage:write` e Custódia sobre o Responsável corrente da solicitação; Status atual restrito também exige `request:status_override` global. Snapshots não concedem acesso.",
+        "Cria uma nova triagem (append — cada chamada gera um novo registro). A troca de categoria e a transição de status acontecem na mesma transação. " +
+        "Perfis: Administrador ou Analista responsável; Gestor é somente leitura.",
       operationId: "saveTriage",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              required: [
-                "adherentToScope",
-                "changeCategory",
-                "exitStatus",
-                "result",
-                "conclusionJustification",
-              ],
-              properties: {
-                adherentToScope: { type: "string", enum: ["Sim", "Não"], example: "Sim" },
-                adherentJustification: { type: "string", example: "" },
-                changeCategory: { type: "string", enum: ["Sim", "Não"], example: "Não" },
-                newCategory: { type: "string", nullable: true },
-                preliminaryComplexity: { type: "string", nullable: true },
-                perceivedRisks: { type: "string", nullable: true },
-                suggestedResponsible: { type: "string", nullable: true },
-                suggestedResponsibleJustification: { type: "string", nullable: true },
-                exitStatus: { type: "integer", example: 18 },
-                result: { type: "string", example: "Aprovado para mapeamento" },
-                conclusionJustification: { type: "string", example: "Escopo bem definido." },
-              },
-            },
+            schema: { $ref: "#/components/schemas/CreateTriagePayload" },
           },
         },
       },
       responses: {
-        "201": {
-          description: "Triagem criada com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/TriagemResponse" },
-            },
-          },
-        },
-        "400": {
-          description: "Payload inválido ou parâmetros fora do esperado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Usuário não autorizado para a solicitação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo inexistente.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "422": {
-          description: "Erro de validação da triagem, com campos detalhados em `fields`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
-            },
-          },
-        },
+        "201": { description: "Triagem criada.", ...json("TriagemResponse") },
+        "400": error("Payload inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `request:assign` ou Custódia da linha."),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
+        "409": error("Conflito de estado (ex.: transição concorrente)."),
+        "422": error("Erro de validação da triagem; pode conter `fields`."),
       },
     },
   },
+
   "/requests/{protocol}/tracking": {
     get: {
       tags: ["Solicitações"],
-      summary: "Acompanhamento da solicitação",
+      summary: "Acompanhamento do solicitante",
       description:
-        "Acompanhamento via dual-auth (cookie de sessão OU header `X-Requester-Identity`). " +
-        "Com sessão, exige `request:track` em `own`; a Posse é o vínculo `requester_user_id` e, em linhas legadas, o e-mail da conta. " +
-        "Qualquer Perfil autenticado que abriu a solicitação recebe apenas a projeção do Solicitante. " +
-        "Sem sessão no modo `PUBLIC`, a identidade pública é validada sem chave.",
+        "Acompanhamento bimodal. Cookie de sessão do Solicitante → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. " +
+        "O recorte nunca inclui triagem, priorização ou notas internas.",
       operationId: "getTracking",
-      security: [],
+      security: [{ cookieAuth: [] }, { requesterIdentity: [] }],
       parameters: [
+        protocolParam,
         {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
+          name: "X-Requester-Identity",
+          in: "header",
+          required: false,
+          description:
+            'JSON `{"name":"...","email":"..."}` verificado previamente em `POST .../public/verify`.',
+          schema: { type: "string" },
+          example: '{"name":"Maria Silva","email":"maria.silva@empresa.com"}',
         },
       ],
       responses: {
-        "200": {
-          description: "Dados de acompanhamento da solicitação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/RequestDetail" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo não encontrado ou fora da Posse do ator.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Identidade pública ausente/divergente ou sessão inválida.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sessão sem `request:track` ou identidade pública no modo `AUTHENTICATED`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Detalhe de acompanhamento.", ...json("TrackingResponse") },
+        "401": error("Identidade ausente/divergente ou sessão inválida."),
+        "403": error(
+          "Perfil interno (sessão com `request:track` deve usar a porta interna) ou verificação indisponível no modo AUTHENTICATED.",
+        ),
+        "404": error("Protocolo não encontrado ou de terceiro (anti-enumeração)."),
       },
     },
   },
+
   "/requests/{protocol}/status": {
     patch: {
       tags: ["Solicitações"],
       summary: "Trocar status da solicitação",
       description:
-        "Exige `request:status_change` e Custódia sobre a solicitação. Status restritos ou fora do modo da etapa exigem `request:status_override` global. Alvo inativo retorna 409; recusas por Custódia mantêm 404 para não revelar a solicitação.",
+        "Troca única de status (Motor de Status v4). Administrador tem bypass de perfil/restrição; o responsável com custódia só transita para status com `triageMode = free` ou `mappingMode = free` e nunca restrito. " +
+        "Toda transição exige `justification`; destino público exige `lastTechnicalMessage`. Status igual ao atual → 422; status inativo → 409; Gestor é somente leitura.",
       operationId: "patchRequestStatus",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              required: ["targetStatus", "justification"],
-              properties: {
-                targetStatus: { type: "integer", example: 18 },
-                justification: { type: "string", example: "solicitação aprovada para mapeamento" },
-                lastTechnicalMessage: { type: "string", nullable: true },
-              },
-            },
+            schema: { $ref: "#/components/schemas/UpdateStatusPayload" },
           },
         },
       },
       responses: {
-        "200": {
-          description: "Status alterado com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/RequestStatusChangeResponse" },
-            },
-          },
-        },
-        "400": {
-          description: "Payload inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sem `request:status_change` ou sem `request:status_override` para o alvo.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description:
-            "Solicitação inexistente ou fora da Custódia do ator; alvo de status inexistente.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "422": {
-          description: "Erro de validação ou estado inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
-            },
-          },
-        },
-        "409": {
-          description: "Status de destino inativo.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Status alterado.", ...json("UpdateStatusResponse") },
+        "400": error("Payload inválido ou retorno público ausente."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error(
+          "Sem `request:status_change` + Custódia; alvo restrito ou fora do modo `free` exige `request:status_override` global (`request_status_override_required`).",
+        ),
+        "404": error("Protocolo ou status de destino inexistente."),
+        "409": error("Status de destino inativo ou conflito de concorrência."),
+        "422": error("Status de destino igual ao atual ou erro de estado."),
       },
     },
   },
-  "/requests/{protocol}/assignee": {
-    patch: {
-      tags: ["Solicitações"],
-      summary: "Definir ou remover responsável",
-      description:
-        "Rota legada de designação. Exige `request:assign` e Custódia sobre a solicitação. O service valida a Atribuibilidade do alvo também em reatribuições; alvo inválido retorna 400 com code `assignee_not_assignable`. Quem criou a solicitação não pode ser o Responsável (`assignee_is_requester`).",
-      operationId: "patchRequestAssignee",
-      security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
-      requestBody: {
-        required: true,
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                professionalId: {
-                  type: "string",
-                  format: "uuid",
-                  nullable: true,
-                  description: "UUID do responsável; omitido ou null remove o responsável.",
-                },
-              },
-            },
-          },
-        },
-      },
-      responses: {
-        "200": {
-          description: "Responsável atualizado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/AssignRequestResponse" },
-            },
-          },
-        },
-        "400": {
-          description:
-            "Payload inválido, alvo não atribuível (`assignee_not_assignable`) ou criador da " +
-            "solicitação escolhido como Responsável (`assignee_is_requester`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `request:assign`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Solicitação inexistente ou fora da Custódia do ator.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-      },
-    },
-  },
+
   "/requests/{protocol}/internal/assignee": {
     patch: {
       tags: ["Solicitações"],
       summary: "Atribuir responsável interno",
       description:
-        "Define ou remove o responsável (assignee) ou mapeamento (mappingAssigneeId). " +
-        "Exatamente um dos dois campos deve ser informado. Exige `request:assign` e Custódia sobre a solicitação; o service valida a Atribuibilidade do alvo. Alvo inválido retorna 400 com code `assignee_not_assignable`. Quem criou a solicitação não pode ser o Responsável (`assignee_is_requester`).",
+        "Define/remove o responsável de triagem (`assigneeId`) ou o designado do mapeamento (`mappingAssigneeId`) — exatamente um por chamada. " +
+        "Nesta rota ambos são `users.user_id` numérico em string. Liberado ao Administrador ou ao Analista responsável pela solicitação; Gestor não atribui.",
       operationId: "patchInternalAssignee",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              oneOf: [
-                {
-                  type: "object",
-                  required: ["assigneeId"],
-                  properties: { assigneeId: { type: "string", nullable: true } },
-                },
-                {
-                  type: "object",
-                  required: ["mappingAssigneeId"],
-                  properties: { mappingAssigneeId: { type: "string", nullable: true } },
-                },
-              ],
-            },
+            schema: { $ref: "#/components/schemas/AssignAnalystPayload" },
           },
         },
       },
       responses: {
-        "200": {
-          description: "Responsável atribuído com sucesso.",
-          content: {
-            "application/json": {
-              schema: {
-                oneOf: [
-                  { $ref: "#/components/schemas/RequestInternalDetail" },
-                  { $ref: "#/components/schemas/RequestMutationAcknowledgement" },
-                ],
-              },
-            },
+        "200": { description: "Responsável atualizado.", ...json("InternalRequestDetail") },
+        "400": error(
+          "Payload inválido (não informou exatamente um dos campos), responsável inativo ou perfil não atribuível.",
+        ),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `request:assign` ou Custódia da linha."),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
+      },
+    },
+  },
+
+  "/requests/{protocol}/assignee": {
+    patch: {
+      tags: ["Solicitações"],
+      summary: "Atribuir Responsável (legado)",
+      description:
+        "Rota legada de atribuição por `professionalId` (UUID de `details_professional`). Use `PATCH /requests/{protocol}/internal/assignee`. " +
+        "⚠ O schema atual aceita `{}` e remove o responsável silenciosamente.",
+      operationId: "patchAssignee",
+      deprecated: true,
+      security: [{ cookieAuth: [] }],
+      parameters: [protocolParam],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/AssignRequestPayload" },
           },
         },
-        "400": {
-          description:
-            "Payload inválido, alvo não atribuível (`assignee_not_assignable`) ou criador da " +
-            "solicitação escolhido como Responsável (`assignee_is_requester`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `request:assign`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Solicitação inexistente ou fora da Custódia do ator.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+      },
+      responses: {
+        "200": { description: "Responsável atribuído.", ...json("AssignRequestResponse") },
+        "400": error(
+          "UUID inválido, profissional inexistente, inativo ou com perfil não atribuível.",
+        ),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `request:assign` ou Custódia da linha."),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
       },
     },
   },

@@ -1,11 +1,28 @@
+/** Vocabulário de exibição do Perfil (capitalizado) usado nas respostas. */
 export const UserMetrics = {
   type: "object",
   required: ["total", "active", "pending", "admins"],
   properties: {
-    total: { type: "integer", example: 15 },
-    active: { type: "integer", example: 13 },
-    pending: { type: "integer", example: 3 },
-    admins: { type: "integer", example: 3 },
+    total: {
+      type: "integer",
+      description: "Todos os usuários cadastrados, ativos ou não.",
+      example: 15,
+    },
+    active: {
+      type: "integer",
+      description: "Usuários com `is_active = true`.",
+      example: 13,
+    },
+    pending: {
+      type: "integer",
+      description: "Usuários com troca de senha pendente (`must_change_password = true`).",
+      example: 3,
+    },
+    admins: {
+      type: "integer",
+      description: "Usuários vinculados ao perfil `administrador`.",
+      example: 3,
+    },
   },
 };
 
@@ -23,46 +40,69 @@ export const UserSummary = {
   ],
   properties: {
     id: { type: "string", example: "101" },
-    fullName: { type: "string", example: "Analista Teste" },
-    email: { type: "string", example: "analista_teste@email.com" },
+    fullName: { type: "string", example: "Maria Silva" },
+    email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
     profile: { $ref: "#/components/schemas/ProfileReference" },
     isActive: { type: "boolean", example: true },
     mustChangePassword: { type: "boolean", example: false },
-    createdAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
+    createdAt: { type: "string", format: "date-time" },
   },
 };
 
-export const CreateUserResponse = {
+export const UserListResponse = {
   type: "object",
-  required: [
-    "id",
-    "fullName",
-    "email",
-    "profile",
-    "isActive",
-    "mustChangePassword",
-    "createdAt",
-    "temporaryPassword",
-  ],
+  required: ["data", "page", "pageSize", "total", "totalPages"],
+  properties: {
+    data: { type: "array", items: { $ref: "#/components/schemas/UserSummary" } },
+    page: { type: "integer", example: 1 },
+    pageSize: { type: "integer", example: 10 },
+    total: { type: "integer", example: 15 },
+    totalPages: { type: "integer", example: 2 },
+  },
+};
+
+export const RequesterProfileBlock = {
+  type: "object",
+  required: ["area", "department", "manager", "additionalContact"],
+  properties: {
+    area: { type: "string", nullable: true, example: "TI" },
+    department: { type: "string", nullable: true, example: "Desenvolvimento" },
+    manager: { type: "string", nullable: true, example: "José Silva" },
+    additionalContact: { type: "string", nullable: true, example: "contato@email.com" },
+  },
+};
+
+export const ProfessionalProfileBlock = {
+  type: "object",
+  required: ["jobTitle", "specialties", "attendedCategoryIds", "notes"],
+  properties: {
+    jobTitle: { type: "string", nullable: true, example: "Analista de Sistemas" },
+    specialties: { type: "array", items: { type: "string" }, example: ["Sistemas", "Automação"] },
+    attendedCategoryIds: { type: "array", items: { type: "integer" }, example: [1, 2] },
+    notes: { type: "string", nullable: true, example: "Analista sênior" },
+  },
+};
+
+export const UserProfileResponse = {
+  type: "object",
+  required: ["id", "fullName", "email", "profile", "avatarUrl", "requester", "professional"],
   properties: {
     id: { type: "string", example: "101" },
     fullName: { type: "string", example: "Maria Silva" },
     email: { type: "string", format: "email", example: "maria.silva@empresa.com" },
     profile: { $ref: "#/components/schemas/ProfileReference" },
-    isActive: { type: "boolean", example: true },
-    mustChangePassword: { type: "boolean", example: true },
-    createdAt: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
-    temporaryPassword: { type: "string", example: "Abc123!xyz" },
-  },
-};
-
-export const ChangeUserStatusResponse = {
-  type: "object",
-  required: ["id", "isActive"],
-  properties: {
-    id: { type: "string", example: "101" },
-    isActive: { type: "boolean", example: false },
+    avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/1-foto.jpg" },
+    requester: {
+      type: "object",
+      allOf: [{ $ref: "#/components/schemas/RequesterProfileBlock" }],
+      nullable: true,
+    },
+    professional: {
+      type: "object",
+      allOf: [{ $ref: "#/components/schemas/ProfessionalProfileBlock" }],
+      nullable: true,
+    },
   },
 };
 
@@ -84,38 +124,150 @@ export const AssignableProfessional = {
   },
 };
 
-export const RequesterProfileBlock = {
+export const RequesterInput = {
   type: "object",
-  required: ["area", "department", "manager", "additionalContact"],
+  required: ["area", "manager"],
   properties: {
-    area: { type: "string", nullable: true, example: "TI" },
-    department: { type: ["string", "null"], example: "Desenvolvimento" },
-    manager: { type: "string", nullable: true, example: "José Silva" },
-    additionalContact: { type: ["string", "null"], example: "contato@email.com" },
+    area: { type: "string", maxLength: 100 },
+    department: { type: "string", maxLength: 100 },
+    manager: { type: "string", maxLength: 150 },
+    additionalContact: { type: "string", nullable: true, maxLength: 100 },
   },
 };
 
-export const ProfessionalProfileBlock = {
+export const ProfessionalInput = {
   type: "object",
-  required: ["jobTitle", "specialties", "attendedCategoryIds", "notes"],
+  required: ["jobTitle", "specialties", "attendedCategoryIds"],
   properties: {
-    jobTitle: { type: ["string", "null"], example: "Analista de Sistemas" },
-    specialties: { type: "array", items: { type: "string" }, example: ["Sistemas", "Automação"] },
-    attendedCategoryIds: { type: "array", items: { type: "integer" }, example: [1, 2] },
-    notes: { type: ["string", "null"], example: "Analista sênior" },
+    jobTitle: { type: "string", maxLength: 100 },
+    specialties: {
+      type: "array",
+      minItems: 1,
+      items: { type: "string", maxLength: 100 },
+    },
+    attendedCategoryIds: {
+      type: "array",
+      minItems: 1,
+      items: { type: "integer", minimum: 1 },
+    },
+    notes: { type: "string", maxLength: 500, nullable: true },
   },
 };
 
-export const UserProfileResponse = {
+export const CreateUserRequest = {
   type: "object",
-  required: ["id", "fullName", "email", "profile", "avatarUrl", "requester", "professional"],
+  required: ["fullName", "email", "profileId", "requester"],
   properties: {
-    id: { type: "string", example: "101" },
-    fullName: { type: "string", example: "Maria Silva" },
-    email: { type: "string", example: "maria.silva@empresa.com" },
+    fullName: { type: "string", maxLength: 150 },
+    email: { type: "string", format: "email" },
+    profileId: {
+      type: "string",
+      description: "Identidade estável do Perfil (`profiles.profile_id`).",
+    },
+    requester: { $ref: "#/components/schemas/RequesterInput" },
+    professional: {
+      allOf: [{ $ref: "#/components/schemas/ProfessionalInput" }],
+      description:
+        "Opcional; permitido somente para Perfil ativo com flag de Atribuibilidade (`profile_not_assignable` caso contrário).",
+    },
+  },
+};
+
+export const CreateUserResponse = {
+  type: "object",
+  required: [
+    "id",
+    "fullName",
+    "email",
+    "profile",
+    "isActive",
+    "mustChangePassword",
+    "createdAt",
+    "temporaryPassword",
+  ],
+  properties: {
+    id: { type: "string" },
+    fullName: { type: "string" },
+    email: { type: "string", format: "email" },
     profile: { $ref: "#/components/schemas/ProfileReference" },
-    avatarUrl: { type: ["string", "null"], example: "/uploads/avatars/1-foto.jpg" },
-    requester: { $ref: "#/components/schemas/RequesterProfileBlock" },
-    professional: { $ref: "#/components/schemas/ProfessionalProfileBlock" },
+    isActive: { type: "boolean" },
+    mustChangePassword: { type: "boolean" },
+    createdAt: { type: "string", format: "date-time" },
+    temporaryPassword: {
+      type: "string",
+      description: "Senha temporária exibida uma única vez; não recuperável depois.",
+    },
+  },
+};
+
+export const UpdateUserRequest = {
+  type: "object",
+  properties: {
+    fullName: { type: "string", maxLength: 150 },
+    email: { type: "string", format: "email" },
+    profileId: {
+      type: "string",
+      description: "Identidade estável do Perfil de destino.",
+    },
+    professional: {
+      allOf: [{ $ref: "#/components/schemas/ProfessionalInput" }],
+      description: "Somente para Perfil com flag de Atribuibilidade.",
+    },
+    requester: {
+      type: "object",
+      properties: {
+        area: { type: "string", maxLength: 100 },
+        department: { type: "string", nullable: true, maxLength: 100 },
+        manager: { type: "string", maxLength: 150 },
+        additionalContact: { type: "string", nullable: true, maxLength: 100 },
+      },
+    },
+  },
+};
+
+export const UpdateProfilePayload = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    fullName: { type: "string", maxLength: 150 },
+    requester: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        area: { type: "string", maxLength: 100 },
+        department: { type: "string", nullable: true, maxLength: 100 },
+        manager: { type: "string", maxLength: 150 },
+        additionalContact: { type: "string", nullable: true, maxLength: 100 },
+      },
+      description:
+        "Somente `additionalContact` é autoeditável; área/departamento/gestor apenas pelo próprio Administrador.",
+    },
+    removeAvatar: { type: "boolean" },
+  },
+};
+
+export const ChangeUserStatusRequest = {
+  type: "object",
+  required: ["isActive"],
+  properties: {
+    isActive: { type: "boolean", example: true },
+  },
+};
+
+export const ChangeUserStatusResponse = {
+  type: "object",
+  required: ["id", "isActive"],
+  properties: {
+    id: { type: "string" },
+    isActive: { type: "boolean" },
+  },
+};
+
+export const ResetPasswordResponse = {
+  type: "object",
+  required: ["id", "temporaryPassword"],
+  properties: {
+    id: { type: "string" },
+    temporaryPassword: { type: "string" },
   },
 };

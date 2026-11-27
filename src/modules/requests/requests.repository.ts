@@ -20,7 +20,9 @@ import type {
   YesNoDetail,
   AssignmentCandidateRow,
   AssignmentContextRow,
+  InternalRequestRow,
 } from "../../shared/types/requests.ts";
+import type { StatusMode } from "../../shared/types/portalConfig.ts";
 import type {
   CreateRequestPayload,
   ListRequestsQuery,
@@ -294,7 +296,6 @@ async function saveAttachments(
       file_path: attachment.storageKey,
       content_type: attachment.mimeType,
       size_bytes: attachment.sizeBytes,
-      is_restricted: false,
       uploaded_by: uploadedBy,
       uploaded_at: trx.fn.now(),
     })),
@@ -496,9 +497,24 @@ export async function findRequestByProtocolWithOwner(
   };
 }
 
-// --- Consulta administrativa/interna (issue #48 + contract-assign-action) ---
+// --- Consulta administrativa/interna (issue #48 + docs/rules/assignment.md) ---
 
-export async function findInternalRequestByProtocol(protocol: string) {
+/** Anexo de solicitação — projeção de `attachments` usada no detalhe. */
+export interface RequestAttachmentRow {
+  attachment_id: string;
+  file_name: string;
+  content_type: string;
+  size_bytes: string; // bigint do pg
+}
+
+/** Preferência de agendamento — projeção de `request_time_preferences`. */
+export interface SchedulePreferenceRow {
+  scheduled_for: Date | string;
+}
+
+export async function findInternalRequestByProtocol(
+  protocol: string,
+): Promise<InternalRequestRow | null> {
   const hasMapping = await db.schema.hasColumn("requests", "mapping_professional_id");
 
   let query = db("requests")
@@ -610,23 +626,31 @@ export async function findInternalRequestByProtocol(protocol: string) {
         db.raw("NULL::text as mapping_email"),
       ];
 
-  const request = await query.select([...baseSelect, ...mappingSelect]).first();
+  const request: InternalRequestRow | undefined = await query
+    .select([...baseSelect, ...mappingSelect])
+    .first();
 
   return request ?? null;
 }
 
-export async function findAttachmentsByRequestId(requestId: string | number) {
-  return db("attachments")
+export async function findAttachmentsByRequestId(
+  requestId: string,
+): Promise<RequestAttachmentRow[]> {
+  const rows: RequestAttachmentRow[] = await db("attachments")
     .where({ request_id: requestId })
     .select("attachment_id", "file_name", "content_type", "size_bytes")
     .orderBy("uploaded_at", "asc");
+  return rows;
 }
 
-export async function findSchedulePreferencesByRequestId(requestId: string | number) {
-  return db("request_time_preferences")
+export async function findSchedulePreferencesByRequestId(
+  requestId: string,
+): Promise<SchedulePreferenceRow[]> {
+  const rows: SchedulePreferenceRow[] = await db("request_time_preferences")
     .where({ request_id: requestId })
     .select("scheduled_for")
     .orderBy("scheduled_for", "asc");
+  return rows;
 }
 
 export async function findEvaluationByProtocol(
@@ -733,8 +757,10 @@ export async function findAssignmentContextByProtocol(
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
+    title: "requests.title",
     professional_id: "requests.professional_id",
     status: "statuses.name",
+    category: "categories.name",
     screening_result: "requests.screening_result",
     requester_user_id: "requests.requester_user_id",
     assignee_user_id: "dp.user_id",
@@ -747,6 +773,7 @@ export async function findAssignmentContextByProtocol(
 
   const query = db("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
+    .join("categories", "categories.category_id", "requests.category_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
   if (hasMapping) {
     query.leftJoin(
@@ -815,6 +842,8 @@ export async function updateStatus(
 export interface RequestStatusContext {
   request_id: string;
   protocol: string;
+  title: string;
+  requester_user_id: number | null;
   current_status_id: number | null;
   current_status_name: string | null;
   current_is_terminal: boolean;
@@ -831,9 +860,10 @@ export interface RequestStatusTarget {
   name: string;
   is_active: boolean;
   is_restricted: boolean;
+  /** Alias camelCase mantido para os guards do serviço (projeção `is_public`). */
   isPublic: boolean;
-  triage_mode: "none" | "free" | "conclusion_only";
-  mapping_mode: "none" | "free" | "conclusion_only";
+  triage_mode: StatusMode;
+  mapping_mode: StatusMode;
 }
 
 export async function findRequestStatusContext(
@@ -844,6 +874,8 @@ export async function findRequestStatusContext(
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
     protocol: "requests.protocol",
+    title: "requests.title",
+    requester_user_id: "requests.requester_user_id",
     current_status_id: "requests.status_id",
     current_status_name: "statuses.name",
     current_is_terminal: "statuses.is_terminal",
@@ -856,6 +888,7 @@ export async function findRequestStatusContext(
 
   const query = db("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
+    .join("categories", "categories.category_id", "requests.category_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
   if (hasMappingColumn) {
     query.leftJoin(
@@ -898,8 +931,8 @@ export async function findRequestStatusTarget(
               is_active: boolean;
               is_restricted: boolean;
               is_public: boolean;
-              triage_mode: "none" | "free" | "conclusion_only";
-              mapping_mode: "none" | "free" | "conclusion_only";
+              triage_mode: StatusMode;
+              mapping_mode: StatusMode;
             }
           | undefined,
       ) =>

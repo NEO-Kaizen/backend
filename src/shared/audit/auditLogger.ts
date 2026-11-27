@@ -1,11 +1,12 @@
-import type { Knex } from "knex";
+﻿import type { Knex } from "knex";
 import { AppError } from "../errors/AppError.ts";
 import type { PermissionKey } from "../catalog/permissionCatalog.ts";
 import {
   auditCatalog,
   isAuditEntityName,
   isComposedAuditAction,
-  type AuditEntityName,
+  type AuditEntityType,
+  type ChangeOrigin,
   type ComposedAuditAction,
 } from "./auditCatalog.ts";
 
@@ -22,7 +23,8 @@ export interface AuditEntryBase {
   /** Snapshot do retorno público submetido na transição (só status público). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
-  changeOrigin?: string | null;
+  /** Origem da alteração — restrita aos valores gravados pelo sistema. */
+  changeOrigin?: ChangeOrigin | null;
   /**
    * Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no
    * gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha.
@@ -36,7 +38,7 @@ export interface AuditEntryBase {
  * da `entityType` escolhida (veja `auditCatalog`).
  */
 export type AuditEntry<
-  E extends AuditEntityName = AuditEntityName,
+  E extends AuditEntityType = AuditEntityType,
   A extends ComposedAuditAction<E> = ComposedAuditAction<E>,
 > = AuditEntryBase & { entityType: E; actionType: A };
 
@@ -82,11 +84,14 @@ async function resolveActorProfile(
  *
  * Tipos inválidos (fora do `auditCatalog`) são erro de programação e também
  * lançam exceção para abortar a transação.
+ *
+ * Retorna o `audit_id` gerado — chave natural para correlacionar o evento de
+ * negócio com outras projeções gravadas na mesma transação (ex.: Notificação).
  */
-export async function recordAudit<E extends AuditEntityName, A extends ComposedAuditAction<E>>(
+export async function recordAudit<E extends AuditEntityType, A extends ComposedAuditAction<E>>(
   trx: Knex.Transaction,
   entry: AuditEntryBase & { entityType: E; actionType: A },
-): Promise<void> {
+): Promise<string> {
   if (
     !isAuditEntityName(entry.entityType) ||
     !isComposedAuditAction(entry.entityType, entry.actionType)
@@ -99,22 +104,31 @@ export async function recordAudit<E extends AuditEntityName, A extends ComposedA
 
   const actorProfile = await resolveActorProfile(trx, entry.userId);
 
-  await trx("audit_history").insert({
-    entity_type: entry.entityType,
-    entity_id: entry.entityId,
-    action_type: entry.actionType,
-    user_id: entry.userId,
-    previous_value: entry.previousValue ?? null,
-    new_value: entry.newValue ?? null,
-    note: entry.note ?? null,
-    last_technical_message: entry.lastTechnicalMessage ?? null,
-    ip_address: entry.ipAddress ?? null,
-    change_origin: entry.changeOrigin ?? null,
-    actor_profile_id: actorProfile?.profile_id ?? null,
-    actor_profile_name: actorProfile?.name ?? null,
-    denied_permission_keys: entry.deniedPermissionKeys ? [...entry.deniedPermissionKeys] : [],
-  });
+  const rows = await trx("audit_history")
+    .insert({
+      entity_type: entry.entityType,
+      entity_id: entry.entityId,
+      action_type: entry.actionType,
+      user_id: entry.userId,
+      previous_value: entry.previousValue ?? null,
+      new_value: entry.newValue ?? null,
+      note: entry.note ?? null,
+      last_technical_message: entry.lastTechnicalMessage ?? null,
+      ip_address: entry.ipAddress ?? null,
+      change_origin: entry.changeOrigin ?? null,
+      actor_profile_id: actorProfile?.profile_id ?? null,
+      actor_profile_name: actorProfile?.name ?? null,
+      denied_permission_keys: entry.deniedPermissionKeys ? [...entry.deniedPermissionKeys] : [],
+    })
+    .returning("audit_id");
+
+  const row = rows[0] as { audit_id: string | number } | undefined;
+  if (!row) {
+    throw new AppError("Não foi possível registrar o evento de auditoria.", 500);
+  }
+
+  return String(row.audit_id);
 }
 
 export { auditCatalog };
-export type { AuditEntityName, ComposedAuditAction } from "./auditCatalog.ts";
+export type { AuditEntityType, ComposedAuditAction } from "./auditCatalog.ts";

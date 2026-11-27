@@ -1,46 +1,39 @@
+import {
+  createdFromParam,
+  createdToParam,
+  departmentParam,
+  protocolParam,
+  searchParam,
+  sortByParam,
+  sortOrderParam,
+} from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
+
 export default {
   "/queue/metrics": {
     get: {
       tags: ["Fila de atendimento"],
       summary: "Métricas da fila",
       description:
-        "Retorna métricas da fila. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente, e `all` não aplica filtro.",
+        "Métricas consolidadas da fila. `queue:read` em `assigned` considera apenas as solicitações em que o ator é Responsável (triagem ou mapeamento); `all` vê o total.",
       operationId: "getQueueMetrics",
       security: [{ cookieAuth: [] }],
       responses: {
-        "200": {
-          description: "Métricas da fila.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/QueueMetrics" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `queue:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Métricas da fila.", ...json("QueueMetrics") },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `queue:read`."),
       },
     },
   },
+
   "/queue": {
     get: {
       tags: ["Fila de atendimento"],
       summary: "Listar fila de atendimento",
       description:
-        "Centraliza a listagem da fila com paginação, busca e filtros. Exige `queue:read`; a Custódia `assigned` limita os resultados às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente, e `all` não aplica filtro.",
+        "Listagem paginada da fila com busca por conteúdo, filtros por data/departamento e ordenação. " +
+        "As datas comparam `created_at` em UTC e são inclusivas nas duas pontas. " +
+        "Os filtros são combináveis entre si e com `search`. `queue:read` em `assigned` vê apenas as solicitações sob sua responsabilidade; `all` vê todas. A busca por notas internas usa a custódia de `internal_note:read`.",
       operationId: "getQueue",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -48,205 +41,92 @@ export default {
           name: "page",
           in: "query",
           required: true,
-          description: "Número da página (>= 1).",
           schema: { type: "integer", minimum: 1, example: 1 },
         },
         {
           name: "pageSize",
           in: "query",
           required: true,
-          description: "Itens por página (1 a 100).",
           schema: { type: "integer", minimum: 1, maximum: 100, example: 10 },
         },
-        {
-          name: "search",
-          in: "query",
-          required: false,
-          description: "Busca por protocolo, e-mail corporativo ou nome do solicitante.",
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
+        searchParam,
         {
           name: "status",
           in: "query",
           required: false,
-          description: "Valor exato de um status válido.",
-          schema: { type: "string", example: "Em triagem" },
+          description: "Nome exato de um status; valor inexistente não é validado contra o banco.",
+          schema: { type: "string", maxLength: 100, example: "Em triagem" },
         },
         {
           name: "priority",
           in: "query",
           required: false,
-          description: "Valor exato de prioridade.",
-          schema: { type: "string", enum: ["Baixa", "Média", "Alta", "Crítica"], example: "Alta" },
+          schema: {
+            type: "string",
+            enum: ["Baixa", "Média", "Alta", "Crítica", "nenhum"],
+          },
         },
         {
           name: "assigneeId",
           in: "query",
           required: false,
           description:
-            "ID do Responsável da triagem ou do Mapeamento corrente (UUID ou user_id), ou `unassigned`.",
-          schema: { type: "string", example: "unassigned" },
+            "`details_professional.professional_id` (UUID), `users.user_id` numérico ou `unassigned`.",
+          schema: { type: "string" },
         },
         {
           name: "unassigned",
           in: "query",
           required: false,
-          description: "true/1 para listar apenas solicitações sem responsável.",
-          schema: { type: "string", enum: ["true", "1", "false", "0"], example: "true" },
+          description:
+            "`true`/`1` lista apenas sem responsável. Não pode ser combinado com `assigneeId` diferente de `unassigned`.",
+          schema: { type: "string", enum: ["true", "1", "false", "0"] },
         },
+        createdFromParam,
+        createdToParam,
+        departmentParam,
+        sortByParam,
+        sortOrderParam,
       ],
       responses: {
-        "200": {
-          description: "Lista paginada de solicitações da fila de atendimento.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/QueueResponse" },
-            },
-          },
-        },
-        "400": {
-          description: "Parâmetros `page` ou `pageSize` ausentes ou inválidos.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `queue:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Página da fila.", ...json("QueueResponse") },
+        "400": error("Parâmetros ausentes ou inválidos."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `queue:read`."),
       },
     },
   },
+
   "/queue/requests/{protocol}/mapping": {
     get: {
       tags: ["Fila de atendimento"],
       summary: "Consultar mapeamento da solicitação",
-      description:
-        "Consulta o mapeamento mais recente. Exige `mapping:read` e Custódia sobre o Responsável da solicitação ou do mapeamento corrente; snapshots não concedem acesso.",
+      description: "Retorna o mapeamento mais recente ou o estado vazio (`id: null`).",
       operationId: "getMapping",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       responses: {
-        "200": {
-          description: "Mapeamento (ou estado vazio se não houver).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/MappingResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Perfil sem acesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo inexistente.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Mapeamento atual.", ...json("MappingResponse") },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `queue:read`."),
+        "404": error("Protocolo inexistente."),
       },
     },
     put: {
       tags: ["Fila de atendimento"],
       summary: "Criar ou atualizar mapeamento",
       description:
-        "Cria ou atualiza o mapeamento. Exige `mapping:write` e Custódia sobre o Responsável da solicitação ou do mapeamento corrente; snapshots não concedem acesso. Campos ausentes mantêm o valor atual; `null` limpa; `participants` substitui a lista. O criador da solicitação não pode ser o designado do mapeamento (`assignee_is_requester`).",
+        "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. " +
+        "`completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); " +
+        "para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`.",
       operationId: "putMapping",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "protocol",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
-        },
-      ],
+      parameters: [protocolParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              required: ["completeMapping"],
-              properties: {
-                id: { type: "string", format: "uuid" },
-                scheduledFor: { type: "string", format: "date-time", nullable: true },
-                durationMinutes: { type: "integer", minimum: 15, maximum: 480, nullable: true },
-                modality: { type: "string", enum: ["REMOTE", "IN_PERSON"], nullable: true },
-                meetingLink: { type: "string", nullable: true },
-                location: { type: "string", nullable: true },
-                participants: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: {
-                        anyOf: [{ type: "string" }, { type: "integer" }, { type: "null" }],
-                        description:
-                          "ID do usuário (número ou string numérica) ou null para participante externo.",
-                      },
-                      name: { type: "string" },
-                      email: { type: "string", format: "email" },
-                    },
-                  },
-                },
-                notes: { type: "string", nullable: true },
-                mappingAssigneeId: {
-                  type: "string",
-                  format: "uuid",
-                  nullable: true,
-                  description: "UUID do profissional designado (details_professional) ou null.",
-                },
-                completeMapping: { type: "boolean" },
-                targetStatus: {
-                  type: "integer",
-                  minimum: 1,
-                  description:
-                    "Status de destino ao concluir o mapeamento (obrigatório quando completeMapping for true).",
-                },
-                justification: {
-                  type: "string",
-                  description:
-                    "Justificativa da mudança de status (obrigatória quando completeMapping for true).",
-                },
-              },
-            },
+            schema: { $ref: "#/components/schemas/MappingPayload" },
             examples: {
               conclusao: {
                 summary: "Concluir mapeamento com designação",
@@ -254,12 +134,13 @@ export default {
                   mappingAssigneeId: "550e8400-e29b-41d4-a716-446655440000",
                   participants: [
                     { id: "123", name: "João Silva", email: "joao@empresa.com" },
-                    { id: null, name: "Externo", email: "externo@email.com" },
+                    { name: "Externo", email: "externo@email.com" },
                   ],
                   notes: "Ajuste de horário acordado",
                   completeMapping: true,
                   targetStatus: 6,
                   justification: "Conclusão do mapeamento por acordo entre as partes",
+                  lastTechnicalMessage: "Seu mapeamento foi concluído.",
                 },
               },
               semConclusao: {
@@ -281,56 +162,13 @@ export default {
         },
       },
       responses: {
-        "200": {
-          description: "Mapeamento atualizado com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/MappingResponse" },
-            },
-          },
-        },
-        "400": {
-          description:
-            "Payload malformado, alvo não atribuível (`assignee_not_assignable`) ou criador da " +
-            "solicitação como designado do mapeamento (`assignee_is_requester`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sem permissão para editar o mapeamento.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo ou mapeamento inexistente.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "422": {
-          description: "Erro de validação de campos ou estado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Mapeamento atualizado.", ...json("MappingResponse") },
+        "400": error("Payload malformado ou vazio."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `mapping:write` ou Custódia do mapeamento corrente."),
+        "404": error("Protocolo ou mapeamento inexistente."),
+        "409": error("Conflito de concorrência na transição."),
+        "422": error("Erro de validação de campos ou estado."),
       },
     },
   },

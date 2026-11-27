@@ -61,6 +61,8 @@ export interface MappingRequestContext {
   status_id: number | null;
   is_terminal: boolean;
   is_restricted: boolean;
+  /** Título da solicitação — compõe a Allowlist do Evento de Agendamento. */
+  title: string;
 }
 
 /** Candidato a designado do mapeamento (mínimo para elegibilidade + resposta). */
@@ -134,13 +136,15 @@ export const findMappingRequestContext = async (
       status_id: "requests.status_id",
       is_terminal: "s.is_terminal",
       is_restricted: "s.is_restricted",
+      title: "requests.title",
     });
 
   return row ?? null;
 };
 
 /**
- * Status de destino da conclusão do mapeamento (delta v4 §3.2): projeção com
+ * Status de destino da conclusão do mapeamento (ver
+ * `docs/rules/requests-lifecycle.md`, seção Mapeamento): projeção com
  * eligible check `isActive && isRestricted===false && mappingMode` em
  * `conclusion_only`/`free`. `undefined` = inativo/restrito/modo inadequado.
  */

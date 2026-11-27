@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { Knex } from "knex";
+import db from "../../database/conection.ts";
 import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
   custodyFor,
@@ -9,7 +11,7 @@ import {
 } from "../../shared/access/requestAccess.ts";
 import type { EffectivePermission } from "../../shared/catalog/permissionCatalog.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
-import { FIELD_KEY_SET, getFieldSnapshot } from "../../shared/catalog/fieldCatalog.ts";
+import { getFieldSnapshot, isFieldKey, type FieldKey } from "../../shared/catalog/fieldCatalog.ts";
 import * as repo from "./pendingItems.repository.ts";
 import type { PendingItemInsert, ReviewDecisionInput } from "./pendingItems.repository.ts";
 import type {
@@ -17,8 +19,8 @@ import type {
   CreatePendingItemsBody,
   ListPendingItemsResponse,
   ReviewPendingItemsBody,
-  InternalRequestRow,
 } from "../DTOs/pendingItems/PendingItems.dto.ts";
+import type { InternalRequestRow } from "../../shared/types/requests.ts";
 import { findInternalRequestByProtocol } from "../requests/requests.repository.ts";
 import type { RequestStatus } from "../../shared/types/requests.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
@@ -26,10 +28,92 @@ import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts"
 import { removeFiles, saveFiles } from "../../shared/storage/fileStorage.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import { ALLOWED_MIMES, MAX_FILE_SIZE_BYTES } from "../../shared/middleware/upload.ts";
+import type { CommittedNotification } from "../../shared/notifications/emitNotification.ts";
+import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
+import {
+  emitPendingItemNotifications,
+  type PendingItemNotificationRequest,
+} from "../../shared/notifications/pendingItemNotification.ts";
+import {
+  emitPendingItemRespondedNotification,
+  type PendingItemRespondedAudience,
+} from "../../shared/notifications/pendingItemRespondedNotification.ts";
+import { findActiveAdminUserIds, findUserIdByEmail } from "../users/users.repository.ts";
 
 const TERMINAL_STATUSES = new Set(["Concluído", "Cancelado"]);
 const IN_TRIAGE_STATUS: RequestStatus = "Em triagem";
 const PENDING_INFO_STATUS: RequestStatus = "Pendente de informações";
+
+/**
+ * Relê a solicitação dentro da transação para que uma correção de título
+ * validada na mesma revisão apareça no Payload.
+ */
+async function readPendingItemNotificationRequest(
+  trx: Knex.Transaction,
+  requestId: string,
+): Promise<PendingItemNotificationRequest> {
+  const request = await repo.findRequestById(requestId, trx);
+  if (!request) throw new AppError("Solicitação não encontrada", 404);
+  return {
+    requestId: request.request_id,
+    requesterUserId: request.requester_user_id,
+    pointer: { protocol: request.protocol, title: request.title },
+  };
+}
+
+/**
+ * Executa o evento de negócio e publica as Notificações somente após o commit
+ * (ADR-0001); se a transação falhar, nada é publicado.
+ */
+async function commitPendingItemAction<TResult>(
+  action: (trx: Knex.Transaction) => Promise<{
+    result: TResult;
+    notifications: readonly CommittedNotification[];
+  }>,
+): Promise<TResult> {
+  const { result, notifications } = await db.transaction(action);
+  publishCommittedNotifications(notifications);
+  return result;
+}
+
+function responseChangeOrigin(caller: PendingCaller): "admin" | "requester" {
+  return caller.user !== undefined ? "admin" : "requester";
+}
+
+/**
+ * Ator da Notificação. Sem sessão, a identidade pública representa o
+ * solicitante vinculado; quando não há vínculo, o e-mail verificado identifica
+ * uma eventual conta do mesmo dono para a autoexclusão.
+ */
+async function resolveResponseActorUserId(
+  trx: Knex.Transaction,
+  caller: PendingCaller,
+  request: repo.RequestRef,
+): Promise<number | null> {
+  if (caller.user !== undefined) return Number(caller.user.id);
+  if (request.requester_user_id !== null) return request.requester_user_id;
+  return findUserIdByEmail(trx, request.requester_email);
+}
+
+/** Remove o ator e duplicatas antes de montar o Evento. */
+function uniqueOtherRecipients(userIds: readonly number[], actorUserId: number | null): number[] {
+  return [...new Set(userIds)].filter((userId) => userId !== actorUserId);
+}
+
+async function resolvePendingItemRespondedAudience(
+  trx: Knex.Transaction,
+  requestId: string,
+  actorUserId: number | null,
+): Promise<PendingItemRespondedAudience> {
+  const assigneeUserId = await repo.findAssigneeUserIdByRequestId(trx, requestId);
+  if (assigneeUserId !== null) {
+    return { kind: "assignee", userId: assigneeUserId };
+  }
+  return {
+    kind: "active_admins",
+    userIds: uniqueOtherRecipients(await findActiveAdminUserIds(trx), actorUserId),
+  };
+}
 
 function normalizeSummaryFieldKey(fieldKey: string): string {
   return fieldKey.trim();
@@ -37,7 +121,7 @@ function normalizeSummaryFieldKey(fieldKey: string): string {
 
 async function buildPendingItems(
   protocol: string,
-  rows: Record<string, unknown>[],
+  rows: repo.PendingItemRow[],
 ): Promise<PendingItem[]> {
   const bases = rows.map((row) => {
     const base = repo.mapRowToPendingItemBase(row);
@@ -129,7 +213,7 @@ export async function createPendingItems(
 
     for (const item of items) {
       const fieldKey = normalizeSummaryFieldKey(item.fieldKey);
-      if (!FIELD_KEY_SET.has(fieldKey)) {
+      if (!isFieldKey(fieldKey)) {
         throw new AppError(`Campos inválidos: fieldKey — ${fieldKey} não está no catálogo`, 400);
       }
       if (!item.comment || item.comment.trim().length === 0) {
@@ -169,7 +253,7 @@ export async function createPendingItems(
     });
   }
   for (const item of items) {
-    const fieldKey = normalizeSummaryFieldKey(item.fieldKey);
+    const fieldKey = normalizeSummaryFieldKey(item.fieldKey) as FieldKey;
     const snapshot = internalRow
       ? getFieldSnapshot(fieldKey, internalRow)
       : { label: fieldKey, value: null };
@@ -187,13 +271,23 @@ export async function createPendingItems(
     });
   }
 
-  const createdRows = await repo.createPendingItemsBatch({
-    requestId: request.request_id,
-    protocol,
-    batchId,
-    rows,
-    actor,
-    ip,
+  const createdRows = await commitPendingItemAction(async (trx) => {
+    const { rows: insertedRows, auditId } = await repo.createPendingItemsBatchInTransaction(trx, {
+      requestId: request.request_id,
+      protocol,
+      batchId,
+      rows,
+      actor,
+      ip,
+    });
+
+    const notifications = await emitPendingItemNotifications(trx, {
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
+      actorUserId: actor.id,
+      events: [{ action: "create", auditId }],
+    });
+
+    return { result: insertedRows, notifications };
   });
 
   const mapped = await buildPendingItems(protocol, createdRows);
@@ -383,21 +477,44 @@ export async function respondPendingItem(
     patch = { response_text: response.trim() };
   }
 
-  const updated = await repo.respondPendingItemTx({
-    requestId: request.request_id,
-    protocol,
-    pendingItemId,
-    batchId: row["batch_id"] as string,
-    patch,
-    actorEmail,
-    isSession: caller.user !== undefined,
-    ip,
-    decideStatus: (facts) =>
-      facts.requestedRemaining === 0 &&
-      facts.attachmentSatisfied &&
-      facts.currentStatusName !== IN_TRIAGE_STATUS
-        ? IN_TRIAGE_STATUS
-        : null,
+  const updated = await db.transaction(async (trx) => {
+    const result = await repo.applyPendingItemResponse(trx, {
+      requestId: request.request_id,
+      protocol,
+      pendingItemId,
+      batchId: row["batch_id"] as string,
+      patch: patch as repo.PendingItemResponsePatch,
+      actorEmail,
+      changeOrigin: responseChangeOrigin(caller),
+      ip,
+      decideStatus: (facts) =>
+        facts.requestedRemaining === 0 &&
+        facts.attachmentSatisfied &&
+        facts.currentStatusName !== IN_TRIAGE_STATUS
+          ? IN_TRIAGE_STATUS
+          : null,
+    });
+
+    const actorUserId = await resolveResponseActorUserId(trx, caller, request);
+    const audience = await resolvePendingItemRespondedAudience(
+      trx,
+      request.request_id,
+      actorUserId,
+    );
+
+    const committedNotifications = await emitPendingItemRespondedNotification(trx, {
+      auditId: result.auditId,
+      requestId: request.request_id,
+      requestPointer: {
+        protocol: request.protocol,
+        title: request.title,
+      },
+      actorUserId,
+      audience,
+    });
+
+    publishCommittedNotifications(committedNotifications);
+    return result.row;
   });
 
   const list = await buildPendingItems(protocol, [updated]);
@@ -586,16 +703,29 @@ export async function reviewPendingItems(
     return { id: decision.id, decision: "validate", note: decision.note ?? null, fieldKey, value };
   });
 
-  const decidedRows = await repo.applyReviewDecisionsTx({
-    requestId: request.request_id,
-    protocol,
-    batchId,
-    decisions,
-    requestAttachment: body.requestAttachment,
-    actor,
-    ip,
-    currentStatusName: request.status,
-    decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
+  const decidedRows = await commitPendingItemAction(async (trx) => {
+    const { rows: reviewedRows, actionAuditIds } = await repo.applyReviewDecisionsInTransaction(
+      trx,
+      {
+        requestId: request.request_id,
+        protocol,
+        batchId,
+        decisions,
+        requestAttachment: body.requestAttachment,
+        actor,
+        ip,
+        currentStatusName: request.status,
+        decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
+      },
+    );
+
+    const notifications = await emitPendingItemNotifications(trx, {
+      request: await readPendingItemNotificationRequest(trx, request.request_id),
+      actorUserId: actor.id,
+      events: [...actionAuditIds].map(([action, auditId]) => ({ action, auditId })),
+    });
+
+    return { result: reviewedRows, notifications };
   });
 
   const mapped = await buildPendingItems(protocol, decidedRows);

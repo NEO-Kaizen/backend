@@ -41,8 +41,8 @@ export const getRequestsByProtocol = async (req: Request, res: Response): Promis
   return res.status(200).json(foundRequest);
 };
 
-// Acompanhamento bimodal do solicitante (contrato `contract-pendencias_03.md`
-// §3): sessão do dono → `authenticated`; identidade pública → `public`. A
+// Acompanhamento bimodal do solicitante (regras em `docs/rules/pending-items.md`):
+// sessão do Solicitante → `authenticated`; identidade pública → `public`. A
 // decisão de modo e o owner-check ficam no service.
 export const getTracking = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocolParam(req);
@@ -71,7 +71,7 @@ export const getInternalRequestByProtocol = async (
 
 /** Valida e devolve `req.params.protocol` — comum aos dois handlers da rota. */
 function assertProtocolParam(req: Request): string {
-  const protocol = req.params.protocol as string;
+  const protocol = req.params.protocol;
 
   if (!protocol || typeof protocol !== "string" || protocol.trim() === "") {
     throw new AppError("Protocolo é obrigatório", 400);

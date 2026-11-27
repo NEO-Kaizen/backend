@@ -1,73 +1,152 @@
+import {
+  createdFromParam,
+  createdToParam,
+  departmentParam,
+  searchParam,
+  sortByParam,
+  sortOrderParam,
+} from "../components/parameters.ts";
+import { error, json } from "../components/responses.ts";
+
 export default {
   "/reports/dashboard": {
     get: {
       tags: ["Relatórios"],
       summary: "Relatório do dashboard",
       description:
-        "Retorna dados consolidados para o dashboard. Exige a permissão global `reports:read`.",
+        "Agregados das solicitações para o dashboard gerencial. Exige `reports:read`. " +
+        "`open` = status não terminal; `closed` = terminal; `overdue` = aberta com prazo desejado vencido; `unassigned` = aberta sem responsável de triagem.",
       operationId: "getDashboard",
       security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "from",
+          in: "query",
+          required: false,
+          description: "Data inicial de abertura (`yyyy-mm-dd`).",
+          schema: { type: "string", format: "date" },
+        },
+        {
+          name: "to",
+          in: "query",
+          required: false,
+          description: "Data final de abertura (`yyyy-mm-dd`), inclusiva.",
+          schema: { type: "string", format: "date" },
+        },
+        {
+          name: "situation",
+          in: "query",
+          required: false,
+          schema: { $ref: "#/components/schemas/DashboardSituation" },
+        },
+        {
+          name: "statusId",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1 },
+        },
+        {
+          name: "categoryId",
+          in: "query",
+          required: false,
+          schema: { type: "integer", minimum: 1 },
+        },
+        {
+          name: "priorityId",
+          in: "query",
+          required: false,
+          description: "ID da prioridade ou `unassigned`.",
+          schema: {
+            oneOf: [
+              { type: "integer", minimum: 1 },
+              { type: "string", enum: ["unassigned"] },
+            ],
+          },
+        },
+      ],
       responses: {
-        "200": {
-          description: "Dados do dashboard.",
-          content: {
-            "application/json": {
-              schema: { type: "object" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `reports:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Dados do dashboard.", ...json("DashboardResponse") },
+        "400": error("Filtro inválido ou intervalo invertido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `reports:read`."),
       },
     },
   },
+
   "/reports/requests.csv": {
     get: {
       tags: ["Relatórios"],
       summary: "Exportar solicitações em CSV",
       description:
-        "Exporta a Fila em CSV. Exige `queue:export`; a Custódia `assigned` limita a exportação às solicitações em que o ator é Responsável da triagem ou do Mapeamento corrente. O Analista do perfil base não recebe essa permissão.",
+        "Exporta todas as solicitações correspondentes aos filtros (sem paginação). Exige `queue:export` + Custódia.\n\n" +
+        "**Formato:** `text/csv; charset=utf-8`, UTF-8 com BOM, separador `;`, CRLF, campos entre aspas quando necessário. " +
+        "Valores iniciados por `=`, `+`, `-` ou `@` são prefixados com `'` para neutralizar fórmulas de planilha. " +
+        "Arquivo `solicitacoes-AAAA-MM-DD.csv` com `Content-Disposition: attachment`, `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.\n\n" +
+        "**Colunas:** Protocolo; Data de Abertura; Área; Processo; Categoria; Status; Prioridade; Responsável; " +
+        "Data de Mapeamento; Data da Última Atualização; Resultado da Triagem; Data de Conclusão. " +
+        "Datas nas colunas do CSV no fuso `America/Sao_Paulo`; os filtros `createdFrom`/`createdTo` usam UTC.\n\n" +
+        "`status` é o nome exato do Status; `priority=nenhum` filtra prioridade nula; `assigneeId` aceita UUID, `user_id` numérico ou `unassigned`; " +
+        "`unassigned=true` não pode ser combinado com `assigneeId` diferente de `unassigned`. " +
+        "`createdFrom`/`createdTo` filtram a abertura em UTC (inclusivo nas duas pontas) e `department` filtra o departamento do solicitante; " +
+        "todos são combináveis com `search`. A ordenação é aplicada após os filtros, com o mesmo `sortBy`/`sortOrder` da fila.",
       operationId: "exportRequestsCsv",
       security: [{ cookieAuth: [] }],
+      parameters: [
+        searchParam,
+        {
+          name: "status",
+          in: "query",
+          required: false,
+          schema: { type: "string", maxLength: 100 },
+        },
+        {
+          name: "priority",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["Baixa", "Média", "Alta", "Crítica", "nenhum"] },
+        },
+        {
+          name: "assigneeId",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+        },
+        {
+          name: "unassigned",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["true", "1", "false", "0"] },
+        },
+        createdFromParam,
+        createdToParam,
+        departmentParam,
+        sortByParam,
+        sortOrderParam,
+      ],
       responses: {
         "200": {
-          description: "Arquivo CSV com os dados das solicitações.",
+          description: "Arquivo CSV.",
+          headers: {
+            "Content-Disposition": {
+              schema: { type: "string" },
+              description: '`attachment; filename="solicitacoes-AAAA-MM-DD.csv"`.',
+            },
+            "Cache-Control": {
+              schema: { type: "string", enum: ["no-store"] },
+            },
+            "X-Content-Type-Options": {
+              schema: { type: "string", enum: ["nosniff"] },
+            },
+          },
           content: {
             "text/csv": {
               schema: { type: "string", format: "binary" },
             },
           },
         },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Ator sem `queue:export`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "400": error("Filtros inválidos."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `reports:read`."),
       },
     },
   },

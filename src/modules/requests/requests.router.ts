@@ -40,7 +40,9 @@ requestsRoutes.get(
   getAssignees,
 );
 
-// Contrato contract-assign-action.md: PATCH /requests/:protocol/internal/assignee com body {assigneeId} | {mappingAssigneeId} (user_id string, XOR, null para remover)
+// Wire format em `src/docs/paths/requests.ts` (`patchInternalAssignee`): PATCH
+// /requests/{protocol}/internal/assignee com body {assigneeId} | {mappingAssigneeId}
+// (user_id string, XOR, null para remover). Regras em `docs/rules/assignment.md`.
 // A chave request:assign faz o gate da operação; o service valida Custódia
 // da solicitação e a Atribuibilidade do alvo. Mantida rota legada /:protocol/assignee.
 requestsRoutes.patch(
@@ -57,7 +59,7 @@ requestsRoutes.patch(
   patchAssignee,
 );
 
-// Acompanhamento do solicitante (contrato `contract-pendencias_03.md` §3):
+// Acompanhamento do solicitante (regras em `docs/rules/pending-items.md`):
 // dual-auth (cookie de sessão OU header `X-Requester-Identity`). Com sessão,
 // `request:track` gate a operação e a linha é resolvida pela Posse no service.
 // Declarado antes de `/:protocol` para não ser capturado por engano.
@@ -68,8 +70,10 @@ requestsRoutes.get(
   getTracking,
 );
 
-// Motor de Status: request:status_change e Custódia são resolvidos no service;
-// alvos restritos ou fora do fluxo exigem request:status_override global.
+// Motor de Status v4 (issue #124 — ver `docs/rules/requests-lifecycle.md`,
+// seção Troca direta de status): troca de status única.
+// `request:status_change` e Custódia são resolvidos no service; alvos
+// restritos ou fora do fluxo exigem `request:status_override` global.
 requestsRoutes.patch(
   "/:protocol/status",
   authMiddleware,
