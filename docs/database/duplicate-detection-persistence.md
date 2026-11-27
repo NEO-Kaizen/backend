@@ -95,7 +95,9 @@ passa a entrar no corpus de concluídas respeitando a janela. O `down` da
 migration da #210 volta somente o 16 para `false`; não regrava os demais ids,
 que pertencem ao baseline da #209/#212. O catálogo canônico atual vai até o id
 17; o id 19 (`Duplicada`) será criado pela Marcação de duplicidade
-(RF25)/administração (#212), e a allowlist já o cobre. Ver
+(RF25)/administração (#212), e a allowlist já o cobre quando ele existir. Como
+o default da coluna é `TRUE`, a migration que criar o 19 deve defini-lo com
+`is_duplicate_corpus_eligible: false` explicitamente. Ver
 [`requests-persistence.md`](requests-persistence.md#tabela-statuses).
 
 ## Ciclo de publicação
@@ -104,9 +106,10 @@ que pertencem ao baseline da #209/#212. O catálogo canônico atual vai até o i
 2. `publishRequestProjection(trx, requestId)` lê Solicitação + Categoria +
    Status + janela, decide a supressão e faz upsert por `request_id`,
    preservando `public_id`.
-3. Aberta publica o template `v1-open-template`; concluída dentro da janela
-   publica título/resumo com `v1-regex` depois do gate de PII. PII, título ou
-   resumo vazio e qualquer supressão usam o template `v1-template`.
+3. Status diferente de 16 publica o template de aberta (`v1-open-template`),
+   inclusive quando a linha está suprimida. Concluída (16) dentro da janela
+   publica título/resumo com `v1-regex` depois do gate de PII; PII, título ou
+   resumo vazio e qualquer supressão do 16 usam o template `v1-template`.
 4. Publicada: `published_at` é mantido (ou preenchido na primeira vez),
    `suppressed_at` e `suppression_reason` ficam nulos.
 5. Suprimida: `suppressed_at` é mantido (ou preenchido na transição),

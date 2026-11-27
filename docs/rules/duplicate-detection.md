@@ -46,10 +46,12 @@ allowlist. Duplicada, nesta fatia, é o Status `19` (`Duplicada`) com
 RF25 ainda não existe.
 
 > **Nota de catálogo:** a migration canônica atual mantém os Status 1–17; o id
-> 19 ainda não existe no banco desta fatia. A allowlist já o desliga quando ele
-> existir, e o teste `db` simula a linha para provar a regra. Criar o Status
-> `Duplicada` no catálogo é trabalho das fatias de Marcação de duplicidade
-> (RF25) e de administração (#212).
+> 19 ainda não existe no banco desta fatia. A allowlist desliga o 19 quando ele
+> existir, mas o default da coluna é `true`: a migration que criar o Status
+> `Duplicada` (19) deve inserir com `is_duplicate_corpus_eligible: false`
+> explicitamente. O teste `db` simula a linha para provar a regra. Criar o
+> Status `Duplicada` no catálogo é trabalho das fatias de Marcação de
+> duplicidade (RF25) e de administração (#212).
 
 ### Template de aberta
 
@@ -99,13 +101,14 @@ também cai para o template. O fallback usa:
 - `summary`: `Solicitação concluída da categoria <categoria>, registrada no período <YYYY-Qn>.`
 - `redaction_version`: `v1-template`
 
-Assim, `v1-regex` identifica texto livre aprovado pelo gate e `v1-template`
-identifica fallback de PII/texto vazio ou qualquer linha de concluída suprimida
-(inativa, terminal não-16, restrição, Status restrito, `missing_concluded_at`,
-`outside_window`, Categoria/Status inelegível). A linha suprimida nunca guarda
-texto livre; a republicação futura relê `requests` e regenera o snapshot. Nomes
-próprios sem contexto ainda podem passar; por isso a flag nasce desligada e o
-canário de RN04 é obrigatório.
+Assim, `v1-regex` identifica texto livre aprovado pelo gate. `v1-template`
+identifica o fallback de PII/texto vazio e qualquer linha do Status 16
+suprimida (inativa, restrição, Status restrito, `missing_concluded_at`,
+`outside_window`, Categoria/Status inelegível). Status diferente de 16 usa o
+template de aberta (`v1-open-template`), inclusive quando a linha está
+suprimida; a linha suprimida nunca guarda texto livre. A republicação futura
+relê `requests` e regenera o snapshot. Nomes próprios sem contexto ainda podem
+passar; por isso a flag nasce desligada e o canário de RN04 é obrigatório.
 
 A projeção guarda `public_concluded_at` (TIMESTAMPTZ) apenas para uso interno da
 janela e da varredura; ele **não** entra no DTO.
@@ -195,7 +198,9 @@ desfecho da Triagem, pendências/RN-010 e revisão de campos. A atualização do
   migration liga as categorias existentes.
 - `statuses.is_duplicate_corpus_eligible` nasce `true`; os desfechos 10, 13, 17
   e 19 são desligados. O 16 foi **ligado** pela migration da issue #210; a #212
-  deve preservar essa escolha ao editar a allowlist.
+  deve preservar essa escolha ao editar a allowlist. Como o default é `true`,
+  um Status novo nasce elegível: a migration que criar o 19 (RF25) deve
+  desligá-lo explicitamente.
 
 Alterar allowlists, janela e flag pelo Administrador é escopo da issue #212.
 

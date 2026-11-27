@@ -172,7 +172,8 @@ revisão #130 (`20260929000000_database_review_integrity_tuning.js`).
 - `is_duplicate_corpus_eligible` é a allowlist do corpus de duplicidade:
   nasce `true`; a migration da #209 desliga os ids 10, 13, 16, 17 e 19 (quando
   existirem) e a migration da #210 religa o 16 para o corpus de concluídas
-  dentro da janela. Regras em
+  dentro da janela. Como o default é `true`, a migration que criar o Status 19
+  (`Duplicada`) deve desligá-lo explicitamente. Regras em
   [`duplicate-detection.md`](../rules/duplicate-detection.md).
 - O enum `status_tone` usa `error | success | info | warning | neutral`;
   `status_triage_mode`/`status_mapping_mode` usam
