@@ -20,19 +20,18 @@ Um profissional é atribuível quando, ao mesmo tempo:
 Solicitações antigas mantêm o vínculo se o profissional for desativado;
 `ON DELETE SET NULL` só age em exclusão física.
 
-## Leitura no fluxo de mapeamento
+## Designação e custódia
 
 Designar o mapeamento desatribui a triagem (`requests.professional_id = null`).
-Por isso `request:read` e `audit:read` aceitam o Responsável da triagem **ou** o
-Designado do mapeamento corrente. A escrita (`request:write`), a atribuição
-(`request:assign`) e a troca de Status (`request:status_change`) continuam
-exclusivas do Responsável da triagem.
+A custódia de **toda chave custodial** soma as duas responsabilidades: o
+Responsável da triagem **ou** o Designado do mapeamento corrente alcança a
+linha. O que distingue as etapas é o Status de destino, não o vínculo: o alvo
+precisa ser ativo e ter `triageMode` ou `mappingMode` `free`; restrito ou fora
+do modo exige `request:status_override` global.
 
-O Designado do mapeamento lê e escreve Observações internas (`internal_note:read`
-e `internal_note:write` somam o Responsável da triagem ou do mapeamento). Os
-blocos de Pendência saem zerados (`pendingSummary`/`unread` zerados,
-`correctionAlert: null`), porque `pending_item:read` continua exclusivo do
-Responsável da triagem.
+Quem lê a visão interna sem `internal_note:read` recebe
+`internalObservations: null`; sem `pending_item:read`, os blocos de Pendência
+saem zerados.
 
 > Incluir `gestor` como atribuível é uma decisão pendente; ver
 > [`README.md`](README.md).
@@ -56,10 +55,11 @@ O modal de atribuição usa a lista mais permissiva; a fila usa a de atribuívei
 
 ## Autorização
 
-- Atribuir exige `request:assign` + Custódia da solicitação. Quem só lê (sem
-  escrita) não atribui.
-- Editar o mapeamento exige Administrador ou o responsável da solicitação;
-  designar o executor também é permitido ao designado atual.
+- Atribuir exige `request:assign`; no perfil base, só Administrador e Admin
+  Root têm a chave. O Analista não atribui.
+- Editar o mapeamento exige `mapping:write` + custódia da solicitação ou do
+  mapeamento corrente; designar o executor também é permitido ao designado
+  atual.
 - Analista sem custódia é recusado com código de permissão insuficiente.
 
 ## RN-010 — avanço automático de status

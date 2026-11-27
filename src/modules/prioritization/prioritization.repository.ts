@@ -18,15 +18,19 @@ export async function findRequestByProtocol(protocol: string): Promise<boolean> 
   return row !== undefined;
 }
 
-export async function findAssigneeUserIdByProtocol(
+export async function findResponsibleUserIdsByProtocol(
   protocol: string,
-): Promise<number | null | undefined> {
+): Promise<{ triageUserId: number | null; mappingUserId: number | null } | undefined> {
   const row = await db("requests as r")
     .leftJoin("details_professional as dp", "dp.professional_id", "r.professional_id")
+    .leftJoin("details_professional as dpm", "dpm.professional_id", "r.mapping_professional_id")
     .where("r.protocol", protocol)
-    .first({ assigneeUserId: "dp.user_id" });
+    .first({ triageUserId: "dp.user_id", mappingUserId: "dpm.user_id" });
   if (!row) return undefined;
-  return (row.assigneeUserId as number | null) ?? null;
+  return {
+    triageUserId: (row.triageUserId as number | null) ?? null,
+    mappingUserId: (row.mappingUserId as number | null) ?? null,
+  };
 }
 
 export async function listActiveCriteria(): Promise<CriterionRow[]> {

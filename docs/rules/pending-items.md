@@ -25,9 +25,8 @@ lote:  nenhum item "requested" restante ──▶ responded ──▶ validated
 
 - Autorização: `pending_item:write` (criar) ou `pending_item:review`
   (validar/reabrir) + Custódia da solicitação.
-- Quem lê a visão interna sem `pending_item:read` na linha — por exemplo, o
-  Designado do mapeamento — recebe `pendingSummary`/`unread` zerados e
-  `correctionAlert: null`.
+- Quem lê a visão interna sem `pending_item:read` na linha recebe
+  `pendingSummary`/`unread` zerados e `correctionAlert: null`.
 - Pelo menos uma observação ou um campo marcado é obrigatório.
 - A exigência de anexo é do **lote**, nunca de um campo.
 - O campo precisa estar no catálogo de campos marcáveis

@@ -44,8 +44,8 @@ export async function evaluateScore(
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  const assigneeUserId = await repository.findAssigneeUserIdByProtocol(protocol);
-  if (assigneeUserId === undefined) {
+  const responsibleUserIds = await repository.findResponsibleUserIdsByProtocol(protocol);
+  if (responsibleUserIds === undefined) {
     throw new AppError("Solicitação não encontrada", 404);
   }
 
@@ -53,7 +53,7 @@ export async function evaluateScore(
     actor.permissions,
     "prioritization:write",
     { userId: actor.id, email: actor.email },
-    [assigneeUserId],
+    [responsibleUserIds.triageUserId, responsibleUserIds.mappingUserId],
   );
 
   if (!canEvaluate) {

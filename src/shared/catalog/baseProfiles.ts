@@ -79,7 +79,6 @@ export const BASE_PROFILES: readonly BaseProfile[] = [
         "request:track",
         "request:read",
         "request:write",
-        "request:assign",
         "request:status_change",
         "queue:read",
         "triage:read",

@@ -75,7 +75,6 @@ import {
   custodyFor,
   denyRequestAccess,
   hasAnyResponsibleCustody,
-  hasResponsibleCustody,
   isRequesterOwner,
   recordAccessDeniedAttempt,
   type PermissionActor,
@@ -285,11 +284,10 @@ export async function findInternalByProtocol(
     request["assignee_user_id"],
     request["mapping_user_id"],
   ]);
-  const canReadPendingItems = hasResponsibleCustody(
-    actor,
-    "pending_item:read",
+  const canReadPendingItems = hasAnyResponsibleCustody(actor, "pending_item:read", [
     request["assignee_user_id"],
-  );
+    request["mapping_user_id"],
+  ]);
 
   const requestId = request["request_id"] as string;
   const [attachments, schedulePreferences, evaluation] = await Promise.all([
@@ -873,7 +871,8 @@ export async function updateInternalRequest(
     protocol.trim(),
     ipAddress,
     "request:write sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:write", row.assignee_user_id),
+    (row) =>
+      hasAnyResponsibleCustody(actor, "request:write", [row.assignee_user_id, row.mapping_user_id]),
     ["request:write"],
   );
 
@@ -1018,7 +1017,11 @@ export async function assignResponsible(
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
+    (row) =>
+      hasAnyResponsibleCustody(actor, "request:assign", [
+        row.assignee_user_id,
+        row.mapping_assignee_user_id,
+      ]),
     ["request:assign"],
   );
 
@@ -1142,7 +1145,11 @@ export async function assignAnalyst(
     protocol.trim(),
     ipAddress,
     "request:assign sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:assign", row.assignee_user_id),
+    (row) =>
+      hasAnyResponsibleCustody(actor, "request:assign", [
+        row.assignee_user_id,
+        row.mapping_assignee_user_id,
+      ]),
     ["request:assign"],
   );
 
@@ -1427,7 +1434,11 @@ export async function updateRequestStatus(
     protocol.trim(),
     ipAddress,
     "request:status_change sem custódia",
-    (row) => hasResponsibleCustody(actor, "request:status_change", row.assignee_user_id),
+    (row) =>
+      hasAnyResponsibleCustody(actor, "request:status_change", [
+        row.assignee_user_id,
+        row.mapping_assignee_user_id,
+      ]),
     ["request:status_change"],
   );
 

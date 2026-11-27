@@ -5,7 +5,7 @@ import type { PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
   custodyFor,
   denyRequestAccess,
-  hasResponsibleCustody,
+  hasAnyResponsibleCustody,
   isRequesterOwner,
   permissionActorFromRequest,
 } from "../../shared/access/requestAccess.ts";
@@ -180,7 +180,12 @@ export async function createPendingItems(
   if (!request) {
     return denyRequestAccess(protocol, actor.id, ip, "pending_item:write sem solicitação");
   }
-  if (!hasResponsibleCustody(actor, "pending_item:write", request.responsible_user_id)) {
+  if (
+    !hasAnyResponsibleCustody(actor, "pending_item:write", [
+      request.responsible_user_id,
+      request.mapping_user_id,
+    ])
+  ) {
     return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:write sem custódia", [
       "pending_item:write",
     ]);
@@ -343,11 +348,10 @@ async function requireReadableRequest(
       return denyRequestAccess(protocol, actor.id, ip, "pending_item:read sem solicitação");
     }
 
-    const canReadAssigned = hasResponsibleCustody(
-      actor,
-      "pending_item:read",
+    const canReadAssigned = hasAnyResponsibleCustody(actor, "pending_item:read", [
       request.responsible_user_id,
-    );
+      request.mapping_user_id,
+    ]);
     const canRespondOwn =
       custodyFor(actor, "pending_item:respond") === "own" && isRequesterOf(request, actor);
 
@@ -662,7 +666,12 @@ export async function reviewPendingItems(
   if (!request) {
     return denyRequestAccess(protocol, actor.id, ip, "pending_item:review sem solicitação");
   }
-  if (!hasResponsibleCustody(actor, "pending_item:review", request.responsible_user_id)) {
+  if (
+    !hasAnyResponsibleCustody(actor, "pending_item:review", [
+      request.responsible_user_id,
+      request.mapping_user_id,
+    ])
+  ) {
     return denyRequestAccess(request.protocol, actor.id, ip, "pending_item:review sem custódia", [
       "pending_item:review",
     ]);

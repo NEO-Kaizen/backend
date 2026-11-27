@@ -89,6 +89,7 @@ function makeRequest(overrides: Partial<RequestRef> = {}): RequestRef {
     status_id: 5,
     requester_user_id: OWNER_ID,
     responsible_user_id: null,
+    mapping_user_id: null,
     // Snapshot divergente do cadastro da conta — a reprodução da issue #202.
     requester_name: "Ana Paula Santos",
     requester_email: "ana.santos@empresa.com",

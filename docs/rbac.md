@@ -30,12 +30,12 @@ A custódia não vai no token e não envelhece com ele. As fontes do vínculo co
 
 | Fonte                                                                 | Vale para                                                                                                           |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `requests.professional_id` via `details_professional.user_id`         | solicitação, Fila, Triagem, Priorização, Pendências internas, Notas internas e Auditoria                            |
-| `mappings.professional_id` do Mapeamento aberto mais recente          | `mapping:read`, `mapping:write` e Fila, além do Responsável da solicitação                                          |
-| `requests.mapping_professional_id`                                    | Custódia inicial de Mapeamento/Fila antes de existir qualquer linha de Mapeamento                                   |
+| `requests.professional_id` via `details_professional.user_id`         | Responsável da triagem em qualquer chave custodial                                                                  |
+| `mappings.professional_id` do Mapeamento aberto mais recente          | Responsável do mapeamento em qualquer chave custodial                                                               |
+| `requests.mapping_professional_id`                                    | Responsável do mapeamento antes de existir qualquer linha de Mapeamento                                             |
 | `requests.requester_user_id`; sem vínculo, `requests.requester_email` | posse: `request:track` e `pending_item:respond`, comparando com a conta (id; e-mail só nas linhas legadas/anônimas) |
 
-A visibilidade da fila (`queue:read`/`queue:export`) e a custódia de `internal_note:read` — usada também pela busca por notas — somam o responsável da triagem e o do mapeamento corrente.
+Toda chave custodial soma as duas responsabilidades: estar designado na triagem **ou** no mapeamento corrente basta para a linha. O que distingue as etapas não é a custódia, e sim as flags do Status de destino (`triageMode`/`mappingMode`/restrito).
 
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
@@ -76,7 +76,7 @@ Atribuibilidade não é `request:assign`: atribuir é escolher o Responsável; s
 
 | Termo                | Pergunta que responde                   | Exemplo                                                            |
 | -------------------- | --------------------------------------- | ------------------------------------------------------------------ |
-| **`request:assign`** | quem pode escolher o Responsável        | o Analista redistribui a solicitação que custodía                  |
+| **`request:assign`** | quem pode escolher o Responsável        | Administrador e Admin Root escolhem qualquer Responsável           |
 | **Atribuibilidade**  | quem pode ser escolhido                 | perfil com `is_assignable_triage` e as chaves de triagem           |
 | **Custódia**         | sobre qual linha a chave custodial vale | `details_professional.user_id` ligado a `requests.professional_id` |
 | **Posse**            | quem abriu a solicitação                | o autor acompanha a própria solicitação em `own`                   |
@@ -260,7 +260,7 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | 2   | `request:track`                | own         | own      | own          | own           | own        |
 | 3   | `request:read`                 | —           | assigned | all          | all           | all        |
 | 4   | `request:write`                | —           | assigned | —            | all           | all        |
-| 5   | `request:assign`               | —           | assigned | —            | all           | all        |
+| 5   | `request:assign`               | —           | —        | —            | all           | all        |
 | 6   | `request:status_change`        | —           | assigned | —            | all           | all        |
 | 7   | `request:status_override`      | —           | —        | —            | global        | global     |
 | 8   | `queue:read`                   | —           | assigned | all          | all           | all        |
@@ -299,7 +299,7 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | Perfil        | Chaves | `custodial` | `global` |
 | ------------- | ------ | ----------- | -------- |
 | Solicitante   | 3      | 2           | 1        |
-| Analista      | 20     | 18          | 2        |
+| Analista      | 19     | 17          | 2        |
 | Visualizador  | 14     | 11          | 3        |
 | Administrador | 37     | 19          | 18       |
 | Admin Root    | 37     | 19          | 18       |
@@ -321,27 +321,27 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 
 ## 5. Como a custódia é resolvida
 
-| Chave                                                            | Fonte do vínculo                                                                                                                                          |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `request:read`                                                   | `details_professional.user_id` ligado a `requests.professional_id` **ou** a `requests.mapping_professional_id`                                            |
-| `request:write`, `request:assign`, `request:status_change`       | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
-| `triage:read`, `triage:write`                                    | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
-| `mapping:read`, `mapping:write`                                  | Responsável da solicitação **ou** `mappings.professional_id` da linha aberta mais recente; antes de existir uma linha, `requests.mapping_professional_id` |
-| `prioritization:write`                                           | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
-| `pending_item:read`, `pending_item:write`, `pending_item:review` | `details_professional.user_id` ligado a `requests.professional_id`                                                                                        |
-| `internal_note:read`, `internal_note:write`                      | `details_professional.user_id` ligado a `requests.professional_id` **ou** a `requests.mapping_professional_id`                                            |
-| `audit:read`                                                     | `details_professional.user_id` ligado a `requests.professional_id` **ou** a `requests.mapping_professional_id`, com uma porta por domínio                 |
-| `queue:read`, `queue:export`                                     | Responsável da solicitação **ou** do Mapeamento aberto mais recente; antes da primeira linha, `requests.mapping_professional_id`; `all` dispensa filtro   |
-| `request:track`, `pending_item:respond`                          | posse: `requests.requester_user_id`; sem vínculo, `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                           |
-| chaves `global`                                                  | nenhuma verificação de linha                                                                                                                              |
+| Chave                                                                      | Fonte do vínculo                                                                                                                                        |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request:read`, `request:write`, `request:assign`, `request:status_change` | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `triage:read`, `triage:write`                                              | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `mapping:read`, `mapping:write`                                            | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `prioritization:write`                                                     | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `pending_item:read`, `pending_item:write`, `pending_item:review`           | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `internal_note:read`, `internal_note:write`                                | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `audit:read`                                                               | Responsável da triagem **ou** do mapeamento corrente, com uma porta por domínio                                                                         |
+| `queue:read`, `queue:export`                                               | Responsável da solicitação **ou** do Mapeamento aberto mais recente; antes da primeira linha, `requests.mapping_professional_id`; `all` dispensa filtro |
+| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_user_id`; sem vínculo, `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                         |
+| chaves `global`                                                            | nenhuma verificação de linha                                                                                                                            |
 
 Regras de aplicação:
 
 - A custódia é lida na operação, não no login. O guard relê o usuário e o perfil no banco a cada requisição; desativação, troca de perfil e troca de Responsável valem imediatamente.
 - A rota tem o gate grosso: sessão válida e a chave. O serviço do domínio aplica a custódia, em um lugar só por domínio.
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
-- A leitura da visão interna (`request:read`) e da Linha do tempo (`audit:read`) somam o Responsável da triagem e o do Mapeamento corrente: designar o mapeamento zera `requests.professional_id` por exclusividade. A escrita (`request:write`), a atribuição (`request:assign`) e a troca de Status (`request:status_change`) continuam exclusivas do Responsável da triagem.
-- Quem lê a visão interna sem `internal_note:read` recebe `internalObservations: null`; sem `pending_item:read`, os blocos de Pendência saem zerados. O Designado do mapeamento tem as duas chaves nas notas (custódia soma o mapeamento) e não nas Pendências (custódia só da triagem).
+- Toda chave custodial soma o Responsável da triagem e o do Mapeamento corrente: designar o mapeamento zera `requests.professional_id` por exclusividade, mas não retira a linha do designado.
+- Quem lê a visão interna sem `internal_note:read` recebe `internalObservations: null`; sem `pending_item:read`, os blocos de Pendência saem zerados.
+- A etapa só importa no Status: o alvo precisa ser ativo e ter `triageMode` ou `mappingMode` `free`; restrito ou fora do modo exige `request:status_override` global.
 - Sem sessão, não há ator: a porta pública do modo `PUBLIC` é a única que não avalia chaves. Ela usa o e-mail declarado e o protocolo.
 - Snapshots de triagem e de mapeamento não concedem acesso. A linha aberta mais recente do Mapeamento é a fonte vigente; quando ainda não existe linha de Mapeamento, vale a designação inicial da solicitação. Mapeamento concluído é histórico.
 - A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: casa nota de solicitação cujo Responsável da triagem **ou** do mapeamento corrente é o ator. Quem não tem a chave não casa nota alguma.
@@ -349,7 +349,7 @@ Regras de aplicação:
 
 ## 6. Atribuir e ser atribuível
 
-`request:assign` é a permissão de escolher ou trocar o Responsável. Ela é `custodial`: o Analista atribui as solicitações que custodía; o Visualizador não atribui; o Administrador e o Admin Root atribuem qualquer uma.
+`request:assign` é a permissão de escolher ou trocar o Responsável. Ela é `custodial`: no perfil base, só Administrador e Admin Root a têm (`all`). O Analista não atribui — a matriz não concede `request:assign` a ele; perfis customizados podem recebê-la explicitamente.
 
 A atribuibilidade é independente:
 
