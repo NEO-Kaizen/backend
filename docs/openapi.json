@@ -3391,7 +3391,7 @@
       "get": {
         "tags": ["Triagem"],
         "summary": "Consultar triagem da solicitação",
-        "description": "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Exige `triage:read` + Custódia; fora dela responde `403`.",
+        "description": "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Exige `triage:read` + Custódia do Responsável da triagem **ou** do mapeamento corrente; fora dela responde `403`.",
         "operationId": "getTriage",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -3423,7 +3423,7 @@
             }
           },
           "403": {
-            "description": "Sem `triage:read` ou Custódia da linha.",
+            "description": "Sem `triage:read` ou Custódia do Responsável da triagem ou do mapeamento corrente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4918,7 +4918,7 @@
             }
           },
           "403": {
-            "description": "Sem `mapping:read` ou Custódia do mapeamento corrente.",
+            "description": "Sem `mapping:read` ou Custódia do Responsável da triagem ou do mapeamento corrente.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }

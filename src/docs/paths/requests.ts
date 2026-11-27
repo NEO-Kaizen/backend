@@ -235,7 +235,7 @@ export default {
       tags: ["Triagem"],
       summary: "Consultar triagem da solicitação",
       description:
-        "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Exige `triage:read` + Custódia; fora dela responde `403`.",
+        "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Exige `triage:read` + Custódia do Responsável da triagem **ou** do mapeamento corrente; fora dela responde `403`.",
       operationId: "getTriage",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -253,7 +253,9 @@ export default {
           },
         },
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem `triage:read` ou Custódia da linha."),
+        "403": error(
+          "Sem `triage:read` ou Custódia do Responsável da triagem ou do mapeamento corrente.",
+        ),
         "404": error("Protocolo inexistente (`request_not_found`)."),
       },
     },

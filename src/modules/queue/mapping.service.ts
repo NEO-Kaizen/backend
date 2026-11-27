@@ -71,14 +71,29 @@ async function recordMappingAccessDenied(
   });
 }
 
-function hasMappingCustody(
+function hasMappingWriteCustody(
   actor: MappingActor,
-  key: "mapping:read" | "mapping:write",
   mappingAssigneeUserId: number | null,
 ): boolean {
-  return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
-    mappingAssigneeUserId,
-  ]);
+  return hasPermissionCustody(
+    actor.permissions,
+    "mapping:write",
+    { userId: actor.id, email: actor.email },
+    [mappingAssigneeUserId],
+  );
+}
+
+/** Leitura do Mapeamento vale para o Responsável da triagem ou do mapeamento corrente. */
+function hasMappingReadCustody(
+  actor: MappingActor,
+  context: repository.MappingRequestContext,
+): boolean {
+  return hasPermissionCustody(
+    actor.permissions,
+    "mapping:read",
+    { userId: actor.id, email: actor.email },
+    [context.assignee_user_id, context.mapping_assignee_user_id],
+  );
 }
 
 /**
@@ -333,7 +348,7 @@ export const getMappingService = async (
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  if (!hasMappingCustody(actor, "mapping:read", context.mapping_assignee_user_id)) {
+  if (!hasMappingReadCustody(actor, context)) {
     await recordMappingAccessDenied(
       context.protocol,
       actor.id,
@@ -378,7 +393,7 @@ export const upsertMappingService = async (
       throw new AppError("Solicitação não encontrada", 404);
     }
 
-    if (!hasMappingCustody(actor, "mapping:write", context.mapping_assignee_user_id)) {
+    if (!hasMappingWriteCustody(actor, context.mapping_assignee_user_id)) {
       await recordMappingAccessDenied(
         context.protocol,
         actor.id,

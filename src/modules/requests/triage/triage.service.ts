@@ -20,15 +20,27 @@ import type { NamedPermissionActor } from "../../../shared/access/permissionActo
 import * as repository from "./triage.repository.ts";
 import type { RequestContextRow, StatusRow } from "./triage.repository.ts";
 
-/** Custódia da Triagem: user_id ligado a `requests.professional_id` (§5 RBAC). */
-function hasTriageCustody(
+/** Custódia de escrita da Triagem: user_id ligado a `requests.professional_id` (§5 RBAC). */
+function hasTriageWriteCustody(
   actor: NamedPermissionActor,
-  key: PermissionKey,
   assigneeUserId: number | null,
 ): boolean {
-  return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
-    assigneeUserId,
-  ]);
+  return hasPermissionCustody(
+    actor.permissions,
+    "triage:write",
+    { userId: actor.id, email: actor.email },
+    [assigneeUserId],
+  );
+}
+
+/** Leitura da Triagem vale para o Responsável da triagem ou do mapeamento corrente. */
+function hasTriageReadCustody(actor: NamedPermissionActor, request: RequestContextRow): boolean {
+  return hasPermissionCustody(
+    actor.permissions,
+    "triage:read",
+    { userId: actor.id, email: actor.email },
+    [request.assignee_user_id, request.mapping_assignee_user_id],
+  );
 }
 
 function recordTriageAccessDenied(
@@ -154,7 +166,7 @@ export async function getTriage(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  const canAccess = hasTriageCustody(actor, "triage:read", request.assignee_user_id ?? null);
+  const canAccess = hasTriageReadCustody(actor, request);
   if (!canAccess) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia para ler a Triagem", [
       "triage:read",
@@ -194,7 +206,7 @@ export async function createTriage(
     );
   }
 
-  const canAccess = hasTriageCustody(actor, "triage:write", request.assignee_user_id ?? null);
+  const canAccess = hasTriageWriteCustody(actor, request.assignee_user_id ?? null);
   if (!canAccess) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia da solicitação", [
       "triage:write",

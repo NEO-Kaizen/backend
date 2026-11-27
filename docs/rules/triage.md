@@ -9,8 +9,9 @@ antigo para o mais recente.
 
 Criar exige `triage:write` + Custódia da solicitação; ler exige `triage:read`
 
-- Custódia. A custódia é exclusiva do Responsável da triagem: o Designado do
-  mapeamento não registra nem lê triagem. Solicitante nunca acessa rota interna.
+- Custódia. A escrita é exclusiva do Responsável da triagem: o Designado do
+  mapeamento não registra triagem. A leitura vale para o Responsável da
+  triagem **ou** do mapeamento corrente. Solicitante nunca acessa rota interna.
   Sem sessão ou sem custódia, a operação é recusada.
 
 ## Priorização

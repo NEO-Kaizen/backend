@@ -30,14 +30,14 @@ A custódia não vai no token e não envelhece com ele. As fontes do vínculo co
 
 | Fonte                                                                 | Vale para                                                                                                           |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `requests.professional_id` via `details_professional.user_id`         | ações de triagem: `request:write`, `triage:*`, `pending_item:*`, `prioritization:write` e as ações comuns abaixo    |
-| `mappings.professional_id` do Mapeamento aberto mais recente          | ações de mapeamento: `mapping:*` e as ações comuns abaixo                                                           |
+| `requests.professional_id` via `details_professional.user_id`         | escrita da triagem: `triage:write`, `pending_item:*`, `prioritization:write` e as ações comuns abaixo               |
+| `mappings.professional_id` do Mapeamento aberto mais recente          | escrita do mapeamento: `mapping:write` e as ações comuns abaixo                                                     |
 | `requests.mapping_professional_id`                                    | Responsável do mapeamento antes de existir qualquer linha de Mapeamento                                             |
 | `requests.requester_user_id`; sem vínculo, `requests.requester_email` | posse: `request:track` e `pending_item:respond`, comparando com a conta (id; e-mail só nas linhas legadas/anônimas) |
 
-**Ações comuns** (`request:read`, `request:write`, `request:status_change`, `internal_note:*`, `audit:read`, `queue:*`) valem para o Responsável da triagem **ou** do mapeamento corrente. A etapa do Status não depende de quem age: o alvo precisa ser ativo e ter `triageMode` ou `mappingMode` `free`; restrito ou fora do modo exige `request:status_override` global.
+**Ações comuns** (`request:read`, `request:write`, `request:status_change`, `internal_note:*`, `audit:read`, `queue:*`) e a **leitura de cada etapa** (`triage:read`, `mapping:read`) valem para o Responsável da triagem **ou** do mapeamento corrente. A etapa do Status não depende de quem age: o alvo precisa ser ativo e ter `triageMode` ou `mappingMode` `free`; restrito ou fora do modo exige `request:status_override` global.
 
-`triage:*` é exclusivo da triagem e `mapping:*` é exclusivo do mapeamento: a triagem não edita nem designa o mapeamento, e o mapeamento não registra triagem.
+`triage:write` é exclusivo da triagem e `mapping:write` é exclusivo do mapeamento: a triagem não edita nem designa o mapeamento, e o mapeamento não registra triagem. A leitura de ambas as etapas é simétrica.
 
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
@@ -327,8 +327,10 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `request:read`, `request:write`, `request:status_change`         | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
 | `request:assign`                                                 | Responsável da triagem **ou** do mapeamento corrente (na matriz base, só Administrador/Admin Root têm a chave)                                          |
-| `triage:read`, `triage:write`                                    | Responsável da triagem                                                                                                                                  |
-| `mapping:read`, `mapping:write`                                  | Responsável do mapeamento corrente                                                                                                                      |
+| `triage:read`                                                    | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `triage:write`                                                   | Responsável da triagem                                                                                                                                  |
+| `mapping:read`                                                   | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `mapping:write`                                                  | Responsável do mapeamento corrente                                                                                                                      |
 | `prioritization:write`                                           | Responsável da triagem — **comportamento anterior ao RBAC; confirmação pendente com Produto**                                                           |
 | `pending_item:read`, `pending_item:write`, `pending_item:review` | Responsável da triagem — **comportamento anterior ao RBAC; confirmação pendente com Produto**                                                           |
 | `internal_note:read`, `internal_note:write`                      | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
@@ -342,7 +344,7 @@ Regras de aplicação:
 - A custódia é lida na operação, não no login. O guard relê o usuário e o perfil no banco a cada requisição; desativação, troca de perfil e troca de Responsável valem imediatamente.
 - A rota tem o gate grosso: sessão válida e a chave. O serviço do domínio aplica a custódia, em um lugar só por domínio.
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
-- A ação precisa alinhar com o vínculo: `triage:*`, `pending_item:*` e `prioritization:write` são exclusivos da triagem; `mapping:*` (leitura e escrita de conteúdo) é exclusivo do mapeamento corrente; as ações comuns valem para os dois.
+- A escrita alinha com o vínculo: `triage:write`, `pending_item:*` e `prioritization:write` são exclusivos da triagem; `mapping:write` é exclusivo do mapeamento corrente. A leitura de cada etapa (`triage:read` e `mapping:read`) vale para o Responsável da triagem **ou** do mapeamento corrente; as ações comuns valem para os dois.
 - Designar o mapeamento zera `requests.professional_id` por exclusividade. Por isso as ações comuns — `request:read`, `request:write`, `request:status_change`, `internal_note:*`, `audit:read` e `queue:*` — somam os dois vínculos. A designação de qualquer etapa exige `request:assign` com custódia da linha (na matriz base, só Administrador/Admin Root); `mapping:write` não designa.
 - `pending_item:*` e `prioritization:write` seguem o comportamento anterior ao RBAC (só triagem). **Não são decisão fechada:** precisam de confirmação do Produto antes de qualquer ampliação.
 - Quem lê a visão interna sem `internal_note:read` recebe `internalObservations: null`; sem `pending_item:read`, os blocos de Pendência saem zerados.

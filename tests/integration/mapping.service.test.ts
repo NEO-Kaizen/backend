@@ -14,6 +14,7 @@ vi.mock("../../src/shared/audit/accessDenied.ts", () => ({
 
 vi.mock("../../src/modules/queue/mapping.repository.ts", () => ({
   findMappingRequestContext: vi.fn(),
+  findCurrentMapping: vi.fn(),
   findLatestOpenMapping: vi.fn(),
   findMappingAssigneeCandidate: vi.fn(),
 }));
@@ -85,5 +86,37 @@ describe("mapping.service.upsertMappingService — designação", () => {
         undefined,
       ),
     ).rejects.toMatchObject({ statusCode: 400, code: "assignee_not_assignable" });
+  });
+});
+
+describe("mapping.service.getMappingService — custódia de leitura", () => {
+  it("permite ao responsável da triagem ler o mapeamento", async () => {
+    vi.mocked(repository.findMappingRequestContext).mockResolvedValue(
+      mappingContext({ assignee_user_id: 7, mapping_assignee_user_id: 5 }),
+    );
+    vi.mocked(repository.findCurrentMapping).mockResolvedValue(null);
+
+    const result = await mappingService.getMappingService(
+      PROTOCOL,
+      actorWith([{ permission_key: "mapping:read", custody: "assigned" }]),
+      undefined,
+    );
+
+    expect(result.protocol).toBe(PROTOCOL);
+    expect(result.id).toBeNull();
+  });
+
+  it("recusa a leitura de quem não tem mapping:read", async () => {
+    vi.mocked(repository.findMappingRequestContext).mockResolvedValue(
+      mappingContext({ assignee_user_id: 7, mapping_assignee_user_id: 5 }),
+    );
+
+    await expect(
+      mappingService.getMappingService(
+        PROTOCOL,
+        actorWith([{ permission_key: "triage:read", custody: "assigned" }]),
+        undefined,
+      ),
+    ).rejects.toMatchObject({ statusCode: 403 });
   });
 });

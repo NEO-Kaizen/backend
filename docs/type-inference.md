@@ -4,11 +4,11 @@
 
 ## Resumo
 
-- Arquivos-fonte analisados: **199**.
+- Arquivos-fonte analisados: **200**.
 - Tipos nomeados: **390** — 266 interfaces, 122 aliases `type`, 2 classes e 0 enums.
-- Declarações sem anotação explícita: **2322** — 1697 variáveis, 309 parâmetros e 316 retornos de funções/métodos.
+- Declarações sem anotação explícita: **2323** — 1698 variáveis, 309 parâmetros e 316 retornos de funções/métodos.
 - Declarações com tipo efetivo `any` detectado pelo checker: **50**; ocorrências com a palavra-chave `any` explícita no código-fonte: **0**.
-- Arquivos com pelo menos uma declaração sem anotação: **151**; arquivos sem ocorrências são omitidos das seções 2 e 3.
+- Arquivos com pelo menos uma declaração sem anotação: **152**; arquivos sem ocorrências são omitidos das seções 2 e 3.
 - Erros de typecheck no momento da geração: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
@@ -1885,7 +1885,7 @@ export interface ProfileActor {
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-#### L18 — interface MappingRow
+#### L19 — interface MappingRow
 
 ```ts
 export interface MappingRow {
@@ -1908,7 +1908,7 @@ export interface MappingRow {
 }
 ```
 
-#### L42 — interface MappingParticipantRow
+#### L43 — interface MappingParticipantRow
 
 ```ts
 export interface MappingParticipantRow {
@@ -1918,7 +1918,7 @@ export interface MappingParticipantRow {
 }
 ```
 
-#### L49 — interface MappingRequestContext
+#### L50 — interface MappingRequestContext
 
 ```ts
 export interface MappingRequestContext {
@@ -1941,7 +1941,7 @@ export interface MappingRequestContext {
 }
 ```
 
-#### L69 — interface MappingAssigneeCandidate
+#### L70 — interface MappingAssigneeCandidate
 
 ```ts
 export interface MappingAssigneeCandidate {
@@ -1957,7 +1957,7 @@ export interface MappingAssigneeCandidate {
 }
 ```
 
-#### L151 — interface MappingTargetRow
+#### L126 — interface MappingTargetRow
 
 ```ts
 export interface MappingTargetRow {
@@ -2336,7 +2336,7 @@ export interface StatusTransitionInput {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-#### L6 — interface StatusRow
+#### L7 — interface StatusRow
 
 ```ts
 export interface StatusRow {
@@ -2347,7 +2347,7 @@ export interface StatusRow {
 }
 ```
 
-#### L13 — interface CategoryRow
+#### L14 — interface CategoryRow
 
 ```ts
 interface CategoryRow {
@@ -2356,7 +2356,7 @@ interface CategoryRow {
 }
 ```
 
-#### L18 — interface RequestContextRow
+#### L19 — interface RequestContextRow
 
 ```ts
 export interface RequestContextRow {
@@ -2364,6 +2364,7 @@ export interface RequestContextRow {
   protocol: string;
   professional_id: string | null;
   assignee_user_id: number | null;
+  mapping_assignee_user_id: number | null;
   status_id: number;
   status_name: string | null;
   status_is_restricted: boolean;
@@ -2374,7 +2375,7 @@ export interface RequestContextRow {
 }
 ```
 
-#### L54 — interface TriageRow
+#### L58 — interface TriageRow
 
 ```ts
 interface TriageRow {
@@ -2397,7 +2398,7 @@ interface TriageRow {
 }
 ```
 
-#### L190 — interface ApplyRequestOutcomeInput
+#### L194 — interface ApplyRequestOutcomeInput
 
 ```ts
 export interface ApplyRequestOutcomeInput {
@@ -2458,7 +2459,7 @@ export type CreateTriagePayload = Omit<
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-#### L51 — interface CommitTriageDecisionInput
+#### L63 — interface CommitTriageDecisionInput
 
 ```ts
 interface CommitTriageDecisionInput {
@@ -5899,36 +5900,36 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-- L88 — variável: `findMappingRequestContext`
-- L92 — variável: `row`
-- L157 — variável: `resolveMappingTarget`
-- L167 — retorno da função: `<anônima>()`
-- L179 — variável: `findMappingAssigneeCandidate`
-- L187 — variável: `row`
-- L218 — variável: `findCurrentMapping`
-- L222 — variável: `row`
-- L232 — variável: `findLatestOpenMapping`
-- L236 — variável: `row`
-- L246 — variável: `findMappingById`
-- L251 — variável: `row`
-- L265 — variável: `findMappingParticipants`
-- L287 — variável: `resolveParticipantUsers`
-- L295 — variável: `rows`
-- L306 — parâmetro: `id`
-- L306 — retorno da função: `<anônima>()`
-- L306 — variável: `invalid`
-- L307 — parâmetro: `r`
-- L307 — retorno da função: `<anônima>()`
-- L307 — variável: `row`
-- L316 — parâmetro: `row`
-- L316 — retorno da função: `<anônima>()`
-- L323 — variável: `insertMapping`
-- L335 — variável: `[row]`
-- L356 — variável: `updateMapping`
-- L394 — variável: `clearRequestMappingAssignee`
-- L407 — variável: `replaceMappingParticipants`
-- L419 — parâmetro: `participant`
-- L419 — retorno da função: `<anônima>()`
+- L89 — variável: `findMappingRequestContext`
+- L93 — variável: `row`
+- L132 — variável: `resolveMappingTarget`
+- L142 — retorno da função: `<anônima>()`
+- L154 — variável: `findMappingAssigneeCandidate`
+- L162 — variável: `row`
+- L193 — variável: `findCurrentMapping`
+- L197 — variável: `row`
+- L207 — variável: `findLatestOpenMapping`
+- L211 — variável: `row`
+- L221 — variável: `findMappingById`
+- L226 — variável: `row`
+- L240 — variável: `findMappingParticipants`
+- L262 — variável: `resolveParticipantUsers`
+- L270 — variável: `rows`
+- L281 — parâmetro: `id`
+- L281 — retorno da função: `<anônima>()`
+- L281 — variável: `invalid`
+- L282 — parâmetro: `r`
+- L282 — retorno da função: `<anônima>()`
+- L282 — variável: `row`
+- L291 — parâmetro: `row`
+- L291 — retorno da função: `<anônima>()`
+- L298 — variável: `insertMapping`
+- L310 — variável: `[row]`
+- L331 — variável: `updateMapping`
+- L369 — variável: `clearRequestMappingAssignee`
+- L382 — variável: `replaceMappingParticipants`
+- L394 — parâmetro: `participant`
+- L394 — retorno da função: `<anônima>()`
 
 ### [src/modules/queue/mapping.schemas.ts](../src/modules/queue/mapping.schemas.ts)
 
@@ -5946,58 +5947,58 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.service.ts](../src/modules/queue/mapping.service.ts)
 
-- L102 — variável: `date`
-- L165 — parâmetro: `participant`
-- L165 — retorno da função: `<anônima>()`
-- L197 — parâmetro: `participant`
-- L197 — retorno da função: `<anônima>()`
-- L228 — variável: `textField`
-- L229 — variável: `next`
-- L230 — variável: `normalized`
-- L277 — parâmetro: `participant`
-- L277 — retorno da função: `<anônima>()`
-- L277 — variável: `userIds`
-- L281 — variável: `usersById`
-- L283 — parâmetro: `participant`
-- L283 — variável: `resolved`
-- L288 — variável: `user`
-- L295 — variável: `seenEmails`
-- L296 — variável: `seenUserIds`
-- L297 — variável: `participant`
-- L298 — variável: `emailKey`
-- L326 — variável: `getMappingService`
-- L331 — variável: `context`
-- L346 — variável: `mapping`
-- L351 — variável: `[participants, assigneeCandidate]`
-- L364 — variável: `upsertMappingService`
-- L370 — variável: `{ response, committed }`
-- L373 — parâmetro: `trx`
-- L373 — retorno da função: `<anônima>()`
-- L376 — variável: `context`
-- L414 — variável: `mapping`
-- L425 — variável: `previousProfessionalId`
-- L432 — variável: `explicitDesignation`
-- L433 — variável: `isNullOnCreate`
-- L434 — variável: `designationAction`
-- L438 — variável: `contentAction`
-- L474 — variável: `candidate`
-- L506 — variável: `currentValues`
-- L507 — variável: `values`
-- L509 — variável: `concluding`
-- L519 — variável: `target`
-- L550 — variável: `missing`
-- L560 — variável: `resolvedParticipants`
-- L567 — variável: `designationChanged`
-- L602 — variável: `changeOrigin`
-- L606 — variável: `previousAuditValues`
-- L613 — variável: `nextAuditValues`
-- L625 — variável: `mappingAuditId`
-- L710 — parâmetro: `participant`
-- L710 — retorno da função: `<anônima>()`
-- L717 — variável: `assigneeCandidate`
-- L727 — variável: `scheduledAt`
-- L728 — variável: `committedNotifications`
-- L742 — variável: `response`
+- L117 — variável: `date`
+- L180 — parâmetro: `participant`
+- L180 — retorno da função: `<anônima>()`
+- L212 — parâmetro: `participant`
+- L212 — retorno da função: `<anônima>()`
+- L243 — variável: `textField`
+- L244 — variável: `next`
+- L245 — variável: `normalized`
+- L292 — parâmetro: `participant`
+- L292 — retorno da função: `<anônima>()`
+- L292 — variável: `userIds`
+- L296 — variável: `usersById`
+- L298 — parâmetro: `participant`
+- L298 — variável: `resolved`
+- L303 — variável: `user`
+- L310 — variável: `seenEmails`
+- L311 — variável: `seenUserIds`
+- L312 — variável: `participant`
+- L313 — variável: `emailKey`
+- L341 — variável: `getMappingService`
+- L346 — variável: `context`
+- L361 — variável: `mapping`
+- L366 — variável: `[participants, assigneeCandidate]`
+- L379 — variável: `upsertMappingService`
+- L385 — variável: `{ response, committed }`
+- L388 — parâmetro: `trx`
+- L388 — retorno da função: `<anônima>()`
+- L391 — variável: `context`
+- L429 — variável: `mapping`
+- L440 — variável: `previousProfessionalId`
+- L447 — variável: `explicitDesignation`
+- L448 — variável: `isNullOnCreate`
+- L449 — variável: `designationAction`
+- L453 — variável: `contentAction`
+- L489 — variável: `candidate`
+- L521 — variável: `currentValues`
+- L522 — variável: `values`
+- L524 — variável: `concluding`
+- L534 — variável: `target`
+- L565 — variável: `missing`
+- L575 — variável: `resolvedParticipants`
+- L582 — variável: `designationChanged`
+- L617 — variável: `changeOrigin`
+- L621 — variável: `previousAuditValues`
+- L628 — variável: `nextAuditValues`
+- L640 — variável: `mappingAuditId`
+- L725 — parâmetro: `participant`
+- L725 — retorno da função: `<anônima>()`
+- L732 — variável: `assigneeCandidate`
+- L742 — variável: `scheduledAt`
+- L743 — variável: `committedNotifications`
+- L757 — variável: `response`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
@@ -6477,13 +6478,13 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L73 — variável: `TRIAGE_COLUMNS`
-- L126 — variável: `row`
-- L160 — retorno da função: `<anônima>()`
-- L182 — variável: `raw`
-- L202 — variável: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
-- L212 — variável: `source`
-- L239 — variável: `updatedRows`
+- L77 — variável: `TRIAGE_COLUMNS`
+- L130 — variável: `row`
+- L164 — retorno da função: `<anônima>()`
+- L186 — variável: `raw`
+- L206 — variável: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
+- L216 — variável: `source`
+- L243 — variável: `updatedRows`
 
 ### [src/modules/requests/triage/triage.router.ts](../src/modules/requests/triage/triage.router.ts)
 
@@ -6501,18 +6502,18 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-- L69 — variável: `{ protocol, request, triage, categoryId, exitStatus, actor, ipAddress }`
-- L71 — parâmetro: `trx`
-- L71 — retorno da função: `<anônima>()`
-- L84 — variável: `triageAuditId`
-- L152 — variável: `request`
-- L157 — variável: `canAccess`
-- L174 — variável: `request`
-- L197 — variável: `canAccess`
-- L214 — variável: `exitStatus`
-- L235 — variável: `categoryName`
-- L237 — variável: `newCategory`
-- L272 — variável: `committedNotifications`
+- L81 — variável: `{ protocol, request, triage, categoryId, exitStatus, actor, ipAddress }`
+- L83 — parâmetro: `trx`
+- L83 — retorno da função: `<anônima>()`
+- L96 — variável: `triageAuditId`
+- L164 — variável: `request`
+- L169 — variável: `canAccess`
+- L186 — variável: `request`
+- L209 — variável: `canAccess`
+- L226 — variável: `exitStatus`
+- L247 — variável: `categoryName`
+- L249 — variável: `newCategory`
+- L284 — variável: `committedNotifications`
 
 ### [src/modules/users/users.controller.ts](../src/modules/users/users.controller.ts)
 
@@ -6766,6 +6767,10 @@ interface GroupedIssues {
 - L157 — variável: `predicate`
 - L159 — variável: `query`
 - L170 — variável: `row`
+
+### [src/shared/access/currentMapping.ts](../src/shared/access/currentMapping.ts)
+
+- L13 — variável: `CURRENT_MAPPING_ASSIGNEE_JOIN`
 
 ### [src/shared/access/custody.ts](../src/shared/access/custody.ts)
 
@@ -7316,15 +7321,15 @@ interface GroupedIssues {
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-- L92 — variável: `row`
-- L187 — variável: `row`
-- L222 — variável: `row`
-- L236 — variável: `row`
-- L251 — variável: `row`
-- L307 — parâmetro: `r`
-- L307 — variável: `row`
-- L316 — parâmetro: `row`
-- L335 — variável: `[row]`
+- L93 — variável: `row`
+- L162 — variável: `row`
+- L197 — variável: `row`
+- L211 — variável: `row`
+- L226 — variável: `row`
+- L282 — parâmetro: `r`
+- L282 — variável: `row`
+- L291 — parâmetro: `row`
+- L310 — variável: `[row]`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
@@ -7345,7 +7350,7 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L126 — variável: `row`
+- L130 — variável: `row`
 
 ### [src/modules/users/users.repository.ts](../src/modules/users/users.repository.ts)
 
