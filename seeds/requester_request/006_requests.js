@@ -711,6 +711,9 @@ export async function seed(knex) {
       perceived_criticality: "Baixa",
       category_id: 4,
       status_id: 16,
+      // Legado concluído antes da #210: sem a data, o backfill o reportaria
+      // eternamente em `withoutEvent`.
+      concluded_at: "2026-10-11 09:00:00",
       priority_id: 3,
       screening_result: "elegivel",
       professional_id: "650e8400-e29b-41d4-a716-446655440008",
