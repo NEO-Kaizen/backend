@@ -24,9 +24,12 @@ lote:  nenhum item "requested" restante ──▶ responded ──▶ validated
 ## Criação
 
 - Autorização: `pending_item:write` (criar) ou `pending_item:review`
-  (validar/reabrir) + Custódia da solicitação.
-- Quem lê a visão interna sem `pending_item:read` na linha recebe
-  `pendingSummary`/`unread` zerados e `correctionAlert: null`.
+  (validar/reabrir) + Custódia do Responsável da triagem. Pendências são
+  exclusivas da triagem, **seguindo o comportamento anterior ao RBAC**; a
+  ampliação para o Designado do mapeamento depende de confirmação do Produto.
+- Quem lê a visão interna sem `pending_item:read` na linha — como o Designado
+  do mapeamento — recebe `pendingSummary`/`unread` zerados e
+  `correctionAlert: null`. Pendências são exclusivas do Responsável da triagem.
 - Pelo menos uma observação ou um campo marcado é obrigatório.
 - A exigência de anexo é do **lote**, nunca de um campo.
 - O campo precisa estar no catálogo de campos marcáveis

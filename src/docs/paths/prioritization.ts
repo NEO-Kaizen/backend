@@ -27,7 +27,7 @@ export default {
       summary: "Avaliar pontuação de priorização",
       description:
         "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. " +
-        "Todas as notas dos critérios ativos são obrigatórias. Exige `prioritization:write` + Custódia da solicitação.",
+        "Todas as notas dos critérios ativos são obrigatórias. Exige `prioritization:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
       operationId: "evaluatePrioritizationScore",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],

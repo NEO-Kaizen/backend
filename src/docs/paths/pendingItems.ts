@@ -16,7 +16,7 @@ export default {
       tags: ["Pendências"],
       summary: "Listar pendências",
       description:
-        "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Dual-auth: cookie interno ou identidade do solicitante.",
+        "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Na porta interna exige `pending_item:read` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto); dual-auth com a identidade do solicitante.",
       operationId: "listPendingItems",
       security: dualAuth,
       parameters: [protocolParam],
@@ -31,7 +31,7 @@ export default {
       tags: ["Pendências"],
       summary: "Criar pendências",
       description:
-        "Cria um lote com observação e/ou campos marcados. Exige `pending_item:write` + Custódia da solicitação. " +
+        "Cria um lote com observação e/ou campos marcados. Exige `pending_item:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto). " +
         "Na mesma transação, a solicitação passa para `Pendente de informações` (o novo status não é devolvido).",
       operationId: "createPendingItems",
       security: [{ cookieAuth: [] }],
@@ -60,7 +60,7 @@ export default {
       tags: ["Pendências"],
       summary: "Revisar pendências",
       description:
-        "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige `pending_item:review` + Custódia da solicitação.",
+        "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige `pending_item:review` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
       operationId: "reviewPendingItems",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],

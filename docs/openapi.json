@@ -3295,7 +3295,7 @@
       "patch": {
         "tags": ["Solicitações"],
         "summary": "Atualização interna de solicitação",
-        "description": "Substitui os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). Chave ausente = campo limpo (NULL). Exige `request:write` + Custódia; quem escreve sem `request:read` recebe `200 { protocol, updated: true }` em vez do detalhe.",
+        "description": "Substitui os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). Chave ausente = campo limpo (NULL). Exige `request:write` + Custódia do Responsável da triagem ou do mapeamento corrente; quem escreve sem `request:read` recebe `200 { protocol, updated: true }` em vez do detalhe.",
         "operationId": "patchInternalRequestByProtocol",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -4839,7 +4839,7 @@
       "put": {
         "tags": ["Fila de atendimento"],
         "summary": "Criar ou atualizar mapeamento",
-        "description": "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. `completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`.",
+        "description": "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. `completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`. Conteúdo e designação (`mappingAssigneeId`) exigem `mapping:write` + Custódia do mapeamento corrente; a triagem não designa.",
         "operationId": "putMapping",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -5453,7 +5453,7 @@
       "put": {
         "tags": ["Priorização"],
         "summary": "Avaliar pontuação de priorização",
-        "description": "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. Todas as notas dos critérios ativos são obrigatórias. Exige `prioritization:write` + Custódia da solicitação.",
+        "description": "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. Todas as notas dos critérios ativos são obrigatórias. Exige `prioritization:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
         "operationId": "evaluatePrioritizationScore",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -6048,7 +6048,7 @@
       "get": {
         "tags": ["Pendências"],
         "summary": "Listar pendências",
-        "description": "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Dual-auth: cookie interno ou identidade do solicitante.",
+        "description": "Envelope do lote vigente (`batchId`, flag `requestAttachment` e `items`). Na porta interna exige `pending_item:read` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto); dual-auth com a identidade do solicitante.",
         "operationId": "listPendingItems",
         "security": [{ "cookieAuth": [] }, { "requesterIdentity": [] }],
         "parameters": [
@@ -6092,7 +6092,7 @@
       "post": {
         "tags": ["Pendências"],
         "summary": "Criar pendências",
-        "description": "Cria um lote com observação e/ou campos marcados. Exige `pending_item:write` + Custódia da solicitação. Na mesma transação, a solicitação passa para `Pendente de informações` (o novo status não é devolvido).",
+        "description": "Cria um lote com observação e/ou campos marcados. Exige `pending_item:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto). Na mesma transação, a solicitação passa para `Pendente de informações` (o novo status não é devolvido).",
         "operationId": "createPendingItems",
         "security": [{ "cookieAuth": [] }],
         "parameters": [
@@ -6158,7 +6158,7 @@
       "patch": {
         "tags": ["Pendências"],
         "summary": "Revisar pendências",
-        "description": "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige `pending_item:review` + Custódia da solicitação.",
+        "description": "Valida ou reabre itens de um lote, de forma parcial e repetível. Exige `pending_item:review` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
         "operationId": "reviewPendingItems",
         "security": [{ "cookieAuth": [] }],
         "parameters": [

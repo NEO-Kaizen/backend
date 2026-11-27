@@ -118,7 +118,8 @@ export default {
       description:
         "Campo ausente mantém o valor atual; `null` limpa; `participants` substitui a lista por completo. " +
         "`completeMapping: true` exige `targetStatus`; quando o destino é `Mapeamento agendado` (id 6), exige reunião válida (modalidade, data, duração e link/local); " +
-        "para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`.",
+        "para os demais destinos exige `justification` e, se o destino for público, `lastTechnicalMessage`. " +
+        "Conteúdo e designação (`mappingAssigneeId`) exigem `mapping:write` + Custódia do mapeamento corrente; a triagem não designa.",
       operationId: "putMapping",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],

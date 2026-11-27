@@ -24,11 +24,10 @@ import type { RequestContextRow, StatusRow } from "./triage.repository.ts";
 function hasTriageCustody(
   actor: NamedPermissionActor,
   key: PermissionKey,
-  request: Pick<RequestContextRow, "assignee_user_id" | "mapping_user_id">,
+  assigneeUserId: number | null,
 ): boolean {
   return hasPermissionCustody(actor.permissions, key, { userId: actor.id, email: actor.email }, [
-    request.assignee_user_id,
-    request.mapping_user_id,
+    assigneeUserId,
   ]);
 }
 
@@ -155,7 +154,7 @@ export async function getTriage(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  const canAccess = hasTriageCustody(actor, "triage:read", request);
+  const canAccess = hasTriageCustody(actor, "triage:read", request.assignee_user_id ?? null);
   if (!canAccess) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia para ler a Triagem", [
       "triage:read",
@@ -195,7 +194,7 @@ export async function createTriage(
     );
   }
 
-  const canAccess = hasTriageCustody(actor, "triage:write", request);
+  const canAccess = hasTriageCustody(actor, "triage:write", request.assignee_user_id ?? null);
   if (!canAccess) {
     await recordTriageAccessDenied(protocol, actor, ipAddress, "sem Custódia da solicitação", [
       "triage:write",

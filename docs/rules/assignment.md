@@ -23,15 +23,27 @@ Solicitações antigas mantêm o vínculo se o profissional for desativado;
 ## Designação e custódia
 
 Designar o mapeamento desatribui a triagem (`requests.professional_id = null`).
-A custódia de **toda chave custodial** soma as duas responsabilidades: o
-Responsável da triagem **ou** o Designado do mapeamento corrente alcança a
-linha. O que distingue as etapas é o Status de destino, não o vínculo: o alvo
-precisa ser ativo e ter `triageMode` ou `mappingMode` `free`; restrito ou fora
-do modo exige `request:status_override` global.
+A ação precisa alinhar com o vínculo existente na solicitação:
+
+- **Só triagem:** `triage:*`, `pending_item:*` e `prioritization:write`.
+  `pending_item:*` e `prioritization:write` repetem o comportamento anterior
+  ao RBAC e **dependem de confirmação do Produto** — não são decisão fechada.
+- **Só mapeamento:** `mapping:*` — leitura, escrita de conteúdo e designação.
+  A triagem não edita nem designa o mapeamento; a primeira designação é feita
+  por Admin/Root.
+- **Qualquer um dos dois:** `request:read`, `request:write`,
+  `request:status_change`, `internal_note:*`, `audit:read` e `queue:*`.
+
+O histórico completo (notas, eventos, triagens e mapeamentos) é lido por
+`internal_note:read` + custódia de triagem **ou** mapeamento.
+
+O Status não depende do vínculo: o alvo precisa ser ativo e ter `triageMode` ou
+`mappingMode` `free`; restrito ou fora do modo exige `request:status_override`
+global.
 
 Quem lê a visão interna sem `internal_note:read` recebe
-`internalObservations: null`; sem `pending_item:read`, os blocos de Pendência
-saem zerados.
+`internalObservations: null`; sem `pending_item:read` — como o Designado do
+mapeamento — os blocos de Pendência saem zerados.
 
 > Incluir `gestor` como atribuível é uma decisão pendente; ver
 > [`README.md`](README.md).

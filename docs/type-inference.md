@@ -1623,23 +1623,22 @@ export interface RequestRef {
   requester_name: string;
   requester_email: string;
   responsible_user_id: number | null;
-  mapping_user_id: number | null;
 }
 ```
 
-#### L54 — alias PendingItemRow
+#### L53 — alias PendingItemRow
 
 ```ts
 export type PendingItemRow = z.infer<typeof pendingItemRowSchema>;
 ```
 
-#### L66 — alias PendingAttachmentRow
+#### L65 — alias PendingAttachmentRow
 
 ```ts
 export type PendingAttachmentRow = z.infer<typeof pendingAttachmentRowSchema>;
 ```
 
-#### L372 — alias PendingItemInsert
+#### L369 — alias PendingItemInsert
 
 ```ts
 export type PendingItemInsert = {
@@ -1656,7 +1655,7 @@ export type PendingItemInsert = {
 };
 ```
 
-#### L385 — alias RespondFacts
+#### L382 — alias RespondFacts
 
 ```ts
 export type RespondFacts = {
@@ -1666,7 +1665,7 @@ export type RespondFacts = {
 };
 ```
 
-#### L391 — alias ReviewDecisionInput
+#### L388 — alias ReviewDecisionInput
 
 ```ts
 export type ReviewDecisionInput =
@@ -1680,13 +1679,13 @@ export type ReviewDecisionInput =
   | { id: string; decision: "reopen"; comment: string };
 ```
 
-#### L401 — alias ReviewFacts
+#### L398 — alias ReviewFacts
 
 ```ts
 export type ReviewFacts = { hasReopen: boolean };
 ```
 
-#### L403 — alias SavedPendingAttachment
+#### L400 — alias SavedPendingAttachment
 
 ```ts
 export type SavedPendingAttachment = {
@@ -1697,13 +1696,13 @@ export type SavedPendingAttachment = {
 };
 ```
 
-#### L549 — alias PendingItemResponsePatch
+#### L546 — alias PendingItemResponsePatch
 
 ```ts
 export type PendingItemResponsePatch = { corrected_value: string } | { response_text: string };
 ```
 
-#### L551 — interface PendingItemResponseInput
+#### L548 — interface PendingItemResponseInput
 
 ```ts
 export interface PendingItemResponseInput {
@@ -1719,7 +1718,7 @@ export interface PendingItemResponseInput {
 }
 ```
 
-#### L563 — interface PendingItemResponseResult
+#### L560 — interface PendingItemResponseResult
 
 ```ts
 export interface PendingItemResponseResult {
@@ -1757,7 +1756,7 @@ export type ReviewInput = z.infer<typeof reviewSchema>;
 
 ### [src/modules/pendingItems/pendingItems.service.ts](../src/modules/pendingItems/pendingItems.service.ts)
 
-#### L302 — alias PendingCaller
+#### L297 — alias PendingCaller
 
 ```ts
 export type PendingCaller = {
@@ -2213,7 +2212,7 @@ export type UpdateStatusPayload = z.infer<typeof updateStatusSchema>;
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-#### L86 — interface AuthenticatedIdentity
+#### L87 — interface AuthenticatedIdentity
 
 ```ts
 interface AuthenticatedIdentity {
@@ -2222,13 +2221,13 @@ interface AuthenticatedIdentity {
 }
 ```
 
-#### L91 — alias RequestActor
+#### L92 — alias RequestActor
 
 ```ts
 type RequestActor = PermissionActor;
 ```
 
-#### L93 — interface RequestMutationAcknowledgement
+#### L94 — interface RequestMutationAcknowledgement
 
 ```ts
 interface RequestMutationAcknowledgement {
@@ -2237,7 +2236,7 @@ interface RequestMutationAcknowledgement {
 }
 ```
 
-#### L516 — interface TrackingCaller
+#### L518 — interface TrackingCaller
 
 ```ts
 export interface TrackingCaller {
@@ -2246,7 +2245,7 @@ export interface TrackingCaller {
 }
 ```
 
-#### L761 — interface InternalRequestRow
+#### L763 — interface InternalRequestRow
 
 ```ts
 interface InternalRequestRow {
@@ -2346,7 +2345,6 @@ export interface RequestContextRow {
   protocol: string;
   professional_id: string | null;
   assignee_user_id: number | null;
-  mapping_user_id: number | null;
   status_id: number;
   status_name: string | null;
   status_is_restricted: boolean;
@@ -2357,7 +2355,7 @@ export interface RequestContextRow {
 }
 ```
 
-#### L57 — interface TriageRow
+#### L54 — interface TriageRow
 
 ```ts
 interface TriageRow {
@@ -2380,7 +2378,7 @@ interface TriageRow {
 }
 ```
 
-#### L193 — interface ApplyRequestOutcomeInput
+#### L190 — interface ApplyRequestOutcomeInput
 
 ```ts
 export interface ApplyRequestOutcomeInput {
@@ -2441,7 +2439,7 @@ export type CreateTriagePayload = Omit<
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-#### L52 — interface CommitTriageDecisionInput
+#### L51 — interface CommitTriageDecisionInput
 
 ```ts
 interface CommitTriageDecisionInput {
@@ -5150,109 +5148,109 @@ interface GroupedIssues {
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-- L24 — variável: `pendingFieldValueSchema`
-- L27 — variável: `dbBigIntStringSchema`
-- L29 — parâmetro: `value`
-- L29 — retorno da função: `<anônima>()`
-- L31 — variável: `dbTimestampSchema`
-- L34 — variável: `pendingItemRowSchema`
-- L57 — variável: `pendingAttachmentRowSchema`
-- L63 — parâmetro: `value`
-- L63 — retorno da função: `<anônima>()`
-- L69 — variável: `parsed`
-- L92 — variável: `conn`
-- L93 — variável: `row`
-- L132 — variável: `conn`
-- L133 — variável: `row`
-- L178 — variável: `row`
-- L191 — variável: `conn`
-- L192 — variável: `row`
-- L203 — variável: `conn`
-- L204 — variável: `rows`
-- L215 — variável: `conn`
-- L216 — variável: `row`
-- L227 — variável: `grouped`
-- L230 — variável: `conn`
-- L231 — variável: `rows`
-- L236 — variável: `row`
-- L237 — variável: `attachment`
-- L238 — variável: `list`
-- L250 — variável: `conn`
-- L251 — variável: `row`
-- L264 — variável: `conn`
-- L265 — variável: `rows`
-- L271 — parâmetro: `r`
-- L271 — retorno da função: `<anônima>()`
-- L271 — variável: `map`
-- L272 — variável: `requested`
-- L273 — variável: `responded`
-- L274 — variável: `validated`
-- L287 — variável: `conn`
-- L289 — variável: `rows`
-- L299 — variável: `byBatch`
-- L300 — variável: `row`
-- L301 — variável: `entry`
-- L302 — variável: `count`
-- L309 — variável: `candidates`
-- L310 — parâmetro: `[, s]`
-- L310 — retorno da função: `<anônima>()`
-- L314 — variável: `requiresAttachment`
-- L318 — parâmetro: `[batchId]`
-- L318 — retorno da função: `<anônima>()`
-- L322 — parâmetro: `r`
-- L322 — retorno da função: `<anônima>()`
-- L322 — variável: `requiresSet`
-- L324 — variável: `attachmentCounts`
-- L326 — variável: `counts`
-- L336 — variável: `c`
-- L339 — variável: `[batchId, summary]`
-- L350 — variável: `conn`
-- L351 — variável: `row`
-- L357 — variável: `count`
-- L359 — variável: `lastUnreadAt`
-- L364 — variável: `row`
-- L414 — variável: `row`
-- L469 — variável: `conn`
-- L470 — variável: `rows`
-- L488 — parâmetro: `row`
-- L488 — retorno da função: `<anônima>()`
-- L488 — variável: `toInsert`
-- L504 — variável: `current`
-- L505 — variável: `pendingStatusId`
-- L540 — variável: `rows`
-- L577 — variável: `row`
-- L581 — variável: `currentItem`
-- L594 — variável: `auditId`
-- L605 — variável: `requestedCount`
-- L609 — variável: `requestedRemaining`
-- L611 — variável: `requiresAttachment`
-- L614 — variável: `attachmentSatisfied`
-- L618 — variável: `current`
-- L619 — variável: `nextStatusName`
-- L626 — variável: `statusId`
-- L640 — variável: `updated`
-- L653 — parâmetro: `trx`
-- L653 — retorno da função: `<anônima>()`
-- L701 — variável: `hasReopen`
-- L703 — variável: `actionAuditIds`
-- L704 — variável: `rememberFirstAudit`
-- L708 — variável: `dec`
-- L709 — variável: `row`
-- L713 — variável: `currentStatus`
-- L724 — variável: `validateAuditId`
-- L747 — variável: `reopenAuditId`
-- L761 — variável: `nextStatusName`
-- L763 — variável: `statusId`
-- L775 — variável: `rows`
-- L778 — parâmetro: `d`
-- L778 — retorno da função: `<anônima>()`
-- L801 — variável: `col`
-- L803 — variável: `v`
-- L807 — variável: `requesterRow`
-- L829 — variável: `col`
-- L832 — variável: `category`
-- L875 — variável: `col`
-- L902 — variável: `entry`
+- L23 — variável: `pendingFieldValueSchema`
+- L26 — variável: `dbBigIntStringSchema`
+- L28 — parâmetro: `value`
+- L28 — retorno da função: `<anônima>()`
+- L30 — variável: `dbTimestampSchema`
+- L33 — variável: `pendingItemRowSchema`
+- L56 — variável: `pendingAttachmentRowSchema`
+- L62 — parâmetro: `value`
+- L62 — retorno da função: `<anônima>()`
+- L68 — variável: `parsed`
+- L91 — variável: `conn`
+- L92 — variável: `row`
+- L130 — variável: `conn`
+- L131 — variável: `row`
+- L175 — variável: `row`
+- L188 — variável: `conn`
+- L189 — variável: `row`
+- L200 — variável: `conn`
+- L201 — variável: `rows`
+- L212 — variável: `conn`
+- L213 — variável: `row`
+- L224 — variável: `grouped`
+- L227 — variável: `conn`
+- L228 — variável: `rows`
+- L233 — variável: `row`
+- L234 — variável: `attachment`
+- L235 — variável: `list`
+- L247 — variável: `conn`
+- L248 — variável: `row`
+- L261 — variável: `conn`
+- L262 — variável: `rows`
+- L268 — parâmetro: `r`
+- L268 — retorno da função: `<anônima>()`
+- L268 — variável: `map`
+- L269 — variável: `requested`
+- L270 — variável: `responded`
+- L271 — variável: `validated`
+- L284 — variável: `conn`
+- L286 — variável: `rows`
+- L296 — variável: `byBatch`
+- L297 — variável: `row`
+- L298 — variável: `entry`
+- L299 — variável: `count`
+- L306 — variável: `candidates`
+- L307 — parâmetro: `[, s]`
+- L307 — retorno da função: `<anônima>()`
+- L311 — variável: `requiresAttachment`
+- L315 — parâmetro: `[batchId]`
+- L315 — retorno da função: `<anônima>()`
+- L319 — parâmetro: `r`
+- L319 — retorno da função: `<anônima>()`
+- L319 — variável: `requiresSet`
+- L321 — variável: `attachmentCounts`
+- L323 — variável: `counts`
+- L333 — variável: `c`
+- L336 — variável: `[batchId, summary]`
+- L347 — variável: `conn`
+- L348 — variável: `row`
+- L354 — variável: `count`
+- L356 — variável: `lastUnreadAt`
+- L361 — variável: `row`
+- L411 — variável: `row`
+- L466 — variável: `conn`
+- L467 — variável: `rows`
+- L485 — parâmetro: `row`
+- L485 — retorno da função: `<anônima>()`
+- L485 — variável: `toInsert`
+- L501 — variável: `current`
+- L502 — variável: `pendingStatusId`
+- L537 — variável: `rows`
+- L574 — variável: `row`
+- L578 — variável: `currentItem`
+- L591 — variável: `auditId`
+- L602 — variável: `requestedCount`
+- L606 — variável: `requestedRemaining`
+- L608 — variável: `requiresAttachment`
+- L611 — variável: `attachmentSatisfied`
+- L615 — variável: `current`
+- L616 — variável: `nextStatusName`
+- L623 — variável: `statusId`
+- L637 — variável: `updated`
+- L650 — parâmetro: `trx`
+- L650 — retorno da função: `<anônima>()`
+- L698 — variável: `hasReopen`
+- L700 — variável: `actionAuditIds`
+- L701 — variável: `rememberFirstAudit`
+- L705 — variável: `dec`
+- L706 — variável: `row`
+- L710 — variável: `currentStatus`
+- L721 — variável: `validateAuditId`
+- L744 — variável: `reopenAuditId`
+- L758 — variável: `nextStatusName`
+- L760 — variável: `statusId`
+- L772 — variável: `rows`
+- L775 — parâmetro: `d`
+- L775 — retorno da função: `<anônima>()`
+- L798 — variável: `col`
+- L800 — variável: `v`
+- L804 — variável: `requesterRow`
+- L826 — variável: `col`
+- L829 — variável: `category`
+- L872 — variável: `col`
+- L899 — variável: `entry`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
@@ -5308,91 +5306,91 @@ interface GroupedIssues {
 - L156 — variável: `corrected`
 - L159 — variável: `parsed`
 - L179 — variável: `request`
-- L200 — variável: `observation`
-- L201 — variável: `items`
-- L202 — variável: `hasObservation`
-- L203 — variável: `hasItems`
-- L213 — variável: `raw`
-- L219 — variável: `item`
-- L220 — variável: `fieldKey`
-- L242 — variável: `batchId`
-- L243 — variável: `requestAttachment`
-- L260 — variável: `item`
-- L261 — variável: `fieldKey`
-- L262 — variável: `snapshot`
-- L279 — parâmetro: `trx`
-- L279 — retorno da função: `<anônima>()`
-- L279 — variável: `createdRows`
-- L280 — variável: `{ rows: insertedRows, auditId }`
-- L289 — variável: `notifications`
-- L298 — variável: `mapped`
-- L308 — variável: `TRACKING_INVALID_IDENTITY`
-- L325 — variável: `nameOk`
-- L326 — variável: `emailOk`
-- L343 — variável: `request`
-- L346 — variável: `actor`
-- L351 — variável: `canReadAssigned`
-- L355 — variável: `canRespondOwn`
-- L384 — variável: `request`
-- L387 — variável: `actor`
-- L409 — variável: `request`
-- L410 — variável: `rows`
-- L411 — variável: `items`
-- L420 — variável: `openRow`
-- L421 — parâmetro: `row`
-- L421 — retorno da função: `<anônima>()`
-- L423 — variável: `targetRow`
-- L424 — variável: `batchId`
-- L425 — variável: `requestAttachment`
-- L427 — parâmetro: `row`
-- L427 — retorno da função: `<anônima>()`
-- L439 — variável: `{ request, actorEmail }`
-- L445 — variável: `row`
-- L453 — variável: `type`
-- L471 — variável: `response`
-- L484 — parâmetro: `trx`
-- L484 — retorno da função: `<anônima>()`
-- L484 — variável: `updated`
-- L485 — variável: `result`
-- L494 — parâmetro: `facts`
-- L494 — retorno da função: `<anônima>()`
-- L502 — variável: `actorUserId`
-- L503 — variável: `audience`
-- L509 — variável: `committedNotifications`
-- L524 — variável: `list`
-- L541 — variável: `{ request }`
-- L547 — variável: `row`
-- L563 — variável: `[saved]`
-- L573 — variável: `err`
-- L613 — variável: `date`
-- L635 — variável: `nullableComplement`
-- L665 — variável: `request`
-- L680 — variável: `batchId`
-- L681 — variável: `batchRows`
-- L684 — parâmetro: `row`
-- L684 — retorno da função: `<anônima>()`
-- L684 — variável: `byId`
-- L686 — variável: `decision`
-- L687 — variável: `row`
-- L689 — variável: `status`
-- L701 — parâmetro: `decision`
-- L701 — retorno da função: `<anônima>()`
-- L705 — variável: `row`
-- L706 — variável: `fieldKey`
-- L715 — parâmetro: `trx`
-- L715 — retorno da função: `<anônima>()`
-- L715 — variável: `decidedRows`
-- L716 — variável: `{ rows: reviewedRows, actionAuditIds }`
-- L727 — parâmetro: `facts`
-- L727 — retorno da função: `<anônima>()`
-- L731 — variável: `notifications`
-- L734 — parâmetro: `[action, auditId]`
-- L734 — retorno da função: `<anônima>()`
-- L740 — variável: `mapped`
-- L750 — variável: `mode`
-- L755 — variável: `found`
-- L757 — variável: `nameOk`
-- L758 — variável: `emailOk`
+- L195 — variável: `observation`
+- L196 — variável: `items`
+- L197 — variável: `hasObservation`
+- L198 — variável: `hasItems`
+- L208 — variável: `raw`
+- L214 — variável: `item`
+- L215 — variável: `fieldKey`
+- L237 — variável: `batchId`
+- L238 — variável: `requestAttachment`
+- L255 — variável: `item`
+- L256 — variável: `fieldKey`
+- L257 — variável: `snapshot`
+- L274 — parâmetro: `trx`
+- L274 — retorno da função: `<anônima>()`
+- L274 — variável: `createdRows`
+- L275 — variável: `{ rows: insertedRows, auditId }`
+- L284 — variável: `notifications`
+- L293 — variável: `mapped`
+- L303 — variável: `TRACKING_INVALID_IDENTITY`
+- L320 — variável: `nameOk`
+- L321 — variável: `emailOk`
+- L338 — variável: `request`
+- L341 — variável: `actor`
+- L346 — variável: `canReadAssigned`
+- L351 — variável: `canRespondOwn`
+- L380 — variável: `request`
+- L383 — variável: `actor`
+- L405 — variável: `request`
+- L406 — variável: `rows`
+- L407 — variável: `items`
+- L416 — variável: `openRow`
+- L417 — parâmetro: `row`
+- L417 — retorno da função: `<anônima>()`
+- L419 — variável: `targetRow`
+- L420 — variável: `batchId`
+- L421 — variável: `requestAttachment`
+- L423 — parâmetro: `row`
+- L423 — retorno da função: `<anônima>()`
+- L435 — variável: `{ request, actorEmail }`
+- L441 — variável: `row`
+- L449 — variável: `type`
+- L467 — variável: `response`
+- L480 — parâmetro: `trx`
+- L480 — retorno da função: `<anônima>()`
+- L480 — variável: `updated`
+- L481 — variável: `result`
+- L490 — parâmetro: `facts`
+- L490 — retorno da função: `<anônima>()`
+- L498 — variável: `actorUserId`
+- L499 — variável: `audience`
+- L505 — variável: `committedNotifications`
+- L520 — variável: `list`
+- L537 — variável: `{ request }`
+- L543 — variável: `row`
+- L559 — variável: `[saved]`
+- L569 — variável: `err`
+- L609 — variável: `date`
+- L631 — variável: `nullableComplement`
+- L661 — variável: `request`
+- L671 — variável: `batchId`
+- L672 — variável: `batchRows`
+- L675 — parâmetro: `row`
+- L675 — retorno da função: `<anônima>()`
+- L675 — variável: `byId`
+- L677 — variável: `decision`
+- L678 — variável: `row`
+- L680 — variável: `status`
+- L692 — parâmetro: `decision`
+- L692 — retorno da função: `<anônima>()`
+- L696 — variável: `row`
+- L697 — variável: `fieldKey`
+- L706 — parâmetro: `trx`
+- L706 — retorno da função: `<anônima>()`
+- L706 — variável: `decidedRows`
+- L707 — variável: `{ rows: reviewedRows, actionAuditIds }`
+- L718 — parâmetro: `facts`
+- L718 — retorno da função: `<anônima>()`
+- L722 — variável: `notifications`
+- L725 — parâmetro: `[action, auditId]`
+- L725 — retorno da função: `<anônima>()`
+- L731 — variável: `mapped`
+- L741 — variável: `mode`
+- L746 — variável: `found`
+- L748 — variável: `nameOk`
+- L749 — variável: `emailOk`
 
 ### [src/modules/portalConfig/portalConfig.controller.ts](../src/modules/portalConfig/portalConfig.controller.ts)
 
@@ -5633,11 +5631,11 @@ interface GroupedIssues {
 
 - L17 — variável: `row`
 - L24 — variável: `row`
-- L42 — variável: `scoreRounded`
-- L61 — variável: `row`
-- L76 — variável: `data`
-- L86 — variável: `rows`
-- L92 — variável: `row`
+- L38 — variável: `scoreRounded`
+- L57 — variável: `row`
+- L72 — variável: `data`
+- L82 — variável: `rows`
+- L88 — variável: `row`
 
 ### [src/modules/prioritization/prioritization.router.ts](../src/modules/prioritization/prioritization.router.ts)
 
@@ -5657,7 +5655,7 @@ interface GroupedIssues {
 - L22 — parâmetro: `row`
 - L22 — retorno da função: `<anônima>()`
 - L42 — variável: `exists`
-- L47 — variável: `responsibleUserIds`
+- L47 — variável: `assigneeUserId`
 - L52 — variável: `canEvaluate`
 - L71 — variável: `criteria`
 - L75 — variável: `score`
@@ -5948,37 +5946,37 @@ interface GroupedIssues {
 - L284 — variável: `emailKey`
 - L312 — variável: `getMappingService`
 - L317 — variável: `context`
-- L339 — variável: `mapping`
-- L344 — variável: `[participants, assigneeCandidate]`
-- L357 — variável: `upsertMappingService`
-- L363 — variável: `{ response, committed }`
-- L366 — parâmetro: `trx`
-- L366 — retorno da função: `<anônima>()`
-- L369 — variável: `context`
-- L414 — variável: `mapping`
-- L425 — variável: `previousProfessionalId`
-- L432 — variável: `explicitDesignation`
-- L433 — variável: `isNullOnCreate`
-- L434 — variável: `designationAction`
-- L438 — variável: `contentAction`
-- L459 — variável: `candidate`
-- L491 — variável: `currentValues`
-- L492 — variável: `values`
-- L494 — variável: `concluding`
-- L504 — variável: `target`
-- L535 — variável: `missing`
-- L545 — variável: `resolvedParticipants`
-- L552 — variável: `designationChanged`
-- L587 — variável: `changeOrigin`
-- L591 — variável: `previousAuditValues`
-- L598 — variável: `nextAuditValues`
-- L610 — variável: `mappingAuditId`
-- L695 — parâmetro: `participant`
-- L695 — retorno da função: `<anônima>()`
-- L702 — variável: `assigneeCandidate`
-- L712 — variável: `scheduledAt`
-- L713 — variável: `committedNotifications`
-- L727 — variável: `response`
+- L332 — variável: `mapping`
+- L337 — variável: `[participants, assigneeCandidate]`
+- L350 — variável: `upsertMappingService`
+- L356 — variável: `{ response, committed }`
+- L359 — parâmetro: `trx`
+- L359 — retorno da função: `<anônima>()`
+- L362 — variável: `context`
+- L400 — variável: `mapping`
+- L411 — variável: `previousProfessionalId`
+- L418 — variável: `explicitDesignation`
+- L419 — variável: `isNullOnCreate`
+- L420 — variável: `designationAction`
+- L424 — variável: `contentAction`
+- L445 — variável: `candidate`
+- L477 — variável: `currentValues`
+- L478 — variável: `values`
+- L480 — variável: `concluding`
+- L490 — variável: `target`
+- L521 — variável: `missing`
+- L531 — variável: `resolvedParticipants`
+- L538 — variável: `designationChanged`
+- L573 — variável: `changeOrigin`
+- L577 — variável: `previousAuditValues`
+- L584 — variável: `nextAuditValues`
+- L596 — variável: `mappingAuditId`
+- L681 — parâmetro: `participant`
+- L681 — retorno da função: `<anônima>()`
+- L688 — variável: `assigneeCandidate`
+- L698 — variável: `scheduledAt`
+- L699 — variável: `committedNotifications`
+- L713 — variável: `response`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
@@ -6285,141 +6283,141 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-- L125 — variável: `user`
-- L138 — variável: `normalizedProtocol`
-- L140 — variável: `found`
-- L150 — variável: `identity`
-- L151 — variável: `isOwner`
-- L167 — retorno da função: `registerRequest()`
-- L175 — variável: `payload`
-- L181 — variável: `err`
-- L191 — variável: `identity`
-- L208 — variável: `email`
-- L217 — variável: `normalizedEmail`
-- L253 — parâmetro: `value`
-- L253 — retorno da função: `<anônima>()`
-- L261 — variável: `request`
-- L273 — parâmetro: `row`
-- L273 — retorno da função: `<anônima>()`
-- L283 — variável: `canReadInternalNotes`
-- L287 — variável: `canReadPendingItems`
-- L292 — variável: `requestId`
-- L293 — variável: `[attachments, schedulePreferences, evaluation]`
-- L302 — variável: `meeting`
-- L312 — retorno da função: `<anônima>()`
-- L312 — variável: `pendingSummary`
-- L322 — variável: `summary`
-- L323 — variável: `correctionAlert`
-- L324 — variável: `unreadRaw`
-- L363 — variável: `openedAt`
-- L364 — variável: `lastUpdate`
-- L366 — variável: `assigneeUserId`
-- L367 — variável: `mappingUserId`
-- L369 — variável: `assignee`
-- L378 — variável: `mappingAssignee`
-- L442 — parâmetro: `row`
-- L442 — retorno da função: `<anônima>()`
-- L446 — parâmetro: `attachment`
-- L446 — retorno da função: `<anônima>()`
-- L485 — variável: `trimmed`
-- L492 — variável: `record`
-- L496 — variável: `{ __triage: _triage, observations: _obs, ...rest }`
-- L521 — variável: `TRACKING_INVALID_IDENTITY`
-- L524 — variável: `scheduledFor`
-- L590 — variável: `openedAt`
-- L611 — variável: `requestId`
-- L612 — variável: `[attachments, schedulePreferences]`
-- L617 — variável: `meeting`
-- L618 — variável: `complementary`
-- L621 — variável: `{ impacts, ...base }`
-- L643 — parâmetro: `preference`
-- L643 — retorno da função: `<anônima>()`
-- L648 — parâmetro: `attachment`
-- L648 — retorno da função: `<anônima>()`
-- L680 — variável: `row`
-- L700 — variável: `mode`
-- L711 — variável: `row`
-- L716 — variável: `nameOk`
-- L719 — variável: `emailOk`
-- L741 — variável: `normalizedProtocol`
-- L868 — variável: `request`
-- L874 — parâmetro: `row`
-- L874 — retorno da função: `<anônima>()`
-- L879 — parâmetro: `trx`
-- L879 — retorno da função: `<anônima>()`
-- L898 — variável: `updatedRequest`
-- L920 — variável: `RN010_ELIGIBLE_SCREENING`
-- L957 — variável: `candidate`
-- L958 — variável: `assignable`
-- L972 — variável: `candidate`
-- L973 — variável: `assignable`
-- L990 — variável: `error`
-- L1014 — variável: `request`
-- L1020 — parâmetro: `row`
-- L1020 — retorno da função: `<anônima>()`
-- L1030 — variável: `assignee`
-- L1033 — retorno da função: `<anônima>()`
-- L1037 — variável: `previousId`
-- L1038 — variável: `nextId`
-- L1040 — variável: `auditNext`
-- L1041 — variável: `auditPrev`
-- L1044 — variável: `action`
-- L1046 — variável: `shouldAdvanceStatus`
-- L1054 — variável: `previousMapping`
-- L1055 — variável: `auditPrevMapping`
-- L1061 — parâmetro: `trx`
-- L1061 — retorno da função: `<anônima>()`
-- L1064 — variável: `auditId`
-- L1142 — variável: `request`
-- L1148 — parâmetro: `row`
-- L1148 — retorno da função: `<anônima>()`
-- L1158 — variável: `hasAssignee`
-- L1159 — variável: `hasMapping`
-- L1164 — variável: `raw`
-- L1166 — variável: `previous`
-- L1167 — variável: `auditPrev`
-- L1170 — parâmetro: `trx`
-- L1170 — retorno da função: `<anônima>()`
-- L1187 — retorno da função: `<anônima>()`
-- L1187 — variável: `resolved`
-- L1190 — variável: `previous`
-- L1191 — variável: `auditPrev`
-- L1194 — variável: `previousMapping`
-- L1195 — variável: `auditPrevMapping`
-- L1198 — variável: `action`
-- L1199 — variável: `shouldAdvance`
-- L1202 — parâmetro: `trx`
-- L1202 — retorno da função: `<anônima>()`
-- L1209 — variável: `auditId`
-- L1266 — variável: `raw`
-- L1268 — variável: `previous`
-- L1269 — variável: `auditPrev`
-- L1272 — parâmetro: `trx`
-- L1272 — retorno da função: `<anônima>()`
-- L1289 — retorno da função: `<anônima>()`
-- L1289 — variável: `resolved`
-- L1292 — variável: `previous`
-- L1293 — variável: `auditPrev`
-- L1296 — variável: `previousAssignee`
-- L1297 — variável: `auditPrevAssignee`
-- L1300 — variável: `action`
-- L1301 — parâmetro: `trx`
-- L1301 — retorno da função: `<anônima>()`
-- L1308 — variável: `auditId`
-- L1356 — variável: `updatedRequest`
-- L1431 — variável: `request`
-- L1437 — parâmetro: `row`
-- L1437 — retorno da função: `<anônima>()`
-- L1445 — variável: `target`
-- L1464 — variável: `requiresOverride`
-- L1466 — variável: `hasStatusOverride`
-- L1489 — variável: `changeOrigin`
-- L1491 — parâmetro: `trx`
-- L1491 — retorno da função: `<anônima>()`
-- L1491 — variável: `{ lastUpdate, committed }`
-- L1492 — variável: `persistedAt`
-- L1504 — variável: `auditId`
-- L1529 — variável: `committedNotifications`
+- L126 — variável: `user`
+- L139 — variável: `normalizedProtocol`
+- L141 — variável: `found`
+- L151 — variável: `identity`
+- L152 — variável: `isOwner`
+- L168 — retorno da função: `registerRequest()`
+- L176 — variável: `payload`
+- L182 — variável: `err`
+- L192 — variável: `identity`
+- L209 — variável: `email`
+- L218 — variável: `normalizedEmail`
+- L254 — parâmetro: `value`
+- L254 — retorno da função: `<anônima>()`
+- L262 — variável: `request`
+- L274 — parâmetro: `row`
+- L274 — retorno da função: `<anônima>()`
+- L284 — variável: `canReadInternalNotes`
+- L288 — variável: `canReadPendingItems`
+- L294 — variável: `requestId`
+- L295 — variável: `[attachments, schedulePreferences, evaluation]`
+- L304 — variável: `meeting`
+- L314 — retorno da função: `<anônima>()`
+- L314 — variável: `pendingSummary`
+- L324 — variável: `summary`
+- L325 — variável: `correctionAlert`
+- L326 — variável: `unreadRaw`
+- L365 — variável: `openedAt`
+- L366 — variável: `lastUpdate`
+- L368 — variável: `assigneeUserId`
+- L369 — variável: `mappingUserId`
+- L371 — variável: `assignee`
+- L380 — variável: `mappingAssignee`
+- L444 — parâmetro: `row`
+- L444 — retorno da função: `<anônima>()`
+- L448 — parâmetro: `attachment`
+- L448 — retorno da função: `<anônima>()`
+- L487 — variável: `trimmed`
+- L494 — variável: `record`
+- L498 — variável: `{ __triage: _triage, observations: _obs, ...rest }`
+- L523 — variável: `TRACKING_INVALID_IDENTITY`
+- L526 — variável: `scheduledFor`
+- L592 — variável: `openedAt`
+- L613 — variável: `requestId`
+- L614 — variável: `[attachments, schedulePreferences]`
+- L619 — variável: `meeting`
+- L620 — variável: `complementary`
+- L623 — variável: `{ impacts, ...base }`
+- L645 — parâmetro: `preference`
+- L645 — retorno da função: `<anônima>()`
+- L650 — parâmetro: `attachment`
+- L650 — retorno da função: `<anônima>()`
+- L682 — variável: `row`
+- L702 — variável: `mode`
+- L713 — variável: `row`
+- L718 — variável: `nameOk`
+- L721 — variável: `emailOk`
+- L743 — variável: `normalizedProtocol`
+- L870 — variável: `request`
+- L876 — parâmetro: `row`
+- L876 — retorno da função: `<anônima>()`
+- L881 — parâmetro: `trx`
+- L881 — retorno da função: `<anônima>()`
+- L900 — variável: `updatedRequest`
+- L922 — variável: `RN010_ELIGIBLE_SCREENING`
+- L959 — variável: `candidate`
+- L960 — variável: `assignable`
+- L974 — variável: `candidate`
+- L975 — variável: `assignable`
+- L992 — variável: `error`
+- L1016 — variável: `request`
+- L1022 — parâmetro: `row`
+- L1022 — retorno da função: `<anônima>()`
+- L1032 — variável: `assignee`
+- L1035 — retorno da função: `<anônima>()`
+- L1039 — variável: `previousId`
+- L1040 — variável: `nextId`
+- L1042 — variável: `auditNext`
+- L1043 — variável: `auditPrev`
+- L1046 — variável: `action`
+- L1048 — variável: `shouldAdvanceStatus`
+- L1056 — variável: `previousMapping`
+- L1057 — variável: `auditPrevMapping`
+- L1063 — parâmetro: `trx`
+- L1063 — retorno da função: `<anônima>()`
+- L1066 — variável: `auditId`
+- L1144 — variável: `request`
+- L1150 — parâmetro: `row`
+- L1150 — retorno da função: `<anônima>()`
+- L1160 — variável: `hasAssignee`
+- L1161 — variável: `hasMapping`
+- L1166 — variável: `raw`
+- L1168 — variável: `previous`
+- L1169 — variável: `auditPrev`
+- L1172 — parâmetro: `trx`
+- L1172 — retorno da função: `<anônima>()`
+- L1189 — retorno da função: `<anônima>()`
+- L1189 — variável: `resolved`
+- L1192 — variável: `previous`
+- L1193 — variável: `auditPrev`
+- L1196 — variável: `previousMapping`
+- L1197 — variável: `auditPrevMapping`
+- L1200 — variável: `action`
+- L1201 — variável: `shouldAdvance`
+- L1204 — parâmetro: `trx`
+- L1204 — retorno da função: `<anônima>()`
+- L1211 — variável: `auditId`
+- L1268 — variável: `raw`
+- L1270 — variável: `previous`
+- L1271 — variável: `auditPrev`
+- L1274 — parâmetro: `trx`
+- L1274 — retorno da função: `<anônima>()`
+- L1291 — retorno da função: `<anônima>()`
+- L1291 — variável: `resolved`
+- L1294 — variável: `previous`
+- L1295 — variável: `auditPrev`
+- L1298 — variável: `previousAssignee`
+- L1299 — variável: `auditPrevAssignee`
+- L1302 — variável: `action`
+- L1303 — parâmetro: `trx`
+- L1303 — retorno da função: `<anônima>()`
+- L1310 — variável: `auditId`
+- L1358 — variável: `updatedRequest`
+- L1433 — variável: `request`
+- L1439 — parâmetro: `row`
+- L1439 — retorno da função: `<anônima>()`
+- L1447 — variável: `target`
+- L1466 — variável: `requiresOverride`
+- L1468 — variável: `hasStatusOverride`
+- L1491 — variável: `changeOrigin`
+- L1493 — parâmetro: `trx`
+- L1493 — retorno da função: `<anônima>()`
+- L1493 — variável: `{ lastUpdate, committed }`
+- L1494 — variável: `persistedAt`
+- L1506 — variável: `auditId`
+- L1531 — variável: `committedNotifications`
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
@@ -6445,13 +6443,13 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L76 — variável: `TRIAGE_COLUMNS`
-- L129 — variável: `row`
-- L163 — retorno da função: `<anônima>()`
-- L185 — variável: `raw`
-- L205 — variável: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
-- L215 — variável: `source`
-- L242 — variável: `updatedRows`
+- L73 — variável: `TRIAGE_COLUMNS`
+- L126 — variável: `row`
+- L160 — retorno da função: `<anônima>()`
+- L182 — variável: `raw`
+- L202 — variável: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
+- L212 — variável: `source`
+- L239 — variável: `updatedRows`
 
 ### [src/modules/requests/triage/triage.router.ts](../src/modules/requests/triage/triage.router.ts)
 
@@ -6469,18 +6467,18 @@ interface GroupedIssues {
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-- L70 — variável: `{ protocol, request, triage, categoryId, exitStatus, actor, ipAddress }`
-- L72 — parâmetro: `trx`
-- L72 — retorno da função: `<anônima>()`
-- L85 — variável: `triageAuditId`
-- L153 — variável: `request`
-- L158 — variável: `canAccess`
-- L175 — variável: `request`
-- L198 — variável: `canAccess`
-- L215 — variável: `exitStatus`
-- L236 — variável: `categoryName`
-- L238 — variável: `newCategory`
-- L273 — variável: `committedNotifications`
+- L69 — variável: `{ protocol, request, triage, categoryId, exitStatus, actor, ipAddress }`
+- L71 — parâmetro: `trx`
+- L71 — retorno da função: `<anônima>()`
+- L84 — variável: `triageAuditId`
+- L152 — variável: `request`
+- L157 — variável: `canAccess`
+- L174 — variável: `request`
+- L197 — variável: `canAccess`
+- L214 — variável: `exitStatus`
+- L235 — variável: `categoryName`
+- L237 — variável: `newCategory`
+- L272 — variável: `committedNotifications`
 
 ### [src/modules/users/users.controller.ts](../src/modules/users/users.controller.ts)
 
@@ -7246,14 +7244,14 @@ interface GroupedIssues {
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-- L93 — variável: `row`
-- L133 — variável: `row`
-- L192 — variável: `row`
-- L364 — variável: `row`
-- L414 — variável: `row`
-- L611 — variável: `requiresAttachment`
-- L807 — variável: `requesterRow`
-- L832 — variável: `category`
+- L92 — variável: `row`
+- L131 — variável: `row`
+- L189 — variável: `row`
+- L361 — variável: `row`
+- L411 — variável: `row`
+- L608 — variável: `requiresAttachment`
+- L804 — variável: `requesterRow`
+- L829 — variável: `category`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
@@ -7276,7 +7274,7 @@ interface GroupedIssues {
 
 - L17 — variável: `row`
 - L24 — variável: `row`
-- L61 — variável: `row`
+- L57 — variável: `row`
 
 ### [src/modules/profiles/profiles.repository.ts](../src/modules/profiles/profiles.repository.ts)
 
@@ -7309,11 +7307,11 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-- L253 — parâmetro: `value`
+- L254 — parâmetro: `value`
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L129 — variável: `row`
+- L126 — variável: `row`
 
 ### [src/modules/users/users.repository.ts](../src/modules/users/users.repository.ts)
 

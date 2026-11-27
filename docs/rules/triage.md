@@ -9,8 +9,15 @@ antigo para o mais recente.
 
 Criar exige `triage:write` + Custódia da solicitação; ler exige `triage:read`
 
-- Custódia. Solicitante nunca acessa rota interna. Sem sessão ou sem custódia,
-  a operação é recusada.
+- Custódia. A custódia é exclusiva do Responsável da triagem: o Designado do
+  mapeamento não registra nem lê triagem. Solicitante nunca acessa rota interna.
+  Sem sessão ou sem custódia, a operação é recusada.
+
+## Priorização
+
+`prioritization:write` é exclusiva do Responsável da triagem, repetindo o
+comportamento anterior ao RBAC. A ampliação para o Designado do mapeamento
+depende de confirmação do Produto.
 
 ## Regras condicionais
 

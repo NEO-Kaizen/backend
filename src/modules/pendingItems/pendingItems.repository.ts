@@ -17,7 +17,6 @@ export interface RequestRef {
   requester_name: string;
   requester_email: string;
   responsible_user_id: number | null;
-  mapping_user_id: number | null;
 }
 
 /** Escalar JSON aceito em `pending_items.current_value/corrected_value`. */
@@ -120,7 +119,6 @@ export async function findRequestByProtocol(
       requester_name: "requesters.full_name",
       requester_email: "requesters.corporate_email",
       responsible_user_id: "responsible_user.user_id",
-      mapping_user_id: "mapping_user.user_id",
     });
   return (row as RequestRef | undefined) ?? null;
 }
@@ -160,7 +158,6 @@ export async function findRequestById(
       requester_name: "requesters.full_name",
       requester_email: "requesters.corporate_email",
       responsible_user_id: "responsible_user.user_id",
-      mapping_user_id: "mapping_user.user_id",
     });
   return (row as RequestRef | undefined) ?? null;
 }

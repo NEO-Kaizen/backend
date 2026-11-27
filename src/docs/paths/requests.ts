@@ -195,7 +195,7 @@ export default {
       summary: "Atualização interna de solicitação",
       description:
         "Substitui os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). " +
-        "Chave ausente = campo limpo (NULL). Exige `request:write` + Custódia; quem escreve sem `request:read` recebe `200 { protocol, updated: true }` em vez do detalhe.",
+        "Chave ausente = campo limpo (NULL). Exige `request:write` + Custódia do Responsável da triagem ou do mapeamento corrente; quem escreve sem `request:read` recebe `200 { protocol, updated: true }` em vez do detalhe.",
       operationId: "patchInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],

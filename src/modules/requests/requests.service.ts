@@ -75,6 +75,7 @@ import {
   custodyFor,
   denyRequestAccess,
   hasAnyResponsibleCustody,
+  hasResponsibleCustody,
   isRequesterOwner,
   recordAccessDeniedAttempt,
   type PermissionActor,
@@ -284,10 +285,11 @@ export async function findInternalByProtocol(
     request["assignee_user_id"],
     request["mapping_user_id"],
   ]);
-  const canReadPendingItems = hasAnyResponsibleCustody(actor, "pending_item:read", [
+  const canReadPendingItems = hasResponsibleCustody(
+    actor,
+    "pending_item:read",
     request["assignee_user_id"],
-    request["mapping_user_id"],
-  ]);
+  );
 
   const requestId = request["request_id"] as string;
   const [attachments, schedulePreferences, evaluation] = await Promise.all([

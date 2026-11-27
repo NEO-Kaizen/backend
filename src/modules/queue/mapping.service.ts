@@ -8,8 +8,8 @@
 // 1. re-lê contexto da solicitação (status + responsável);
 // 2. localiza o alvo (`id` explícito ou mapeamento aberto mais recente);
 // 3. aplica a designação (`mappingAssigneeId`) se fornecida;
-// 4. autoriza leitura e escrita pela chave e pela Custódia da solicitação ou
-//    do mapeamento corrente;
+// 4. autoriza leitura e escrita pela chave e pela Custódia do mapeamento
+//    corrente (a triagem não edita nem designa o mapeamento);
 // 5. mescla os campos (ausente mantém / `null` limpa);
 // 6. resolve participantes, persiste, audita e (se concluir) avança o status
 //    para `Mapeamento agendado`;
@@ -319,14 +319,7 @@ export const getMappingService = async (
     throw new AppError("Solicitação não encontrada", 404);
   }
 
-  if (
-    !hasMappingCustody(
-      actor,
-      "mapping:read",
-      context.assignee_user_id,
-      context.mapping_assignee_user_id,
-    )
-  ) {
+  if (!hasMappingCustody(actor, "mapping:read", null, context.mapping_assignee_user_id)) {
     await recordMappingAccessDenied(
       context.protocol,
       actor.id,
@@ -371,14 +364,7 @@ export const upsertMappingService = async (
       throw new AppError("Solicitação não encontrada", 404);
     }
 
-    if (
-      !hasMappingCustody(
-        actor,
-        "mapping:write",
-        context.assignee_user_id,
-        context.mapping_assignee_user_id,
-      )
-    ) {
+    if (!hasMappingCustody(actor, "mapping:write", null, context.mapping_assignee_user_id)) {
       await recordMappingAccessDenied(
         context.protocol,
         actor.id,
@@ -425,16 +411,16 @@ export const upsertMappingService = async (
     const previousProfessionalId = mapping ? mapping.professional_id : null;
 
     // Uma alteração de designação e os campos do mapeamento são ações
-    // independentes; ambas exigem `mapping:write` e Custódia corrente
-    // (ver `docs/rules/assignment.md`).
+    // independentes; ambas exigem `mapping:write` com Custódia do mapeamento
+    // corrente — a triagem não designa o mapeador (ver `docs/rules/assignment.md`).
     // - `mappingAssigneeId: null` em CRIAÇÃO não tem o que remover: equivale a
     //   herdar o responsável (evita mapeamento órfão que ninguém edita).
     const explicitDesignation = payload.mappingAssigneeId !== undefined;
     const isNullOnCreate = !mapping && explicitDesignation && payload.mappingAssigneeId === null;
     const designationAction = explicitDesignation && !isNullOnCreate;
 
-    // A chave custodial `mapping:write` autoriza alterações de conteúdo e de
-    // designação quando o ator é Responsável da solicitação ou do mapeamento.
+    // A chave custodial `mapping:write` autoriza conteúdo e designação apenas
+    // quando o ator é o Designado do mapeamento corrente (ou Admin).
     const contentAction =
       payload.scheduledFor !== undefined ||
       payload.durationMinutes !== undefined ||

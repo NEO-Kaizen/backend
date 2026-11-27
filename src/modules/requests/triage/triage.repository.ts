@@ -20,7 +20,6 @@ export interface RequestContextRow {
   protocol: string;
   professional_id: string | null;
   assignee_user_id: number | null;
-  mapping_user_id: number | null;
   status_id: number;
   status_name: string | null;
   status_is_restricted: boolean;
@@ -33,7 +32,6 @@ export interface RequestContextRow {
 export async function findRequestContext(protocol: string): Promise<RequestContextRow | undefined> {
   return db("requests as r")
     .leftJoin("details_professional as dp", "dp.professional_id", "r.professional_id")
-    .leftJoin("details_professional as dpm", "dpm.professional_id", "r.mapping_professional_id")
     .leftJoin("statuses as s", "s.status_id", "r.status_id")
     .leftJoin("categories as c", "c.category_id", "r.category_id")
     .where("r.protocol", protocol)
@@ -42,7 +40,6 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       protocol: "r.protocol",
       professional_id: "r.professional_id",
       assignee_user_id: "dp.user_id",
-      mapping_user_id: "dpm.user_id",
       status_id: "r.status_id",
       status_name: "s.name",
       status_is_restricted: "s.is_restricted",
