@@ -13,8 +13,8 @@ import type {
   ListUsersQuery,
 } from "../DTOs/users/UserRequests.dto.ts";
 import type { AssignableProfessional, UserSummary } from "../DTOs/users/UserResponse.dto.ts";
-import type { RequestCategory } from "../../shared/types/requests.ts";
 import { toProfileReference } from "../../shared/types/profile.ts";
+import { normalizeEmail } from "../../shared/utils/normalizeIdentity.ts";
 
 interface UserSummaryRow {
   user_id: number;
@@ -91,6 +91,46 @@ export async function findUserById(id: number): Promise<AuthUserRow | undefined>
       "p.is_active as profile_is_active",
       "p.is_root as profile_is_root",
     );
+}
+
+/**
+ * Usuários ativos que administram contas (`user:manage` global) — destinatários
+ * do Evento de Pendência respondida sem Responsável designado (RF20 — #159).
+ *
+ * A audiência é resolvida pela chave, nunca pelo nome do Perfil: cobre o
+ * Administrador, o Admin Root e qualquer Perfil customizado que gerencie contas.
+ */
+export async function findActiveAdminUserIds(trx?: Knex.Transaction): Promise<number[]> {
+  const conn = trx ?? db;
+  const rows = (await conn("users as u")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .join("profile_permissions as pp", "pp.profile_id", "p.profile_id")
+    .where("pp.permission_key", "user:manage")
+    .andWhere("pp.custody", "global")
+    .andWhere("p.is_active", true)
+    .andWhere("u.is_active", true)
+    .distinct("u.user_id")
+    .orderBy("u.user_id", "asc")) as Array<{ user_id: number }>;
+
+  return rows.map((row) => Number(row.user_id));
+}
+
+/**
+ * Conta dona do e-mail informado — usada para excluir o ator de uma resposta
+ * pública sem `requester_user_id` (a identidade foi verificada pelo e-mail).
+ */
+export async function findUserIdByEmail(
+  trx: Knex.Transaction,
+  email: string,
+): Promise<number | null> {
+  // `users.email` é normalizado na aplicação, mas dados legados podem ter
+  // caixa mista; a comparação case-insensitive garante a autoexclusão do ator
+  // em respostas públicas sem `requester_user_id`.
+  const row = (await trx("users")
+    .whereRaw("lower(email) = ?", [normalizeEmail(email)])
+    .first("user_id")) as { user_id: number } | undefined;
+
+  return row ? Number(row.user_id) : null;
 }
 
 /** Concessões do Perfil (chave + vínculo), insumo da matriz de contas (§ 4.2). */
@@ -651,13 +691,13 @@ export async function listAssignableProfessionals(
   }
 
   return rows.map((row) => {
-    const categoriesForProfessional: RequestCategory[] = [];
+    const categoriesForProfessional: string[] = [];
     if (row.attended_category_ids) {
       for (const part of row.attended_category_ids.split(",")) {
         const id = Number(part.trim());
         if (!Number.isNaN(id)) {
           const name = categoryMap.get(id);
-          if (name) categoriesForProfessional.push(name as RequestCategory);
+          if (name) categoriesForProfessional.push(name);
         }
       }
     }

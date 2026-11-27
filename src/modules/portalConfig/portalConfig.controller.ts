@@ -115,8 +115,8 @@ export const updateTheme = async (req: Request, res: Response): Promise<Response
 export const updateAssets = async (req: Request, res: Response): Promise<Response> => {
   // Parse JSON part `assets` do multipart. Multer `.fields()` sempre define
   // `req.files` (OBJECT vazio quando não há arquivo) — checar chaves, não
-  // truthiness, senão um multipart sem nenhuma parte cai em 200 (contrato §5
-  // exige 400).
+  // truthiness, senão um multipart sem nenhuma parte cai em 200 (as regras em
+  // `docs/rules/portal-config.md` exigem 400).
   const rawAssets = req.body?.assets;
   const filesMap = (req.files as Record<string, Express.Multer.File[]> | undefined) ?? {};
   const hasBinary = Object.values(filesMap).some((list) => Array.isArray(list) && list.length > 0);

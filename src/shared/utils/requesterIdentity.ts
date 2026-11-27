@@ -1,3 +1,5 @@
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /** Lê o header público `X-Requester-Identity` (`{ name, email }`). */
 export function parseRequesterIdentity(
   header: string | undefined,
@@ -6,7 +8,13 @@ export function parseRequesterIdentity(
   try {
     const obj = JSON.parse(header) as { name?: unknown; email?: unknown };
     if (typeof obj.name !== "string" || typeof obj.email !== "string") return null;
-    return { name: obj.name, email: obj.email };
+
+    const name = obj.name.trim();
+    const email = obj.email.trim().toLowerCase();
+
+    if (name === "" || !EMAIL_PATTERN.test(email)) return null;
+
+    return { name, email };
   } catch {
     return null;
   }

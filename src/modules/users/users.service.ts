@@ -574,9 +574,10 @@ export async function updateMyProfile(
 
     // ----- bloco requester -----
     if (payload.requester) {
-      const rawRequester = payload.requester as unknown as Record<string, unknown>;
       const changesAdministrativeFields =
-        "area" in rawRequester || "department" in rawRequester || "manager" in rawRequester;
+        "area" in payload.requester ||
+        "department" in payload.requester ||
+        "manager" in payload.requester;
 
       // A autorização decide por chave: só quem tem `user:manage` altera os
       // dados administrativos do próprio bloco requester (§ 4.2).

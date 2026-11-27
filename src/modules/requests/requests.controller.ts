@@ -7,6 +7,7 @@ import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zo
 import {
   assignAnalystSchema,
   assignRequestSchema,
+  cancelRequestSchema,
   createRequestPayloadSchema,
   listAuthenticatedRequestsQuerySchema,
   listRequestsQuerySchema,
@@ -41,8 +42,8 @@ export const getRequestsByProtocol = async (req: Request, res: Response): Promis
   return res.status(200).json(foundRequest);
 };
 
-// Acompanhamento bimodal do solicitante (contrato `contract-pendencias_03.md`
-// §3): sessão do dono → `authenticated`; identidade pública → `public`. A
+// Acompanhamento bimodal do solicitante (regras em `docs/rules/pending-items.md`):
+// sessão do Solicitante → `authenticated`; identidade pública → `public`. A
 // decisão de modo e o owner-check ficam no service.
 export const getTracking = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocolParam(req);
@@ -71,7 +72,7 @@ export const getInternalRequestByProtocol = async (
 
 /** Valida e devolve `req.params.protocol` — comum aos dois handlers da rota. */
 function assertProtocolParam(req: Request): string {
-  const protocol = req.params.protocol as string;
+  const protocol = req.params.protocol;
 
   if (!protocol || typeof protocol !== "string" || protocol.trim() === "") {
     throw new AppError("Protocolo é obrigatório", 400);
@@ -248,5 +249,22 @@ export const patchRequestStatus = async (req: Request, res: Response): Promise<R
     req.ip,
   );
 
+  return res.status(200).json(response);
+};
+
+export const postCancelRequest = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+  const parsed = cancelRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const { fields, message } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
+  }
+
+  const response = await service.cancelRequest(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
   return res.status(200).json(response);
 };

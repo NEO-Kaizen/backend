@@ -1,19 +1,24 @@
-export type PendencyStatus = "requested" | "responded" | "validated";
-export type PendingItemType = "field_edit" | "observation";
+import type {
+  CorrectionAlert,
+  InternalAttachment,
+  PendencyStatus,
+  PendingFieldRef,
+  PendingFieldValue,
+  PendingItemType,
+  PendingSummary,
+  UnreadState,
+} from "../../../shared/types/pendingItems.ts";
 
-export interface PendingFieldRef {
-  fieldKey: string;
-  fieldLabel: string;
-  currentValue: string | number | boolean | null;
-}
-
-export interface InternalAttachment {
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  downloadUrl: string | null;
-  canDownload: boolean;
-}
+export type {
+  CorrectionAlert,
+  InternalAttachment,
+  PendencyStatus,
+  PendingFieldRef,
+  PendingFieldValue,
+  PendingItemType,
+  PendingSummary,
+  UnreadState,
+};
 
 export interface PendingItem {
   id: string;
@@ -23,31 +28,13 @@ export interface PendingItem {
   field: PendingFieldRef | null;
   comment: string;
   status: PendencyStatus;
-  correctedValue: string | number | boolean | null;
+  correctedValue: PendingFieldValue;
   responseText: string | null;
   responseAttachments: InternalAttachment[];
   deadline?: string | null;
   createdAt: string;
   respondedAt: string | null;
   validatedAt: string | null;
-}
-
-export interface UnreadState {
-  count: number;
-  hasUnread: boolean;
-  lastUnreadAt: string | null;
-}
-
-export interface CorrectionAlert {
-  count: number;
-  batchId: string;
-}
-
-export interface PendingSummary {
-  total: number;
-  requested: number;
-  responded: number;
-  validated: number;
 }
 
 export interface CreatePendingItemsBody {
@@ -89,7 +76,3 @@ export interface ReviewPendingItemsResponse {
   batchId: string;
   items: PendingItem[];
 }
-
-// Re-export de shared para manter imports `from DTOs/pendingItems` funcionando
-// (fonte canônica agora em shared/types/requests.ts).
-export type { InternalRequestRow } from "../../../shared/types/requests.ts";

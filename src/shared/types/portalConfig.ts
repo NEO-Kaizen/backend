@@ -1,12 +1,13 @@
 import type { StatusTone } from "./systemTheme.ts";
 
 /**
- * Espelho do contrato `portal-config-api.md` (issue #90) — tipos de domínio da
- * configuração do portal, mantendo a mesma nomenclatura (camelCase em inglês).
+ * Tipos de domínio da configuração do portal (regras em
+ * `docs/rules/portal-config.md`, issue #90), mantendo a mesma nomenclatura
+ * (camelCase em inglês).
  *
  * Reutiliza `StatusTone` (e, indiretamente, `STATUS_TONES`) de `systemTheme.ts`
- * para não haver drift entre o tema (DB) e a API. `THEME_TOKEN_KEYS` aqui é o
- * espelho do contrato (camelCase); a forma snake_case das colunas do banco vive
+ * para não haver drift entre a Aparência (DB) e a API. `THEME_TOKEN_KEYS` aqui é
+ * o espelho do contrato (camelCase); a forma snake_case das colunas do banco vive
  * em `SystemThemeRow`/`systemTheme.ts` e é ponteada pelos mappers.
  */
 
@@ -15,7 +16,7 @@ export type SolicitationMode = "PUBLIC" | "AUTHENTICATED";
 
 // Assets do portal — URLs de imagem (relativa do próprio app ou http(s)), em
 // par claro/escuro, mais o flag de apresentação do logo. `*DarkUrl` vazio cai
-// para a variante clara (contrato `portal-config-api2.md` §tipos).
+// para a variante clara (regras em `docs/rules/portal-config.md`, seção Assets).
 export interface PortalAssets {
   logoLightUrl: string;
   logoDarkUrl: string;
@@ -89,7 +90,7 @@ export interface ThemeGradient {
 
 // Combina os 13 tokens + `gradient` + `statuses` da paleta. A ordem de
 // serialização é relevante para a comparação de rascunho no cliente: `gradient`
-// é emitido antes de `statuses` (contrato `portal-config-api-0_4.md`).
+// é emitido antes de `statuses` (regras em `docs/rules/portal-config.md`).
 export interface ThemeTokens extends Record<ThemeTokenKey, string> {
   gradient: ThemeGradient;
   statuses: Record<StatusTone, StatusToneTokens>;
@@ -113,14 +114,19 @@ export interface PortalCategory {
 
 /**
  * Modo de uso de um status nos fluxos de triagem/mapeamento (Motor de Status
- * v4 — delta `portal-config-statuses-amend.md`):
+ * v4 — ver `docs/rules/requests-lifecycle.md`):
  * - `none`: nunca é alvo direto da etapa (ex.: transição de N para Concluído);
  * - `free`: pode ser alvo livremente pelo agente da etapa;
  * - `conclusion_only`: alvo apenas na etapa de conclusão (ex.: Concluído).
  */
-export type StatusMode = "none" | "free" | "conclusion_only";
+export const STATUS_MODES = ["none", "free", "conclusion_only"] as const;
+export type StatusMode = (typeof STATUS_MODES)[number];
 
-export const CORE_STATUS_IDS = [1, 3, 4, 6, 7, 16, 17] as const;
+/**
+ * Ids de núcleo protegidos contra renomeação/remoção/desativação.
+ * Reexportados de `./status.ts` (fonte única dos ids do seed).
+ */
+export { CORE_STATUS_IDS } from "./status.ts";
 
 /**
  * Status do ciclo de vida — Motor de Status v4. A ordem de exibição é a
@@ -160,7 +166,7 @@ export const PRIORITIZATION_CRITERIA = [
 export type PrioritizationCriterion = (typeof PRIORITIZATION_CRITERIA)[number];
 
 // Pesos da priorização — objeto completo, sempre com todas as chaves. Escala
-// **inteira 1–10** (alinhada ao contrato `portal-config-api-0_4.md` e ao
+// **inteira 1–10** (alinhada às regras em `docs/rules/portal-config.md` e ao
 // `criteria.weight`).
 export type PrioritizationWeights = Record<PrioritizationCriterion, number>;
 

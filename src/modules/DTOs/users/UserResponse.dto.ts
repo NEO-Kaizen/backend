@@ -1,4 +1,4 @@
-import type { RequestCategory } from "../../../shared/types/requests.ts";
+import type { RequestCategoryName } from "../../../shared/types/requests.ts";
 import type { ProfileReference } from "../../../shared/types/profile.ts";
 
 export interface UserSummary {
@@ -17,7 +17,7 @@ export interface AssignableProfessional {
   fullName: string;
   email: string;
   specialty: string;
-  categories: RequestCategory[];
+  categories: RequestCategoryName[];
   notes: string | null;
   requestLoad: number;
 }

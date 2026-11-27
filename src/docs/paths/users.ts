@@ -1,36 +1,34 @@
+import { error, json } from "../components/responses.ts";
+
+const idParam = {
+  name: "id",
+  in: "path",
+  required: true,
+  description: "`users.user_id` como string.",
+  schema: { type: "string", example: "101" },
+};
+
 export default {
   "/users/me": {
     get: {
       tags: ["Usuários"],
       summary: "Consultar meu perfil",
       description:
-        "Retorna os dados do usuário autenticado (self-service, qualquer perfil interno).",
+        "Retorna perfil completo do usuário autenticado: dados básicos, bloco requester, bloco professional (analista) e avatar.",
       operationId: "getMyProfile",
       security: [{ cookieAuth: [] }],
       responses: {
-        "200": {
-          description: "Dados do perfil do usuário.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/AuthenticatedUser" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Perfil do usuário.", ...json("UserProfileResponse") },
+        "401": error("Sem sessão ou token inválido."),
+        "404": error("Usuário do token não existe mais."),
       },
     },
     put: {
       tags: ["Usuários"],
       summary: "Atualizar meu perfil",
       description:
-        "Atualiza nome, dados do solicitante e/ou remove a foto do próprio usuário (self-service). Multipart: campo `payload` (JSON) + campo `avatar` (arquivo opcional, JPEG/PNG até 2MB). Área, departamento e gestor exigem a permissão `user:manage`.",
+        "Self-service: atualiza `fullName`, `additionalContact`, bloco `requester` (UPSERT) e/ou avatar. Somente o próprio Administrador pode alterar área, departamento e gestor por esta rota. " +
+        "Multipart: campo `payload` (JSON `UpdateProfilePayload`) + campo `avatar` opcional (JPEG/PNG até 2 MB). Enviar `avatar` e `removeAvatar: true` juntos é inválido.",
       operationId: "updateMyProfile",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -43,104 +41,56 @@ export default {
               properties: {
                 payload: {
                   type: "string",
-                  description:
-                    "JSON com os campos a atualizar: fullName, requester (área/departamento/gestor exigem `user:manage`) e removeAvatar.",
+                  "x-payload-schema": { $ref: "#/components/schemas/UpdateProfilePayload" },
+                  description: "JSON.stringify de `UpdateProfilePayload`.",
                   example: JSON.stringify({
                     fullName: "Maria Silva",
                     requester: { additionalContact: "contato@email.com" },
                     removeAvatar: false,
                   }),
                 },
+                avatar: { type: "string", format: "binary" },
               },
             },
-            encoding: {
-              payload: { contentType: "application/json" },
-            },
+            encoding: { payload: { contentType: "application/json" } },
           },
         },
       },
       responses: {
-        "200": {
-          description: "Perfil atualizado com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/UserProfileResponse" },
-            },
-          },
-        },
-        "400": {
-          description: "Payload inválido (parte `payload` ausente ou JSON malformado).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description:
-            "Área, departamento e gestor exigem a permissão `user:manage` (403 `user_manage_required`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "413": {
-          description: "Arquivo de avatar excede 2 MB.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "415": {
-          description:
-            "Campo de arquivo inesperado ou MIME/extensão não permitida (apenas JPEG/PNG).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Perfil atualizado.", ...json("UserProfileResponse") },
+        "400": error(
+          "Payload inválido, parte ausente, JSON malformado, `removeAvatar` + `avatar` juntos, campo de arquivo inesperado ou limite de quantidade.",
+        ),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Tentativa de alterar área/departamento/gestor sem ser Administrador."),
+        "413": error("Avatar acima de 2 MB."),
+        "415": error("MIME/extensão não permitida (apenas JPEG/PNG)."),
+        "404": error("Usuário do token não existe mais."),
       },
     },
   },
+
   "/users/analysts": {
     get: {
       tags: ["Usuários"],
-      summary: "Listar Responsáveis atribuíveis",
+      summary: "Listar profissionais atribuíveis",
       description:
-        "Exige `assignee_directory:read`. Lista contas ativas com extensão profissional ativa cujo Perfil tem a flag de Atribuibilidade e todas as chaves de trabalho da etapa. Não depende do nome do Perfil. Use `stage=triage` (padrão) ou `stage=mapping`. Com `protocol`, exclui o criador da solicitação do resultado — Solicitante e Responsável não podem ser a mesma pessoa.",
+        "Diretório de Responsáveis por etapa: Perfil ativo com flag de Atribuibilidade e o predicado de chaves da etapa. Sem paginação. Exige `assignee_directory:read`.",
       operationId: "listAssignableProfessionals",
       security: [{ cookieAuth: [] }],
       parameters: [
         {
-          in: "query",
-          name: "stage",
-          required: false,
-          schema: { type: "string", enum: ["triage", "mapping"], default: "triage" },
-          description: "Etapa da Atribuibilidade usada para filtrar os profissionais.",
-        },
-        {
-          in: "query",
           name: "protocol",
+          in: "query",
           required: false,
-          schema: { type: "string", example: "MAAT-8K3P-9X2M" },
           description:
-            "Protocolo da solicitação: omite do diretório a conta que a criou. Sem o parâmetro, o diretório permanece global.",
+            "Quando presente, omite o criador da solicitação e responde `404 request_not_found` se o protocolo não existir.",
+          schema: { type: "string" },
         },
       ],
       responses: {
         "200": {
-          description: "Lista de profissionais atribuíveis.",
+          description: "Lista direta de profissionais atribuíveis.",
           content: {
             "application/json": {
               schema: {
@@ -150,82 +100,34 @@ export default {
             },
           },
         },
-        "400": {
-          description: "Etapa ou protocolo inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sem `assignee_directory:read`.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Protocolo informado em `protocol` não encontrado (`request_not_found`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `assignee_directory:read`."),
+        "404": error("Protocolo informado não existe (`request_not_found`)."),
       },
     },
   },
+
   "/users/metrics": {
     get: {
       tags: ["Usuários"],
-      summary: "Métricas de Usuários",
-      description: "Retorna Métricas consolidadas de Usuários. Exige a permissão `user:read`.",
+      summary: "Métricas de usuários",
+      description:
+        "Contagens consolidadas da base de usuários: total, ativos, com troca de senha pendente e administradores.",
       operationId: "getUserMetrics",
       security: [{ cookieAuth: [] }],
       responses: {
-        "200": {
-          description: "Métricas de Usuários.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/UserMetrics" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sem a permissão exigida para a operação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Métricas de usuários.", ...json("UserMetrics") },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
   },
+
   "/users": {
     get: {
       tags: ["Usuários"],
-      summary: "Listar Usuários",
-      description:
-        "Lista todos os Usuários cadastrados. Exige a permissão `user:read`. O filtro por Perfil usa a identidade estável (`profileId`), nunca o nome mutável.",
+      summary: "Listar usuários",
+      description: "Lista paginada de usuários cadastrados. Exige perfil Administrador.",
       operationId: "listUsers",
       security: [{ cookieAuth: [] }],
       parameters: [
@@ -233,8 +135,8 @@ export default {
           name: "profileId",
           in: "query",
           required: false,
-          description: "Identidade estável do Perfil (perfis.profile_id).",
-          schema: { type: "string", example: "3" },
+          description: "Identidade estável do Perfil (`profiles.profile_id`).",
+          schema: { type: "string", example: "2" },
         },
         {
           name: "search",
@@ -247,7 +149,7 @@ export default {
           name: "page",
           in: "query",
           required: false,
-          schema: { type: "integer", minimum: 1, maximum: 10000, default: 1 },
+          schema: { type: "integer", minimum: 1, default: 1 },
         },
         {
           name: "pageSize",
@@ -257,121 +159,31 @@ export default {
         },
       ],
       responses: {
-        "200": {
-          description: "Lista de Usuários.",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["data", "page", "pageSize", "total", "totalPages"],
-                properties: {
-                  data: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/UserSummary" },
-                  },
-                  page: { type: "integer", example: 1 },
-                  pageSize: { type: "integer", example: 10 },
-                  total: { type: "integer", example: 25 },
-                  totalPages: { type: "integer", example: 3 },
-                },
-              },
-            },
-          },
-        },
-        "400": {
-          description:
-            "`profileId` inválido ou inexistente (`Perfil inválido.`), ou query param desconhecido — o filtro legado por nome (`?profile=`) foi removido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sem a permissão exigida para a operação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Página de usuários.", ...json("UserListResponse") },
+        "400": error("Query inválida."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
       },
     },
     post: {
       tags: ["Usuários"],
       summary: "Criar usuário",
       description:
-        "Cadastra um novo usuário. Exige a permissão `user:manage`; a matriz de contas (§ 4.2) recusa Perfis de autoridade igual ou maior (403 `account_out_of_authority`), o Perfil Admin Root (403 `root_account_protected`) e Perfil inativo (409 `profile_inactive`).",
+        "Cadastra um usuário e sua extensão de solicitante na mesma transação. `professional` é obrigatório para o perfil analista e proibido nos demais. Retorna a senha temporária uma única vez.",
       operationId: "createUser",
       security: [{ cookieAuth: [] }],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              required: ["fullName", "email", "profileId", "requester"],
-              properties: {
-                fullName: { type: "string", example: "Maria Silva" },
-                email: { type: "string", format: "email", example: "novo@email.com" },
-                profileId: {
-                  type: "string",
-                  example: "3",
-                  description:
-                    "Identidade estável do Perfil (perfis.profile_id). O nome do Perfil não identifica nem autoriza.",
-                },
-                requester: {
-                  type: "object",
-                  description: "Dados do solicitante — obrigatórios para todos os perfis.",
-                  properties: {
-                    area: { type: "string", example: "TI" },
-                    department: { type: "string", example: "Desenvolvimento" },
-                    manager: { type: "string", example: "José Silva" },
-                    additionalContact: {
-                      type: "string",
-                      nullable: true,
-                      example: "",
-                    },
-                  },
-                  required: ["area", "manager"],
-                },
-                professional: {
-                  type: "object",
-                  description:
-                    "Conteúdo opcional da Extensão de profissional. Só pode ser enviado para Perfil ativo com flag de Atribuibilidade; a extensão é criada automaticamente.",
-                  properties: {
-                    jobTitle: { type: "string", example: "Analista de Sistemas" },
-                    specialties: {
-                      type: "array",
-                      items: { type: "string" },
-                      example: ["Sistemas", "Automação"],
-                    },
-                    attendedCategoryIds: {
-                      type: "array",
-                      items: { type: "integer" },
-                      example: [1, 2],
-                    },
-                    notes: { type: "string", nullable: true, example: "Analista sênior" },
-                  },
-                  required: ["jobTitle", "specialties", "attendedCategoryIds"],
-                },
-              },
-            },
+            schema: { $ref: "#/components/schemas/CreateUserRequest" },
             examples: {
               analista: {
                 summary: "Criar usuário analista",
                 value: {
                   fullName: "Maria Silva",
                   email: "maria.silva@empresa.com",
-                  profileId: "3",
+                  profileId: "2",
                   requester: {
                     area: "TI",
                     department: "Desenvolvimento",
@@ -404,371 +216,100 @@ export default {
         },
       },
       responses: {
-        "201": {
-          description: "Usuário criado com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/CreateUserResponse" },
-            },
-          },
-        },
-        "400": {
-          description:
-            "Perfil inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível (`professional_profile_not_assignable`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "409": {
-          description: "E-mail já cadastrado ou Perfil de destino inativo (`profile_inactive`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "422": {
-          description: "Erro de validação com erros por campo (`fields`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description:
-            "Sem `user:manage`, Perfil de destino de autoridade igual ou maior (`account_out_of_authority`) ou Perfil Admin Root (`root_account_protected`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "201": { description: "Usuário criado.", ...json("CreateUserResponse") },
+        "400": error("Perfil inválido ou dados profissionais obrigatórios/exclusivos do analista."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "409": error("E-mail já cadastrado."),
+        "422": error("Erro de validação com `fields`.", "ValidationErrorResponse"),
       },
     },
   },
+
   "/users/{id}": {
     get: {
       tags: ["Usuários"],
       summary: "Consultar usuário por ID",
-      description: "Retorna os dados de um usuário pelo seu ID. Exige a permissão `user:read`.",
+      description: "Retorna o perfil completo de um usuário. Exige perfil Administrador.",
       operationId: "getUser",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "101" },
-        },
-      ],
+      parameters: [idParam],
       responses: {
-        "200": {
-          description: "Dados do usuário.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/UserProfileResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description: "Sem a permissão exigida para a operação.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Usuário não encontrado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Perfil do usuário.", ...json("UserProfileResponse") },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso (apenas Administrador)."),
+        "404": error("Usuário não encontrado."),
       },
     },
     put: {
       tags: ["Usuários"],
       summary: "Atualizar usuário",
       description:
-        "Atualiza os dados de um usuário pelo ID. Exige a permissão `user:manage`; a matriz de contas (§ 4.2) recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`), conta de autoridade igual ou maior (403 `account_out_of_authority`) e Perfil inativo na designação (409 `profile_inactive`).",
+        "Edição administrativa parcial (merge): `fullName`, `email`, `profileId`, `professional` e `requester`. Contas de Administrador só podem ter o bloco `requester` alterado.",
       operationId: "updateUser",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "101" },
-        },
-      ],
+      parameters: [idParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                email: { type: "string", format: "email" },
-                fullName: { type: "string" },
-                profileId: {
-                  type: "string",
-                  example: "3",
-                  description: "Identidade estável do Perfil de destino (perfis.profile_id).",
-                },
-                requester: {
-                  type: "object",
-                  description: "Dados do solicitante (área, departamento e gestor).",
-                  properties: {
-                    area: { type: "string", example: "TI" },
-                    department: { type: "string", example: "Desenvolvimento" },
-                    manager: { type: "string", example: "José Silva" },
-                    additionalContact: {
-                      type: "string",
-                      nullable: true,
-                      example: "",
-                    },
-                  },
-                },
-                professional: {
-                  type: "object",
-                  description:
-                    "Conteúdo da Extensão de profissional — permitido apenas para Perfis atribuíveis.",
-                  properties: {
-                    jobTitle: { type: "string", example: "Analista de Sistemas" },
-                    specialties: {
-                      type: "array",
-                      items: { type: "string" },
-                      example: ["Sistemas", "Automação"],
-                    },
-                    attendedCategoryIds: {
-                      type: "array",
-                      items: { type: "integer" },
-                      example: [1, 2],
-                    },
-                    notes: { type: "string", nullable: true, example: "Analista sênior" },
-                  },
-                },
-              },
-            },
+            schema: { $ref: "#/components/schemas/UpdateUserRequest" },
           },
         },
       },
       responses: {
-        "200": {
-          description: "Usuário atualizado com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/UserProfileResponse" },
-            },
-          },
-        },
-        "400": {
-          description:
-            "Payload inválido ou conteúdo da Extensão de profissional enviado para Perfil não atribuível (`professional_profile_not_assignable`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description:
-            "Sem `user:manage`, autoedição (`self_management_forbidden`), conta Admin Root (`root_account_protected`) ou conta de autoridade igual ou maior (`account_out_of_authority`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Usuário não encontrado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "409": {
-          description:
-            "E-mail já cadastrado, Perfil de destino inativo (`profile_inactive`) ou conta Responsável por solicitações abertas (`user_has_open_assignments`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "422": {
-          description: "Erros de validação do corpo com detalhes por campo.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ValidationErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Usuário atualizado.", ...json("UserProfileResponse") },
+        "400": error("Payload inválido."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso ou tentativa de gerenciar Administrador."),
+        "404": error("Usuário não encontrado."),
+        "409": error("E-mail já cadastrado."),
+        "422": error("Erro de validação com `fields`.", "ValidationErrorResponse"),
       },
     },
   },
+
   "/users/{id}/status": {
     patch: {
       tags: ["Usuários"],
       summary: "Alterar status do usuário",
-      description:
-        "Ativa ou desativa um usuário. Exige `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`), conta de autoridade igual ou maior (403 `account_out_of_authority`) e desativação de Responsável por solicitações abertas (409 `user_has_open_assignments`).",
+      description: "Ativa ou desativa uma conta. Exige perfil Administrador.",
       operationId: "changeUserStatus",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "101" },
-        },
-      ],
+      parameters: [idParam],
       requestBody: {
         required: true,
         content: {
           "application/json": {
-            schema: {
-              type: "object",
-              required: ["isActive"],
-              properties: {
-                isActive: { type: "boolean", example: true },
-              },
-            },
+            schema: { $ref: "#/components/schemas/ChangeUserStatusRequest" },
           },
         },
       },
       responses: {
-        "200": {
-          description: "Status do usuário alterado com sucesso.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ChangeUserStatusResponse" },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description:
-            "Sem `user:manage`, autoedição (`self_management_forbidden`), conta Admin Root (`root_account_protected`) ou conta de autoridade igual ou maior (`account_out_of_authority`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "Usuário não encontrado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "409": {
-          description:
-            "Desativação recusada: a conta ainda é Responsável por solicitações abertas (`user_has_open_assignments`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Status alterado.", ...json("ChangeUserStatusResponse") },
+        "400": error("Payload inválido ou tentativa de alterar a própria conta."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso ou conta de Administrador."),
+        "404": error("Usuário não encontrado."),
       },
     },
   },
+
   "/users/{id}/reset-password": {
     post: {
       tags: ["Usuários"],
       summary: "Redefinir senha do usuário",
       description:
-        "Gera uma senha temporária para o usuário. Exige a permissão `user:manage`; recusa a própria conta (403 `self_management_forbidden`), Admin Root (403 `root_account_protected`) e conta de autoridade igual ou maior (403 `account_out_of_authority`).",
+        "Gera uma senha temporária e marca a troca como obrigatória. Exige perfil Administrador.",
       operationId: "resetUserPassword",
       security: [{ cookieAuth: [] }],
-      parameters: [
-        {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string", example: "101" },
-        },
-      ],
+      parameters: [idParam],
       responses: {
-        "200": {
-          description: "Senha redefinida com sucesso.",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  message: { type: "string", example: "Senha redefinida com sucesso" },
-                  temporaryPassword: { type: "string", example: "tmp-abc123" },
-                },
-              },
-            },
-          },
-        },
-        "401": {
-          description: "Sem sessão ou token inválido.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "403": {
-          description:
-            "Sem `user:manage`, autoedição (`self_management_forbidden`), conta Admin Root (`root_account_protected`) ou conta de autoridade igual ou maior (`account_out_of_authority`).",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
-        "404": {
-          description: "usuário não encontrado.",
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ErrorResponse" },
-            },
-          },
-        },
+        "200": { description: "Senha redefinida.", ...json("ResetPasswordResponse") },
+        "400": error("Tentativa de redefinir a própria senha."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Perfil sem acesso ou conta de Administrador."),
+        "404": error("Usuário não encontrado."),
       },
     },
   },
