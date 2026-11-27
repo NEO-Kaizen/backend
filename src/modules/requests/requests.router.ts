@@ -1,6 +1,7 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
 import {
+  requireAnyPermission,
   requirePermission,
   requirePermissionIfSession,
 } from "../../shared/middleware/requirePermission.ts";
@@ -15,6 +16,7 @@ import {
   patchInternalAssignee,
   patchRequestStatus,
   postRequest,
+  postCancelRequest,
   getAssignees,
   patchAssignee,
   patchInternalRequestByProtocol,
@@ -43,12 +45,13 @@ requestsRoutes.get(
 // Wire format em `src/docs/paths/requests.ts` (`patchInternalAssignee`): PATCH
 // /requests/{protocol}/internal/assignee com body {assigneeId} | {mappingAssigneeId}
 // (user_id string, XOR, null para remover). Regras em `docs/rules/assignment.md`.
-// A chave request:assign faz o gate da operação; o service valida Custódia
-// da solicitação e a Atribuibilidade do alvo. Mantida rota legada /:protocol/assignee.
+// O gate aceita `request:assign` (triagem) ou `mapping:write` (mapeamento); o
+// service aplica a chave e a Custódia do ramo e valida a Atribuibilidade do alvo.
+// Mantida rota legada /:protocol/assignee.
 requestsRoutes.patch(
   "/:protocol/internal/assignee",
   authMiddleware,
-  requirePermission("request:assign"),
+  requireAnyPermission(["request:assign", "mapping:write"]),
   patchInternalAssignee,
 );
 
@@ -79,6 +82,15 @@ requestsRoutes.patch(
   authMiddleware,
   requirePermission("request:status_change"),
   patchRequestStatus,
+);
+
+// Cancelamento pelo titular (RF07). A chave é o gate grosso: `request:track`
+// em `own`; a Posse da linha é resolvida no service (404 anti-enumeração).
+requestsRoutes.post(
+  "/:protocol/cancel",
+  authMiddleware,
+  requirePermission("request:track"),
+  postCancelRequest,
 );
 
 requestsRoutes.get(

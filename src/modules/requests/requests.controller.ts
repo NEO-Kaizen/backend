@@ -7,6 +7,7 @@ import { buildZodFieldErrors, formatZodIssues } from "../../shared/validation/zo
 import {
   assignAnalystSchema,
   assignRequestSchema,
+  cancelRequestSchema,
   createRequestPayloadSchema,
   listAuthenticatedRequestsQuerySchema,
   listRequestsQuerySchema,
@@ -248,5 +249,22 @@ export const patchRequestStatus = async (req: Request, res: Response): Promise<R
     req.ip,
   );
 
+  return res.status(200).json(response);
+};
+
+export const postCancelRequest = async (req: Request, res: Response): Promise<Response> => {
+  const protocol = assertProtocolParam(req);
+  const parsed = cancelRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const { fields, message } = buildZodFieldErrors(parsed.error);
+    throw new ValidationError(fields, message);
+  }
+
+  const response = await service.cancelRequest(
+    protocol,
+    parsed.data,
+    actorFromRequest(req),
+    req.ip,
+  );
   return res.status(200).json(response);
 };

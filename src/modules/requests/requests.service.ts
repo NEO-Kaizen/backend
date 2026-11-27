@@ -18,6 +18,7 @@ import type {
   DemandBlock,
   AssignmentCandidateRow,
 } from "../../shared/types/requests.ts";
+import { STATUS_IDS } from "../../shared/types/status.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
 import type {
   Meeting,
@@ -68,6 +69,7 @@ import type { CommittedNotification } from "../../shared/notifications/emitNotif
 import type {
   AssignAnalystPayload,
   AssignRequestPayload,
+  CancelRequestPayload,
   UpdateRequestPayload,
   UpdateStatusPayload,
 } from "./requests.schema.ts";
@@ -607,12 +609,60 @@ function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails 
   };
 }
 
+function isCancellationEligible(request: { status_id: number; has_triage: boolean }): boolean {
+  return request.status_id === STATUS_IDS.requestSent && !request.has_triage;
+}
+
+export async function cancelRequest(
+  protocol: string,
+  payload: CancelRequestPayload,
+  actor: { id: number; email: string },
+  ipAddress: string | undefined,
+): Promise<{ status: "Cancelado" }> {
+  return db.transaction(async (trx) => {
+    const locked = await repository.lockRequestForCancellation(trx, protocol, actor.id);
+    // Consulte triages em um novo comando após qualquer espera pelo bloqueio.
+    const request = locked && (await repository.findCancellationContext(locked.request_id, trx));
+    if (!request || request.requester_user_id !== actor.id) {
+      throw new AppError("Protocolo não encontrado", 404);
+    }
+    if (!isCancellationEligible(request)) {
+      throw new AppError("Esta solicitação não pode mais ser cancelada.", 422, "rf07_not_eligible");
+    }
+
+    const lastTechnicalMessage = "Solicitação cancelada pelo titular.";
+    await applyStatusTransition(trx, {
+      requestId: request.request_id,
+      target: { status_id: STATUS_IDS.canceled, name: "Cancelado", isPublic: true },
+      updatedBy: actor.email,
+      lastTechnicalMessage,
+      expectedStatusId: STATUS_IDS.requestSent,
+    });
+    await recordAudit(trx, {
+      entityType: "request",
+      entityId: request.protocol,
+      actionType: "request.status_change",
+      userId: actor.id,
+      previousValue: "Solicitação enviada",
+      newValue: "Cancelado",
+      note: payload.justification,
+      lastTechnicalMessage,
+      ipAddress,
+      changeOrigin: "requester",
+    });
+
+    return { status: "Cancelado" };
+  });
+}
+
 async function buildAuthenticatedDetails(
   row: Record<string, unknown>,
+  userId: number,
 ): Promise<RequesterRequestDetails> {
   const requestId = row["request_id"] as string;
-  const [attachments, schedulePreferences] = await Promise.all([
+  const [attachments, cancellation, schedulePreferences] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
+    repository.findCancellationContext(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
   ]);
 
@@ -624,6 +674,7 @@ async function buildAuthenticatedDetails(
 
   return {
     ...base,
+    canCancel: cancellation?.requester_user_id === userId && isCancellationEligible(cancellation),
     operational: {
       ...impacts,
       processDescription: row["process_description"] as string,
@@ -692,7 +743,7 @@ async function getAuthenticatedTracking(
     throw new AppError("Protocolo não encontrado", 404);
   }
 
-  return { mode: "authenticated", details: await buildAuthenticatedDetails(row) };
+  return { mode: "authenticated", details: await buildAuthenticatedDetails(row, Number(user.id)) };
 }
 
 async function getPublicTracking(
@@ -1091,7 +1142,13 @@ export async function assignResponsible(
     }
 
     if (shouldAdvanceStatus) {
-      await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
+      await repository.updateStatus(
+        trx,
+        request.request_id,
+        RN010_TO_STATUS,
+        RN010_FROM_STATUS,
+        actor.email,
+      );
 
       await recordAudit(trx, {
         entityType: "request",
@@ -1141,24 +1198,30 @@ export async function assignAnalyst(
   actor: RequestActor,
   ipAddress: string | undefined,
 ): Promise<RequestInternalDetailDTO | RequestMutationAcknowledgement> {
+  const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
+  const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
+
+  // A atribuição é autorizada por chave e Custódia, sem decisão por Perfil:
+  // `request:assign` designa o Responsável da triagem; `mapping:write` designa
+  // o do Mapeamento corrente (a Triagem não designa o mapeador). Cada ramo
+  // valida a própria chave; a rota aceita qualquer uma delas no gate.
+  const assignmentKey = hasMapping && !hasAssignee ? "mapping:write" : "request:assign";
   const request = await requireRequestCustody(
     await repository.findAssignmentContextByProtocol(protocol.trim()),
     actor,
     protocol.trim(),
     ipAddress,
-    "request:assign sem custódia",
+    `${assignmentKey} sem custódia`,
     (row) =>
-      hasAnyResponsibleCustody(actor, "request:assign", [
-        row.assignee_user_id,
-        row.mapping_assignee_user_id,
-      ]),
-    ["request:assign"],
+      hasAnyResponsibleCustody(
+        actor,
+        assignmentKey,
+        assignmentKey === "mapping:write"
+          ? [row.mapping_assignee_user_id]
+          : [row.assignee_user_id, row.mapping_assignee_user_id],
+      ),
+    [assignmentKey],
   );
-
-  // A atribuição é autorizada por request:assign e Custódia, sem decisão por
-  // Perfil. A validação do alvo ocorre no service para definir ou reatribuir.
-  const hasAssignee = Object.prototype.hasOwnProperty.call(payload, "assigneeId");
-  const hasMapping = Object.prototype.hasOwnProperty.call(payload, "mappingAssigneeId");
 
   let committedNotifications: CommittedNotification[] = [];
 
@@ -1235,7 +1298,13 @@ export async function assignAnalyst(
           await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
         }
         if (shouldAdvance) {
-          await repository.updateStatus(trx, request.request_id, RN010_TO_STATUS, actor.email);
+          await repository.updateStatus(
+            trx,
+            request.request_id,
+            RN010_TO_STATUS,
+            RN010_FROM_STATUS,
+            actor.email,
+          );
           await recordAudit(trx, {
             entityType: "request",
             entityId: request.protocol,

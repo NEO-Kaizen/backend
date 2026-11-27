@@ -526,6 +526,27 @@ export const PublicRequestDetails = {
   },
 };
 
+export const CancelRequestPayload = {
+  type: "object",
+  additionalProperties: false,
+  required: ["justification"],
+  properties: {
+    justification: {
+      type: "string",
+      minLength: 1,
+      pattern: "^\\s*\\S(?:[\\s\\S]{0,3998}\\S)?\\s*$",
+      description:
+        "Justificativa obrigatória, com limite aplicado após remover espaços nas extremidades.",
+    },
+  },
+};
+
+export const CancelRequestResponse = {
+  type: "object",
+  required: ["status"],
+  properties: { status: { type: "string", enum: ["Cancelado"] } },
+};
+
 export const RequesterRequestDetails = {
   type: "object",
   required: [
@@ -538,6 +559,7 @@ export const RequesterRequestDetails = {
     "requester",
     "demand",
     "operational",
+    "canCancel",
     "schedulePreferences",
     "mappingDate",
     "attachments",
@@ -556,6 +578,10 @@ export const RequesterRequestDetails = {
     requester: { $ref: "#/components/schemas/RequesterBlock" },
     demand: { $ref: "#/components/schemas/DemandBlock" },
     operational: { $ref: "#/components/schemas/RequesterOperational" },
+    canCancel: {
+      type: "boolean",
+      description: "Indica elegibilidade atual para o titular autenticado.",
+    },
     complementary: { $ref: "#/components/schemas/ComplementaryBlock" },
     schedulePreferences: {
       type: "array",
