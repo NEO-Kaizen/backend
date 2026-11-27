@@ -186,7 +186,7 @@ export default {
       responses: {
         "200": { description: "Detalhe interno da solicitação.", ...json("InternalRequestDetail") },
         "401": error("Sem cookie ou token inválido/expirado."),
-        "403": error("Sem `request:read` ou Custódia da linha."),
+        "403": error("Sem `request:read`."),
         "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
       },
     },

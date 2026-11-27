@@ -183,7 +183,7 @@ export default {
                 value: {
                   fullName: "Maria Silva",
                   email: "maria.silva@empresa.com",
-                  role: "analista",
+                  profileId: "2",
                   requester: {
                     area: "TI",
                     department: "Desenvolvimento",
@@ -203,7 +203,7 @@ export default {
                 value: {
                   fullName: "Carlos Souza",
                   email: "carlos.souza@empresa.com",
-                  role: "solicitante",
+                  profileId: "1",
                   requester: {
                     area: "Administrativo",
                     manager: "Ana Paula",
@@ -245,7 +245,7 @@ export default {
       tags: ["Usuários"],
       summary: "Atualizar usuário",
       description:
-        "Edição administrativa parcial (merge): `fullName`, `email`, `role`, `professional` e `requester`. Contas de Administrador só podem ter o bloco `requester` alterado.",
+        "Edição administrativa parcial (merge): `fullName`, `email`, `profileId`, `professional` e `requester`. Contas de Administrador só podem ter o bloco `requester` alterado.",
       operationId: "updateUser",
       security: [{ cookieAuth: [] }],
       parameters: [idParam],

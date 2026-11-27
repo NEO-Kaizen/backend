@@ -26,6 +26,7 @@ vi.mock("../../src/modules/requests/requests.repository.ts", () => ({
   findAttachmentsByRequestId: vi.fn(),
   findSchedulePreferencesByRequestId: vi.fn(),
   findEvaluationByProtocol: vi.fn(),
+  findAssignmentContextByProtocol: vi.fn(),
 }));
 
 const authRepository = await import("../../src/modules/auth/auth.repository.ts");
@@ -329,6 +330,36 @@ describe("requests.service.findInternalByProtocol — custódia de leitura", () 
       requestsService.findInternalByProtocol(
         PROTOCOL,
         actorWith([{ permission_key: "request:read", custody: "assigned" }]),
+      ),
+    ).rejects.toMatchObject({ statusCode: 404, code: "request_not_found" });
+  });
+});
+
+describe("requests.service.assignAnalyst — chave por vínculo", () => {
+  it("recusa a designação do mapeamento a quem só tem request:assign", async () => {
+    vi.mocked(repository.findAssignmentContextByProtocol).mockResolvedValue({
+      request_id: "req-1",
+      protocol: PROTOCOL,
+      title: "Solicitação",
+      category: "Categoria",
+      status: "Em triagem",
+      screening_result: null,
+      requester_user_id: 1,
+      assignee_user_id: 7,
+      professional_id: "prof-7",
+      mapping_professional_id: null,
+      mapping_assignee_user_id: 5,
+    });
+
+    await expect(
+      requestsService.assignAnalyst(
+        PROTOCOL,
+        { mappingAssigneeId: "7" },
+        actorWith([
+          { permission_key: "request:assign", custody: "assigned" },
+          { permission_key: "assignee_directory:read", custody: "global" },
+        ]),
+        undefined,
       ),
     ).rejects.toMatchObject({ statusCode: 404, code: "request_not_found" });
   });
