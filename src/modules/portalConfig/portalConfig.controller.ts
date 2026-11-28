@@ -232,10 +232,6 @@ export const updateDuplicateDetection = async (req: Request, res: Response): Pro
     throw new AppError(formatZodIssues(parsed.error), 400);
   }
 
-  const response = await service.updateDuplicateDetection(
-    parsed.data.enabled,
-    parsed.data.completedWindowMonths,
-    actorUserId(req),
-  );
+  const response = await service.updateDuplicateDetection(parsed.data, actorUserId(req));
   return res.status(200).json(response);
 };

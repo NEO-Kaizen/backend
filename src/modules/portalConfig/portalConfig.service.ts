@@ -6,6 +6,7 @@ import type {
   AccessSection,
   AssetsSection,
   CategoriesSection,
+  DuplicateDetectionSettings,
   IdentitySection,
   PortalAssetsPatch,
   PortalCategory,
@@ -22,6 +23,10 @@ import { CORE_STATUS_IDS } from "../../shared/types/portalConfig.ts";
 import type { SystemSettingsRow } from "../../shared/types/systemSettings.ts";
 import { themeFromRow, themeToColumns } from "./portalConfig.mappers.ts";
 import * as repository from "./portalConfig.repository.ts";
+import {
+  republishProjectionsForCategories,
+  republishProjectionsForStatuses,
+} from "../duplicates/adminRepublish.ts";
 import type { PortalConfigResponse } from "../DTOs/portalConfig/PortalConfigResponse.dto.ts";
 
 // ---------------------------------------------------------------------------
@@ -250,6 +255,26 @@ export async function updateCategories(
 
     await repository.upsertCategories(trx, categories);
 
+    // Uma Categoria que deixa (ou entra) na allowlist muda a elegibilidade das
+    // Solicitações nela. A projeção é um snapshot: sem reavaliá-la, uma
+    // Categoria desligada continuaria pesquisável e uma religada não voltaria
+    // ao índice até a próxima edição da Solicitação (issue #212).
+    const previousById = new Map(prevRows.map((cat) => [cat.category_id, cat]));
+    const incomingById = new Map(categories.map((cat) => [cat.id, cat]));
+    const affectedIds = new Set<number>();
+    for (const category of categories) {
+      const before = previousById.get(category.id);
+      if (!before || before.is_publicly_listable !== category.isPubliclyListable) {
+        affectedIds.add(category.id);
+      }
+    }
+    for (const category of prevRows) {
+      if (!incomingById.has(category.category_id) && category.is_publicly_listable) {
+        affectedIds.add(category.category_id);
+      }
+    }
+    await republishProjectionsForCategories(trx, [...affectedIds]);
+
     await recordAudit(trx, {
       entityType: "settings",
       entityId: "settings",
@@ -333,9 +358,36 @@ export async function updateStatuses(
           "core_status_locked",
         );
       }
+      // O 16 precisa continuar elegível e o 17 fora da allowlist (issue #212).
+      // Sem este guard, um PATCH que omite ou inverte o campo religaria o 17
+      // e desligaria o corpus de concluídas.
+      if (incoming.isDuplicateCorpusEligible !== (existing.is_duplicate_corpus_eligible ?? true)) {
+        throw new AppError(
+          `A elegibilidade para o corpus de duplicidade do status de núcleo "${existing.name}" (id ${coreId}) é imutável.`,
+          409,
+          "core_status_corpus_eligibility_locked",
+        );
+      }
     }
 
     await repository.upsertStatuses(trx, statuses);
+
+    // O snapshot de `is_publicly_listable` na projeção depende da allowlist de
+    // Status. Sem reavaliar, um Status desligado continuaria no índice e um
+    // religado só voltaria quando a Solicitação fosse editada (issue #212).
+    const affectedStatusIds = new Set<number>();
+    for (const status of statuses) {
+      const before = prevById.get(status.id);
+      if (!before || before.is_duplicate_corpus_eligible !== status.isDuplicateCorpusEligible) {
+        affectedStatusIds.add(status.id);
+      }
+    }
+    for (const status of prevRows) {
+      if (!incomingById.has(status.status_id) && status.is_duplicate_corpus_eligible) {
+        affectedStatusIds.add(status.status_id);
+      }
+    }
+    await republishProjectionsForStatuses(trx, [...affectedStatusIds]);
 
     await recordAudit(trx, {
       entityType: "settings",
@@ -389,23 +441,23 @@ export async function updateCriteriaWeights(
 // ---------------------------------------------------------------------------
 
 export async function updateDuplicateDetection(
-  enabled: boolean,
-  completedWindowMonths: number,
+  settings: DuplicateDetectionSettings,
   userId: number,
-): Promise<{ enabled: boolean; completedWindowMonths: number }> {
+): Promise<DuplicateDetectionSettings> {
   return db.transaction(async (trx) => {
     await repository.lockSettings(trx);
 
-    const settings = await repository.getSettingsRow(trx);
-    const previous = {
-      duplicateDetectionEnabled: settings.duplicate_detection_enabled,
-      duplicateCompletedWindowMonths: settings.duplicate_completed_window_months,
+    const current = await repository.getSettingsRow(trx);
+    // Mesmas chaves antes/depois: a auditoria precisa ser comparável diretamente.
+    const previous: DuplicateDetectionSettings = {
+      enabled: current.duplicate_detection_enabled,
+      completedWindowMonths: current.duplicate_completed_window_months,
     };
 
-    await repository.updateDuplicateDetectionSettings(trx, enabled, completedWindowMonths, userId);
+    await repository.updateDuplicateDetectionSettings(trx, settings, userId);
 
     const updated = await repository.getSettingsRow(trx);
-    const newValue = {
+    const newValue: DuplicateDetectionSettings = {
       enabled: updated.duplicate_detection_enabled,
       completedWindowMonths: updated.duplicate_completed_window_months,
     };
@@ -420,158 +472,5 @@ export async function updateDuplicateDetection(
     });
 
     return newValue;
-  });
-}
-
-// ---------------------------------------------------------------------------
-// R6 — PATCH /portal-config/categories (update with isPubliclyListable)
-// ---------------------------------------------------------------------------
-
-export async function updateCategoriesWithPubliclyListable(
-  categories: PortalCategory[],
-  userId: number,
-): Promise<CategoriesSection> {
-  return db.transaction(async (trx) => {
-    await repository.lockSettings(trx);
-
-    const prevRows = await repository.listCategories(trx);
-    const previous = prevRows.map((cat) => ({
-      id: cat.category_id,
-      name: cat.name,
-      description: cat.description ?? "",
-      isActive: cat.status === "active",
-      isPubliclyListable: cat.is_publicly_listable,
-    }));
-
-    await repository.upsertCategories(trx, categories);
-
-    await recordAudit(trx, {
-      entityType: "settings",
-      entityId: "settings",
-      actionType: "settings.update",
-      userId,
-      previousValue: canonicalJson(previous),
-      newValue: canonicalJson(categories),
-    });
-
-    return { categories };
-  });
-}
-
-// ---------------------------------------------------------------------------
-// R7 — PATCH /portal-config/statuses (update with isDuplicateCorpusEligible)
-// ---------------------------------------------------------------------------
-
-export async function updateStatusesWithCorpusEligible(
-  statuses: PortalStatus[],
-  userId: number,
-): Promise<StatusesSection> {
-  return db.transaction(async (trx) => {
-    await repository.lockSettings(trx);
-
-    const prevRows = await repository.listStatuses(trx);
-    const previous = prevRows.map(statusToPortal);
-    const prevById = new Map(prevRows.map((st) => [st.status_id, st]));
-    const incomingById = new Map(statuses.map((s) => [s.id, s]));
-
-    for (const coreId of CORE_STATUS_IDS) {
-      const existing = prevById.get(coreId);
-      if (!existing) {
-        throw new AppError(
-          `O status de núcleo com id ${coreId} não existe. Execute a migration de status v4 antes de atualizar a configuração.`,
-          409,
-          "core_status_missing",
-        );
-      }
-
-      const incoming = incomingById.get(coreId);
-      if (!incoming) {
-        throw new AppError(
-          `Não é possível remover o status de núcleo "${existing.name}" (id ${coreId} — referenciado pelo fluxo).`,
-          409,
-          "core_status_removed",
-        );
-      }
-      if (incoming.name !== existing.name) {
-        throw new AppError(
-          `Não é possível renomear o status de núcleo "${existing.name}" (id ${coreId}).`,
-          409,
-          "core_status_renamed",
-        );
-      }
-      if (incoming.isCore === false) {
-        throw new AppError(
-          `Não é possível redefinir o status de núcleo "${existing.name}" como não-núcleo (id ${coreId}).`,
-          409,
-          "core_status_forced",
-        );
-      }
-      if (incoming.isActive === false) {
-        throw new AppError(
-          `Não é possível desativar o status de núcleo "${existing.name}" (id ${coreId}).`,
-          409,
-          "core_status_forced_inactive",
-        );
-      }
-      // Flags estruturais do núcleo são imutáveis via PATCH (mudança de modo
-      // de um status core quebraria o motor — exige migration versionada).
-      if (
-        incoming.isPublic !== (existing.is_public ?? false) ||
-        incoming.isTerminal !== existing.is_terminal ||
-        incoming.isRestricted !== existing.is_restricted ||
-        incoming.triageMode !== existing.triage_mode ||
-        incoming.mappingMode !== existing.mapping_mode
-      ) {
-        throw new AppError(
-          `Flags/modos do status de núcleo "${existing.name}" (id ${coreId}) são imutáveis.`,
-          409,
-          "core_status_locked",
-        );
-      }
-    }
-
-    // Aplica o is_duplicate_corpus_eligible status para cada status incoming
-    const orderById = new Map(statuses.map((status, index) => [status.id, index]));
-    for (const status of statuses) {
-      const orderNumber = orderById.get(status.id) as number;
-      const triageMode = status.triageMode ?? "none";
-      const mappingMode = status.mappingMode ?? "none";
-      const isTerminal = status.isTerminal ?? false;
-      const row = {
-        status_id: status.id,
-        name: status.name,
-        order_number: orderNumber,
-        is_public: status.isPublic,
-        is_core: status.isCore ?? false,
-        is_restricted: status.isRestricted ?? false,
-        is_terminal: isTerminal,
-        triage_mode: triageMode,
-        mapping_mode: mappingMode,
-        tone: status.tone,
-        is_active: status.isActive,
-        is_duplicate_corpus_eligible: status.isDuplicateCorpusEligible ?? true,
-      } as const;
-      await trx("statuses").insert(row).onConflict("status_id").merge(row);
-    }
-
-    // Desliga os statuses que não estão na lista entrante e eram elegíveis
-    const incomingIds = statuses.map((s) => s.id);
-    if (incomingIds.length > 0) {
-      await trx("statuses")
-        .whereNotIn("status_id", incomingIds)
-        .andWhere({ is_duplicate_corpus_eligible: true })
-        .update({ is_duplicate_corpus_eligible: false });
-    }
-
-    await recordAudit(trx, {
-      entityType: "settings",
-      entityId: "settings",
-      actionType: "settings.update",
-      userId,
-      previousValue: canonicalJson(previous),
-      newValue: canonicalJson(statuses),
-    });
-
-    return { statuses };
   });
 }

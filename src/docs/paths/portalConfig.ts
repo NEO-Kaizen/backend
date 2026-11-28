@@ -233,7 +233,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar categorias do portal",
       description:
-        "Substitui a lista completa de categorias de forma atômica. Exige perfil `Administrador`.",
+        "Substitui a lista completa de categorias de forma atômica. `isPubliclyListable` é obrigatório em cada item e controla a elegibilidade da Categoria para o corpus de duplicidade: alterná-lo suprime ou republica, na mesma transação, as projeções das Solicitações da Categoria. Exige perfil `Administrador`.",
       operationId: "updatePortalCategories",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -273,7 +273,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar status do ciclo do portal",
       description:
-        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige perfil `Administrador`.",
+        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis, incluindo `isDuplicateCorpusEligible` (o 16 permanece ligado e o 17 desligado). `isDuplicateCorpusEligible` é obrigatório em cada item: alterná-lo suprime ou republica, na mesma transação, as projeções das Solicitações do Status. Exige perfil `Administrador`.",
       operationId: "updatePortalStatuses",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -306,7 +306,7 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Perfil sem acesso (apenas Administrador)."),
         "409": error(
-          "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`.",
+          "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`, `core_status_corpus_eligibility_locked`.",
         ),
       },
     },
@@ -355,7 +355,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar configuração de detecção de duplicidade",
       description:
-        "Altera a flag de detecção de duplicidade e a janela de conclusão. Exige perfil `Administrador`.",
+        "Altera a flag de detecção de duplicidade e a janela de conclusão (1..36 meses) de forma atômica e auditada. Com a flag desligada, `POST /requests/duplicates/check` responde vazio e o índice não é construído. Exige perfil `Administrador`.",
       operationId: "updatePortalDuplicateDetection",
       security: [{ cookieAuth: [] }],
       requestBody: {

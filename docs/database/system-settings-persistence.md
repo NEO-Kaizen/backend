@@ -236,9 +236,13 @@ com um aviso único por processo no log para não mascarar banco mal configurado
 A varredura da janela roda no poll e no rebuild, usa
 `now() - make_interval(months => ?)` e reconcilia nos dois sentidos: suprime
 fora da janela e republica `outside_window` que voltou para dentro dela,
-reavaliando todas as regras. A edição administrativa da flag/janela é escopo da
-issue #212; regras em
-[`duplicate-detection.md`](../rules/duplicate-detection.md).
+reavaliando todas as regras. A edição administrativa da flag/janela é feita por
+`PATCH /portal-config/duplicates` (issue #212): os dois campos são obrigatórios,
+gravados na mesma transação com `FOR UPDATE` no singleton e registrados em
+`audit_history` com as mesmas chaves antes/depois (`enabled` e
+`completedWindowMonths`). Regras em
+[`duplicate-detection.md`](../rules/duplicate-detection.md) e
+[`portal-config.md`](../rules/portal-config.md).
 
 ## Aplicando e revertendo
 
@@ -298,17 +302,24 @@ opera em transação própria com lock do singleton:
 - **`categories`** → upsert por `category_id` (aceita id novo gerado pelo
   cliente), `display_order` = índice do array; itens ausentes tornam-se
   `status = 'inactive'` (sem hard delete — FK RESTRICT em `requests`).
-  Seguido de `setval` para não colidir com a sequence.
+  `is_publicly_listable` é obrigatório no PATCH e grava a allowlist do corpus.
+  Alterná-lo (ou omitir uma Categoria antes listável) reavalia, na mesma
+  transação, as projeções das Solicitações da Categoria. Seguido de `setval`
+  para não colidir com a sequence.
 - **`statuses`** → upsert por `status_id`, `order_number` = índice e as flags
   do Motor v4 (`is_core`, `is_public`, `is_terminal`, `triage_mode`,
-  `mapping_mode`, `is_restricted`, `tone`, `is_active`). Ausentes viram
-  `is_active = false` e são renumerados para depois dos enviados. Status core
+  `mapping_mode`, `is_restricted`, `tone`, `is_active`), além de
+  `is_duplicate_corpus_eligible` (obrigatório no PATCH). Ausentes viram
+  `is_active = false`, perdem a elegibilidade e são renumerados para depois dos
+  enviados. Alternar a elegibilidade reavalia as projeções das Solicitações do
+  Status na mesma transação. Status core
   (`1, 3, 4, 6, 7, 16, 17`) não podem ser removidos, renomeados, rebaixados,
-  desativados nem ter flags/modos alterados (violação → `409` com código
-  estável). A unicidade de `order_number` (`uk_statuses_order`) é
-  `DEFERRABLE INITIALLY DEFERRED` (migration `20260919140000`), validada no
-  commit após a renumeração. O `GET` retorna também os inativos
-  (`isActive: false`), já que não há exclusão de status.
+  desativados nem ter flags/modos alterados — inclusive
+  `is_duplicate_corpus_eligible` (violação → `409` com código estável
+  `core_status_corpus_eligibility_locked`). A unicidade de `order_number`
+  (`uk_statuses_order`) é `DEFERRABLE INITIALLY DEFERRED` (migration
+  `20260919140000`), validada no commit após a renumeração. O `GET` retorna
+  também os inativos (`isActive: false`), já que não há exclusão de status.
 - **`prioritization-weights`** → mapeia as 10 chaves do contrato (EN) para
   `criteria.criterion_id` (pt snake) via `src/shared/types/criteria.ts`
   (`CRITERION_KEY_TO_ID`) e grava `criteria.weight` (inteiro 1–10 na API; o CHECK do banco aceita 0–10 para

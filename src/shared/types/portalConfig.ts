@@ -192,6 +192,16 @@ export type CategoriesSection = Pick<PortalConfig, "categories">;
 export type StatusesSection = Pick<PortalConfig, "statuses">;
 export type PrioritizationWeightsSection = Pick<PortalConfig, "prioritizationWeights">;
 
+/**
+ * Configuração da detecção de duplicidade editada pelo Administrador (#212).
+ * O par `enabled`/`completedWindowMonths` viaja junto por controller, service e
+ * repository; o tipo evita que os dois valores sejam passados separadamente.
+ */
+export interface DuplicateDetectionSettings {
+  enabled: boolean;
+  completedWindowMonths: number;
+}
+
 /** Linha da tabela `categories` — projeção usada pelo portal config. */
 export interface CategoryRow {
   category_id: number;

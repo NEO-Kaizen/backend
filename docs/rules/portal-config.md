@@ -28,11 +28,16 @@ solicitante, sem cache ou restart.
 - Ao menos uma categoria precisa ficar ativa.
 - `id` é estável; a ordem do array é a ordem de exibição.
 - Categoria inativa permanece registrada e não entra em novos fluxos.
+- `isPubliclyListable` é obrigatório no PATCH (não há default): a omissão é
+  rejeitada para que uma allowlist não mude em silêncio. Categoria nova nasce
+  desligada no banco; no PATCH o valor atual deve ser informado explicitamente.
 
 ## Status
 
 - Status core (`1, 3, 4, 6, 7, 16, 17`) não podem faltar, ser removidos,
-  renomeados, rebaixados, desativados nem ter flags/modos alterados.
+  renomeados, rebaixados, desativados nem ter flags/modos alterados — incluindo
+  `isDuplicateCorpusEligible` (o 16 continua ligado e o 17 desligado).
+- `isDuplicateCorpusEligible` é obrigatório no PATCH (não há default).
 - Status restrito exige ambos os modos como `none`.
 - Ao menos um Status precisa ficar ativo.
 - A leitura inclui Status inativos; eles permanecem registrados e não entram em
@@ -41,6 +46,23 @@ solicitante, sem cache ou restart.
 
 As regras de transição estão em
 [`requests-lifecycle.md`](requests-lifecycle.md).
+
+## Detecção de duplicidade
+
+`PATCH /portal-config/duplicates` altera, em uma transação auditada, `enabled` e
+`completedWindowMonths` (inteiro de 1 a 36). A janela é aplicada pelo par de
+varreduras descrito em [`duplicate-detection.md`](duplicate-detection.md). Com a
+flag desligada, `POST /requests/duplicates/check` responde vazio e o índice não
+é construído; o `GET /requests/:protocol/duplicates` pertence à issue #211.
+
+As allowlists de Categorias (`isPubliclyListable`) e Status
+(`isDuplicateCorpusEligible`) são editadas nos PATCHes das seções respectivas.
+Como `request_public_projections.is_publicly_listable` é um snapshot, toda
+alternância reavalia — na mesma transação do PATCH — as projeções das
+Solicitações afetadas: desligar suprime e religar republica o que for elegível,
+com a precedência de supressão e o gate de PII já usados nos eventos da
+Solicitação. O Status 16 permanece elegível e os desfechos 10, 13, 17 e 19
+continuam fora da allowlist.
 
 ## Pesos de priorização
 

@@ -470,3 +470,47 @@ export async function listProjectionChangesSince(
 
   return rows.map(parsePublicProjectionRow);
 }
+
+function parseRequestIds(rows: Record<string, unknown>[]): string[] {
+  return rows.map((row) => {
+    const { request_id } = row;
+    if (typeof request_id !== "string") {
+      throw new Error("Linha inválida em requests ao listar projeções afetadas.");
+    }
+    return request_id;
+  });
+}
+
+/**
+ * Solicitações que precisam ter a projeção reavaliada quando a allowlist de
+ * Categorias muda (#212). A leitura é da base interna — a projeção pode não
+ * existir para Solicitações anteriores ao RF16.
+ */
+export async function listRequestIdsByCategoryIds(
+  trx: Knex.Transaction,
+  categoryIds: readonly number[],
+): Promise<string[]> {
+  if (categoryIds.length === 0) return [];
+
+  const rows: Record<string, unknown>[] = await trx("requests")
+    .whereIn("category_id", categoryIds)
+    .distinct()
+    .select("request_id");
+
+  return parseRequestIds(rows);
+}
+
+/** Solicitações afetadas por uma mudança na allowlist de Status (#212). */
+export async function listRequestIdsByStatusIds(
+  trx: Knex.Transaction,
+  statusIds: readonly number[],
+): Promise<string[]> {
+  if (statusIds.length === 0) return [];
+
+  const rows: Record<string, unknown>[] = await trx("requests")
+    .whereIn("status_id", statusIds)
+    .distinct()
+    .select("request_id");
+
+  return parseRequestIds(rows);
+}

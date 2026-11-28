@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import type { DuplicateDetectionSettings } from "../../shared/types/portalConfig.ts";
 import type {
   PortalSolicitationMode,
   SystemSettingsRow,
@@ -291,16 +292,15 @@ export async function updateCriteriaWeights(
 
 export async function updateDuplicateDetectionSettings(
   trx: Knex.Transaction,
-  enabled: boolean,
-  completedWindowMonths: number,
+  settings: DuplicateDetectionSettings,
   actorUserId: number,
 ): Promise<void> {
   const now = new Date().toISOString();
   await trx("system_settings")
     .where({ settings_id: 1 })
     .update({
-      duplicate_detection_enabled: enabled,
-      duplicate_completed_window_months: completedWindowMonths,
+      duplicate_detection_enabled: settings.enabled,
+      duplicate_completed_window_months: settings.completedWindowMonths,
       updated_by: String(actorUserId),
       updated_at: now,
     });

@@ -8,6 +8,7 @@ import { queueQuerySchema } from "../../src/modules/queue/queue.schemas.ts";
 import { evaluateScoreSchema } from "../../src/modules/prioritization/prioritization.schema.ts";
 import {
   updateCategoriesSchema,
+  updateDuplicateDetectionSchema,
   updatePrioritizationWeightsSchema,
   updateStatusesSchema,
 } from "../../src/modules/portalConfig/portalConfig.schema.ts";
@@ -85,6 +86,7 @@ describe("portalConfig.schema", () => {
     name: "Automação",
     description: "Automação de processos",
     isActive: true,
+    isPubliclyListable: true,
   };
 
   it("recusa categorias com nome duplicado (case-insensitive)", () => {
@@ -116,7 +118,18 @@ describe("portalConfig.schema", () => {
     isRestricted: false,
     tone: "info" as const,
     isActive: true,
+    isDuplicateCorpusEligible: true,
   };
+
+  it("exige isPubliclyListable e isDuplicateCorpusEligible (contrato required)", () => {
+    const { isPubliclyListable: _categoryFlag, ...categoryWithoutFlag } = category;
+    const { isDuplicateCorpusEligible: _statusFlag, ...statusWithoutFlag } = status;
+
+    expect(updateCategoriesSchema.safeParse({ categories: [categoryWithoutFlag] }).success).toBe(
+      false,
+    );
+    expect(updateStatusesSchema.safeParse({ statuses: [statusWithoutFlag] }).success).toBe(false);
+  });
 
   it("recusa status core desativado e status restrito com fluxo", () => {
     expect(
@@ -157,6 +170,32 @@ describe("portalConfig.schema", () => {
     expect(
       updatePrioritizationWeightsSchema.safeParse({
         prioritizationWeights: { ...weights, urgency: 11 },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("updateDuplicateDetectionSchema", () => {
+  it("aceita os limites 1..36 e rejeita janela fora deles", () => {
+    for (const completedWindowMonths of [1, 36]) {
+      expect(
+        updateDuplicateDetectionSchema.safeParse({ enabled: true, completedWindowMonths }).success,
+      ).toBe(true);
+    }
+    for (const completedWindowMonths of [0, 37, 1.5]) {
+      expect(
+        updateDuplicateDetectionSchema.safeParse({ enabled: true, completedWindowMonths }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("exige os dois campos e nenhum adicional", () => {
+    expect(updateDuplicateDetectionSchema.safeParse({ enabled: true }).success).toBe(false);
+    expect(
+      updateDuplicateDetectionSchema.safeParse({
+        enabled: true,
+        completedWindowMonths: 3,
+        extra: 1,
       }).success,
     ).toBe(false);
   });
