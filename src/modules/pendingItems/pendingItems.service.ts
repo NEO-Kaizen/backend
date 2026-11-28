@@ -277,6 +277,8 @@ export async function createPendingItems(
       protocol,
       batchId,
       rows,
+      observedStatusId: request.status_id,
+      observedReopenRef: request.reopen_ref,
       actor,
       ip,
     });
@@ -477,7 +479,7 @@ export async function respondPendingItem(
     patch = { response_text: response.trim() };
   }
 
-  const updated = await db.transaction(async (trx) => {
+  const updated = await commitPendingItemAction(async (trx) => {
     const result = await repo.applyPendingItemResponse(trx, {
       requestId: request.request_id,
       protocol,
@@ -513,8 +515,7 @@ export async function respondPendingItem(
       audience,
     });
 
-    publishCommittedNotifications(committedNotifications);
-    return result.row;
+    return { result: result.row, notifications: committedNotifications };
   });
 
   const list = await buildPendingItems(protocol, [updated]);
@@ -714,7 +715,6 @@ export async function reviewPendingItems(
         requestAttachment: body.requestAttachment,
         actor,
         ip,
-        currentStatusName: request.status,
         decideStatus: (facts) => (facts.hasReopen ? PENDING_INFO_STATUS : null),
       },
     );

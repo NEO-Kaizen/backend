@@ -14,6 +14,7 @@ import {
   getTracking,
   patchInternalAssignee,
   patchRequestStatus,
+  postReopenRequest,
   postRequest,
   postCancelRequest,
   getAssignees,
@@ -69,6 +70,12 @@ requestsRoutes.get(
   requesterDualAuth,
   requirePermissionIfSession("request:track"),
   getTracking,
+);
+requestsRoutes.post(
+  "/:protocol/reopen",
+  authMiddleware,
+  requirePermission("request:track"),
+  postReopenRequest,
 );
 
 // Motor de Status v4 (issue #124 — ver `docs/rules/requests-lifecycle.md`,

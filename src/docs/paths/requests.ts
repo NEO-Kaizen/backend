@@ -294,7 +294,7 @@ export default {
       summary: "Acompanhamento do solicitante",
       description:
         "Acompanhamento bimodal. Cookie de sessão do Solicitante → `mode: authenticated`; identidade pública (protocolo + nome + e-mail) via `X-Requester-Identity` → `mode: public`. " +
-        "O recorte nunca inclui triagem, priorização ou notas internas.",
+        "O recorte exclui triagem, priorização e notas internas. Apenas o modo autenticado informa canReopen e, para titular direto elegível, closureRef.",
       operationId: "getTracking",
       security: [{ cookieAuth: [] }, { requesterIdentity: [] }],
       parameters: [
@@ -310,12 +310,52 @@ export default {
         },
       ],
       responses: {
-        "200": { description: "Detalhe de acompanhamento.", ...json("TrackingResponse") },
+        "200": {
+          description: "Detalhe de acompanhamento.",
+          headers: {
+            "Cache-Control": { schema: { type: "string", example: "private, no-store" } },
+          },
+          ...json("TrackingResponse"),
+        },
         "401": error("Identidade ausente/divergente ou sessão inválida."),
         "403": error(
-          "Perfil interno (sessão com `request:track` deve usar a porta interna) ou verificação indisponível no modo AUTHENTICATED.",
+          "Sessão sem `request:track` ou verificação indisponível no modo AUTHENTICATED.",
         ),
         "404": error("Protocolo não encontrado ou de terceiro (anti-enumeração)."),
+      },
+    },
+  },
+
+  "/requests/{protocol}/reopen": {
+    post: {
+      tags: ["Solicitações"],
+      summary: "Reabrir solicitação encerrada",
+      description:
+        "O titular direto com sessão e `request:track` em `own` pode reabrir um encerramento vigente em Concluído (16) ou Cancelado (17). " +
+        "O servidor preserva o protocolo, retorna ao status 1, atualiza as projeções e grava a auditoria na mesma transação. " +
+        "O acompanhamento público e o vínculo por e-mail não autorizam esta operação.",
+      operationId: "postReopenRequest",
+      security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          ...protocolParam,
+          schema: { ...protocolParam.schema, pattern: "\\S" },
+        },
+      ],
+      requestBody: { required: true, ...json("ReopenRequestPayload") },
+      responses: {
+        "200": {
+          description: "Solicitação reaberta após commit.",
+          ...json("ReopenRequestResponse"),
+        },
+        "400": error("Protocolo vazio ou composto apenas por espaços."),
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sessão sem a permissão request:track."),
+        "404": error("Protocolo inexistente ou sem vínculo direto com o solicitante autenticado."),
+        "409": error(
+          "Estado inelegível ou referência de encerramento obsoleta (rf02_closure_conflict).",
+        ),
+        "422": error("Payload inválido.", "ValidationErrorResponse"),
       },
     },
   },
@@ -348,7 +388,7 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Perfil sem permissão para cancelar."),
         "404": error("Protocolo não encontrado para o titular autenticado."),
-        "409": error("Conflito com outra alteração da solicitação."),
+        "409": error("Conflito com outra alteração ou ciclo obsoleto (rf07_cycle_conflict)."),
         "422": error("Justificativa inválida ou solicitação inelegível (rf07_not_eligible)."),
       },
     },
@@ -380,7 +420,9 @@ export default {
           "Sem `request:status_change`; alvo restrito ou fora do modo `free` exige `request:status_override` global (`request_status_override_required`).",
         ),
         "404": error("Protocolo inexistente, fora da Custódia ou status de destino inexistente."),
-        "409": error("Status de destino inativo ou conflito de concorrência."),
+        "409": error(
+          "Status de destino inativo, conflito de concorrência ou saída de Concluído/Cancelado sem reabertura formal (rf02_use_reopen).",
+        ),
         "422": error("Status de destino igual ao atual ou erro de estado."),
       },
     },
@@ -412,6 +454,7 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Sem `request:assign`."),
         "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
+        "409": error("Estado ou custódia mudou durante a atribuição."),
       },
     },
   },
@@ -443,6 +486,7 @@ export default {
         "401": error("Sem sessão ou token inválido."),
         "403": error("Sem `request:assign`."),
         "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
+        "409": error("Estado ou custódia mudou durante a atribuição."),
       },
     },
   },

@@ -23,6 +23,7 @@ export interface AuditEntryBase {
   /** Snapshot do retorno público submetido na transição (só status público). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
+  previousMeeting?: { scheduledFor: string | null; link: string | null };
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
   changeOrigin?: ChangeOrigin | null;
   /**
@@ -116,6 +117,8 @@ export async function recordAudit<E extends AuditEntityType, A extends ComposedA
       last_technical_message: entry.lastTechnicalMessage ?? null,
       ip_address: entry.ipAddress ?? null,
       change_origin: entry.changeOrigin ?? null,
+      ...(entry.previousMeeting && { previous_meeting: entry.previousMeeting }),
+      ...(entry.actionType === "request.reopen" && { occurred_at: trx.raw("clock_timestamp()") }),
       actor_profile_id: actorProfile?.profile_id ?? null,
       actor_profile_name: actorProfile?.name ?? null,
       denied_permission_keys: entry.deniedPermissionKeys ? [...entry.deniedPermissionKeys] : [],

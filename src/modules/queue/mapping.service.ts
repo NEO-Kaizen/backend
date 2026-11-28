@@ -55,18 +55,23 @@ function isSchedulingConclusion(concludeTarget: repository.MappingTargetRow | nu
 
 /** Audita tentativa negada no PUT de mapeamento (trilha forense completa). */
 async function recordMappingAccessDenied(
+  trx: Knex.Transaction,
   protocol: string,
   actorId: number,
   detail: string,
   ipAddress?: string,
   deniedPermissionKeys: readonly PermissionKey[] = ["mapping:write"],
 ): Promise<void> {
-  await recordAccessDeniedAttempt({
+  await recordAudit(trx, {
     entityType: "request",
+    actionType: "request.access_denied",
     entityId: protocol,
     userId: actorId,
-    note: `Mapeamento negado: ${detail}`,
+    previousValue: null,
+    newValue: null,
+    note: `Mapping negado: ${detail}`,
     ipAddress,
+    changeOrigin: "system",
     deniedPermissionKeys,
   });
 }
@@ -349,12 +354,14 @@ export const getMappingService = async (
   }
 
   if (!hasMappingReadCustody(actor, context)) {
-    await recordMappingAccessDenied(
-      context.protocol,
-      actor.id,
-      "sem custódia para ler o mapeamento",
+    await recordAccessDeniedAttempt({
+      entityType: "request",
+      entityId: context.protocol,
+      userId: actor.id,
+      note: "Mapeamento negado: sem custódia para ler o mapeamento",
       ipAddress,
-    );
+      deniedPermissionKeys: ["mapping:read"],
+    });
     throw new AppError("Acesso negado a esta solicitação", 403);
   }
 
@@ -382,12 +389,15 @@ export const upsertMappingService = async (
   actor: MappingActor,
   ipAddress?: string,
 ): Promise<MappingResponseDTO> => {
-  const { response, committed } = await db.transaction<{
-    response: MappingResponseDTO;
-    committed: CommittedNotification[];
-  }>(async (trx) => {
-    // Contexto lido DENTRO da transação: status e responsável são recém-lidos
-    // antes das escritas (fecha janela TOCTOU com conclusão/reatribuição).
+  const result = await db.transaction<
+    | AppError
+    | {
+        response: MappingResponseDTO;
+        committed: CommittedNotification[];
+      }
+  >(async (trx) => {
+    await repository.lockMappingRequest(trx, protocol.trim());
+    // Reler o contexto depois do lock mantém status e custódia do mesmo ciclo.
     const context = await repository.findMappingRequestContext(trx, protocol.trim());
     if (!context) {
       throw new AppError("Solicitação não encontrada", 404);
@@ -395,12 +405,13 @@ export const upsertMappingService = async (
 
     if (!hasMappingWriteCustody(actor, context.mapping_assignee_user_id)) {
       await recordMappingAccessDenied(
+        trx,
         context.protocol,
         actor.id,
         "sem custódia para escrever no mapeamento",
         ipAddress,
       );
-      throw new AppError(
+      return new AppError(
         "Você não tem permissão ou Custódia para alterar este Mapeamento.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
@@ -410,16 +421,28 @@ export const upsertMappingService = async (
     // Status terminais não aceitam edição (não reabre fluxo encerrado).
     // Motor de Status v4: guard por `isTerminal` (não por lista de nomes).
     if (context.is_terminal) {
-      await recordMappingAccessDenied(context.protocol, actor.id, "demanda encerrada", ipAddress);
-      throw new AppError("Solicitação encerrada.", 422);
+      await recordMappingAccessDenied(
+        trx,
+        context.protocol,
+        actor.id,
+        "demanda encerrada",
+        ipAddress,
+      );
+      return new AppError("Solicitação encerrada.", 422);
     }
 
     // Status restrito bloqueia o PUT; mudanças de status ocorrem via
     // `PATCH /status` (delta v4 §3.2: "Priorizado só via override" — ver
     // `docs/rules/requests-lifecycle.md`, seção Restrição e status terminal).
     if (context.is_restricted) {
-      await recordMappingAccessDenied(context.protocol, actor.id, "demanda priorizada", ipAddress);
-      throw new AppError(
+      await recordMappingAccessDenied(
+        trx,
+        context.protocol,
+        actor.id,
+        "demanda priorizada",
+        ipAddress,
+      );
+      return new AppError(
         "Esta solicitação está em status restrito e não pode receber alterações de mapeamento.",
         403,
         "INSUFFICIENT_ROLE_PERMISSIONS",
@@ -473,13 +496,14 @@ export const upsertMappingService = async (
     if (payload.mappingAssigneeId !== undefined && !isNullOnCreate) {
       if (!hasAssignCustody(actor, context)) {
         await recordMappingAccessDenied(
+          trx,
           context.protocol,
           actor.id,
           "sem permissão para designar o mapeamento",
           ipAddress,
           ["request:assign"],
         );
-        throw new AppError(
+        return new AppError(
           "Você não tem permissão para designar o responsável do mapeamento.",
           403,
           "INSUFFICIENT_ROLE_PERMISSIONS",
@@ -500,12 +524,13 @@ export const upsertMappingService = async (
         // alvo inválido (`assignee_not_assignable`) como precedente.
         if (candidate !== null && candidate.userId === context.requester_user_id) {
           await recordMappingAccessDenied(
+            trx,
             context.protocol,
             actor.id,
             "criador da solicitação como responsável",
             ipAddress,
           );
-          throw assigneeIsRequesterError();
+          return assigneeIsRequesterError();
         }
       }
 
@@ -765,10 +790,11 @@ export const upsertMappingService = async (
 
     return { response, committed: committedNotifications };
   });
+  if (result instanceof AppError) throw result;
 
   // Aviso pós-commit: se a transação falhar, nada é publicado; o banco é a
   // fonte de verdade para quem reconectar via `Last-Event-ID`.
-  publishCommittedNotifications(committed);
+  publishCommittedNotifications(result.committed);
 
-  return response;
+  return result.response;
 };

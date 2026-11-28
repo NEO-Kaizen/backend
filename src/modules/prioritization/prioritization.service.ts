@@ -1,3 +1,4 @@
+import { lockRequestForWrite } from "../requests/requests.repository.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { recordAccessDeniedAttempt } from "../../shared/audit/accessDenied.ts";
@@ -39,24 +40,19 @@ export async function evaluateScore(
   actor: PermissionActor,
   ipAddress?: string,
 ): Promise<EvaluatePrioritizationResponse> {
-  const exists = await repository.findRequestByProtocol(protocol);
-  if (!exists) {
+  const observed = await repository.findRequestEvaluationContext(protocol);
+  if (!observed) {
     throw new AppError("Solicitação não encontrada", 404);
   }
+  const canEvaluate = (assigneeUserId: number | null) =>
+    hasPermissionCustody(
+      actor.permissions,
+      "prioritization:write",
+      { userId: actor.id, email: actor.email },
+      [assigneeUserId],
+    );
 
-  const assigneeUserId = await repository.findAssigneeUserIdByProtocol(protocol);
-  if (assigneeUserId === undefined) {
-    throw new AppError("Solicitação não encontrada", 404);
-  }
-
-  const canEvaluate = hasPermissionCustody(
-    actor.permissions,
-    "prioritization:write",
-    { userId: actor.id, email: actor.email },
-    [assigneeUserId],
-  );
-
-  if (!canEvaluate) {
+  if (!canEvaluate(observed.assigneeUserId)) {
     await recordAccessDeniedAttempt({
       entityType: "request",
       entityId: protocol,
@@ -82,6 +78,20 @@ export async function evaluateScore(
   };
 
   const evaluation = await db.transaction(async (trx) => {
+    await lockRequestForWrite(trx, observed.requestId);
+    const current = await repository.findRequestEvaluationContext(protocol, trx);
+    if (
+      !current ||
+      current.requestId !== observed.requestId ||
+      current.reopenRef !== observed.reopenRef ||
+      !canEvaluate(current.assigneeUserId)
+    ) {
+      throw new AppError(
+        "Ciclo ou custódia da solicitação mudou.",
+        409,
+        "request_evaluation_conflict",
+      );
+    }
     const previous = await repository.findCurrentEvaluationForShare(trx, protocol);
     const previousSnapshot: EvaluationSnapshot | null = previous
       ? {

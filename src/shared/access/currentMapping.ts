@@ -17,10 +17,12 @@ export const CURRENT_MAPPING_ASSIGNEE_JOIN = `
         SELECT 1
         FROM mappings AS any_mapping
         WHERE any_mapping.request_id = requests.request_id
+          AND (requests.last_reopened_at IS NULL OR any_mapping.created_at >= requests.last_reopened_at)
       ) THEN (
         SELECT active_mapping.professional_id
         FROM mappings AS active_mapping
         WHERE active_mapping.request_id = requests.request_id
+          AND (requests.last_reopened_at IS NULL OR active_mapping.created_at >= requests.last_reopened_at)
           AND active_mapping.is_concluded = FALSE
         ORDER BY active_mapping.created_at DESC, active_mapping.updated_at DESC
         LIMIT 1

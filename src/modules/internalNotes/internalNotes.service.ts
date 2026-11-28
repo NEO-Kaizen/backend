@@ -150,11 +150,12 @@ function normalizeEventAction(action: AuditTimelineAction): TimelineEventAction 
     : action;
 }
 
-/** `request.status_change` e seu override de Admin compartilham render/payload. */
+/** Ações que carregam justificativa e retorno público da transição. */
 function isStatusChangeAction(action: AuditTimelineAction): boolean {
   return (
     action === "request.status_change" ||
     action === "request.override_status_admin" ||
+    action === "request.reopen" ||
     action === "request.status_override"
   );
 }
@@ -166,6 +167,8 @@ function composeEventText(
   statusNames: Map<number, string>,
 ): string {
   switch (row.action_type) {
+    case "request.reopen":
+      return "Solicitação reaberta";
     case "request.status_change":
     case "request.override_status_admin":
     case "request.status_override": {

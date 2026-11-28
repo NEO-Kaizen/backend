@@ -17,6 +17,8 @@ import type {
   RequesterBlock,
   DemandBlock,
   AssignmentCandidateRow,
+  AssignmentContextRow,
+  InternalRequestRow as TrackingRequestRow,
 } from "../../shared/types/requests.ts";
 import { STATUS_IDS } from "../../shared/types/status.ts";
 import type { AuthenticatedUser } from "../../shared/types/user.ts";
@@ -58,6 +60,7 @@ import {
 import { findUserById } from "../auth/auth.repository.ts";
 import * as repository from "./requests.repository.ts";
 import { applyStatusTransition } from "./statusTransition.ts";
+import { isReopenableStatus } from "./requests-reopen.service.ts";
 import { publishCommittedNotifications } from "../../shared/notifications/notificationEmitter.ts";
 import {
   emitStatusChangedNotification,
@@ -524,7 +527,7 @@ export interface TrackingCaller {
 
 const TRACKING_INVALID_IDENTITY = "Valide seus dados para acompanhar esta solicitação.";
 
-function mapTrackingMeeting(row: Record<string, unknown>): Meeting | null {
+function mapTrackingMeeting(row: TrackingRequestRow): Meeting | null {
   const scheduledFor = row["meeting_scheduled_for"]
     ? new Date(row["meeting_scheduled_for"] as string).toISOString()
     : null;
@@ -534,7 +537,7 @@ function mapTrackingMeeting(row: Record<string, unknown>): Meeting | null {
   return { scheduledFor, link: (row["meeting_link"] as string | null) ?? null };
 }
 
-function mapTrackingRequester(row: Record<string, unknown>): RequesterBlock {
+function mapTrackingRequester(row: TrackingRequestRow): RequesterBlock {
   return {
     fullName: (row["requester_name"] as string) ?? "",
     corporateEmail: (row["requester_email"] as string) ?? "",
@@ -545,7 +548,7 @@ function mapTrackingRequester(row: Record<string, unknown>): RequesterBlock {
   };
 }
 
-function mapTrackingDemand(row: Record<string, unknown>): DemandBlock {
+function mapTrackingDemand(row: TrackingRequestRow): DemandBlock {
   return {
     title: row["title"] as string,
     requestType: row["request_type"] as string,
@@ -558,7 +561,7 @@ function mapTrackingDemand(row: Record<string, unknown>): DemandBlock {
   };
 }
 
-function mapTrackingImpacts(row: Record<string, unknown>): PublicOperationalImpacts {
+function mapTrackingImpacts(row: TrackingRequestRow): PublicOperationalImpacts {
   return {
     mainRisks: row["main_risks"] as string,
     clientImpact: row["client_impact"] as string,
@@ -568,7 +571,7 @@ function mapTrackingImpacts(row: Record<string, unknown>): PublicOperationalImpa
   };
 }
 
-function mapTrackingComplementary(row: Record<string, unknown>): ComplementaryBlock {
+function mapTrackingComplementary(row: TrackingRequestRow): ComplementaryBlock {
   return {
     hasProcessDocumentation: toYesNoDetail(
       row["has_process_documentation"] as boolean | null,
@@ -590,7 +593,7 @@ function mapTrackingComplementary(row: Record<string, unknown>): ComplementaryBl
   };
 }
 
-function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails {
+function buildPublicDetails(row: TrackingRequestRow): PublicRequestDetails {
   const openedAt = normalizeIsoDate(row["created_at"]) ?? new Date().toISOString();
 
   return {
@@ -608,6 +611,8 @@ function buildPublicDetails(row: Record<string, unknown>): PublicRequestDetails 
     impacts: mapTrackingImpacts(row),
   };
 }
+
+const INITIAL_CANCEL_CYCLE = "initial";
 
 function isCancellationEligible(request: { status_id: number; has_triage: boolean }): boolean {
   return request.status_id === STATUS_IDS.requestSent && !request.has_triage;
@@ -628,6 +633,17 @@ export async function cancelRequest(
     }
     if (!isCancellationEligible(request)) {
       throw new AppError("Esta solicitação não pode mais ser cancelada.", 422, "rf07_not_eligible");
+    }
+
+    if (
+      (payload.cancelCycleRef ?? INITIAL_CANCEL_CYCLE) !==
+      (request.reopen_ref ?? INITIAL_CANCEL_CYCLE)
+    ) {
+      throw new AppError(
+        "O ciclo da solicitação mudou. Atualize o acompanhamento.",
+        409,
+        "rf07_cycle_conflict",
+      );
     }
 
     const lastTechnicalMessage = "Solicitação cancelada pelo titular.";
@@ -656,13 +672,12 @@ export async function cancelRequest(
 }
 
 async function buildAuthenticatedDetails(
-  row: Record<string, unknown>,
-  userId: number,
+  row: TrackingRequestRow,
+  requesterUserId: number,
 ): Promise<RequesterRequestDetails> {
-  const requestId = row["request_id"] as string;
-  const [attachments, cancellation, schedulePreferences] = await Promise.all([
+  const requestId = row.request_id;
+  const [attachments, schedulePreferences] = await Promise.all([
     repository.findAttachmentsByRequestId(requestId),
-    repository.findCancellationContext(requestId),
     repository.findSchedulePreferencesByRequestId(requestId),
   ]);
 
@@ -671,10 +686,18 @@ async function buildAuthenticatedDetails(
   // O modo autenticado não tem `impacts`: os mesmos campos vivem dentro de
   // `operational` (`RequesterOperational extends PublicOperationalImpacts`).
   const { impacts, ...base } = buildPublicDetails(row);
+  const closureRef =
+    row.requester_user_id === requesterUserId && isReopenableStatus(row.status_id)
+      ? row.closure_ref
+      : null;
 
+  const canCancel = row.requester_user_id === requesterUserId && isCancellationEligible(row);
   return {
     ...base,
-    canCancel: cancellation?.requester_user_id === userId && isCancellationEligible(cancellation),
+    canCancel,
+    ...(canCancel ? { cancelCycleRef: row.reopen_ref ?? INITIAL_CANCEL_CYCLE } : {}),
+    canReopen: Boolean(closureRef),
+    ...(closureRef ? { closureRef } : {}),
     operational: {
       ...impacts,
       processDescription: row["process_description"] as string,
@@ -716,7 +739,7 @@ async function buildAuthenticatedDetails(
  * `POST /requests` em modo AUTHENTICATED), imune a uma troca posterior de
  * e-mail/nome no cadastro.
  */
-function isTrackingOwner(row: Record<string, unknown>, user: AuthenticatedUser): boolean {
+function isTrackingOwner(row: TrackingRequestRow, user: AuthenticatedUser): boolean {
   return isRequesterOwner(
     { id: Number(user.id), email: user.email },
     {
@@ -730,10 +753,7 @@ async function getAuthenticatedTracking(
   protocol: string,
   user: AuthenticatedUser,
 ): Promise<TrackingDetailsResponse> {
-  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const row = await repository.findInternalRequestByProtocol(protocol);
 
   // Protocolo inexistente ou de terceiro: mesma resposta (404), para não
   // revelar a existência de solicitações alheias (anti-enumeração). A chave
@@ -761,10 +781,7 @@ async function getPublicTracking(
     throw new AppError(TRACKING_INVALID_IDENTITY, 401);
   }
 
-  const row = (await repository.findInternalRequestByProtocol(protocol)) as unknown as Record<
-    string,
-    unknown
-  > | null;
+  const row = await repository.findInternalRequestByProtocol(protocol);
 
   const nameOk =
     row !== null &&
@@ -1112,6 +1129,7 @@ export async function assignResponsible(
   let committedNotifications: CommittedNotification[] = [];
 
   await db.transaction(async (trx) => {
+    await assertAssignmentIsCurrent(trx, request, actor);
     await repository.updateAssignee(trx, request.request_id, nextId, actor.email);
 
     const auditId = await recordAudit(trx, {
@@ -1227,6 +1245,7 @@ export async function assignAnalyst(
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
         : null;
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateAssignee(trx, request.request_id, null, actor.email);
         await recordAudit(trx, {
           entityType: "request",
@@ -1259,6 +1278,7 @@ export async function assignAnalyst(
         request.status === RN010_FROM_STATUS &&
         request.screening_result === RN010_ELIGIBLE_SCREENING;
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateAssignee(
           trx,
           request.request_id,
@@ -1335,6 +1355,7 @@ export async function assignAnalyst(
         ? ((await repository.findAssignmentCandidateById(previous))?.user_id ?? null)
         : null;
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateMappingAssignee(trx, request.request_id, null, actor.email);
         await recordAudit(trx, {
           entityType: "request",
@@ -1364,6 +1385,7 @@ export async function assignAnalyst(
         : null;
       const action = auditPrev === null ? "assign" : "reassign";
       await db.transaction(async (trx) => {
+        await assertAssignmentIsCurrent(trx, request, actor);
         await repository.updateMappingAssignee(
           trx,
           request.request_id,
@@ -1482,6 +1504,35 @@ function hasDesignationChanged(
   return previousUserId === null || previousUserId !== nextUserId;
 }
 
+async function assertAssignmentIsCurrent(
+  trx: Knex.Transaction,
+  observed: AssignmentContextRow,
+  actor: RequestActor,
+): Promise<void> {
+  await repository.lockRequestForWrite(trx, observed.request_id);
+  const current = await repository.findAssignmentContextByProtocol(observed.protocol, trx);
+  if (
+    !current ||
+    current.request_id !== observed.request_id ||
+    !hasAnyResponsibleCustody(actor, "request:assign", [
+      current.assignee_user_id,
+      current.mapping_assignee_user_id,
+    ]) ||
+    current.status_id !== observed.status_id ||
+    current.closure_ref !== observed.closure_ref ||
+    current.reopen_ref !== observed.reopen_ref ||
+    current.professional_id !== observed.professional_id ||
+    current.mapping_professional_id !== observed.mapping_professional_id ||
+    current.screening_result !== observed.screening_result
+  ) {
+    throw new AppError(
+      "Estado ou custódia da solicitação mudou.",
+      409,
+      "request_assignment_conflict",
+    );
+  }
+}
+
 // --- PATCH /requests/:protocol/status (Motor de Status v4) -------------------
 // request:status_change + Custódia libera alvos ativos não restritos no modo
 // free. Alvos restritos ou fora desse modo exigem request:status_override
@@ -1510,6 +1561,15 @@ export async function updateRequestStatus(
   const target = await repository.findRequestStatusTarget(payload.targetStatus);
   if (!target) {
     throw new AppError("Status de destino não encontrado", 404);
+  }
+
+  if (
+    (request.current_status_id === STATUS_IDS.completed ||
+      request.current_status_id === STATUS_IDS.canceled) &&
+    target.status_id !== STATUS_IDS.completed &&
+    target.status_id !== STATUS_IDS.canceled
+  ) {
+    throw new AppError("Use a operação específica de reabertura.", 409, "rf02_use_reopen");
   }
 
   if (request.current_status_id !== null && request.current_status_id === target.status_id) {
@@ -1554,6 +1614,33 @@ export async function updateRequestStatus(
   const changeOrigin = hasAdministrativeAuditOrigin(actor.permissions) ? "admin" : "internal";
 
   const { lastUpdate, committed } = await db.transaction(async (trx) => {
+    const locked = await repository.lockRequestForWrite(trx, request.request_id);
+    if (
+      !locked ||
+      locked.status_id !== request.current_status_id ||
+      locked.closure_ref !== request.closure_ref ||
+      locked.reopen_ref !== request.reopen_ref
+    ) {
+      throw new AppError(
+        "A solicitação foi atualizada por outra operação.",
+        409,
+        "rf02_closure_conflict",
+      );
+    }
+    if (custodyFor(actor, "request:status_change") !== "all") {
+      const current = await repository.findRequestStatusContext(protocol.trim(), trx);
+      if (
+        !current ||
+        current.request_id !== request.request_id ||
+        !hasAnyResponsibleCustody(actor, "request:status_change", [
+          current.assignee_user_id,
+          current.mapping_assignee_user_id,
+        ])
+      ) {
+        throw new AppError("A custódia da solicitação mudou.", 409, "request_assignment_conflict");
+      }
+    }
+
     const persistedAt = await applyStatusTransition(trx, {
       requestId: request.request_id,
       target: {

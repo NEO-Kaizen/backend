@@ -15,6 +15,7 @@ import {
   emitStatusChangedNotification,
   type StatusTarget,
 } from "../../../shared/notifications/statusChangedNotification.ts";
+import { lockRequestForWrite } from "../requests.repository.ts";
 import type { CreateTriagePayload, TriageAssessment } from "./triage.schema.ts";
 import type { NamedPermissionActor } from "../../../shared/access/permissionActor.ts";
 import * as repository from "./triage.repository.ts";
@@ -81,6 +82,15 @@ async function commitTriageDecision(
   const { protocol, request, triage, categoryId, exitStatus, actor, ipAddress } = input;
 
   return db.transaction(async (trx) => {
+    const current = await lockRequestForWrite(trx, request.request_id);
+    if (
+      !current ||
+      current.status_id !== request.status_id ||
+      current.reopen_ref !== request.reopen_ref ||
+      current.professional_id !== request.professional_id
+    ) {
+      throw new AppError("Ciclo ou custódia da solicitação mudou.", 409, "request_triage_conflict");
+    }
     await repository.insertTriage(request.request_id, triage, trx);
     await repository.applyRequestOutcome({
       protocol,

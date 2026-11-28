@@ -43,6 +43,80 @@ import { applyStatusTransition } from "./statusTransition.ts";
 
 const INITIAL_STATUS = "Solicitação enviada";
 
+interface LockedRequestClosure {
+  request_id: string;
+  status_id: number;
+  closure_ref: string | null;
+  meeting_scheduled_for: string | null;
+  meeting_link: string | null;
+}
+
+export async function lockRequestByDirectOwner(
+  trx: Knex.Transaction,
+  protocol: string,
+  requesterUserId: number,
+): Promise<LockedRequestClosure | undefined> {
+  return trx<LockedRequestClosure>("requests")
+    .where("protocol", protocol)
+    .andWhere("requester_user_id", requesterUserId)
+    .forNoKeyUpdate()
+    .select(trx.raw("to_json(meeting_scheduled_for) #>> '{}' AS meeting_scheduled_for"))
+    .first("request_id", "status_id", "closure_ref", "meeting_link");
+}
+
+interface RequestWriteState {
+  status_id: number;
+  closure_ref: string | null;
+  reopen_ref: string | null;
+  professional_id: string | null;
+  mapping_professional_id: string | null;
+}
+
+export async function lockRequestForWrite(
+  trx: Knex.Transaction,
+  requestId: string,
+): Promise<RequestWriteState | undefined> {
+  return trx<RequestWriteState>("requests")
+    .where("request_id", requestId)
+    .forNoKeyUpdate()
+    .select(trx.raw("reopen_ref"))
+    .first("status_id", "closure_ref", "professional_id", "mapping_professional_id");
+}
+
+export async function clearReopenedRequestProjections(
+  trx: Knex.Transaction,
+  request: LockedRequestClosure,
+): Promise<{ scheduledFor: string | null; link: string | null } | undefined> {
+  const { request_id, meeting_scheduled_for, meeting_link } = request;
+  let previousMeeting: { scheduledFor: string | null; link: string | null } | undefined;
+  if (meeting_scheduled_for !== null || meeting_link !== null) {
+    const mapping = await trx("mappings")
+      .where({ request_id, scheduled_for: meeting_scheduled_for, meeting_link })
+      .first("mapping_id");
+    if (!mapping) {
+      previousMeeting = { scheduledFor: meeting_scheduled_for, link: meeting_link };
+    }
+  }
+  // O relógio da transação pode ser anterior à aquisição do lock.
+  const reopenedAt = trx.raw("statement_timestamp()");
+  await trx("requests")
+    .where({ request_id })
+    .update({
+      professional_id: null,
+      mapping_professional_id: null,
+      meeting_scheduled_for: null,
+      meeting_link: null,
+      priority_id: null,
+      screening_result: null,
+      last_reopened_at: reopenedAt,
+      // Identidade imutável do ciclo: não depende do relógio nem do fuso.
+      reopen_ref: trx.raw("gen_random_uuid()"),
+      updated_at: reopenedAt,
+      last_external_update_at: reopenedAt,
+    });
+  return previousMeeting;
+}
+
 interface YesNoDetailColumns {
   flag: boolean | null;
   detail: string | null;
@@ -557,6 +631,10 @@ export async function findInternalRequestByProtocol(
     // Dono da solicitação quando criada em modo AUTHENTICATED (#53) — base do
     // owner-check do acompanhamento (GET /requests/:protocol/tracking).
     "requests.requester_user_id",
+    "requests.status_id",
+    "requests.closure_ref",
+    hasHistoricalTriage(db),
+    "requests.reopen_ref",
 
     "requests.protocol",
     "requests.title",
@@ -659,8 +737,17 @@ export async function findEvaluationByProtocol(
   protocol: string,
 ): Promise<{ score: number; classification: string } | undefined> {
   const row = await db("prioritization_evaluations")
-    .where({ protocol })
-    .first("score", "classification");
+    .join("requests", "requests.protocol", "prioritization_evaluations.protocol")
+    .where("requests.protocol", protocol)
+    .andWhere((query) => {
+      query
+        .whereNull("requests.last_reopened_at")
+        .orWhereRaw("?? >= ??", [
+          "prioritization_evaluations.calculated_at",
+          "requests.last_reopened_at",
+        ]);
+    })
+    .first("prioritization_evaluations.score", "prioritization_evaluations.classification");
 
   if (!row) return undefined;
 
@@ -753,8 +840,9 @@ export async function findAssignmentCandidateById(
 
 export async function findAssignmentContextByProtocol(
   protocol: string,
+  source: Knex | Knex.Transaction = db,
 ): Promise<AssignmentContextRow | undefined> {
-  const hasMapping = await db.schema.hasColumn("requests", "mapping_professional_id");
+  const hasMapping = await source.schema.hasColumn("requests", "mapping_professional_id");
 
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
@@ -762,6 +850,8 @@ export async function findAssignmentContextByProtocol(
     title: "requests.title",
     professional_id: "requests.professional_id",
     status: "statuses.name",
+    status_id: "requests.status_id",
+    closure_ref: "requests.closure_ref",
     category: "categories.name",
     screening_result: "requests.screening_result",
     requester_user_id: "requests.requester_user_id",
@@ -773,7 +863,7 @@ export async function findAssignmentContextByProtocol(
     columns["mapping_assignee_user_id"] = "dpm.user_id";
   }
 
-  const query = db("requests")
+  const query = source("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .join("categories", "categories.category_id", "requests.category_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
@@ -785,7 +875,10 @@ export async function findAssignmentContextByProtocol(
     );
   }
 
-  const row = await query.where("requests.protocol", protocol).first(columns);
+  const row = await query
+    .where("requests.protocol", protocol)
+    .select(source.raw("requests.reopen_ref"))
+    .first(columns);
 
   if (!row) return undefined;
 
@@ -848,6 +941,7 @@ interface CancellationContext {
   requester_user_id: number | null;
   status_id: number;
   has_triage: boolean;
+  reopen_ref: string | null;
 }
 
 export async function lockRequestForCancellation(
@@ -861,11 +955,17 @@ export async function lockRequestForCancellation(
     .first("request_id");
 }
 
+function hasHistoricalTriage(source: Knex | Knex.Transaction): Knex.Raw<boolean> {
+  const triages = source("triages")
+    .select("triages.request_id")
+    .where("triages.request_id", source.ref("requests.request_id"));
+  return source.raw("EXISTS (?) AS has_triage", [triages]);
+}
+
 export async function findCancellationContext(
   requestId: string,
   source: Knex | Knex.Transaction = db,
 ): Promise<CancellationContext | undefined> {
-  const triages = source("triages").select("request_id").where({ request_id: requestId });
   return source("requests")
     .where({ request_id: requestId })
     .first(
@@ -873,7 +973,8 @@ export async function findCancellationContext(
       "protocol",
       "requester_user_id",
       "status_id",
-      source.raw("EXISTS (?) AS has_triage", [triages]),
+      hasHistoricalTriage(source),
+      source.raw("requests.reopen_ref"),
     );
 }
 
@@ -886,6 +987,8 @@ export interface RequestStatusContext {
   title: string;
   requester_user_id: number | null;
   current_status_id: number | null;
+  closure_ref: string | null;
+  reopen_ref: string | null;
   current_status_name: string | null;
   current_is_terminal: boolean;
   current_is_restricted: boolean;
@@ -909,8 +1012,9 @@ export interface RequestStatusTarget {
 
 export async function findRequestStatusContext(
   protocol: string,
+  source: Knex | Knex.Transaction = db,
 ): Promise<RequestStatusContext | undefined> {
-  const hasMappingColumn = await db.schema.hasColumn("requests", "mapping_professional_id");
+  const hasMappingColumn = await source.schema.hasColumn("requests", "mapping_professional_id");
 
   const columns: Record<string, string> = {
     request_id: "requests.request_id",
@@ -918,6 +1022,7 @@ export async function findRequestStatusContext(
     title: "requests.title",
     requester_user_id: "requests.requester_user_id",
     current_status_id: "requests.status_id",
+    closure_ref: "requests.closure_ref",
     current_status_name: "statuses.name",
     current_is_terminal: "statuses.is_terminal",
     current_is_restricted: "statuses.is_restricted",
@@ -927,7 +1032,7 @@ export async function findRequestStatusContext(
     columns["mapping_assignee_user_id"] = "dpm.user_id";
   }
 
-  const query = db("requests")
+  const query = source("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .join("categories", "categories.category_id", "requests.category_id")
     .leftJoin("details_professional as dp", "dp.professional_id", "requests.professional_id");
@@ -939,7 +1044,10 @@ export async function findRequestStatusContext(
     );
   }
 
-  const row = await query.where("requests.protocol", protocol).first(columns);
+  const row = await query
+    .where("requests.protocol", protocol)
+    .select(source.raw("requests.reopen_ref"))
+    .first(columns);
   if (!row) return undefined;
 
   if (!hasMappingColumn) {

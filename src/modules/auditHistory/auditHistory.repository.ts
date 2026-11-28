@@ -35,6 +35,7 @@ interface AuditHistoryDetailRow {
   new_value: string | null;
   note: string | null;
   last_technical_message: string | null;
+  previous_meeting: unknown;
   ip_address: string | null;
   change_origin: string | null;
   denied_permission_keys: string[] | null;
@@ -158,6 +159,7 @@ export async function findAuditHistoryById(
       "a.new_value",
       "a.note",
       "a.last_technical_message",
+      "a.previous_meeting",
       "a.ip_address",
       "a.change_origin",
       "a.denied_permission_keys",
@@ -229,6 +231,7 @@ export async function listAuditHistoryByProtocol(
       "a.new_value",
       "a.note",
       "a.last_technical_message",
+      "a.previous_meeting",
       "a.ip_address",
       "a.change_origin",
       "a.denied_permission_keys",

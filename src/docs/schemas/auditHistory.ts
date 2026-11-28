@@ -67,6 +67,16 @@ export const AuditHistoryDetail = {
       description:
         "Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha. Vazio nas demais ações — a chave que autorizou não é registrada.",
     },
+    previous_meeting: {
+      type: "object",
+      description:
+        "Reunião legada arquivada no evento request.reopen, quando não havia mapeamento correspondente.",
+      required: ["scheduledFor", "link"],
+      properties: {
+        scheduledFor: { type: "string", format: "date-time", nullable: true },
+        link: { type: "string", nullable: true },
+      },
+    },
     occurred_at: { type: "string", format: "date-time", example: "2026-11-23T12:00:00.000Z" },
   },
 };

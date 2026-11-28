@@ -1,5 +1,5 @@
 // DTO de GET /requests/:protocol/tracking — contrato do acompanhamento do
-// solicitante (`/acompanhar/[protocolo]`), espelho fiel de
+// solicitante (`/acompanhar/[protocolo]`), consumido por
 // `frontend/src/lib/types/requester-tracking.ts`. O backend decide o `mode`
 // pela credencial: `public` (header `X-Requester-Identity`) ou `authenticated`
 // (cookie de sessão do dono). Difere do DTO interno
@@ -68,6 +68,9 @@ export interface PublicRequestDetails {
 
 export interface RequesterRequestDetails extends Omit<PublicRequestDetails, "impacts"> {
   canCancel: boolean;
+  cancelCycleRef?: string;
+  canReopen: boolean;
+  closureRef?: string;
   operational: RequesterOperational;
   complementary?: ComplementaryBlock;
   schedulePreferences: string[] | null;

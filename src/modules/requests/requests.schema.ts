@@ -12,6 +12,13 @@ import type {
   UpdateInternalRequestPayload,
 } from "../DTOs/requests/RequestRequests.dto.ts";
 
+export const reopenJustificationSchema = requiredString(4000);
+
+export const reopenRequestSchema = z.strictObject({
+  justification: reopenJustificationSchema,
+  closureRef: z.uuid("Referência de encerramento inválida."),
+});
+
 const yesNoDetailSchema = z.union(
   [
     z.literal(false),
@@ -214,6 +221,7 @@ export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 export const cancelRequestSchema = z
   .object({
     justification: requiredString(4000),
+    cancelCycleRef: z.string().min(1).max(64).optional(),
   })
   .strict();
 

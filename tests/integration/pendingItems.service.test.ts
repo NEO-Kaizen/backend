@@ -87,6 +87,7 @@ function makeRequest(overrides: Partial<RequestRef> = {}): RequestRef {
     title: "Solicitação de teste",
     status: "Pendente de informações",
     status_id: 5,
+    reopen_ref: null,
     requester_user_id: OWNER_ID,
     responsible_user_id: null,
     // Snapshot divergente do cadastro da conta — a reprodução da issue #202.

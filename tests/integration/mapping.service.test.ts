@@ -12,7 +12,10 @@ vi.mock("../../src/shared/audit/accessDenied.ts", () => ({
   recordAccessDeniedAttempt: vi.fn(),
 }));
 
+vi.mock("../../src/shared/audit/auditLogger.ts", () => ({ recordAudit: vi.fn() }));
+
 vi.mock("../../src/modules/queue/mapping.repository.ts", () => ({
+  lockMappingRequest: vi.fn(),
   findMappingRequestContext: vi.fn(),
   findCurrentMapping: vi.fn(),
   findLatestOpenMapping: vi.fn(),

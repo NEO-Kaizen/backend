@@ -46,6 +46,7 @@ export const TimelineEvent = {
         "request.reassign",
         "request.unassign",
         "request.status_change",
+        "request.reopen",
         "mapping.assign",
       ],
       example: "request.status_change",
@@ -61,7 +62,7 @@ export const TimelineEvent = {
     changeOrigin: {
       type: "string",
       nullable: true,
-      enum: ["admin", "system", "internal"],
+      enum: ["admin", "system", "internal", "requester"],
       example: "internal",
     },
     justification: { type: "string", nullable: true },

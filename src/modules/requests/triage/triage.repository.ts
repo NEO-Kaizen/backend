@@ -23,6 +23,7 @@ export interface RequestContextRow {
   assignee_user_id: number | null;
   mapping_assignee_user_id: number | null;
   status_id: number;
+  reopen_ref: string | null;
   status_name: string | null;
   status_is_restricted: boolean;
   status_is_terminal: boolean;
@@ -45,6 +46,7 @@ export async function findRequestContext(protocol: string): Promise<RequestConte
       assignee_user_id: "dp.user_id",
       mapping_assignee_user_id: "mapping_user.user_id",
       status_id: "requests.status_id",
+      reopen_ref: "requests.reopen_ref",
       status_name: "s.name",
       status_is_restricted: "s.is_restricted",
       status_is_terminal: "s.is_terminal",

@@ -25,6 +25,7 @@ const REQUEST_EVENT_ACTIONS: AuditTimelineAction[] = [
   "request.reassign",
   "request.unassign",
   "request.status_change",
+  "request.reopen",
   "request.override_status_admin",
   "request.status_override",
 ];

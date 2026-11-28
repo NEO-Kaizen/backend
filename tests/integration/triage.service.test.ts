@@ -51,6 +51,7 @@ function requestContext(overrides: Partial<RequestContextRow> = {}): RequestCont
     assignee_user_id: 5,
     mapping_assignee_user_id: 5,
     status_id: 1,
+    reopen_ref: null,
     status_name: "Em triagem",
     status_is_restricted: false,
     status_is_terminal: false,

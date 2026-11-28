@@ -34,6 +34,15 @@ A justificativa é obrigatória e integra a auditoria. O estado passa para
 `Cancelado` (id 17), com atualização do retrato público e preservação dos
 dados, anexos e histórico.
 
+A confirmação é vinculada ao ciclo que estava vigente quando o titular abriu
+o modal. O backend compara a referência sob lock antes de gravar o
+cancelamento. A referência é o UUID `requests.reopen_ref`, gerado em cada
+reabertura e imune a coincidência de relógio ou de fuso. No ciclo inicial,
+clientes anteriores podem omitir a referência. Após uma reabertura, esses
+clientes precisam atualizar o acompanhamento e enviar a referência recebida
+para cancelar. Referências ausentes nesse ciclo ou de um ciclo anterior geram
+conflito e nenhuma auditoria de cancelamento.
+
 ## Triagem
 
 - Cada triagem é um registro novo; nunca há duas simultâneas. A vigente é a
@@ -82,11 +91,19 @@ dados, anexos e histórico.
   Administrador; o mapeamento bloqueia todos; a troca direta bloqueia
   não-Administrador como **destino**, mas não impede um responsável de **sair**
   de um Status restrito para um destino `free`.
-- Status terminal não recebe novas pendências nem mapeamentos. A checagem de
-  pendência ainda usa os nomes `Concluído`/`Cancelado`, não a flag; um Status
-  terminal customizado escaparia da regra.
-- A troca direta **não** bloqueia a saída de um Status terminal hoje. Reabrir
-  solicitações encerradas está previsto na issue #148.
+- Status terminal não recebe gravações de pendências nem mapeamentos. A
+  persistência de pendências verifica a flag terminal depois do bloqueio.
+- No `PATCH /status`, `Concluído` e `Cancelado` só podem transitar entre si.
+  Uma saída direta ou por outro terminal recebe 409. A reabertura formal
+  volta ao status inicial e remove as custódias e projeções vigentes.
+- Após a reabertura, pendências e mapeamentos anteriores permanecem no histórico
+  e ficam fora das operações do ciclo atual. A avaliação de prioridade anterior
+  também fica fora da projeção vigente.
+- A RF02 exige sessão de Solicitante, vínculo direto, justificativa e a
+  referência do encerramento corrente. A capacidade aparece no acompanhamento
+  autenticado. O retorno ao fluxo ativo e o evento `request.reopen` ocorrem na
+  mesma transação. Quando há reunião legada arquivada nesse evento, seu snapshot
+  está disponível no detalhe autorizado de auditoria.
 
 ## Regras transversais
 
