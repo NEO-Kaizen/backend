@@ -6,6 +6,7 @@ import type {
   AccessSection,
   AssetsSection,
   CategoriesSection,
+  CategoryRow,
   DuplicateDetectionSettings,
   IdentitySection,
   PortalAssetsPatch,
@@ -20,13 +21,11 @@ import type {
 } from "../../shared/types/portalConfig.ts";
 import { CRITERION_ID_TO_KEY } from "../../shared/types/criteria.ts";
 import { CORE_STATUS_IDS } from "../../shared/types/portalConfig.ts";
+import { STATUS_IDS } from "../../shared/types/status.ts";
 import type { SystemSettingsRow } from "../../shared/types/systemSettings.ts";
 import { themeFromRow, themeToColumns } from "./portalConfig.mappers.ts";
 import * as repository from "./portalConfig.repository.ts";
-import {
-  republishProjectionsForCategories,
-  republishProjectionsForStatuses,
-} from "../duplicates/adminRepublish.ts";
+import { republishAffectedProjections } from "../duplicates/duplicates.republish.ts";
 import type { PortalConfigResponse } from "../DTOs/portalConfig/PortalConfigResponse.dto.ts";
 
 // ---------------------------------------------------------------------------
@@ -60,9 +59,47 @@ function statusToPortal(st: StatusRow): PortalStatus {
     mappingMode: st.mapping_mode ?? "none",
     isRestricted: st.is_restricted ?? false,
     tone: st.tone,
-    isActive: st.is_active ?? true,
-    isDuplicateCorpusEligible: st.is_duplicate_corpus_eligible ?? true,
+    isActive: st.is_active,
+    isDuplicateCorpusEligible: st.is_duplicate_corpus_eligible,
   };
+}
+
+/** Projeção de `categories` para o contrato (usada antes e depois do PATCH). */
+function categoryToPortal(cat: CategoryRow): PortalCategory {
+  return {
+    id: cat.category_id,
+    name: cat.name,
+    description: cat.description ?? "",
+    isActive: cat.status === "active",
+    isPubliclyListable: cat.is_publicly_listable,
+  };
+}
+
+/**
+ * Ids cuja projeção precisa ser reavaliada: itens alterados em algum campo que
+ * participa da decisão de publicação, mais itens omitidos (que o upsert
+ * desativa/tira da allowlist). Uma única implementação para Categoria e Status.
+ */
+function changedAllowlistIds<Before, After>(
+  previous: readonly Before[],
+  incoming: readonly After[],
+  idBefore: (row: Before) => number,
+  idAfter: (row: After) => number,
+  changed: (before: Before, after: After) => boolean,
+): number[] {
+  const previousById = new Map(previous.map((row) => [idBefore(row), row]));
+  const incomingIds = new Set(incoming.map(idAfter));
+  const affected = new Set<number>();
+
+  for (const after of incoming) {
+    const before = previousById.get(idAfter(after));
+    if (!before || changed(before, after)) affected.add(idAfter(after));
+  }
+  for (const before of previous) {
+    if (!incomingIds.has(idBefore(before))) affected.add(idBefore(before));
+  }
+
+  return [...affected];
 }
 
 // ---------------------------------------------------------------------------
@@ -86,13 +123,7 @@ export async function getPortalConfig(): Promise<PortalConfigResponse> {
     protocolMask: settings.protocol_mask,
     theme,
     assets: assetsFromRow(settings),
-    categories: categories.map((cat) => ({
-      id: cat.category_id,
-      name: cat.name,
-      description: cat.description ?? "",
-      isActive: cat.status === "active",
-      isPubliclyListable: cat.is_publicly_listable,
-    })),
+    categories: categories.map(categoryToPortal),
     statuses: statuses.map(statusToPortal),
     prioritizationWeights: Object.fromEntries(
       criteria.map((c) => {
@@ -245,35 +276,24 @@ export async function updateCategories(
     await repository.lockSettings(trx);
 
     const prevRows = await repository.listCategories(trx);
-    const previous = prevRows.map((cat) => ({
-      id: cat.category_id,
-      name: cat.name,
-      description: cat.description ?? "",
-      isActive: cat.status === "active",
-      isPubliclyListable: cat.is_publicly_listable,
-    }));
+    const previous = prevRows.map(categoryToPortal);
 
     await repository.upsertCategories(trx, categories);
 
-    // Uma Categoria que deixa (ou entra) na allowlist muda a elegibilidade das
-    // Solicitações nela. A projeção é um snapshot: sem reavaliá-la, uma
-    // Categoria desligada continuaria pesquisável e uma religada não voltaria
-    // ao índice até a próxima edição da Solicitação (issue #212).
-    const previousById = new Map(prevRows.map((cat) => [cat.category_id, cat]));
-    const incomingById = new Map(categories.map((cat) => [cat.id, cat]));
-    const affectedIds = new Set<number>();
-    for (const category of categories) {
-      const before = previousById.get(category.id);
-      if (!before || before.is_publicly_listable !== category.isPubliclyListable) {
-        affectedIds.add(category.id);
-      }
-    }
-    for (const category of prevRows) {
-      if (!incomingById.has(category.category_id) && category.is_publicly_listable) {
-        affectedIds.add(category.category_id);
-      }
-    }
-    await republishProjectionsForCategories(trx, [...affectedIds]);
+    // Nome e allowlist entram no snapshot público; itens omitidos são tirados
+    // da allowlist pelo upsert e também precisam ser suprimidos (#212).
+    const affectedIds = changedAllowlistIds(
+      prevRows,
+      categories,
+      (row) => row.category_id,
+      (category) => category.id,
+      (before, after) =>
+        before.name !== after.name || before.is_publicly_listable !== after.isPubliclyListable,
+    );
+    await republishAffectedProjections(trx, affectedIds, []);
+
+    const updatedRows = await repository.listCategories(trx);
+    const newValue = updatedRows.map(categoryToPortal);
 
     await recordAudit(trx, {
       entityType: "settings",
@@ -281,10 +301,10 @@ export async function updateCategories(
       actionType: "settings.update",
       userId,
       previousValue: canonicalJson(previous),
-      newValue: canonicalJson(categories),
+      newValue: canonicalJson(newValue),
     });
 
-    return { categories };
+    return { categories: newValue };
   });
 }
 
@@ -358,12 +378,15 @@ export async function updateStatuses(
           "core_status_locked",
         );
       }
-      // O 16 precisa continuar elegível e o 17 fora da allowlist (issue #212).
-      // Sem este guard, um PATCH que omite ou inverte o campo religaria o 17
-      // e desligaria o corpus de concluídas.
-      if (incoming.isDuplicateCorpusEligible !== (existing.is_duplicate_corpus_eligible ?? true)) {
+      // Apenas os desfechos protegidos pela regra de duplicidade são travados:
+      // o 16 precisa continuar elegível e o 17 fora da allowlist (issue #212).
+      // Os demais status de núcleo são administráveis como sempre foram.
+      if (
+        (coreId === STATUS_IDS.completed || coreId === STATUS_IDS.canceled) &&
+        incoming.isDuplicateCorpusEligible !== existing.is_duplicate_corpus_eligible
+      ) {
         throw new AppError(
-          `A elegibilidade para o corpus de duplicidade do status de núcleo "${existing.name}" (id ${coreId}) é imutável.`,
+          `A elegibilidade para o corpus de duplicidade do status "${existing.name}" (id ${coreId}) é imutável.`,
           409,
           "core_status_corpus_eligibility_locked",
         );
@@ -372,22 +395,24 @@ export async function updateStatuses(
 
     await repository.upsertStatuses(trx, statuses);
 
-    // O snapshot de `is_publicly_listable` na projeção depende da allowlist de
-    // Status. Sem reavaliar, um Status desligado continuaria no índice e um
-    // religado só voltaria quando a Solicitação fosse editada (issue #212).
-    const affectedStatusIds = new Set<number>();
-    for (const status of statuses) {
-      const before = prevById.get(status.id);
-      if (!before || before.is_duplicate_corpus_eligible !== status.isDuplicateCorpusEligible) {
-        affectedStatusIds.add(status.id);
-      }
-    }
-    for (const status of prevRows) {
-      if (!incomingById.has(status.status_id) && status.is_duplicate_corpus_eligible) {
-        affectedStatusIds.add(status.status_id);
-      }
-    }
-    await republishProjectionsForStatuses(trx, [...affectedStatusIds]);
+    // Além da allowlist, `isActive`, `isTerminal` e `isRestricted` alimentam a
+    // precedência de supressão. Qualquer uma delas pode mudar em status
+    // não-core, então todas exigem reavaliação das projeções (#212).
+    const affectedStatusIds = changedAllowlistIds(
+      prevRows,
+      statuses,
+      (row) => row.status_id,
+      (status) => status.id,
+      (before, after) =>
+        before.is_duplicate_corpus_eligible !== after.isDuplicateCorpusEligible ||
+        before.is_active !== after.isActive ||
+        before.is_terminal !== after.isTerminal ||
+        before.is_restricted !== after.isRestricted,
+    );
+    await republishAffectedProjections(trx, [], affectedStatusIds);
+
+    const updatedRows = await repository.listStatuses(trx);
+    const newValue = updatedRows.map(statusToPortal);
 
     await recordAudit(trx, {
       entityType: "settings",
@@ -395,10 +420,10 @@ export async function updateStatuses(
       actionType: "settings.update",
       userId,
       previousValue: canonicalJson(previous),
-      newValue: canonicalJson(statuses),
+      newValue: canonicalJson(newValue),
     });
 
-    return { statuses };
+    return { statuses: newValue };
   });
 }
 

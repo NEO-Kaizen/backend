@@ -8,11 +8,11 @@ import {
 import { makeRequestPayload } from "../helpers/factories.ts";
 import { closeTestDb, insertAdmin, insertUser, resetTestDb, testDb } from "../helpers/testDb.ts";
 import type { DemandBlock } from "../../src/shared/types/requests.ts";
+import { STATUS_IDS } from "../../src/shared/types/status.ts";
 import {
   rebuildDuplicateIndex,
   resetDuplicateIndex,
 } from "../../src/modules/duplicates/indexLifecycle.ts";
-import { publishRequestProjection } from "../../src/modules/duplicates/projection.ts";
 import type { CreateRequestResponse } from "../../src/modules/DTOs/requests/RequestResponse.dto.ts";
 import type { PortalCategory, PortalStatus } from "../../src/shared/types/portalConfig.ts";
 
@@ -31,6 +31,9 @@ const DEMAND: DemandBlock = {
   expectedResult: "Conciliação automática diária.",
   justification: "Reduzir esforço manual e erros.",
 };
+
+// Status elegível não-core do seed (o 1 é core e imutável).
+const NON_CORE_ELIGIBLE_STATUS_ID = 9;
 
 let server: TestServer;
 
@@ -65,6 +68,12 @@ async function loginAdmin(): Promise<TestClient> {
   return client;
 }
 
+async function adminUserId(): Promise<number> {
+  const admin = await testDb("users").where({ email: "admin@neo.com" }).first();
+  if (!admin) throw new Error("Administrador de teste não encontrado.");
+  return admin.user_id;
+}
+
 async function createRequest(): Promise<CreateRequestResponse> {
   const client = new TestClient(server.baseUrl);
   const form = new FormData();
@@ -72,8 +81,21 @@ async function createRequest(): Promise<CreateRequestResponse> {
   const response = await client.request<CreateRequestResponse>("POST", "/requests", {
     rawBody: form,
   });
-  expect(response.status).toBe(201);
+  expect(response.status, response.text).toBe(201);
   return response.body;
+}
+
+/** Transição pela rota HTTP — a projeção é publicada pela própria transição. */
+async function changeRequestStatus(protocol: string, targetStatus: number): Promise<void> {
+  const client = await loginAdmin();
+  const response = await client.patch(`/requests/${protocol}/status`, {
+    targetStatus,
+    justification: "Teste de administração da detecção de duplicidade.",
+    ...(targetStatus === STATUS_IDS.completed
+      ? { lastTechnicalMessage: "Solicitação concluída." }
+      : {}),
+  });
+  expect(response.status).toBe(200);
 }
 
 async function projection(protocol: string) {
@@ -139,7 +161,7 @@ describe("DB — administração da detecção de duplicidade (RF16 #212)", () =
 
     const [audit] = await auditEntries();
     expect(audit).toBeDefined();
-    expect(audit.user_id).toBeTypeOf("number");
+    expect(audit.user_id).toBe(await adminUserId());
     expect(JSON.parse(audit.previous_value)).toEqual({
       enabled: true,
       completedWindowMonths: 3,
@@ -222,8 +244,7 @@ describe("DB — administração da detecção de duplicidade (RF16 #212)", () =
     const on = await patchAsAdmin("/portal-config/categories", { categories: enabled });
     expect(on.status).toBe(200);
 
-    const republished = await projection(created.protocol);
-    expect(republished).toMatchObject({
+    await expect(projection(created.protocol)).resolves.toMatchObject({
       public_id: before.public_id,
       publication_status: "published",
       is_publicly_listable: true,
@@ -231,37 +252,61 @@ describe("DB — administração da detecção de duplicidade (RF16 #212)", () =
     });
 
     const [categoryAudit] = await auditEntries();
-    expect(JSON.parse(categoryAudit.new_value)[0]).toHaveProperty("isPubliclyListable");
+    expect(categoryAudit.user_id).toBe(await adminUserId());
     expect(JSON.parse(categoryAudit.previous_value)[0]).toHaveProperty("isPubliclyListable");
+    expect(JSON.parse(categoryAudit.new_value)[0]).toHaveProperty("isPubliclyListable");
+  });
+
+  it("omitr uma Categoria antes listável a desliga da allowlist e suprime a projeção", async () => {
+    const created = await createRequest();
+    const categories = await categoriesPayload();
+    const omitted = categories.find((category) => category.name === DEMAND.category);
+    if (!omitted) throw new Error("Categoria da Solicitação não encontrada.");
+
+    const response = await patchAsAdmin("/portal-config/categories", {
+      categories: categories.filter((category) => category.id !== omitted.id),
+    });
+    expect(response.status).toBe(200);
+
+    await expect(projection(created.protocol)).resolves.toMatchObject({
+      publication_status: "suppressed",
+      is_publicly_listable: false,
+      suppression_reason: "ineligible_category",
+    });
+    await expect(
+      testDb("categories").where({ category_id: omitted.id }).first(),
+    ).resolves.toMatchObject({ status: "inactive", is_publicly_listable: false });
+
+    // O novo valor auditado reflete o estado pós-PATCH, incluindo o omitido.
+    const [categoryAudit] = await auditEntries();
+    const newValue = JSON.parse(categoryAudit.new_value) as PortalCategory[];
+    expect(newValue.find((category) => category.id === omitted.id)).toMatchObject({
+      isActive: false,
+      isPubliclyListable: false,
+    });
   });
 
   it("desligar Status elegível suprime a projeção e religar a republica", async () => {
     const created = await createRequest();
-    // Status 2 é não-core e elegível no baseline; o 1 é core e imutável.
-    const request = await testDb("requests").where({ protocol: created.protocol }).first();
-    await testDb("requests").where({ request_id: request.request_id }).update({ status_id: 2 });
-    await testDb.transaction((trx) => publishRequestProjection(trx, request.request_id));
-    const before = await projection(created.protocol);
-    expect(before.publication_status).toBe("published");
+    await changeRequestStatus(created.protocol, NON_CORE_ELIGIBLE_STATUS_ID);
+    expect(await projection(created.protocol)).toMatchObject({ publication_status: "published" });
 
     const statuses = await statusesPayload();
-    const target = statuses.find((status) => status.id === 2);
-    if (!target) throw new Error("Status 2 ausente no catálogo.");
+    const target = statuses.find((status) => status.id === NON_CORE_ELIGIBLE_STATUS_ID);
+    if (!target) throw new Error("Status elegível não-core ausente no catálogo.");
     target.isDuplicateCorpusEligible = false;
 
     const off = await patchAsAdmin("/portal-config/statuses", { statuses });
     expect(off.status).toBe(200);
-
-    const suppressed = await projection(created.protocol);
-    expect(suppressed).toMatchObject({
+    await expect(projection(created.protocol)).resolves.toMatchObject({
       publication_status: "suppressed",
       is_publicly_listable: false,
       suppression_reason: "ineligible_status",
     });
 
     const restored = await statusesPayload();
-    const restoredTarget = restored.find((status) => status.id === 2);
-    if (!restoredTarget) throw new Error("Status 2 ausente no catálogo.");
+    const restoredTarget = restored.find((status) => status.id === NON_CORE_ELIGIBLE_STATUS_ID);
+    if (!restoredTarget) throw new Error("Status elegível não-core ausente no catálogo.");
     restoredTarget.isDuplicateCorpusEligible = true;
     const on = await patchAsAdmin("/portal-config/statuses", { statuses: restored });
     expect(on.status).toBe(200);
@@ -270,12 +315,40 @@ describe("DB — administração da detecção de duplicidade (RF16 #212)", () =
       is_publicly_listable: true,
       suppression_reason: null,
     });
+
+    const [statusAudit] = await auditEntries();
+    expect(statusAudit.user_id).toBe(await adminUserId());
+    const previous = JSON.parse(statusAudit.previous_value) as PortalStatus[];
+    const newValue = JSON.parse(statusAudit.new_value) as PortalStatus[];
+    expect(previous.find((status) => status.id === NON_CORE_ELIGIBLE_STATUS_ID)).toMatchObject({
+      isDuplicateCorpusEligible: true,
+    });
+    expect(newValue.find((status) => status.id === NON_CORE_ELIGIBLE_STATUS_ID)).toMatchObject({
+      isDuplicateCorpusEligible: false,
+    });
   });
 
-  it("mantém imutável a elegibilidade dos status de núcleo (16 ligado, 17 desligado)", async () => {
+  it("alterar isTerminal de Status não-core reavalia a projeção", async () => {
+    const created = await createRequest();
+    await changeRequestStatus(created.protocol, NON_CORE_ELIGIBLE_STATUS_ID);
+
     const statuses = await statusesPayload();
-    const completed = statuses.find((status) => status.id === 16);
-    const canceled = statuses.find((status) => status.id === 17);
+    const target = statuses.find((status) => status.id === NON_CORE_ELIGIBLE_STATUS_ID);
+    if (!target) throw new Error("Status elegível não-core ausente no catálogo.");
+    target.isTerminal = true;
+
+    const response = await patchAsAdmin("/portal-config/statuses", { statuses });
+    expect(response.status).toBe(200);
+    await expect(projection(created.protocol)).resolves.toMatchObject({
+      publication_status: "suppressed",
+      suppression_reason: "terminal_status",
+    });
+  });
+
+  it("mantém imutável a elegibilidade do 16 (ligado) e do 17 (desligado)", async () => {
+    const statuses = await statusesPayload();
+    const completed = statuses.find((status) => status.id === STATUS_IDS.completed);
+    const canceled = statuses.find((status) => status.id === STATUS_IDS.canceled);
     if (!completed || !canceled) throw new Error("Status de núcleo ausente no catálogo.");
     expect(completed.isDuplicateCorpusEligible).toBe(true);
     expect(canceled.isDuplicateCorpusEligible).toBe(false);
@@ -284,13 +357,12 @@ describe("DB — administração da detecção de duplicidade (RF16 #212)", () =
     const off = await patchAsAdmin<{ code: string }>("/portal-config/statuses", { statuses });
     expect(off.status).toBe(409);
     expect(off.body.code).toBe("core_status_corpus_eligibility_locked");
-
-    await expect(testDb("statuses").where({ status_id: 16 }).first()).resolves.toMatchObject({
-      is_duplicate_corpus_eligible: true,
-    });
+    await expect(
+      testDb("statuses").where({ status_id: STATUS_IDS.completed }).first(),
+    ).resolves.toMatchObject({ is_duplicate_corpus_eligible: true });
 
     const restored = await statusesPayload();
-    const canceled17 = restored.find((status) => status.id === 17);
+    const canceled17 = restored.find((status) => status.id === STATUS_IDS.canceled);
     if (!canceled17) throw new Error("Status 17 ausente no catálogo.");
     canceled17.isDuplicateCorpusEligible = true;
     const on = await patchAsAdmin<{ code: string }>("/portal-config/statuses", {
@@ -298,8 +370,47 @@ describe("DB — administração da detecção de duplicidade (RF16 #212)", () =
     });
     expect(on.status).toBe(409);
     expect(on.body.code).toBe("core_status_corpus_eligibility_locked");
-    await expect(testDb("statuses").where({ status_id: 17 }).first()).resolves.toMatchObject({
-      is_duplicate_corpus_eligible: false,
+    await expect(
+      testDb("statuses").where({ status_id: STATUS_IDS.canceled }).first(),
+    ).resolves.toMatchObject({ is_duplicate_corpus_eligible: false });
+  });
+
+  it("ampliar a janela pelo PATCH republica concluídas na varredura seguinte", async () => {
+    const narrowed = await patchAsAdmin("/portal-config/duplicates", {
+      enabled: true,
+      completedWindowMonths: 1,
+    });
+    expect(narrowed.status).toBe(200);
+
+    const created = await createRequest();
+    await changeRequestStatus(created.protocol, STATUS_IDS.completed);
+    // Fixture de tempo: a Solicitação foi concluída há 4 meses (fora da janela
+    // de 1). `public_concluded_at` é snapshot usado pela varredura, então a
+    // fixture atualiza as duas colunas — sem chamar o service diretamente.
+    const concludedAt = new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000).toISOString();
+    const request = await testDb("requests").where({ protocol: created.protocol }).first();
+    await testDb("requests")
+      .where({ request_id: request.request_id })
+      .update({ concluded_at: concludedAt });
+    await testDb("request_public_projections")
+      .where({ request_id: request.request_id })
+      .update({ public_concluded_at: concludedAt });
+    await rebuildDuplicateIndex();
+    await expect(projection(created.protocol)).resolves.toMatchObject({
+      publication_status: "suppressed",
+      suppression_reason: "outside_window",
+    });
+
+    const widened = await patchAsAdmin("/portal-config/duplicates", {
+      enabled: true,
+      completedWindowMonths: 6,
+    });
+    expect(widened.status).toBe(200);
+    await rebuildDuplicateIndex();
+
+    await expect(projection(created.protocol)).resolves.toMatchObject({
+      publication_status: "published",
+      suppression_reason: null,
     });
   });
 

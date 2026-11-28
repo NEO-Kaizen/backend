@@ -195,10 +195,11 @@ export async function upsertCategories(
 
   const keepIds = categories.map((c) => c.id);
   if (keepIds.length > 0) {
+    // Categoria omitida sai da allowlist: sem isso a projeção continuaria
+    // publicada mesmo depois da reavaliação (#212).
     await trx("categories")
       .whereNotIn("category_id", keepIds)
-      .andWhere({ status: "active" })
-      .update({ status: "inactive" });
+      .update({ status: "inactive", is_publicly_listable: false });
   }
 
   await trx.raw(
@@ -234,7 +235,7 @@ export async function upsertStatuses(
       mapping_mode: mappingMode,
       tone: status.tone,
       is_active: status.isActive,
-      is_duplicate_corpus_eligible: status.isDuplicateCorpusEligible ?? true,
+      is_duplicate_corpus_eligible: status.isDuplicateCorpusEligible,
     } as const;
     await trx("statuses").insert(row).onConflict("status_id").merge(row);
   }

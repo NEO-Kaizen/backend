@@ -144,10 +144,13 @@ janela aumentou.
 A #212 edita e audita a configuração por
 `PATCH /portal-config/duplicates` (`enabled` e `completedWindowMonths`, 1..36) e
 pelos PATCHes de Categorias/Status. O Status 16 permanece ligado na allowlist e
-os desfechos 10, 13, 17 e 19 continuam fora dela. Alternar a elegibilidade de
-uma Categoria ou de um Status reavalia as projeções afetadas na mesma transação
-do PATCH: desligar suprime e religar republica o que for elegível, reusando a
-mesma precedência de supressão e o mesmo gate de PII dos eventos da Solicitação.
+o 17 desligado; 10 e 13 nascem desligados, mas podem ser ligados pelo
+Administrador (o 19 ainda não existe no catálogo e, quando criado, deve nascer
+desligado). Alternar a elegibilidade de uma Categoria ou de um Status — ou
+alterar `isActive`/`isTerminal`/`isRestricted` de um Status não-core — reavalia
+as projeções afetadas na mesma transação do PATCH, em lotes de até 50: desligar
+suprime e religar republica o que for elegível, reusando a mesma precedência de
+supressão e o mesmo gate de PII dos eventos da Solicitação.
 
 ### Backfill de `concluded_at`
 

@@ -273,7 +273,7 @@ export default {
       tags: ["Configuração do portal"],
       summary: "Alterar status do ciclo do portal",
       description:
-        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis, incluindo `isDuplicateCorpusEligible` (o 16 permanece ligado e o 17 desligado). `isDuplicateCorpusEligible` é obrigatório em cada item: alterná-lo suprime ou republica, na mesma transação, as projeções das Solicitações do Status. Exige perfil `Administrador`.",
+        "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis; a elegibilidade para o corpus do 16 (ligado) e do 17 (desligado) também é fixa. `isDuplicateCorpusEligible` é obrigatório em cada item. Alterar elegibilidade, `isActive`, `isTerminal` ou `isRestricted` reavalia, na mesma transação, as projeções das Solicitações do Status. Exige perfil `Administrador`.",
       operationId: "updatePortalStatuses",
       security: [{ cookieAuth: [] }],
       requestBody: {
@@ -371,20 +371,7 @@ export default {
           description: "Configuração de detecção de duplicidade alterada com sucesso.",
           content: {
             "application/json": {
-              schema: {
-                type: "object",
-                required: ["enabled", "completedWindowMonths"],
-                properties: {
-                  enabled: {
-                    type: "boolean",
-                    description: "Flag de detecção de duplicidade.",
-                  },
-                  completedWindowMonths: {
-                    type: "integer",
-                    description: "Janela de conclusão em meses (1..36). Padrão 3 meses.",
-                  },
-                },
-              },
+              schema: { $ref: "#/components/schemas/DuplicateDetectionPatchBody" },
             },
           },
         },

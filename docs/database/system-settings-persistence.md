@@ -303,19 +303,20 @@ opera em transação própria com lock do singleton:
   cliente), `display_order` = índice do array; itens ausentes tornam-se
   `status = 'inactive'` (sem hard delete — FK RESTRICT em `requests`).
   `is_publicly_listable` é obrigatório no PATCH e grava a allowlist do corpus.
-  Alterná-lo (ou omitir uma Categoria antes listável) reavalia, na mesma
-  transação, as projeções das Solicitações da Categoria. Seguido de `setval`
-  para não colidir com a sequence.
+  Categoria omitida também sai da allowlist. Alternar o flag ou o nome reavalia,
+  na mesma transação e em lotes de até 50, as projeções das Solicitações da
+  Categoria. Seguido de `setval` para não colidir com a sequence.
 - **`statuses`** → upsert por `status_id`, `order_number` = índice e as flags
   do Motor v4 (`is_core`, `is_public`, `is_terminal`, `triage_mode`,
   `mapping_mode`, `is_restricted`, `tone`, `is_active`), além de
   `is_duplicate_corpus_eligible` (obrigatório no PATCH). Ausentes viram
   `is_active = false`, perdem a elegibilidade e são renumerados para depois dos
-  enviados. Alternar a elegibilidade reavalia as projeções das Solicitações do
-  Status na mesma transação. Status core
+  enviados. Alternar elegibilidade, `isActive`, `isTerminal` ou `isRestricted`
+  reavalia as projeções das Solicitações do Status na mesma transação, em lotes
+  de até 50. Status core
   (`1, 3, 4, 6, 7, 16, 17`) não podem ser removidos, renomeados, rebaixados,
-  desativados nem ter flags/modos alterados — inclusive
-  `is_duplicate_corpus_eligible` (violação → `409` com código estável
+  desativados nem ter flags/modos alterados; a elegibilidade do 16 (ligado) e
+  do 17 (desligado) é fixa (violação → `409` com código estável
   `core_status_corpus_eligibility_locked`). A unicidade de `order_number`
   (`uk_statuses_order`) é `DEFERRABLE INITIALLY DEFERRED` (migration
   `20260919140000`), validada no commit após a renumeração. O `GET` retorna
