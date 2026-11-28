@@ -14,6 +14,7 @@ import {
   updateStatusSchema,
 } from "./requests.schema.ts";
 import * as service from "./requests.service.ts";
+import type { TrackingCaller } from "./requests.service.ts";
 
 /**
  * `req.user` só existe quando o `requireAccessMode`/`authMiddleware` autenticou
@@ -33,6 +34,11 @@ function requireAuthenticatedUserId(req: Request): number {
   return userId;
 }
 
+/** Credencial dual compartilhada pelo Acompanhamento e pela seção de duplicidade. */
+function trackingCaller(req: Request): TrackingCaller {
+  return { user: req.user, requesterIdentity: req.requesterIdentity ?? null };
+}
+
 export const getRequestsByProtocol = async (req: Request, res: Response): Promise<Response> => {
   const protocol = assertProtocolParam(req);
 
@@ -45,25 +51,21 @@ export const getRequestsByProtocol = async (req: Request, res: Response): Promis
 // sessão do Solicitante → `authenticated`; identidade pública → `public`. A
 // decisão de modo e o owner-check ficam no service.
 export const getTracking = async (req: Request, res: Response): Promise<Response> => {
-  const protocol = assertProtocolParam(req);
-
-  const response = await service.getTracking(protocol, {
-    user: req.user,
-    requesterIdentity: req.requesterIdentity ?? null,
-  });
+  const response = await service.getTracking(assertProtocolParam(req), trackingCaller(req));
 
   return res.status(200).json(response);
 };
 
 // Seção de duplicidade do Acompanhamento (RF16 — issue #211). Mesma credencial
 // dual e mesmo recorte do `tracking`; o service exclui a própria Solicitação.
+// A resposta varia por chamador, por isso não pode ser cacheada.
 export const getRequestDuplicates = async (req: Request, res: Response): Promise<Response> => {
-  const protocol = assertProtocolParam(req);
+  res.set("Cache-Control", "no-store");
 
-  const response = await service.getRequestDuplicates(protocol, {
-    user: req.user,
-    requesterIdentity: req.requesterIdentity ?? null,
-  });
+  const response = await service.getRequestDuplicates(
+    assertProtocolParam(req),
+    trackingCaller(req),
+  );
 
   return res.status(200).json(response);
 };

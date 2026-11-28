@@ -101,7 +101,7 @@ async function getDuplicates(
 }
 
 describe("DB — GET /requests/:protocol/duplicates (issue #211)", () => {
-  it("sessão do dono devolve a seção sem a própria Solicitação", async () => {
+  it("sessão do Solicitante com Posse devolve a seção sem a própria Solicitação", async () => {
     const owner = await insertUser({
       fullName: OWNER_NAME,
       email: OWNER_EMAIL,
@@ -209,7 +209,7 @@ describe("DB — GET /requests/:protocol/duplicates (issue #211)", () => {
     expect(duplicates.body).toEqual(tracking.body);
   });
 
-  it("não devolve a própria Solicitação quando a projeção dela está suprimida", async () => {
+  it("própria Solicitação com projeção suprimida devolve a seção vazia", async () => {
     const owner = await insertUser({
       fullName: OWNER_NAME,
       email: OWNER_EMAIL,
@@ -241,7 +241,7 @@ describe("DB — GET /requests/:protocol/duplicates (issue #211)", () => {
     expect(body).toEqual({ confidence: "none", items: [] });
   });
 
-  it("flag desligada devolve lista vazia mesmo para o dono", async () => {
+  it("flag desligada devolve lista vazia mesmo para o Solicitante com Posse", async () => {
     const owner = await insertUser({
       fullName: OWNER_NAME,
       email: OWNER_EMAIL,

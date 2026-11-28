@@ -80,16 +80,16 @@ Atribuibilidade não é `request:assign`: atribuir é escolher o Responsável; s
 
 O termo _Solicitante_ cobre dois casos que não são o mesmo ator:
 
-|                | Público                                                        | Autenticado                                                                  |
-| -------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Quem é         | pessoa sem conta                                               | conta com sessão; qualquer perfil                                            |
-| Perfil         | não existe                                                     | perfil vigente; o perfil `Solicitante` tem as três chaves de autoatendimento |
-| Identidade     | e-mail declarado (`X-Requester-Identity` ou query) + protocolo | e-mail da conta, vindo da sessão, + protocolo                                |
-| Autorização    | porta pública, sem chave                                       | `request:create`, `request:track` em `own`, `pending_item:respond` em `own`  |
-| Abertura       | `POST /requests` sem chave                                     | `POST /requests` com `request:create`                                        |
-| Acompanhamento | `GET /requests?email=`, `/:protocol`, `/tracking` sem chave    | as mesmas rotas com `request:track` em `own`                                 |
-| Pendências     | leitura e resposta sem chave                                   | `pending_item:respond` em `own`                                              |
-| Visão interna  | nenhuma                                                        | só com a chave interna e a custódia                                          |
+|                | Público                                                                    | Autenticado                                                                  |
+| -------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Quem é         | pessoa sem conta                                                           | conta com sessão; qualquer perfil                                            |
+| Perfil         | não existe                                                                 | perfil vigente; o perfil `Solicitante` tem as três chaves de autoatendimento |
+| Identidade     | e-mail declarado (`X-Requester-Identity` ou query) + protocolo             | e-mail da conta, vindo da sessão, + protocolo                                |
+| Autorização    | porta pública, sem chave                                                   | `request:create`, `request:track` em `own`, `pending_item:respond` em `own`  |
+| Abertura       | `POST /requests` sem chave                                                 | `POST /requests` com `request:create`                                        |
+| Acompanhamento | `GET /requests?email=`, `/:protocol`, `/tracking`, `/duplicates` sem chave | as mesmas rotas com `request:track` em `own`                                 |
+| Pendências     | leitura e resposta sem chave                                               | `pending_item:respond` em `own`                                              |
+| Visão interna  | nenhuma                                                                    | só com a chave interna e a custódia                                          |
 
 A porta pública existe apenas porque não há ator: sem sessão, não há perfil nem chave para avaliar, e ela só opera no modo `PUBLIC`. Com sessão, qualquer perfil é um Solicitante **por chaves** — o Administrador que abre uma solicitação vê a própria solicitação exatamente como o perfil Solicitante, não como a porta pública. A sessão decide qual porta o ator usa; o modo de acesso decide se a porta pública é permitida.
 
@@ -383,6 +383,7 @@ As rotas abaixo são a referência de contrato. O que vale é a chave; a rota po
 | `GET /requests?email=`                                                                                | `request:track` em `own` com sessão; porta pública sem sessão                                            |
 | `GET /requests/:protocol`                                                                             | `request:track` em `own` com sessão; porta pública sem sessão                                            |
 | `GET /requests/:protocol/tracking`                                                                    | `request:track` em `own` com sessão; porta pública sem sessão                                            |
+| `GET /requests/:protocol/duplicates`                                                                  | `request:track` em `own` com sessão; porta pública sem sessão                                            |
 | `GET /requests/:protocol/internal`                                                                    | `request:read` + custódia                                                                                |
 | `PATCH /requests/:protocol/internal`                                                                  | `request:write` + custódia                                                                               |
 | `PATCH /requests/:protocol/internal/assignee`, `PATCH /requests/:protocol/assignee`                   | `request:assign`; alvo validado pela atribuibilidade                                                     |

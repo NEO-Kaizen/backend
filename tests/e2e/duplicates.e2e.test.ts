@@ -229,7 +229,7 @@ describe("E2E — GET /requests/:protocol/duplicates", () => {
     expectErrorEnvelope(response, { statusCode: 404, message: /encontrado/ });
   });
 
-  it("sessão do dono devolve o DTO do alerta e exclui a própria Solicitação", async () => {
+  it("sessão do Solicitante com Posse devolve o DTO do alerta e exclui a própria Solicitação", async () => {
     mockSolicitanteSession();
     vi.mocked(requestsRepository.findInternalRequestByProtocol).mockResolvedValue(makeRequestRow());
     vi.mocked(duplicatesRepository.findPublishedPublicIdByRequestId).mockResolvedValue(
@@ -244,6 +244,7 @@ describe("E2E — GET /requests/:protocol/duplicates", () => {
     const response = await client.get(`/requests/${PROTOCOL}/duplicates`, solicitanteCookie());
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.body).toEqual({ confidence: "high", items: [ITEM] });
   });
 

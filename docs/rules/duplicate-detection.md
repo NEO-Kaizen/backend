@@ -13,8 +13,11 @@ flag/janela/allowlists pertence à #212; canário, calibração e carga à #213.
 
 ## Corpus público
 
-A busca lê **somente** `request_public_projections` e `system_settings`; ela
-nunca consulta `requests`. A projeção é a fronteira de privacidade (RN04).
+O corpus da busca lê **somente** `request_public_projections` e
+`system_settings`; ele nunca consulta `requests`. A projeção é a fronteira de
+privacidade (RN04). A seção do Acompanhamento (issue #211) lê a Demanda da
+própria Solicitação em `requests` apenas para montar os termos da consulta —
+os itens devolvidos continuam vindo só da projeção.
 
 ### Abertas
 
@@ -257,7 +260,7 @@ registra as regras de negócio.
 
 - o texto da consulta não é ecoado, auditado nem logado;
 - o item expõe exatamente `publicId`, `title`, `summary`, `category`, `status` e
-  `period`, sem Protocolo, score, total, contagem, Notas internas, Triagem,
+  `period`, sem Protocolo, medida de Similaridade, total, contagem, Notas internas, Triagem,
   Prioridade, Responsável, Anexos ou PII de terceiros;
 - a faixa de confiança (`high`, `medium` ou `none`) aplica piso e margem da
   configuração provisória e limita a 3 itens em `high` e 5 em `medium`;
@@ -266,9 +269,9 @@ registra as regras de negócio.
 
 `GET /requests/:protocol/duplicates` (issue #211):
 
-- exige a mesma credencial do Acompanhamento — sessão do dono ou identidade
-  pública no modo `PUBLIC` — e recusa perfis internos com o mesmo erro do
-  Acompanhamento;
+- exige a mesma credencial do Acompanhamento — sessão do Solicitante com Posse
+  ou identidade pública no modo `PUBLIC` — e recusa perfis internos com o mesmo
+  erro do Acompanhamento;
 - usa o mesmo corpus, índice, regra de confiança e DTO do alerta, com no máximo
   5 itens;
 - exclui a própria Solicitação pelo `public_id` da projeção publicada; se ela

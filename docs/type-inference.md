@@ -4432,10 +4432,12 @@ interface GroupedIssues {
 
 ### [src/modules/duplicates/duplicates.rateLimit.ts](../src/modules/duplicates/duplicates.rateLimit.ts)
 
-- L10 â€” variÃ¡vel: `perTenSeconds`
-- L11 â€” variÃ¡vel: `perMinute`
-- L13 â€” variÃ¡vel: `RATE_LIMIT_MESSAGE`
-- L16 â€” variÃ¡vel: `ip`
+- L10 â€” variÃ¡vel: `RATE_LIMIT_MESSAGE`
+- L13 â€” variÃ¡vel: `perTenSeconds`
+- L14 â€” variÃ¡vel: `perMinute`
+- L17 â€” variÃ¡vel: `ip`
+- L28 â€” variÃ¡vel: `duplicateCheckRateLimit`
+- L29 â€” variÃ¡vel: `duplicateTrackingRateLimit`
 
 ### [src/modules/duplicates/duplicates.repository.ts](../src/modules/duplicates/duplicates.repository.ts)
 
@@ -5582,50 +5584,48 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.controller.ts](../src/modules/requests/requests.controller.ts)
 
-- L27 â€” variÃ¡vel: `userId`
-- L36 â€” variÃ¡vel: `getRequestsByProtocol`
-- L37 â€” variÃ¡vel: `protocol`
-- L39 â€” variÃ¡vel: `foundRequest`
-- L47 â€” variÃ¡vel: `getTracking`
-- L48 â€” variÃ¡vel: `protocol`
-- L50 â€” variÃ¡vel: `response`
-- L60 â€” variÃ¡vel: `getRequestDuplicates`
-- L61 â€” variÃ¡vel: `protocol`
-- L63 â€” variÃ¡vel: `response`
-- L74 â€” variÃ¡vel: `getInternalRequestByProtocol`
-- L78 â€” variÃ¡vel: `protocol`
-- L80 â€” variÃ¡vel: `request`
-- L87 â€” variÃ¡vel: `protocol`
-- L101 â€” variÃ¡vel: `id`
-- L111 â€” variÃ¡vel: `patchInternalRequestByProtocol`
-- L115 â€” variÃ¡vel: `protocol`
-- L117 â€” variÃ¡vel: `parsed`
-- L119 â€” variÃ¡vel: `{ message, fields }`
-- L123 â€” variÃ¡vel: `updated`
-- L133 â€” variÃ¡vel: `postRequest`
-- L147 â€” variÃ¡vel: `parsed`
-- L151 â€” variÃ¡vel: `multerFiles`
-- L152 â€” variÃ¡vel: `attachments`
-- L154 â€” variÃ¡vel: `savedAttachments`
-- L156 â€” variÃ¡vel: `response`
-- L165 â€” variÃ¡vel: `getRequestsByEmail`
-- L172 â€” variÃ¡vel: `parsed`
-- L178 â€” variÃ¡vel: `requests`
-- L190 â€” variÃ¡vel: `parsed`
-- L196 â€” variÃ¡vel: `requests`
-- L201 â€” variÃ¡vel: `getAssignees`
-- L205 â€” variÃ¡vel: `patchAssignee`
-- L206 â€” variÃ¡vel: `protocol`
-- L208 â€” variÃ¡vel: `parsed`
-- L213 â€” variÃ¡vel: `response`
-- L223 â€” variÃ¡vel: `patchInternalAssignee`
-- L224 â€” variÃ¡vel: `protocol`
-- L226 â€” variÃ¡vel: `parsed`
-- L231 â€” variÃ¡vel: `response`
-- L241 â€” variÃ¡vel: `patchRequestStatus`
-- L242 â€” variÃ¡vel: `protocol`
-- L244 â€” variÃ¡vel: `parsed`
-- L249 â€” variÃ¡vel: `response`
+- L28 â€” variÃ¡vel: `userId`
+- L42 â€” variÃ¡vel: `getRequestsByProtocol`
+- L43 â€” variÃ¡vel: `protocol`
+- L45 â€” variÃ¡vel: `foundRequest`
+- L53 â€” variÃ¡vel: `getTracking`
+- L54 â€” variÃ¡vel: `response`
+- L62 â€” variÃ¡vel: `getRequestDuplicates`
+- L65 â€” variÃ¡vel: `response`
+- L76 â€” variÃ¡vel: `getInternalRequestByProtocol`
+- L80 â€” variÃ¡vel: `protocol`
+- L82 â€” variÃ¡vel: `request`
+- L89 â€” variÃ¡vel: `protocol`
+- L103 â€” variÃ¡vel: `id`
+- L113 â€” variÃ¡vel: `patchInternalRequestByProtocol`
+- L117 â€” variÃ¡vel: `protocol`
+- L119 â€” variÃ¡vel: `parsed`
+- L121 â€” variÃ¡vel: `{ message, fields }`
+- L125 â€” variÃ¡vel: `updated`
+- L135 â€” variÃ¡vel: `postRequest`
+- L149 â€” variÃ¡vel: `parsed`
+- L153 â€” variÃ¡vel: `multerFiles`
+- L154 â€” variÃ¡vel: `attachments`
+- L156 â€” variÃ¡vel: `savedAttachments`
+- L158 â€” variÃ¡vel: `response`
+- L167 â€” variÃ¡vel: `getRequestsByEmail`
+- L174 â€” variÃ¡vel: `parsed`
+- L180 â€” variÃ¡vel: `requests`
+- L192 â€” variÃ¡vel: `parsed`
+- L198 â€” variÃ¡vel: `requests`
+- L203 â€” variÃ¡vel: `getAssignees`
+- L207 â€” variÃ¡vel: `patchAssignee`
+- L208 â€” variÃ¡vel: `protocol`
+- L210 â€” variÃ¡vel: `parsed`
+- L215 â€” variÃ¡vel: `response`
+- L225 â€” variÃ¡vel: `patchInternalAssignee`
+- L226 â€” variÃ¡vel: `protocol`
+- L228 â€” variÃ¡vel: `parsed`
+- L233 â€” variÃ¡vel: `response`
+- L243 â€” variÃ¡vel: `patchRequestStatus`
+- L244 â€” variÃ¡vel: `protocol`
+- L246 â€” variÃ¡vel: `parsed`
+- L251 â€” variÃ¡vel: `response`
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
@@ -5692,7 +5692,7 @@ interface GroupedIssues {
 
 ### [src/modules/requests/requests.router.ts](../src/modules/requests/requests.router.ts)
 
-- L23 â€” variÃ¡vel: `requestsRoutes`
+- L26 â€” variÃ¡vel: `requestsRoutes`
 
 ### [src/modules/requests/requests.schema.ts](../src/modules/requests/requests.schema.ts)
 
