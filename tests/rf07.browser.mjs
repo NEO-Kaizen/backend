@@ -1,3 +1,4 @@
+/* global document:readonly, getComputedStyle:readonly */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -72,11 +73,132 @@ export async function verifyTrackingInBrowser({
       await page.waitForURL("**" + path(protocol));
     };
     const posted = [];
+    const reopenPosts = [];
     page.on("request", (request) => {
+      if (request.method() === "POST" && request.url().endsWith("/reopen")) {
+        reopenPosts.push(new URL(request.url()).pathname);
+      }
       if (request.method() === "POST" && request.url().endsWith("/cancel")) {
         posted.push(new URL(request.url()).pathname);
       }
     });
+
+    // RF07: regressão visual e de teclado sobre os componentes reais.
+    const assertColor = async (locator, property, expected) => {
+      let colors;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        colors = await locator.evaluate(
+          (element, { property, expected }) => {
+            const probe = document.createElement("span");
+            element.append(probe);
+            probe.style.setProperty(property, expected);
+            try {
+              return {
+                actual: getComputedStyle(element).getPropertyValue(property),
+                expected: getComputedStyle(probe).getPropertyValue(property),
+              };
+            } finally {
+              probe.remove();
+            }
+          },
+          { property, expected },
+        );
+        if (colors.actual === colors.expected) return;
+        await delay(50);
+      }
+      assert.equal(colors.actual, colors.expected, property);
+    };
+
+    const assertFocused = async (locator) => {
+      for (let attempt = 0; attempt < 30; attempt++) {
+        if (await locator.evaluate((element) => document.activeElement === element)) return;
+        await delay(50);
+      }
+      assert.fail("Foco fora do elemento esperado");
+    };
+
+    const verifyKeyboard = async (trigger, field, submitButton) => {
+      await trigger.focus();
+      await trigger.click();
+      await dialog.waitFor();
+      await assertFocused(dialog);
+      const close = dialog.getByRole("button", { name: "Fechar", exact: true });
+      const back = dialog.getByRole("button", { name: "Voltar", exact: true });
+      assert.equal(await dialog.getAttribute("aria-modal"), "true");
+      await page.keyboard.press("Tab");
+      await assertFocused(close);
+      await page.keyboard.press("Tab");
+      await assertFocused(field);
+      await page.keyboard.press("Tab");
+      await assertFocused(back);
+      await page.keyboard.press("Tab");
+      await assertFocused(close);
+      await field.fill("Verificação de teclado sem envio.");
+      await close.focus();
+      await page.keyboard.press("Shift+Tab");
+      await assertFocused(submitButton);
+      await page.keyboard.press("Tab");
+      await assertFocused(close);
+      await page.keyboard.press("Escape");
+      await dialog.waitFor({ state: "detached" });
+      await assertFocused(trigger);
+    };
+
+    await open(requestB.protocol);
+    const viewport = page.viewportSize();
+    assert.ok(viewport);
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await action.waitFor();
+      assert.equal(await action.locator(".material-symbols-outlined").innerText(), "block");
+      await assertColor(
+        action,
+        "color",
+        "color-mix(in srgb, var(--status-red) 65%, var(--text-color-primary))",
+      );
+      await assertColor(action, "border-radius", "var(--radius-md)");
+      await page.mouse.move(0, 0);
+      await assertColor(action, "background-color", "transparent");
+      if (width === 390) {
+        const alignment = await action.evaluate((element) => {
+          const group = element.closest(".right-status");
+          const header = element.closest(".tracking-header");
+          const pill = group.querySelector(".status-pill");
+          return {
+            alignItems: getComputedStyle(group).alignItems,
+            alignSelf: getComputedStyle(group).alignSelf,
+            groupRight: group.getBoundingClientRect().right,
+            headerRight: header.getBoundingClientRect().right,
+            buttonRight: element.getBoundingClientRect().right,
+            pillRight: pill.getBoundingClientRect().right,
+          };
+        });
+        console.log("[RF07] Geometria mobile:", JSON.stringify(alignment));
+
+        assert.ok(
+          Math.abs(alignment.groupRight - alignment.headerRight) <= 2,
+          "Grupo de status desalinhado: " + JSON.stringify(alignment),
+        );
+        assert.ok(
+          Math.abs(alignment.buttonRight - alignment.pillRight) <= 2,
+          "Botao de cancelamento desalinhado: " + JSON.stringify(alignment),
+        );
+      }
+      await action.click();
+      await dialog.waitFor();
+      await reason.fill("Verificação visual sem envio.");
+      await assertColor(
+        confirm,
+        "background-color",
+        "color-mix(in srgb, var(--status-red) 65%, var(--rich-black))",
+      );
+      await page.keyboard.press("Escape");
+      await dialog.waitFor({ state: "detached" });
+    }
+    await page.setViewportSize(viewport);
+    await verifyKeyboard(action, reason, confirm);
+    assert.deepEqual(posted, []);
+    console.log("[RF07] Estilo desktop/mobile e teclado confirmados.");
 
     // Cria histórico de navegação SPA e deixa a confirmação de A aberta ao voltar para B.
     await open(requestB.protocol);
@@ -154,6 +276,13 @@ export async function verifyTrackingInBrowser({
     });
 
     await reopenAction.waitFor();
+    await verifyKeyboard(
+      reopenAction,
+      dialog.getByLabel("Justificativa da reabertura"),
+      dialog.getByRole("button", { name: "Confirmar reabertura", exact: true }),
+    );
+    assert.deepEqual(reopenPosts, []);
+    console.log("[RF02] Teclado e retorno do foco confirmados.");
     await reopenAction.click();
 
     await dialog.getByText("Protocolo " + requestB.protocol).waitFor();
@@ -184,6 +313,7 @@ export async function verifyTrackingInBrowser({
     const reopenResponse = await reopened;
 
     assert.equal(reopenResponse.status(), 200);
+    assert.deepEqual(reopenPosts, ["/requests/" + requestB.protocol + "/reopen"]);
 
     await dialog.waitFor({ state: "detached" });
 
