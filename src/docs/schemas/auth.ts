@@ -1,16 +1,33 @@
+/**
+ * Referência de Perfil na sessão: a identidade e o rótulo de
+ * `ProfileReference` somados à marca estável `isRoot`.
+ *
+ * `isRoot` é a única fonte de identidade do Perfil Admin Root; não derive
+ * autoridade de `name`, que é editável.
+ */
+export const SessionProfileReference = {
+  description: "Perfil da sessão, com a marca estável do Admin Root.",
+  allOf: [{ $ref: "#/components/schemas/ProfileReference" }],
+  type: "object",
+  required: ["id", "name", "isRoot"],
+  properties: {
+    isRoot: {
+      type: "boolean",
+      example: false,
+      description: "`true` apenas quando a conta pertence ao Perfil Admin Root.",
+    },
+  },
+};
+
 export const AuthenticatedUser = {
   type: "object",
-  required: ["id", "name", "email", "avatarUrl", "role", "mustChangePassword"],
+  required: ["id", "email", "name", "profile", "mustChangePassword"],
   properties: {
     id: { type: "string", example: "101" },
-    name: { type: "string", example: "Administrador Teste" },
-    email: { type: "string", format: "email", example: "administrador_teste@email.com" },
+    email: { type: "string", example: "administrador_teste@email.com" },
+    name: { type: "string", example: "administrador" },
     avatarUrl: { type: "string", nullable: true, example: "/uploads/avatars/101-foto.jpg" },
-    role: {
-      type: "string",
-      enum: ["Solicitante", "Analista", "Gestor", "Administrador"],
-      example: "Administrador",
-    },
+    profile: { $ref: "#/components/schemas/SessionProfileReference" },
     mustChangePassword: { type: "boolean", example: false },
   },
 };
@@ -18,7 +35,6 @@ export const AuthenticatedUser = {
 export const LoginRequest = {
   type: "object",
   required: ["email", "password"],
-  additionalProperties: false,
   properties: {
     email: { type: "string", format: "email", example: "administrador_teste@email.com" },
     password: { type: "string", format: "password", example: "steste123" },
@@ -26,7 +42,16 @@ export const LoginRequest = {
 };
 
 export const LoginResponse = {
-  $ref: "#/components/schemas/AuthenticatedUser",
+  type: "object",
+  allOf: [
+    { $ref: "#/components/schemas/AuthenticatedUser" },
+    {
+      type: "object",
+      properties: {
+        // cookie definido automaticamente pelo servidor (HttpOnly)
+      },
+    },
+  ],
 };
 
 export const LogoutResponse = {
@@ -40,7 +65,6 @@ export const LogoutResponse = {
 export const ChangePasswordRequest = {
   type: "object",
   required: ["currentPassword", "newPassword", "confirmNewPassword"],
-  additionalProperties: false,
   properties: {
     currentPassword: { type: "string", format: "password" },
     newPassword: { type: "string", format: "password" },
@@ -49,5 +73,6 @@ export const ChangePasswordRequest = {
 };
 
 export const ChangePasswordResponse = {
-  $ref: "#/components/schemas/AuthenticatedUser",
+  type: "object",
+  allOf: [{ $ref: "#/components/schemas/AuthenticatedUser" }],
 };

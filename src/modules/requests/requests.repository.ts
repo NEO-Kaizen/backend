@@ -1,5 +1,9 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import {
+  findAssignableProfileIds,
+  profileHasAssignablePermissions,
+} from "../../shared/access/assignability.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { generateProtocol } from "../../shared/protocol/generateProtocol.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
@@ -500,6 +504,7 @@ export async function findRequestsByRequesterEmail(
 export interface RequestWithOwner {
   detail: RequestDetail;
   requesterEmail: string;
+  requesterUserId: number | null;
 }
 
 export async function findRequestByProtocolWithOwner(
@@ -531,6 +536,7 @@ export async function findRequestByProtocolWithOwner(
       "r.meeting_link as meetingLink",
       "r.last_external_update_at as lastUpdate",
       "requester.corporate_email as requesterEmail",
+      "r.requester_user_id as requesterUserId",
     )
     .where("r.protocol", protocol)
     .first();
@@ -563,6 +569,7 @@ export async function findRequestByProtocolWithOwner(
       conclusion: null,
     } satisfies RequestDetail,
     requesterEmail: response.requesterEmail ?? "",
+    requesterUserId: response.requesterUserId ?? null,
   };
 }
 
@@ -750,16 +757,23 @@ export async function findEvaluationByProtocol(
   };
 }
 
-/** Perfil que pode ser Responsável — regras em `docs/rules/assignment.md`: só Analista. */
-export const ASSIGNABLE_PROFILES = ["analista"] as const;
-
+/**
+ * Diretório de `GET /requests/assignees`: é global de propósito, porque a Fila
+ * usa a mesma lista para filtrar por responsável. A omissão do criador da
+ * solicitação vive no diretório de `GET /users/analysts?protocol=`, que é o
+ * usado pelo modal de atribuição.
+ */
 export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
+  const profileIds = await findAssignableProfileIds();
+  if (profileIds.length === 0) return [];
+
   return db("details_professional as dp")
     .join("users as u", "u.user_id", "dp.user_id")
     .join("profiles as p", "p.profile_id", "u.profile_id")
     .where("dp.status", "active")
     .andWhere("u.is_active", true)
-    .whereIn("p.name", ASSIGNABLE_PROFILES)
+    .andWhere("p.is_active", true)
+    .whereIn("p.profile_id", profileIds)
     .select({
       id: "dp.professional_id",
       name: "u.full_name",
@@ -769,6 +783,8 @@ export async function findActiveAssignees(): Promise<AssigneeSummary[]> {
     })
     .orderBy("u.full_name", "asc");
 }
+
+export { profileHasAssignablePermissions };
 
 /** Candidato a responsável por user_id (contrato usa users.user_id string). */
 export async function findAssignmentCandidateByUserId(
@@ -792,7 +808,10 @@ export async function findAssignmentCandidateByUserId(
       email: "u.email",
       professional_status: "dp.status",
       user_is_active: "u.is_active",
-      profile_name: "p.name",
+      profile_id: "p.profile_id",
+      profile_is_active: "p.is_active",
+      is_assignable_triage: "p.is_assignable_triage",
+      is_assignable_mapping: "p.is_assignable_mapping",
     });
 }
 
@@ -812,7 +831,10 @@ export async function findAssignmentCandidateById(
       email: "u.email",
       professional_status: "dp.status",
       user_is_active: "u.is_active",
-      profile_name: "p.name",
+      profile_id: "p.profile_id",
+      profile_is_active: "p.is_active",
+      is_assignable_triage: "p.is_assignable_triage",
+      is_assignable_mapping: "p.is_assignable_mapping",
     });
 }
 
@@ -832,6 +854,7 @@ export async function findAssignmentContextByProtocol(
     closure_ref: "requests.closure_ref",
     category: "categories.name",
     screening_result: "requests.screening_result",
+    requester_user_id: "requests.requester_user_id",
     assignee_user_id: "dp.user_id",
   };
 

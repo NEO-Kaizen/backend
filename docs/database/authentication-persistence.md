@@ -31,12 +31,25 @@ A associação é realizada por meio da chave estrangeira `users.profile_id`, qu
 ```mermaid
 erDiagram
     PROFILES ||--o{ USERS : has
+    PROFILES ||--o{ PROFILE_PERMISSIONS : grants
 
     PROFILES {
         integer profile_id PK
         varchar name UK
         varchar description
         boolean is_active
+        boolean is_root
+        boolean is_assignable_triage
+        boolean is_assignable_mapping
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    PROFILE_PERMISSIONS {
+        integer permission_id PK
+        integer profile_id FK
+        varchar permission_key
+        varchar custody
         timestamp created_at
         timestamp updated_at
     }
@@ -80,21 +93,26 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 
 ### Estrutura
 
-| Campo         | Tipo         | Obrigatório | Restrição / Default         | Finalidade                                   |
-| ------------- | ------------ | ----------- | --------------------------- | -------------------------------------------- |
-| `profile_id`  | INTEGER      | Sim         | Primary Key, auto increment | Identificador único do perfil                |
-| `name`        | VARCHAR(60)  | Sim         | UNIQUE, NOT NULL            | Nome do perfil                               |
-| `description` | VARCHAR(255) | Não         | NULL permitido              | Descrição opcional do perfil                 |
-| `is_active`   | BOOLEAN      | Sim         | DEFAULT TRUE                | Indica se o perfil está ativo                |
-| `created_at`  | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro           |
-| `updated_at`  | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada |
+| Campo                   | Tipo         | Obrigatório | Restrição / Default                                    | Finalidade                                     |
+| ----------------------- | ------------ | ----------- | ------------------------------------------------------ | ---------------------------------------------- |
+| `profile_id`            | INTEGER      | Sim         | Primary Key, auto increment                            | Identificador único do perfil                  |
+| `name`                  | VARCHAR(60)  | Sim         | UNIQUE parcial (case-insensitive, só ativos), NOT NULL | Nome do perfil                                 |
+| `description`           | VARCHAR(255) | Não         | NULL permitido                                         | Descrição opcional do perfil                   |
+| `is_active`             | BOOLEAN      | Sim         | DEFAULT TRUE                                           | Indica se o perfil está ativo                  |
+| `is_root`               | BOOLEAN      | Sim         | DEFAULT FALSE                                          | Marca o Perfil Admin Root (escrita só do seed) |
+| `is_assignable_triage`  | BOOLEAN      | Sim         | DEFAULT FALSE                                          | Flag de Atribuibilidade na triagem             |
+| `is_assignable_mapping` | BOOLEAN      | Sim         | DEFAULT FALSE                                          | Flag de Atribuibilidade no mapeamento          |
+| `created_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                              | Data e hora de criação do registro             |
+| `updated_at`            | TIMESTAMP    | Sim         | DEFAULT CURRENT_TIMESTAMP                              | Data e hora da última atualização registrada   |
 
 ### Restrições
 
 - `profile_id` é a chave primária da tabela;
-- `name` deve possuir valor único;
+- `name` é único sem considerar caixa entre Perfis **ativos**: o índice parcial `uk_profiles_active_name_lower` (`UNIQUE (lower(name)) WHERE is_active`) espelha a regra de negócio, e Perfis inativos preservam o nome que tinham;
 - `name` não pode ser nulo;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
+- `is_root`, `is_assignable_triage` e `is_assignable_mapping` não podem ser nulos e possuem valor padrão `FALSE`;
+- o índice parcial `uk_profiles_single_root` permite no máximo um registro com `is_root = TRUE`;
 - `created_at` e `updated_at` são preenchidos inicialmente com a data e hora da criação do registro.
 
 ### Regra de atualização
@@ -102,6 +120,37 @@ Cada usuário deve possuir um perfil, e um mesmo perfil pode ser utilizado por v
 O valor de `updated_at` recebe a data e hora atual na criação do registro.
 
 A atualização posterior desse campo deverá ser realizada pela aplicação quando houver alteração nos dados do perfil.
+
+## Tabela `profile_permissions`
+
+A tabela `profile_permissions` guarda a composição de Permissões de cada Perfil: a chave `recurso:ação` e o vínculo em que ela vale (`global`, `own`, `assigned` ou `all`).
+
+### Estrutura
+
+| Campo            | Tipo        | Obrigatório | Restrição / Default         | Finalidade                                    |
+| ---------------- | ----------- | ----------- | --------------------------- | --------------------------------------------- |
+| `permission_id`  | INTEGER     | Sim         | Primary Key, auto increment | Identificador único da concessão              |
+| `profile_id`     | INTEGER     | Sim         | Foreign Key, NOT NULL       | Perfil que recebe a Permissão                 |
+| `permission_key` | VARCHAR(60) | Sim         | NOT NULL                    | Chave `recurso:ação`                          |
+| `custody`        | VARCHAR(20) | Sim         | NOT NULL, CHECK             | Vínculo: `global`, `own`, `assigned` ou `all` |
+| `created_at`     | TIMESTAMP   | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora de criação do registro            |
+| `updated_at`     | TIMESTAMP   | Sim         | DEFAULT CURRENT_TIMESTAMP   | Data e hora da última atualização registrada  |
+
+### Restrições
+
+- `permission_id` é a chave primária da tabela;
+- `profile_id` referencia `profiles.profile_id` com `ON DELETE RESTRICT`;
+- a combinação `(profile_id, permission_key)` é única (`uk_profile_permissions_profile_key`): cada Perfil tem no máximo uma concessão por chave;
+- `ck_profile_permissions_custody` restringe `custody` a `global`, `own`, `assigned` e `all`;
+- a validade das chaves e a coerência entre chave e vínculo vivem no catálogo em código (`src/shared/catalog/permissionCatalog.ts`), não em constraint: uma chave nova exige código, e não configuração.
+
+### Composição dos perfis base
+
+A composição dos cinco perfis base é semeada por `014_base_profile_permissions.js`, que lê a matriz de referência de `src/shared/catalog/baseProfiles.ts` — nenhuma cópia das chaves ou dos vínculos na seed. A conta Admin Root é criada por `015_admin_root_account.js`, apenas se não existir Admin Root, a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD` (documentadas em `.env.example`).
+
+Três migrations de dados acompanham a Rodada 01 do RBAC: `20261125120000_backfill_rbac_dependencies.js` inclui as dependências de chave em perfis existentes (`request:create` → `request:track`, `request:assign` → `assignee_directory:read`, `user:manage` → `profile:read`), de forma idempotente; `20261125120100_remove_form_permission_grants.js` remove as concessões das chaves descontinuadas `form:read` e `form:manage`; `20261127120000_remove_analyst_assign_grant.js` remove `request:assign` do Perfil base Analista (atribuir passa a ser exclusivo de Administrador/Admin Root). Todas têm `down` no-op deliberado: remover concessões aditivas ou reconstruir um estado anterior não distinguível quebraria perfis legítimos.
+
+Essas três migrations precisam rodar **antes** de o código novo receber tráfego. `buildEffectivePermissions` falha alto para dependência ausente e para chave fora do catálogo, então perfis ainda sem as dependências (ou ainda com `form:*`) quebrariam `/auth/me`, login e `GET /profiles` até a migration ser aplicada. O deploy deve rodar a migration e só então liberar a aplicação.
 
 ## Tabela `users`
 
@@ -135,6 +184,7 @@ Cada usuário possui um identificador único, um e-mail utilizado para identific
 - `password_hash` não pode ser nulo;
 - `profile_id` não pode ser nulo;
 - `profile_id` referencia `profiles.profile_id`;
+- no máximo uma conta pode usar o Perfil marcado com `is_root`: o trigger `trg_users_single_root` recusa a segunda conta, inclusive em `INSERT`/`UPDATE` diretos;
 - `is_active` não pode ser nulo e possui valor padrão `TRUE`;
 - `must_change_password` possui valor padrão `TRUE` desde a revisão #130,
   alinhado ao cadastro feito pela aplicação. Os seeds informam o valor
@@ -154,7 +204,7 @@ Exemplo:
 profiles
 profile_id | name
 -----------|---------------
-1          | administrador
+1          | Administrador
 
 users
 user_id | full_name    | profile_id
@@ -162,7 +212,7 @@ user_id | full_name    | profile_id
 1       | Example User | 1
 ```
 
-Neste exemplo, o usuário está associado ao perfil `administrador` por meio de `profile_id = 1`.
+Neste exemplo, o usuário está associado ao perfil `Administrador` por meio de `profile_id = 1`.
 
 ### Regra de senha
 
@@ -240,9 +290,11 @@ A atualização posterior de `updated_at` será responsabilidade da aplicação.
 
 ### Perfis como dados de referência
 
-Os perfis `solicitante`, `analista`, `administrador` e `gestor` fazem parte do domínio inicial da aplicação e são necessários para o relacionamento com os usuários.
+Os perfis base são `Solicitante`, `Analista`, `Gestor`, `Administrador` e `Admin Root`; seus nomes em `profiles.name` são os rótulos de exibição retornados pela API.
 
-Por esse motivo, esses registros são tratados como **dados de referência versionados por migration**, e não como dados opcionais de carga inicial.
+As linhas de perfil continuam sendo dados de referência; a composição de Permissões (chave + vínculo), a marca `is_root` e as flags de Atribuibilidade são (re)aplicadas de forma idempotente pela seed `014_base_profile_permissions.js`, a partir da matriz de referência em código (`src/shared/catalog/baseProfiles.ts`). O seed procura os perfis base por `lower(name)` e o Admin Root pela marca `is_root` — nunca pelo nome — e nunca cria uma segunda linha: não reativa nem altera `is_active`/nome de perfil existente e não remove concessões fora da matriz. A migration `20261123140000_rename_base_profile_names_to_display_labels.js` atualiza os nomes canônicos antigos para os rótulos de exibição.
+
+A conta Admin Root é única e nasce apenas da seed `015_admin_root_account.js`, a partir das variáveis de ambiente `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME`; nenhuma rota cria, promove, desativa, troca de perfil ou redefine a conta.
 
 Essa decisão garante que qualquer ambiente que execute as migrations receba automaticamente os perfis necessários para o funcionamento inicial da aplicação.
 
@@ -276,6 +328,11 @@ As migrations devem ser executadas na seguinte ordem:
 1. `20260812234318_create_profiles.js`
 2. `20260812234600_insert_initial_profiles.js`
 3. `20260812235002_create_users.js`
+4. `20261119120000_add_rbac_flags_to_profiles.js`
+5. `20261119120100_create_profile_permissions.js`
+6. `20261119120200_drop_internal_notes_author_role_check.js`
+7. `20261122120000_add_profile_audit_entity_type.js`
+8. `20261122120100_profiles_active_name_unique_ci.js`
 
 Essa ordem garante que a tabela `profiles` exista antes da inserção dos perfis iniciais e que os perfis estejam disponíveis antes da criação e utilização da relação com `users`.
 
@@ -302,6 +359,12 @@ Os identificadores `profile_id` não são definidos manualmente e são gerados a
 
 Antes da inserção, a migration consulta quais perfis já existem e insere somente os registros ausentes.
 
+Esses são os valores históricos da migration. A migration
+`20261123140000_rename_base_profile_names_to_display_labels` renomeia os
+registros existentes para `Solicitante`, `Analista`, `Administrador` e `Gestor`;
+o seed cria esses mesmos rótulos em instalações novas. O Perfil Admin Root é
+criado pelo seed e identificado por `is_root`.
+
 Essa estratégia reduz o risco de duplicidades sem utilizar `ON CONFLICT`, mantendo compatibilidade com o PostgreSQL 18 utilizado atualmente no ambiente de desenvolvimento (`postgres:18-alpine`, conforme o `README.md`).
 
 ### Migration `create_users`
@@ -314,6 +377,14 @@ Responsável pela criação da tabela `users`, incluindo:
 - chave estrangeira `profile_id`;
 - relacionamento com `profiles`;
 - restrição `ON DELETE RESTRICT`.
+
+### Migration `add_profile_audit_entity_type`
+
+Amplia o `CHECK chk_audit_history_entity_type` para aceitar a entidade `profile` (eventos de criação, edição, ativação, desativação e duplicação de Perfil). A lista do banco acompanha `src/shared/audit/auditCatalog.ts` no mesmo PR.
+
+### Migration `profiles_active_name_unique_ci`
+
+Substitui o `UNIQUE` global de `profiles.name` pelo índice parcial `uk_profiles_active_name_lower` (`UNIQUE (lower(name)) WHERE is_active`). A unicidade passa a ser case-insensitive e restrita aos Perfis ativos, exatamente como o contrato de edição de Perfil exige. O `down` restaura o `UNIQUE` global; como o `up` permite homônimos entre Perfis inativos, o rollback falha antes do DDL, com mensagem instrutiva, quando existe nome repetido — renomear linhas automaticamente seria perda silenciosa de dado. Nesse caso, resolva os homônimos antes de repetir o rollback. A mesma regra vale para o ciclo de migrations no CI, que roda com banco vazio.
 
 ### Configuração do banco
 
@@ -377,7 +448,8 @@ Até o momento foram realizadas as seguintes validações:
 - importação da migration `create_users`;
 - presença das funções `up` e `down` nas três migrations;
 - validação da migration `insert_initial_profiles` com Prettier;
-- definição dos perfis iniciais `solicitante`, `analista`, `administrador` e `gestor`;
+- definição dos nomes históricos dos perfis iniciais e migração para os rótulos
+  `Solicitante`, `Analista`, `Administrador` e `Gestor`;
 - revisão da estratégia de inserção dos perfis sem utilização de `ON CONFLICT`;
 - revisão da compatibilidade da estratégia de inserção com PostgreSQL 9.0;
 - `npm run typecheck` executado sem erros;
@@ -396,7 +468,7 @@ Ainda precisam ser realizadas as seguintes validações:
 - configurar as credenciais reais no arquivo `.env`;
 - executar `npm run migrate:latest`;
 - confirmar a criação das tabelas `profiles` e `users`;
-- confirmar a criação dos quatro perfis iniciais na tabela `profiles`;
+- confirmar a criação dos cinco perfis base na tabela `profiles`;
 - confirmar que não foram criados perfis duplicados;
 - conferir os tipos das colunas;
 - validar as chaves primárias;
@@ -416,3 +488,34 @@ A estrutura de persistência, as migrations de schema, a migration de dados de r
 A conectividade com o PostgreSQL já foi validada.
 
 A Issue permanece em validação enquanto as migrations não forem executadas e a estrutura resultante não for conferida no banco de dados.
+
+## Referência pública de Perfil (issue #199)
+
+`profiles.profile_id` é a identidade estável do Perfil e é exposta na API como
+string (`ProfileReference.id`, `profileId` nas escritas) — a mesma identidade de
+`GET /profiles/:id`. `profiles.name` é rótulo mutável: nunca identifica nem
+autoriza. Ver `docs/adr/0007-referencia-de-perfil.md`.
+
+O snapshot de Perfil não vive em `users`: ele é congelado no registro histórico
+que o exibiu.
+
+| Tabela                   | Coluna                            | Papel                                                                      |
+| ------------------------ | --------------------------------- | -------------------------------------------------------------------------- |
+| `request_internal_notes` | `author_profile_id_at_creation`   | ID do Perfil do autor na criação; `NULL` em notas históricas               |
+| `request_internal_notes` | `author_profile_name_at_creation` | Nome do Perfil do autor na criação (congelado; `varchar(60)`)              |
+| `audit_history`          | `actor_profile_id`                | ID do Perfil do ator no evento; `NULL` em eventos anteriores               |
+| `audit_history`          | `actor_profile_name`              | Nome do Perfil do ator no evento (congelado; `varchar(60)`)                |
+| `audit_history`          | `denied_permission_keys`          | Chaves de Permissão avaliadas na recusa `*.access_denied`; `{}` nas demais |
+
+As duas FKs usam `ON DELETE RESTRICT`, coerentes com a trilha append-only:
+Perfil não é excluído fisicamente e o histórico não perde a identidade
+registrada. Renomear um Perfil não reescreve snapshots.
+
+Migrations reversíveis:
+`20261123160000_add_audit_actor_profile_snapshot.js` e
+`20261123160100_add_internal_note_author_profile.js`. O `down` remove as colunas
+novas e restaura `author_profile_name_at_creation` como
+`author_role_at_creation`; o ID registrado nos registros novos é perdido, o nome
+histórico permanece. O rollback da Nota interna falha explicitamente se existir
+nome de Perfil acima de 30 caracteres, porque estreitar a coluna truncaria o
+snapshot.

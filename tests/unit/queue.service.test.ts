@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AuthenticatedUser } from "../../src/shared/types/user.ts";
-import type { Role } from "../../src/shared/types/role.ts";
+import type { PermissionActor } from "../../src/shared/access/permissionActor.ts";
+import {
+  buildEffectivePermissions,
+  type EffectivePermission,
+} from "../../src/shared/catalog/permissionCatalog.ts";
 
 // A fronteira de dados é mockada: o teste verifica apenas o recorte derivado do ator.
 vi.mock("../../src/modules/queue/queue.repository.ts", () => ({
@@ -14,14 +17,25 @@ const repository = await import("../../src/modules/queue/queue.repository.ts");
 const { getQueueMetricsService, listQueueService } =
   await import("../../src/modules/queue/queue.service.ts");
 
-function makeActor(role: Role, id = "7"): AuthenticatedUser {
+function makeActor(permissions: readonly EffectivePermission[], id = 7): PermissionActor {
   return {
     id,
     email: "usuario.ficticio@example.com",
-    name: "Usuário fictício",
-    role,
+    permissions,
   };
 }
+
+/** Analista: fila e notas restritas às solicitações sob sua responsabilidade. */
+const ANALYST_PERMISSIONS = buildEffectivePermissions([
+  { permission_key: "queue:read", custody: "assigned" },
+  { permission_key: "internal_note:read", custody: "assigned" },
+]);
+
+/** Gestor: fila e notas de todas as solicitações. */
+const MANAGER_PERMISSIONS = buildEffectivePermissions([
+  { permission_key: "queue:read", custody: "all" },
+  { permission_key: "internal_note:read", custody: "all" },
+]);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -38,7 +52,10 @@ beforeEach(() => {
 
 describe("listQueueService — custódia da busca por notas", () => {
   it("usa o user_id do Analista como escopo da fila e como custódia da nota", async () => {
-    await listQueueService({ page: 1, pageSize: 10, search: "kickoff" }, makeActor("Analista"));
+    await listQueueService(
+      { page: 1, pageSize: 10, search: "kickoff" },
+      makeActor(ANALYST_PERMISSIONS),
+    );
 
     expect(repository.findQueueRequests).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -52,7 +69,10 @@ describe("listQueueService — custódia da busca por notas", () => {
   });
 
   it("não recorta nota nem fila para Gestor", async () => {
-    await listQueueService({ page: 1, pageSize: 10, search: "kickoff" }, makeActor("Gestor"));
+    await listQueueService(
+      { page: 1, pageSize: 10, search: "kickoff" },
+      makeActor(MANAGER_PERMISSIONS),
+    );
 
     expect(repository.findQueueRequests).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -62,15 +82,25 @@ describe("listQueueService — custódia da busca por notas", () => {
     );
   });
 
-  it("usa o fail-safe 0 quando o id do Analista é inválido", async () => {
-    await listQueueService(
-      { page: 1, pageSize: 10, search: "kickoff" },
-      makeActor("Analista", "invalido"),
-    );
+  it("usa o fail-safe 0 quando o ator não tem internal_note:read", async () => {
+    const queueOnly = buildEffectivePermissions([
+      { permission_key: "queue:read", custody: "assigned" },
+    ]);
+
+    await listQueueService({ page: 1, pageSize: 10, search: "kickoff" }, makeActor(queueOnly));
 
     expect(repository.findQueueRequests).toHaveBeenCalledWith(
-      expect.objectContaining({ scopedUserId: 0, noteCustodianUserId: 0 }),
+      expect.objectContaining({ scopedUserId: 7, noteCustodianUserId: 0 }),
     );
+  });
+
+  it("nega o vínculo assigned quando o id do ator não é válido", async () => {
+    await expect(
+      listQueueService(
+        { page: 1, pageSize: 10, search: "kickoff" },
+        makeActor(ANALYST_PERMISSIONS, 0),
+      ),
+    ).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it("repassa filtros de data/departamento e ordenação ao repositório", async () => {
@@ -84,7 +114,7 @@ describe("listQueueService — custódia da busca por notas", () => {
         sortBy: "protocol",
         sortOrder: "asc",
       },
-      makeActor("Gestor"),
+      makeActor(MANAGER_PERMISSIONS),
     );
 
     expect(repository.findQueueRequests).toHaveBeenCalledWith(
@@ -103,7 +133,10 @@ describe("listQueueService — custódia da busca por notas", () => {
   it("devolve departamentos globais no envelope da fila", async () => {
     vi.mocked(repository.fetchAllDepartments).mockResolvedValue(["Desenvolvimento", "Financeiro"]);
 
-    const response = await listQueueService({ page: 1, pageSize: 10 }, makeActor("Gestor"));
+    const response = await listQueueService(
+      { page: 1, pageSize: 10 },
+      makeActor(MANAGER_PERMISSIONS),
+    );
 
     expect(repository.fetchAllDepartments).toHaveBeenCalledOnce();
     expect(response.departments).toEqual(["Desenvolvimento", "Financeiro"]);
@@ -112,13 +145,17 @@ describe("listQueueService — custódia da busca por notas", () => {
 
 describe("getQueueMetricsService — mesmo recorte da fila", () => {
   it("conta apenas as solicitações do Analista", async () => {
-    await getQueueMetricsService(makeActor("Analista"));
+    await getQueueMetricsService(makeActor(ANALYST_PERMISSIONS));
 
     expect(repository.fetchQueueMetrics).toHaveBeenCalledWith(7);
   });
 
   it("não recorta as métricas para Administrador", async () => {
-    await getQueueMetricsService(makeActor("Administrador"));
+    const adminPermissions = buildEffectivePermissions([
+      { permission_key: "queue:read", custody: "all" },
+    ]);
+
+    await getQueueMetricsService(makeActor(adminPermissions));
 
     expect(repository.fetchQueueMetrics).toHaveBeenCalledWith(undefined);
   });

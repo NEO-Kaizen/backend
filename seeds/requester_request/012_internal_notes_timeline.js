@@ -95,40 +95,70 @@ export async function seed(knex) {
   await knex("mappings").where({ request_id: RICH_REQUEST_ID }).del();
   await knex("triages").where({ request_id: RICH_REQUEST_ID }).del();
 
+  // Snapshot de Perfil dos autores: a nota guarda identidade estável + nome
+  // congelado. A busca evita ids de Perfil fixos no seed (dependem da inserção).
+  const authorProfiles = await knex("users as u")
+    .join("profiles as p", "p.profile_id", "u.profile_id")
+    .whereIn("u.user_id", [101, 102, 103, 107])
+    .select("u.user_id", "p.profile_id", "p.name");
+  const profileByUserId = new Map(authorProfiles.map((row) => [row.user_id, row]));
+
+  function profileSnapshot(userId) {
+    const profile = profileByUserId.get(userId);
+    if (!profile) {
+      throw new Error(`Seed de notas internas: usuário ${userId} sem Perfil.`);
+    }
+    return {
+      author_profile_id_at_creation: profile.profile_id,
+      author_profile_name_at_creation: profile.name,
+    };
+  }
+
+  function actorSnapshot(userId) {
+    const profile = profileByUserId.get(userId);
+    if (!profile) {
+      throw new Error(`Seed de timeline: usuário ${userId} sem Perfil.`);
+    }
+    return {
+      actor_profile_id: profile.profile_id,
+      actor_profile_name: profile.name,
+    };
+  }
+
   const insertedNotes = await knex("request_internal_notes")
     .insert([
       {
         request_id: RICH_REQUEST_ID,
         author_user_id: 101,
-        author_role_at_creation: "Analista",
+        ...profileSnapshot(101),
         content: "Recebemos a solicitação e vamos iniciar a análise preliminar.",
         created_at: "2026-07-02T09:15:00.000Z",
       },
       {
         request_id: RICH_REQUEST_ID,
         author_user_id: 102,
-        author_role_at_creation: "Administrador",
+        ...profileSnapshot(102),
         content: "Confirmar alçada de aprovação com o financeiro antes do mapeamento.",
         created_at: "2026-07-03T11:40:00.000Z",
       },
       {
         request_id: RICH_REQUEST_ID,
         author_user_id: 101,
-        author_role_at_creation: "Analista",
+        ...profileSnapshot(101),
         content: "Reunião de kickoff realizada; área disponível na próxima semana.",
         created_at: "2026-07-05T16:05:00.000Z",
       },
       {
         request_id: RICH_REQUEST_ID,
         author_user_id: 107,
-        author_role_at_creation: "Analista",
+        ...profileSnapshot(107),
         content: "Mapeamento concluído; encaminhando para priorização.",
         created_at: "2026-08-12T10:20:00.000Z",
       },
       {
         request_id: RICH_REQUEST_ID,
         author_user_id: 102,
-        author_role_at_creation: "Administrador",
+        ...profileSnapshot(102),
         content: "Priorizado para o ciclo de outubro.",
         created_at: "2026-09-02T14:00:00.000Z",
       },
@@ -151,6 +181,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "101",
       user_id: 102,
+      ...actorSnapshot(102),
       occurred_at: "2026-07-02T09:05:00.000Z",
       note: "seed timeline",
       change_origin: "admin",
@@ -162,6 +193,7 @@ export async function seed(knex) {
       previous_value: "Aguardando triagem",
       new_value: "Em triagem",
       user_id: 101,
+      ...actorSnapshot(101),
       occurred_at: "2026-07-02T09:06:00.000Z",
       change_origin: "admin",
     },
@@ -172,6 +204,7 @@ export async function seed(knex) {
       previous_value: "101",
       new_value: "107",
       user_id: 102,
+      ...actorSnapshot(102),
       occurred_at: "2026-07-04T09:00:00.000Z",
       change_origin: "admin",
     },
@@ -197,6 +230,7 @@ export async function seed(knex) {
         status: "Elegível",
       }),
       user_id: 101,
+      ...actorSnapshot(101),
       occurred_at: "2026-07-18T14:30:00.000Z",
       change_origin: "admin",
     },
@@ -211,6 +245,7 @@ export async function seed(knex) {
         status: "Elegível para avaliação",
       }),
       user_id: 107,
+      ...actorSnapshot(107),
       occurred_at: "2026-08-20T09:00:00.000Z",
       change_origin: "admin",
     },
@@ -221,6 +256,7 @@ export async function seed(knex) {
       previous_value: "107",
       new_value: null,
       user_id: 102,
+      ...actorSnapshot(102),
       occurred_at: "2026-09-01T09:00:00.000Z",
       change_origin: "admin",
     },
@@ -351,6 +387,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440003",
       user_id: 102,
+      ...actorSnapshot(102),
       occurred_at: "2026-08-05T09:00:00.000Z",
       change_origin: "admin",
     },
@@ -364,6 +401,7 @@ export async function seed(knex) {
         mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440003",
       }),
       user_id: 101,
+      ...actorSnapshot(101),
       occurred_at: "2026-08-10T10:00:00.000Z",
       change_origin: "internal",
     },
@@ -374,6 +412,7 @@ export async function seed(knex) {
       previous_value: "650e8400-e29b-41d4-a716-446655440003",
       new_value: "650e8400-e29b-41d4-a716-446655440004",
       user_id: 103,
+      ...actorSnapshot(103),
       occurred_at: "2026-08-11T15:00:00.000Z",
       change_origin: "admin",
     },
@@ -391,6 +430,7 @@ export async function seed(knex) {
         is_concluded: true,
       }),
       user_id: 101,
+      ...actorSnapshot(101),
       occurred_at: "2026-08-12T10:20:00.000Z",
       change_origin: "internal",
     },
@@ -436,6 +476,7 @@ export async function seed(knex) {
       previous_value: null,
       new_value: "650e8400-e29b-41d4-a716-446655440001",
       user_id: 102,
+      ...actorSnapshot(102),
       occurred_at: "2026-07-25T09:00:00.000Z",
       change_origin: "admin",
     },
@@ -449,6 +490,7 @@ export async function seed(knex) {
         mappingAssigneeId: "650e8400-e29b-41d4-a716-446655440001",
       }),
       user_id: 101,
+      ...actorSnapshot(101),
       occurred_at: "2026-07-26T10:00:00.000Z",
       change_origin: "internal",
     },
@@ -466,6 +508,7 @@ export async function seed(knex) {
         is_concluded: true,
       }),
       user_id: 101,
+      ...actorSnapshot(101),
       occurred_at: "2026-08-01T11:00:00.000Z",
       change_origin: "internal",
     },

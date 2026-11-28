@@ -148,7 +148,7 @@ npm run db:setup
 
 > Se o histórico de migrations estiver inválido (por exemplo, após migrations renomeadas ou removidas), recrie o banco de desenvolvimento com `npm run docker:db:reset` (remove o volume) e depois `npm run docker:db:setup`.
 
-Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`.
+Os perfis iniciais da aplicação são inseridos automaticamente pela migration `insert_initial_profiles`; a composição de Permissões, a marca de Admin Root e as flags de Atribuibilidade são aplicadas de forma idempotente pelo seed `014_base_profile_permissions.js`. A conta Admin Root nasce do seed `015_admin_root_account.js` a partir de `ADMIN_ROOT_EMAIL`/`ADMIN_ROOT_PASSWORD`/`ADMIN_ROOT_NAME` (sem essas variáveis, o seed apenas avisa e não cria a conta); ela nasce com troca de senha obrigatória no primeiro login.
 
 Para desfazer o último lote de migrations:
 
@@ -277,7 +277,8 @@ src/
     │   └── errorHandler.ts # Middleware de captura e resposta global de erros
     ├── types/
     │   ├── express.d.ts    # Extensão da tipagem nativa do Express (ex: req.user)
-    │   └── role.ts         # Enum de perfis de usuário (Analista, Gestor, Administrador)
+    │   ├── profile.ts      # Tipos do Perfil e da composição de Permissões
+    │   └── user.ts         # Tipos de usuário, autenticação e sessão
     └── utils/
         └── jwtUtil.ts      # Geração e validação de tokens JWT assinados
 ```

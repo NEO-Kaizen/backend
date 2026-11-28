@@ -1,3 +1,4 @@
+import { hasResponsibleCustody, type PermissionActor } from "../../shared/access/requestAccess.ts";
 import { randomUUID } from "node:crypto";
 import type { Knex } from "knex";
 import { z } from "zod";
@@ -18,6 +19,7 @@ export interface RequestRef {
   requester_user_id: number | null;
   requester_name: string;
   requester_email: string;
+  responsible_user_id: number | null;
 }
 
 /** Escalar JSON aceito em `pending_items.current_value/corrected_value`. */
@@ -93,6 +95,16 @@ export async function findRequestByProtocol(
   const row = await conn("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .join("requesters", "requesters.requester_id", "requests.requester_id")
+    .leftJoin(
+      "details_professional as responsible_professional",
+      "responsible_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin(
+      "users as responsible_user",
+      "responsible_user.user_id",
+      "responsible_professional.user_id",
+    )
     .where("requests.protocol", protocol.trim())
     .select(conn.raw("requests.reopen_ref AS reopen_ref"))
     .first({
@@ -104,6 +116,7 @@ export async function findRequestByProtocol(
       requester_user_id: "requests.requester_user_id",
       requester_name: "requesters.full_name",
       requester_email: "requesters.corporate_email",
+      responsible_user_id: "responsible_user.user_id",
     });
   return (row as RequestRef | undefined) ?? null;
 }
@@ -116,6 +129,16 @@ export async function findRequestById(
   const row = await conn("requests")
     .join("statuses", "statuses.status_id", "requests.status_id")
     .join("requesters", "requesters.requester_id", "requests.requester_id")
+    .leftJoin(
+      "details_professional as responsible_professional",
+      "responsible_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin(
+      "users as responsible_user",
+      "responsible_user.user_id",
+      "responsible_professional.user_id",
+    )
     .where("requests.request_id", requestId)
     .select(conn.raw("requests.reopen_ref AS reopen_ref"))
     .first({
@@ -127,6 +150,7 @@ export async function findRequestById(
       requester_user_id: "requests.requester_user_id",
       requester_name: "requesters.full_name",
       requester_email: "requesters.corporate_email",
+      responsible_user_id: "responsible_user.user_id",
     });
   return (row as RequestRef | undefined) ?? null;
 }
@@ -162,13 +186,13 @@ async function lockActiveRequest(trx: Knex.Transaction, requestId: string) {
 async function assertPendingCustody(
   trx: Knex.Transaction,
   professionalId: string | null,
-  actor: { id: number; role: string },
+  actor: PermissionActor,
+  key: "pending_item:write" | "pending_item:review",
 ): Promise<void> {
-  if (actor.role === "Administrador") return;
   const custodian = await trx("details_professional")
-    .where({ professional_id: professionalId, user_id: actor.id })
+    .where({ professional_id: professionalId })
     .first("user_id");
-  if (!custodian) {
+  if (!hasResponsibleCustody(actor, key, custodian?.user_id)) {
     throw new AppError("A custódia da solicitação mudou.", 409, "request_assignment_conflict");
   }
 }
@@ -465,16 +489,6 @@ async function recordPendingItemStatusChangeAudit(
   });
 }
 
-export async function findProfessionalIdByUserId(userId: number): Promise<string | null> {
-  const row = await db("details_professional").where({ user_id: userId }).first("professional_id");
-  return (row?.professional_id as string | undefined) ?? null;
-}
-
-export async function findProfessionalIdByRequestId(requestId: string): Promise<string | null> {
-  const row = await db("requests").where({ request_id: requestId }).first("professional_id");
-  return (row?.professional_id as string | undefined) ?? null;
-}
-
 export async function findPendingItemsByBatchId(
   batchId: string,
   requestId: string,
@@ -495,14 +509,14 @@ export async function createPendingItemsBatchInTransaction(
     protocol: string;
     batchId: string;
     rows: PendingItemInsert[];
-    actor: { id: number; email: string; role: string };
+    actor: PermissionActor;
     observedStatusId: number;
     observedReopenRef: string | null;
     ip: string | undefined;
   },
 ): Promise<{ rows: PendingItemRow[]; auditId: string }> {
   const current = await lockActiveRequest(trx, input.requestId);
-  await assertPendingCustody(trx, current.professional_id, input.actor);
+  await assertPendingCustody(trx, current.professional_id, input.actor, "pending_item:write");
   if (
     current.status_id !== input.observedStatusId ||
     current.reopen_ref !== input.observedReopenRef ||
@@ -710,7 +724,7 @@ export async function applyReviewDecisionsInTransaction(
     batchId: string;
     decisions: ReviewDecisionInput[];
     requestAttachment: boolean | undefined;
-    actor: { id: number; email: string; role: string };
+    actor: PermissionActor;
     ip: string | undefined;
     decideStatus: (facts: ReviewFacts) => string | null;
   },
@@ -719,7 +733,7 @@ export async function applyReviewDecisionsInTransaction(
   actionAuditIds: ReadonlyMap<ReviewDecision, string>;
 }> {
   const current = await lockActiveRequest(trx, input.requestId);
-  await assertPendingCustody(trx, current.professional_id, input.actor);
+  await assertPendingCustody(trx, current.professional_id, input.actor, "pending_item:review");
   const currentBatch = currentPendingRows(trx, input.requestId).where("batch_id", input.batchId);
   const decisionRows: Array<{ pending_item_id: string; status: string }> = await currentBatch
     .clone()

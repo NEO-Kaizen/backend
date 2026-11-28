@@ -1,28 +1,28 @@
-# InventÃ¡rio de tipagens TypeScript
+# Inventário de tipagens TypeScript
 
-> Arquivo gerado por `npm run docs:types` a partir dos arquivos `src/**/*.ts` e do `tsconfig.json` do projeto. NÃ£o edite manualmente: rode o comando para atualizar. NÃ£o inclui dependÃªncias nem arquivos `.d.ts`.
+> Arquivo gerado por `npm run docs:types` a partir dos arquivos `src/**/*.ts` e do `tsconfig.json` do projeto. Não edite manualmente: rode o comando para atualizar. Não inclui dependências nem arquivos `.d.ts`.
 
 ## Resumo
 
-- Arquivos-fonte analisados: **180**.
-- Tipos nomeados: **341** â€” 226 interfaces, 113 aliases `type`, 2 classes e 0 enums.
-- DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita: **2016** â€” 1511 variÃ¡veis, 254 parÃ¢metros e 251 retornos de funÃ§Ãµes/mÃ©todos.
-- DeclaraÃ§Ãµes com tipo efetivo `any` detectado pelo checker: **47**; ocorrÃªncias com a palavra-chave `any` explÃ­cita no cÃ³digo-fonte: **0**.
-- Arquivos com pelo menos uma declaraÃ§Ã£o sem anotaÃ§Ã£o: **136**; arquivos sem ocorrÃªncias sÃ£o omitidos das seÃ§Ãµes 2 e 3.
-- Erros de typecheck no momento da geraÃ§Ã£o: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
+- Arquivos-fonte analisados: **201**.
+- Tipos nomeados: **395** — 271 interfaces, 122 aliases `type`, 2 classes e 0 enums.
+- Declarações sem anotação explícita: **2371** — 1728 variáveis, 316 parâmetros e 327 retornos de funções/métodos.
+- Declarações com tipo efetivo `any` detectado pelo checker: **50**; ocorrências com a palavra-chave `any` explícita no código-fonte: **0**.
+- Arquivos com pelo menos uma declaração sem anotação: **153**; arquivos sem ocorrências são omitidos das seções 2 e 3.
+- Erros de typecheck no momento da geração: **0** (mesmo `tsconfig.json`; 0 significa que `npm run typecheck` passa).
 
 ## Como interpretar
 
-- **Tipados:** as definiÃ§Ãµes abaixo mostram os tipos nomeados (interfaces, aliases, classes e enums) como estÃ£o declarados no cÃ³digo. As anotaÃ§Ãµes de propriedades e membros aparecem nas prÃ³prias definiÃ§Ãµes.
-- **Sem anotaÃ§Ã£o explÃ­cita:** a declaraÃ§Ã£o nÃ£o traz `: Tipo` no local indicado. Isso **nÃ£o** significa necessariamente falta de tipo: o compilador pode inferi-lo pelo inicializador, contexto ou assinatura. A lista inclui variÃ¡veis (inclusive destructuring, `for...of`/`for...in` e variÃ¡vel de `catch`), parÃ¢metros e retornos de funÃ§Ãµes, mÃ©todos e getters.
-- **`any`:** o checker determinou tipo efetivo `any` para os itens listados. Em destructuring, o item Ã© marcado quando o padrÃ£o ou qualquer elemento tem tipo `any`. A lista deve ser revisada priorizando as fronteiras com bibliotecas e APIs sem tipo suficientemente especÃ­fico.
-- **Linhas:** referem-se ao estado do cÃ³digo no momento da geraÃ§Ã£o. Como os nÃºmeros mudam a cada alteraÃ§Ã£o em `src/`, valide com `npm run docs:types:check` antes de publicar mudanÃ§as de tipagem.
+- **Tipados:** as definições abaixo mostram os tipos nomeados (interfaces, aliases, classes e enums) como estão declarados no código. As anotações de propriedades e membros aparecem nas próprias definições.
+- **Sem anotação explícita:** a declaração não traz `: Tipo` no local indicado. Isso **não** significa necessariamente falta de tipo: o compilador pode inferi-lo pelo inicializador, contexto ou assinatura. A lista inclui variáveis (inclusive destructuring, `for...of`/`for...in` e variável de `catch`), parâmetros e retornos de funções, métodos e getters.
+- **`any`:** o checker determinou tipo efetivo `any` para os itens listados. Em destructuring, o item é marcado quando o padrão ou qualquer elemento tem tipo `any`. A lista deve ser revisada priorizando as fronteiras com bibliotecas e APIs sem tipo suficientemente específico.
+- **Linhas:** referem-se ao estado do código no momento da geração. Como os números mudam a cada alteração em `src/`, valide com `npm run docs:types:check` antes de publicar mudanças de tipagem.
 
-## 1. Tipos nomeados e suas definiÃ§Ãµes
+## 1. Tipos nomeados e suas definições
 
 ### [src/docs/swagger.ts](../src/docs/swagger.ts)
 
-#### L24 â€” interface SwaggerInterceptorRequest
+#### L24 — interface SwaggerInterceptorRequest
 
 ```ts
 interface SwaggerInterceptorRequest {
@@ -34,7 +34,15 @@ interface SwaggerInterceptorRequest {
 
 ### [src/modules/auditHistory/auditHistory.repository.ts](../src/modules/auditHistory/auditHistory.repository.ts)
 
-#### L4 â€” interface AuditSummaryRow
+#### L6 — interface AuditAccessScope
+
+```ts
+export interface AuditAccessScope {
+  readonly responsibleUserId: number | null;
+}
+```
+
+#### L10 — interface AuditSummaryRow
 
 ```ts
 interface AuditSummaryRow {
@@ -43,11 +51,13 @@ interface AuditSummaryRow {
   action_type: string;
   user_id: number | null;
   actor_name: string | null;
+  actor_profile_id: number | null;
+  actor_profile_name: string | null;
   occurred_at: Date;
 }
 ```
 
-#### L13 â€” interface AuditCountRow
+#### L21 — interface AuditCountRow
 
 ```ts
 interface AuditCountRow {
@@ -55,7 +65,7 @@ interface AuditCountRow {
 }
 ```
 
-#### L17 â€” interface AuditHistoryDetailRow
+#### L25 — interface AuditHistoryDetailRow
 
 ```ts
 interface AuditHistoryDetailRow {
@@ -65,6 +75,8 @@ interface AuditHistoryDetailRow {
   action_type: string;
   user_id: number | string | null;
   actor_name: string | null;
+  actor_profile_id: number | null;
+  actor_profile_name: string | null;
   previous_value: string | null;
   new_value: string | null;
   note: string | null;
@@ -72,17 +84,21 @@ interface AuditHistoryDetailRow {
   previous_meeting: unknown;
   ip_address: string | null;
   change_origin: string | null;
+  denied_permission_keys: string[] | null;
   occurred_at: Date | string;
 }
 ```
 
 ### [src/modules/auth/auth.repository.ts](../src/modules/auth/auth.repository.ts)
 
-#### L50 â€” interface AuthState
+#### L52 — interface AuthState
 
 ```ts
 export interface AuthState {
   is_active: boolean;
+  full_name: string;
+  email: string;
+  profile_id: number;
   profile_is_active: boolean;
   profile_name: string;
   must_change_password: boolean;
@@ -90,9 +106,18 @@ export interface AuthState {
 }
 ```
 
+#### L80 — interface UserPermissionRow
+
+```ts
+export interface UserPermissionRow {
+  permission_key: string;
+  custody: string;
+}
+```
+
 ### [src/modules/auth/auth.service.ts](../src/modules/auth/auth.service.ts)
 
-#### L11 â€” interface SessionUserResult
+#### L14 — interface SessionUserResult
 
 ```ts
 export interface SessionUserResult {
@@ -100,16 +125,24 @@ export interface SessionUserResult {
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  profile: SessionProfileReference;
   mustChangePassword: boolean;
   /** Época (ms) de `users.password_changed_at` — vai no payload do JWT. */
   passwordChangedAt: number;
 }
 ```
 
+#### L26 — interface SessionUserWithPermissions
+
+```ts
+export interface SessionUserWithPermissions extends SessionUserResult {
+  permissions: EffectivePermission[];
+}
+```
+
 ### [src/modules/DTOs/auditHistory/AuditHistory.dto.ts](../src/modules/DTOs/auditHistory/AuditHistory.dto.ts)
 
-#### L3 â€” interface AuditHistoryQuery
+#### L4 — interface AuditHistoryQuery
 
 ```ts
 export interface AuditHistoryQuery {
@@ -119,17 +152,22 @@ export interface AuditHistoryQuery {
 }
 ```
 
-#### L9 â€” interface AuditActor
+#### L10 — interface AuditActor
 
 ```ts
 export interface AuditActor {
   kind: "system" | "user";
   userId: number | null;
   displayName: string | null;
+  /**
+   * Snapshot do Perfil do ator no momento do evento. `null` em ações de
+   * sistema e em eventos anteriores ao snapshot — nunca inferido do nome.
+   */
+  profile: ProfileReference | null;
 }
 ```
 
-#### L15 â€” interface AuditHistorySummary
+#### L21 — interface AuditHistorySummary
 
 ```ts
 export interface AuditHistorySummary {
@@ -143,7 +181,7 @@ export interface AuditHistorySummary {
 }
 ```
 
-#### L25 â€” interface AuditHistoryDetail
+#### L31 — interface AuditHistoryDetail
 
 ```ts
 export interface AuditHistoryDetail {
@@ -164,11 +202,13 @@ export interface AuditHistoryDetail {
   ip_address: string | null;
   /** Valor persistido em `audit_history.change_origin`; histórico pode estar fora de `ChangeOrigin`. */
   change_origin: string | null;
+  /** Chaves exigidas e ausentes nas recusas; vazio nas demais ações. */
+  denied_permission_keys: string[];
   occurred_at: string;
 }
 ```
 
-#### L46 â€” interface AuditHistoryListResponse
+#### L54 — interface AuditHistoryListResponse
 
 ```ts
 export interface AuditHistoryListResponse {
@@ -181,7 +221,7 @@ export interface AuditHistoryListResponse {
 
 ### [src/modules/DTOs/auth/ChangePasswordRequest.dto.ts](../src/modules/DTOs/auth/ChangePasswordRequest.dto.ts)
 
-#### L1 â€” interface ChangePasswordRequest
+#### L1 — interface ChangePasswordRequest
 
 ```ts
 export interface ChangePasswordRequest {
@@ -193,7 +233,7 @@ export interface ChangePasswordRequest {
 
 ### [src/modules/DTOs/auth/ChangePasswordResponse.dto.ts](../src/modules/DTOs/auth/ChangePasswordResponse.dto.ts)
 
-#### L3 â€” interface ChangePasswordResponseDTO
+#### L3 — interface ChangePasswordResponseDTO
 
 ```ts
 export interface ChangePasswordResponseDTO {
@@ -201,14 +241,14 @@ export interface ChangePasswordResponseDTO {
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  profile: ProfileReference;
   mustChangePassword: boolean;
 }
 ```
 
 ### [src/modules/DTOs/auth/LoginRequest.dto.ts](../src/modules/DTOs/auth/LoginRequest.dto.ts)
 
-#### L1 â€” interface LoginRequestDTO
+#### L1 — interface LoginRequestDTO
 
 ```ts
 export interface LoginRequestDTO {
@@ -219,7 +259,7 @@ export interface LoginRequestDTO {
 
 ### [src/modules/DTOs/auth/LoginResponse.dto.ts](../src/modules/DTOs/auth/LoginResponse.dto.ts)
 
-#### L3 â€” interface LoginResponseDTO
+#### L3 — interface LoginResponseDTO
 
 ```ts
 export interface LoginResponseDTO {
@@ -227,14 +267,14 @@ export interface LoginResponseDTO {
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  profile: SessionProfileReference;
   mustChangePassword: boolean;
 }
 ```
 
 ### [src/modules/DTOs/auth/MeResponse.dto.ts](../src/modules/DTOs/auth/MeResponse.dto.ts)
 
-#### L3 â€” interface MeResponseDTO
+#### L4 — interface MeResponseDTO
 
 ```ts
 export interface MeResponseDTO {
@@ -242,30 +282,31 @@ export interface MeResponseDTO {
   name: string;
   email: string;
   avatarUrl: string | null;
-  role: Role;
+  profile: ProfileReference;
   mustChangePassword: boolean;
+  /** Lista efetiva do Perfil vigente, na ordem do catálogo de Permissões (§ 8). */
+  permissions: EffectivePermission[];
 }
 ```
 
 ### [src/modules/DTOs/internalNotes/InternalNotes.dto.ts](../src/modules/DTOs/internalNotes/InternalNotes.dto.ts)
 
-#### L10 â€” interface TimelineActorDTO
+#### L9 — interface TimelineActorDTO
 
 ```ts
 export interface TimelineActorDTO {
   id: string;
   name: string;
-  role: InternalRole;
+  /**
+   * Snapshot do Perfil no momento do registro. `null` quando o evento não
+   * guardou Perfil; em notas antigas, `id` é `null` porque só o nome foi
+   * preservado — nunca inferido do nome.
+   */
+  profile: ProfileSnapshot | null;
 }
 ```
 
-#### L16 â€” alias TimelineEventActorDTO
-
-```ts
-export type TimelineEventActorDTO = Omit<TimelineActorDTO, "role"> & { role: Role };
-```
-
-#### L18 â€” interface TimelineNote
+#### L20 — interface TimelineNote
 
 ```ts
 export interface TimelineNote {
@@ -277,7 +318,7 @@ export interface TimelineNote {
 }
 ```
 
-#### L26 â€” interface TimelineEvent
+#### L28 — interface TimelineEvent
 
 ```ts
 export interface TimelineEvent {
@@ -286,25 +327,25 @@ export interface TimelineEvent {
   action: TimelineEventAction;
   text: string;
   occurredAt: string;
-  actor: TimelineEventActorDTO | null;
+  actor: TimelineActorDTO | null;
   changeOrigin: TimelineChangeOrigin;
   /** Justificativa interna da transição (nunca o retorno público). */
   justification?: string | null;
   /**
    * Snapshot do retorno público da própria transição — populado **somente**
-   * em transições com retorno público; `null`/ausente nas demais.
+   * em `request.status_change` de destino público; `null`/ausente nos demais.
    */
   lastTechnicalMessage?: string | null;
 }
 ```
 
-#### L43 â€” alias TimelineItem
+#### L45 — alias TimelineItem
 
 ```ts
 export type TimelineItem = TimelineNote | TimelineEvent;
 ```
 
-#### L45 â€” interface TriageHistoryEntry
+#### L47 — interface TriageHistoryEntry
 
 ```ts
 export interface TriageHistoryEntry {
@@ -313,7 +354,7 @@ export interface TriageHistoryEntry {
 }
 ```
 
-#### L50 â€” interface MappingHistoryEntry
+#### L52 — interface MappingHistoryEntry
 
 ```ts
 export interface MappingHistoryEntry {
@@ -322,7 +363,7 @@ export interface MappingHistoryEntry {
 }
 ```
 
-#### L55 â€” interface InternalNotesResponse
+#### L57 — interface InternalNotesResponse
 
 ```ts
 export interface InternalNotesResponse {
@@ -334,7 +375,7 @@ export interface InternalNotesResponse {
 }
 ```
 
-#### L63 â€” interface CreateInternalNoteRequest
+#### L65 — interface CreateInternalNoteRequest
 
 ```ts
 export interface CreateInternalNoteRequest {
@@ -342,7 +383,7 @@ export interface CreateInternalNoteRequest {
 }
 ```
 
-#### L67 â€” interface MarkInternalNotesReadRequest
+#### L69 — interface MarkInternalNotesReadRequest
 
 ```ts
 export interface MarkInternalNotesReadRequest {
@@ -352,7 +393,7 @@ export interface MarkInternalNotesReadRequest {
 
 ### [src/modules/DTOs/notifications/Notifications.dto.ts](../src/modules/DTOs/notifications/Notifications.dto.ts)
 
-#### L7 â€” interface NotificationItem
+#### L7 — interface NotificationItem
 
 ```ts
 export interface NotificationItem {
@@ -364,7 +405,7 @@ export interface NotificationItem {
 }
 ```
 
-#### L15 â€” interface NotificationListResponse
+#### L15 — interface NotificationListResponse
 
 ```ts
 export interface NotificationListResponse {
@@ -374,7 +415,7 @@ export interface NotificationListResponse {
 }
 ```
 
-#### L21 â€” interface NotificationUnreadCountResponse
+#### L21 — interface NotificationUnreadCountResponse
 
 ```ts
 export interface NotificationUnreadCountResponse {
@@ -382,7 +423,7 @@ export interface NotificationUnreadCountResponse {
 }
 ```
 
-#### L25 â€” interface NotificationMarkReadResponse
+#### L25 — interface NotificationMarkReadResponse
 
 ```ts
 export interface NotificationMarkReadResponse {
@@ -391,7 +432,7 @@ export interface NotificationMarkReadResponse {
 }
 ```
 
-#### L30 â€” interface NotificationMarkAllReadResponse
+#### L30 — interface NotificationMarkAllReadResponse
 
 ```ts
 export interface NotificationMarkAllReadResponse {
@@ -401,7 +442,7 @@ export interface NotificationMarkAllReadResponse {
 
 ### [src/modules/DTOs/pendingItems/PendingItems.dto.ts](../src/modules/DTOs/pendingItems/PendingItems.dto.ts)
 
-#### L23 â€” interface PendingItem
+#### L23 — interface PendingItem
 
 ```ts
 export interface PendingItem {
@@ -422,7 +463,7 @@ export interface PendingItem {
 }
 ```
 
-#### L40 â€” interface CreatePendingItemsBody
+#### L40 — interface CreatePendingItemsBody
 
 ```ts
 export interface CreatePendingItemsBody {
@@ -432,7 +473,7 @@ export interface CreatePendingItemsBody {
 }
 ```
 
-#### L46 â€” interface CreatePendingItemsResponse
+#### L46 — interface CreatePendingItemsResponse
 
 ```ts
 export interface CreatePendingItemsResponse {
@@ -442,7 +483,7 @@ export interface CreatePendingItemsResponse {
 }
 ```
 
-#### L57 â€” interface ListPendingItemsResponse
+#### L57 — interface ListPendingItemsResponse
 
 ```ts
 export interface ListPendingItemsResponse {
@@ -452,13 +493,13 @@ export interface ListPendingItemsResponse {
 }
 ```
 
-#### L63 â€” alias ReviewDecision
+#### L63 — alias ReviewDecision
 
 ```ts
 export type ReviewDecision = "validate" | "reopen";
 ```
 
-#### L65 â€” alias ReviewPendingItemDecision
+#### L65 — alias ReviewPendingItemDecision
 
 ```ts
 export type ReviewPendingItemDecision =
@@ -466,7 +507,7 @@ export type ReviewPendingItemDecision =
   | { id: string; decision: "reopen"; comment: string };
 ```
 
-#### L69 â€” interface ReviewPendingItemsBody
+#### L69 — interface ReviewPendingItemsBody
 
 ```ts
 export interface ReviewPendingItemsBody {
@@ -476,7 +517,7 @@ export interface ReviewPendingItemsBody {
 }
 ```
 
-#### L75 â€” interface ReviewPendingItemsResponse
+#### L75 — interface ReviewPendingItemsResponse
 
 ```ts
 export interface ReviewPendingItemsResponse {
@@ -487,7 +528,7 @@ export interface ReviewPendingItemsResponse {
 
 ### [src/modules/DTOs/portalConfig/PortalConfigRequests.dto.ts](../src/modules/DTOs/portalConfig/PortalConfigRequests.dto.ts)
 
-#### L10 â€” interface UpdateAccessRequest
+#### L10 — interface UpdateAccessRequest
 
 ```ts
 export interface UpdateAccessRequest {
@@ -495,7 +536,7 @@ export interface UpdateAccessRequest {
 }
 ```
 
-#### L15 â€” interface UpdateIdentityRequest
+#### L15 — interface UpdateIdentityRequest
 
 ```ts
 export interface UpdateIdentityRequest {
@@ -504,7 +545,7 @@ export interface UpdateIdentityRequest {
 }
 ```
 
-#### L21 â€” interface UpdateThemeRequest
+#### L21 — interface UpdateThemeRequest
 
 ```ts
 export interface UpdateThemeRequest {
@@ -512,7 +553,7 @@ export interface UpdateThemeRequest {
 }
 ```
 
-#### L30 â€” alias PortalAssetsPatchDto
+#### L30 — alias PortalAssetsPatchDto
 
 ```ts
 export type PortalAssetsPatchDto = Partial<Record<AssetKey, string>> & {
@@ -520,7 +561,7 @@ export type PortalAssetsPatchDto = Partial<Record<AssetKey, string>> & {
 };
 ```
 
-#### L35 â€” interface UpdateCategoriesRequest
+#### L35 — interface UpdateCategoriesRequest
 
 ```ts
 export interface UpdateCategoriesRequest {
@@ -528,7 +569,7 @@ export interface UpdateCategoriesRequest {
 }
 ```
 
-#### L40 â€” interface UpdateStatusesRequest
+#### L40 — interface UpdateStatusesRequest
 
 ```ts
 export interface UpdateStatusesRequest {
@@ -536,7 +577,7 @@ export interface UpdateStatusesRequest {
 }
 ```
 
-#### L45 â€” interface UpdatePrioritizationWeightsRequest
+#### L45 — interface UpdatePrioritizationWeightsRequest
 
 ```ts
 export interface UpdatePrioritizationWeightsRequest {
@@ -546,7 +587,7 @@ export interface UpdatePrioritizationWeightsRequest {
 
 ### [src/modules/DTOs/portalConfig/PortalConfigResponse.dto.ts](../src/modules/DTOs/portalConfig/PortalConfigResponse.dto.ts)
 
-#### L2 â€” alias PortalConfigResponse
+#### L2 — alias PortalConfigResponse
 
 ```ts
 export type PortalConfigResponse = import("../../../shared/types/portalConfig.ts").PortalConfig;
@@ -554,7 +595,7 @@ export type PortalConfigResponse = import("../../../shared/types/portalConfig.ts
 
 ### [src/modules/DTOs/prioritization/PrioritizationRequests.dto.ts](../src/modules/DTOs/prioritization/PrioritizationRequests.dto.ts)
 
-#### L4 â€” interface EvaluatePrioritizationRequest
+#### L4 — interface EvaluatePrioritizationRequest
 
 ```ts
 export interface EvaluatePrioritizationRequest {
@@ -563,7 +604,7 @@ export interface EvaluatePrioritizationRequest {
 }
 ```
 
-#### L10 â€” interface EvaluationSnapshot
+#### L10 — interface EvaluationSnapshot
 
 ```ts
 export interface EvaluationSnapshot {
@@ -575,7 +616,7 @@ export interface EvaluationSnapshot {
 
 ### [src/modules/DTOs/prioritization/PrioritizationResponse.dto.ts](../src/modules/DTOs/prioritization/PrioritizationResponse.dto.ts)
 
-#### L4 â€” interface CriterionResponse
+#### L4 — interface CriterionResponse
 
 ```ts
 export interface CriterionResponse {
@@ -585,7 +626,7 @@ export interface CriterionResponse {
 }
 ```
 
-#### L11 â€” interface ListCriteriaResponse
+#### L11 — interface ListCriteriaResponse
 
 ```ts
 export interface ListCriteriaResponse {
@@ -593,7 +634,7 @@ export interface ListCriteriaResponse {
 }
 ```
 
-#### L16 â€” interface EvaluatePrioritizationResponse
+#### L16 — interface EvaluatePrioritizationResponse
 
 ```ts
 export interface EvaluatePrioritizationResponse {
@@ -605,15 +646,120 @@ export interface EvaluatePrioritizationResponse {
 }
 ```
 
+### [src/modules/DTOs/profiles/Profiles.dto.ts](../src/modules/DTOs/profiles/Profiles.dto.ts)
+
+#### L8 — interface ProfilePermissionInput
+
+```ts
+export interface ProfilePermissionInput {
+  key: string;
+  custody: Custody;
+}
+```
+
+#### L14 — interface ProfileDTO
+
+```ts
+export interface ProfileDTO {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  /** `true` apenas no próprio Perfil Admin Root (contrato RBAC § 4.2). */
+  isRoot: boolean;
+  isAssignableTriage: boolean;
+  isAssignableMapping: boolean;
+  /** Contas vinculadas — todas, inclusive inativas (guarda de desativação). */
+  userCount: number;
+  /** Composição efetiva na ordem do catálogo. */
+  permissions: EffectivePermission[];
+}
+```
+
+#### L30 — interface PermissionCatalogEntryDTO
+
+```ts
+export interface PermissionCatalogEntryDTO {
+  key: PermissionKey;
+  custodyType: "global" | "custodial";
+  allowedCustodies: readonly Custody[];
+  dependencies: readonly PermissionKey[];
+}
+```
+
+#### L38 — interface PermissionCatalogResponse
+
+```ts
+export interface PermissionCatalogResponse {
+  /** As 37 chaves na ordem de referência da matriz. */
+  permissions: PermissionCatalogEntryDTO[];
+  /** Predicados de Atribuibilidade por etapa (flag + chaves de trabalho). */
+  assignabilityPredicates: {
+    triage: readonly PermissionKey[];
+    mapping: readonly PermissionKey[];
+  };
+}
+```
+
+#### L49 — interface CreateProfileRequest
+
+```ts
+export interface CreateProfileRequest {
+  name: string;
+  description?: string | null;
+  isAssignableTriage?: boolean;
+  isAssignableMapping?: boolean;
+  permissions: ProfilePermissionInput[];
+}
+```
+
+#### L58 — interface UpdateProfileRequest
+
+```ts
+export interface UpdateProfileRequest {
+  name?: string;
+  description?: string | null;
+  isAssignableTriage?: boolean;
+  isAssignableMapping?: boolean;
+  permissions?: ProfilePermissionInput[];
+}
+```
+
+#### L67 — interface ChangeProfileStatusRequest
+
+```ts
+export interface ChangeProfileStatusRequest {
+  isActive: boolean;
+}
+```
+
+#### L72 — interface DuplicateProfileRequest
+
+```ts
+export interface DuplicateProfileRequest {
+  name: string;
+  description?: string | null;
+}
+```
+
+#### L78 — interface ChangeProfileStatusResponse
+
+```ts
+export interface ChangeProfileStatusResponse {
+  id: string;
+  isActive: boolean;
+}
+```
+
 ### [src/modules/DTOs/queue/mapping.dto.ts](../src/modules/DTOs/queue/mapping.dto.ts)
 
-#### L9 â€” alias MappingModality
+#### L9 — alias MappingModality
 
 ```ts
 export type MappingModality = "REMOTE" | "IN_PERSON";
 ```
 
-#### L16 â€” interface MappingParticipant
+#### L16 — interface MappingParticipant
 
 ```ts
 export interface MappingParticipant {
@@ -623,7 +769,7 @@ export interface MappingParticipant {
 }
 ```
 
-#### L27 â€” interface MappingParticipantInput
+#### L27 — interface MappingParticipantInput
 
 ```ts
 export interface MappingParticipantInput {
@@ -633,7 +779,7 @@ export interface MappingParticipantInput {
 }
 ```
 
-#### L34 â€” interface MappingValues
+#### L34 — interface MappingValues
 
 ```ts
 export interface MappingValues {
@@ -646,7 +792,7 @@ export interface MappingValues {
 }
 ```
 
-#### L44 â€” interface ResolvedParticipant
+#### L44 — interface ResolvedParticipant
 
 ```ts
 export interface ResolvedParticipant {
@@ -656,7 +802,7 @@ export interface ResolvedParticipant {
 }
 ```
 
-#### L60 â€” interface MappingAssignee
+#### L60 — interface MappingAssignee
 
 ```ts
 export interface MappingAssignee {
@@ -668,7 +814,7 @@ export interface MappingAssignee {
 }
 ```
 
-#### L72 â€” interface MappingResponseDTO
+#### L72 — interface MappingResponseDTO
 
 ```ts
 export interface MappingResponseDTO {
@@ -688,7 +834,7 @@ export interface MappingResponseDTO {
 }
 ```
 
-#### L102 â€” interface MappingPayloadDTO
+#### L102 — interface MappingPayloadDTO
 
 ```ts
 export interface MappingPayloadDTO {
@@ -709,19 +855,15 @@ export interface MappingPayloadDTO {
 }
 ```
 
-#### L120 â€” interface MappingActor
+#### L119 — alias MappingActor
 
 ```ts
-export interface MappingActor {
-  id: number;
-  email: string;
-  role: Role;
-}
+export type MappingActor = PermissionActor;
 ```
 
 ### [src/modules/DTOs/queue/queue.dto.ts](../src/modules/DTOs/queue/queue.dto.ts)
 
-#### L7 â€” interface FindQueueParams
+#### L7 — interface FindQueueParams
 
 ```ts
 export interface FindQueueParams extends QueueFilterQuery, QueueSortQuery {
@@ -743,19 +885,19 @@ export interface FindQueueParams extends QueueFilterQuery, QueueSortQuery {
 
 ### [src/modules/DTOs/reports/Dashboard.dto.ts](../src/modules/DTOs/reports/Dashboard.dto.ts)
 
-#### L4 â€” alias DashboardSituation
+#### L4 — alias DashboardSituation
 
 ```ts
 export type DashboardSituation = "open" | "closed" | "overdue" | "unassigned";
 ```
 
-#### L11 â€” alias DashboardPriorityFilter
+#### L11 — alias DashboardPriorityFilter
 
 ```ts
 export type DashboardPriorityFilter = number | "unassigned";
 ```
 
-#### L13 â€” interface DashboardQuery
+#### L13 — interface DashboardQuery
 
 ```ts
 export interface DashboardQuery {
@@ -768,7 +910,7 @@ export interface DashboardQuery {
 }
 ```
 
-#### L22 â€” interface DashboardSummary
+#### L22 — interface DashboardSummary
 
 ```ts
 export interface DashboardSummary {
@@ -780,7 +922,7 @@ export interface DashboardSummary {
 }
 ```
 
-#### L30 â€” interface DashboardStatusMetric
+#### L30 — interface DashboardStatusMetric
 
 ```ts
 export interface DashboardStatusMetric {
@@ -797,7 +939,7 @@ export interface DashboardStatusMetric {
 }
 ```
 
-#### L43 â€” interface DashboardPriorityMetric
+#### L43 — interface DashboardPriorityMetric
 
 ```ts
 export interface DashboardPriorityMetric {
@@ -807,7 +949,7 @@ export interface DashboardPriorityMetric {
 }
 ```
 
-#### L49 â€” interface DashboardFilterOptions
+#### L49 — interface DashboardFilterOptions
 
 ```ts
 export interface DashboardFilterOptions {
@@ -817,7 +959,7 @@ export interface DashboardFilterOptions {
 }
 ```
 
-#### L55 â€” interface DashboardCategoryMetric
+#### L55 — interface DashboardCategoryMetric
 
 ```ts
 export interface DashboardCategoryMetric {
@@ -827,7 +969,7 @@ export interface DashboardCategoryMetric {
 }
 ```
 
-#### L61 â€” interface DashboardTrendPoint
+#### L61 — interface DashboardTrendPoint
 
 ```ts
 export interface DashboardTrendPoint {
@@ -836,7 +978,7 @@ export interface DashboardTrendPoint {
 }
 ```
 
-#### L66 â€” interface DashboardResponse
+#### L66 — interface DashboardResponse
 
 ```ts
 export interface DashboardResponse {
@@ -859,7 +1001,7 @@ export interface DashboardResponse {
 
 ### [src/modules/DTOs/reports/QueueExport.dto.ts](../src/modules/DTOs/reports/QueueExport.dto.ts)
 
-#### L1 â€” interface QueueExportRow
+#### L1 — interface QueueExportRow
 
 ```ts
 export interface QueueExportRow {
@@ -878,7 +1020,7 @@ export interface QueueExportRow {
 }
 ```
 
-#### L16 â€” interface QueueCsvExport
+#### L16 — interface QueueCsvExport
 
 ```ts
 export interface QueueCsvExport {
@@ -889,7 +1031,7 @@ export interface QueueCsvExport {
 
 ### [src/modules/DTOs/requests/RequestInternalDetail.dto.ts](../src/modules/DTOs/requests/RequestInternalDetail.dto.ts)
 
-#### L27 â€” interface Assignee
+#### L27 — interface Assignee
 
 ```ts
 export interface Assignee {
@@ -900,7 +1042,7 @@ export interface Assignee {
 }
 ```
 
-#### L34 â€” interface Prioritization
+#### L34 — interface Prioritization
 
 ```ts
 export interface Prioritization {
@@ -910,7 +1052,7 @@ export interface Prioritization {
 }
 ```
 
-#### L40 â€” interface Meeting
+#### L40 — interface Meeting
 
 ```ts
 export interface Meeting {
@@ -919,7 +1061,7 @@ export interface Meeting {
 }
 ```
 
-#### L45 â€” interface RequestInternalDetailDTO
+#### L45 — interface RequestInternalDetailDTO
 
 ```ts
 export interface RequestInternalDetailDTO {
@@ -950,7 +1092,7 @@ export interface RequestInternalDetailDTO {
 
 ### [src/modules/DTOs/requests/RequestRequests.dto.ts](../src/modules/DTOs/requests/RequestRequests.dto.ts)
 
-#### L9 â€” interface CreateRequestPayload
+#### L9 — interface CreateRequestPayload
 
 ```ts
 export interface CreateRequestPayload {
@@ -962,7 +1104,7 @@ export interface CreateRequestPayload {
 }
 ```
 
-#### L20 â€” interface UpdateRequesterBlock
+#### L20 — interface UpdateRequesterBlock
 
 ```ts
 export interface UpdateRequesterBlock {
@@ -973,7 +1115,7 @@ export interface UpdateRequesterBlock {
 }
 ```
 
-#### L30 â€” interface UpdateInternalRequestPayload
+#### L30 — interface UpdateInternalRequestPayload
 
 ```ts
 export interface UpdateInternalRequestPayload {
@@ -984,7 +1126,7 @@ export interface UpdateInternalRequestPayload {
 }
 ```
 
-#### L37 â€” interface ListRequestsQuery
+#### L37 — interface ListRequestsQuery
 
 ```ts
 export interface ListRequestsQuery {
@@ -995,13 +1137,13 @@ export interface ListRequestsQuery {
 }
 ```
 
-#### L49 â€” alias ListRequestsInput
+#### L49 — alias ListRequestsInput
 
 ```ts
 export type ListRequestsInput = Omit<ListRequestsQuery, "email"> & { email?: string };
 ```
 
-#### L56 â€” interface UpdateStatusResponse
+#### L56 — interface UpdateStatusResponse
 
 ```ts
 export interface UpdateStatusResponse {
@@ -1015,7 +1157,7 @@ export interface UpdateStatusResponse {
 
 ### [src/modules/DTOs/requests/RequestResponse.dto.ts](../src/modules/DTOs/requests/RequestResponse.dto.ts)
 
-#### L3 â€” interface RequestDetail
+#### L3 — interface RequestDetail
 
 ```ts
 export interface RequestDetail {
@@ -1042,7 +1184,7 @@ export interface RequestDetail {
 }
 ```
 
-#### L26 â€” interface CreateRequestResponse
+#### L26 — interface CreateRequestResponse
 
 ```ts
 export interface CreateRequestResponse {
@@ -1054,7 +1196,7 @@ export interface CreateRequestResponse {
 }
 ```
 
-#### L36 â€” interface AssigneeSummary
+#### L36 — interface AssigneeSummary
 
 ```ts
 export interface AssigneeSummary {
@@ -1066,7 +1208,7 @@ export interface AssigneeSummary {
 }
 ```
 
-#### L44 â€” interface AssignRequestResponse
+#### L44 — interface AssignRequestResponse
 
 ```ts
 export interface AssignRequestResponse {
@@ -1079,13 +1221,13 @@ export interface AssignRequestResponse {
 
 ### [src/modules/DTOs/requests/RequestTracking.dto.ts](../src/modules/DTOs/requests/RequestTracking.dto.ts)
 
-#### L21 â€” alias TrackingMode
+#### L21 — alias TrackingMode
 
 ```ts
 export type TrackingMode = "public" | "authenticated";
 ```
 
-#### L23 â€” interface Meeting
+#### L23 — interface Meeting
 
 ```ts
 export interface Meeting {
@@ -1094,7 +1236,7 @@ export interface Meeting {
 }
 ```
 
-#### L28 â€” interface PublicOperationalImpacts
+#### L28 — interface PublicOperationalImpacts
 
 ```ts
 export interface PublicOperationalImpacts {
@@ -1106,7 +1248,7 @@ export interface PublicOperationalImpacts {
 }
 ```
 
-#### L36 â€” interface RequesterOperational
+#### L36 — interface RequesterOperational
 
 ```ts
 export interface RequesterOperational extends PublicOperationalImpacts {
@@ -1122,7 +1264,7 @@ export interface RequesterOperational extends PublicOperationalImpacts {
 }
 ```
 
-#### L48 â€” interface RequesterAttachment
+#### L48 — interface RequesterAttachment
 
 ```ts
 export interface RequesterAttachment {
@@ -1135,7 +1277,7 @@ export interface RequesterAttachment {
 }
 ```
 
-#### L57 â€” interface PublicRequestDetails
+#### L57 — interface PublicRequestDetails
 
 ```ts
 export interface PublicRequestDetails {
@@ -1151,7 +1293,7 @@ export interface PublicRequestDetails {
 }
 ```
 
-#### L69 â€” interface RequesterRequestDetails
+#### L69 — interface RequesterRequestDetails
 
 ```ts
 export interface RequesterRequestDetails extends Omit<PublicRequestDetails, "impacts"> {
@@ -1167,7 +1309,7 @@ export interface RequesterRequestDetails extends Omit<PublicRequestDetails, "imp
 }
 ```
 
-#### L81 â€” alias TrackingDetailsResponse
+#### L81 — alias TrackingDetailsResponse
 
 ```ts
 export type TrackingDetailsResponse =
@@ -1177,13 +1319,13 @@ export type TrackingDetailsResponse =
 
 ### [src/modules/DTOs/users/UpdateProfileRequest.dto.ts](../src/modules/DTOs/users/UpdateProfileRequest.dto.ts)
 
-#### L36 â€” alias UpdateRequesterBlock
+#### L36 — alias UpdateRequesterBlock
 
 ```ts
 export type UpdateRequesterBlock = z.infer<typeof updateRequesterSchema>;
 ```
 
-#### L55 â€” alias UpdateProfilePayload
+#### L55 — alias UpdateProfilePayload
 
 ```ts
 export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;
@@ -1191,21 +1333,21 @@ export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;
 
 ### [src/modules/DTOs/users/UserProfileResponse.dto.ts](../src/modules/DTOs/users/UserProfileResponse.dto.ts)
 
-#### L4 â€” interface UserProfileResponseDTO
+#### L4 — interface UserProfileResponseDTO
 
 ```ts
 export interface UserProfileResponseDTO {
   id: string;
   fullName: string;
   email: string;
-  role: Role;
+  profile: ProfileReference;
   avatarUrl: string | null;
   requester: RequesterProfileBlock | null;
   professional: ProfessionalProfileBlock | null;
 }
 ```
 
-#### L15 â€” interface RequesterProfileBlock
+#### L15 — interface RequesterProfileBlock
 
 ```ts
 export interface RequesterProfileBlock {
@@ -1216,7 +1358,7 @@ export interface RequesterProfileBlock {
 }
 ```
 
-#### L23 â€” interface ProfessionalProfileBlock
+#### L23 — interface ProfessionalProfileBlock
 
 ```ts
 export interface ProfessionalProfileBlock {
@@ -1229,11 +1371,11 @@ export interface ProfessionalProfileBlock {
 
 ### [src/modules/DTOs/users/UserRequests.dto.ts](../src/modules/DTOs/users/UserRequests.dto.ts)
 
-#### L3 â€” interface CreateProfessionalInput
+#### L1 — interface CreateProfessionalInput
 
 ```ts
 export interface CreateProfessionalInput {
-  /** Cargo do analista (vira `job_title` → `specialty` no card). */
+  /** Cargo da Extensão de profissional (`job_title` → `specialty` no diretório). */
   jobTitle: string;
   /** Especialidades (vira `specialties`, texto separado por vírgula). */
   specialties: string[];
@@ -1243,7 +1385,7 @@ export interface CreateProfessionalInput {
 }
 ```
 
-#### L13 â€” interface RequesterInput
+#### L11 — interface RequesterInput
 
 ```ts
 export interface RequesterInput {
@@ -1254,27 +1396,28 @@ export interface RequesterInput {
 }
 ```
 
-#### L20 â€” interface CreateUserRequest
+#### L18 — interface CreateUserRequest
 
 ```ts
 export interface CreateUserRequest {
   fullName: string;
   email: string;
-  /** Nome do perfil no banco (`profiles.name`), ex.: "analista". */
-  role: ProfileName;
-  /** Obrigatório quando `role = "analista"`; proibido para os demais perfis. */
+  /** Identidade estável do Perfil. */
+  profileId: string;
+  /** Opcional; permitido somente para Perfil ativo com flag de Atribuibilidade. */
   professional?: CreateProfessionalInput;
   requester: RequesterInput;
 }
 ```
 
-#### L30 â€” interface UpdateUserRequest
+#### L28 — interface UpdateUserRequest
 
 ```ts
 export interface UpdateUserRequest {
   fullName?: string;
   email?: string;
-  role?: ProfileName;
+  /** Identidade estável do Perfil de destino. */
+  profileId?: string;
   professional?: CreateProfessionalInput;
   requester?: {
     area?: string;
@@ -1285,18 +1428,18 @@ export interface UpdateUserRequest {
 }
 ```
 
-#### L43 â€” interface ListUsersQuery
+#### L42 — interface ListUsersQuery
 
 ```ts
 export interface ListUsersQuery {
-  profile?: ProfileName;
+  profileId?: string;
   search?: string;
   page: number;
   pageSize: number;
 }
 ```
 
-#### L50 â€” interface ChangeUserStatusRequest
+#### L49 — interface ChangeUserStatusRequest
 
 ```ts
 export interface ChangeUserStatusRequest {
@@ -1306,7 +1449,7 @@ export interface ChangeUserStatusRequest {
 
 ### [src/modules/DTOs/users/UserResponse.dto.ts](../src/modules/DTOs/users/UserResponse.dto.ts)
 
-#### L4 â€” interface UserSummary
+#### L4 — interface UserSummary
 
 ```ts
 export interface UserSummary {
@@ -1314,45 +1457,37 @@ export interface UserSummary {
   fullName: string;
   email: string;
   avatarUrl: string | null;
-  profile: Role;
+  profile: ProfileReference;
   isActive: boolean;
   mustChangePassword: boolean;
   createdAt: string;
 }
 ```
 
-#### L15 â€” interface AssignAnalyst
+#### L15 — interface AssignableProfessional
 
 ```ts
-export interface AssignAnalyst {
+export interface AssignableProfessional {
   id: string;
   fullName: string;
   email: string;
   specialty: string;
   categories: RequestCategoryName[];
   notes: string | null;
-  requestLoad: number | null;
+  requestLoad: number;
 }
 ```
 
-#### L27 â€” alias Analyst
+#### L25 — interface CreateUserResponse
 
 ```ts
-export type Analyst = AssignAnalyst;
-```
-
-#### L29 â€” interface CreateUserResponse
-
-```ts
-export interface CreateUserResponse extends Omit<UserSummary, "profile" | "avatarUrl"> {
-  /** Vocabulário de exibição — capitalizado (ex.: "Analista"). */
-  role: Role;
+export interface CreateUserResponse extends Omit<UserSummary, "avatarUrl"> {
   /** Exibida uma única vez — não recuperável depois. */
   temporaryPassword: string;
 }
 ```
 
-#### L36 â€” interface ResetPasswordResponse
+#### L30 — interface ResetPasswordResponse
 
 ```ts
 export interface ResetPasswordResponse {
@@ -1361,7 +1496,7 @@ export interface ResetPasswordResponse {
 }
 ```
 
-#### L41 â€” interface ChangeUserStatusResponse
+#### L35 — interface ChangeUserStatusResponse
 
 ```ts
 export interface ChangeUserStatusResponse {
@@ -1372,15 +1507,17 @@ export interface ChangeUserStatusResponse {
 
 ### [src/modules/internalNotes/internalNotes.repository.ts](../src/modules/internalNotes/internalNotes.repository.ts)
 
-#### L15 â€” interface RequestIdentityRow
+#### L14 — interface RequestIdentityRow
 
 ```ts
 interface RequestIdentityRow {
   request_id: string;
+  responsible_user_id: number | null;
+  mapping_user_id: number | null;
 }
 ```
 
-#### L157 â€” alias MappingHistoryBaseRow
+#### L182 — alias MappingHistoryBaseRow
 
 ```ts
 type MappingHistoryBaseRow = Omit<MappingHistoryRow, "participants" | "mappingAssignee">;
@@ -1388,13 +1525,13 @@ type MappingHistoryBaseRow = Omit<MappingHistoryRow, "participants" | "mappingAs
 
 ### [src/modules/internalNotes/internalNotes.schema.ts](../src/modules/internalNotes/internalNotes.schema.ts)
 
-#### L35 â€” alias TimelineCursorPayload
+#### L35 — alias TimelineCursorPayload
 
 ```ts
 export type TimelineCursorPayload = z.infer<typeof cursorPayloadSchema>;
 ```
 
-#### L70 â€” alias ListTimelineQuery
+#### L70 — alias ListTimelineQuery
 
 ```ts
 export type ListTimelineQuery = z.infer<typeof listTimelineQuerySchema>;
@@ -1402,7 +1539,16 @@ export type ListTimelineQuery = z.infer<typeof listTimelineQuerySchema>;
 
 ### [src/modules/internalNotes/internalNotes.service.ts](../src/modules/internalNotes/internalNotes.service.ts)
 
-#### L68 â€” interface TimelineEntry
+#### L53 — interface InternalNotesActor
+
+```ts
+export interface InternalNotesActor extends PermissionActor {
+  readonly profileId: string;
+  readonly profileName: string;
+}
+```
+
+#### L95 — interface TimelineEntry
 
 ```ts
 interface TimelineEntry {
@@ -1413,9 +1559,20 @@ interface TimelineEntry {
 }
 ```
 
+#### L203 — interface ActorSource
+
+```ts
+interface ActorSource {
+  actor_user_id: number | null;
+  actor_name: string | null;
+  actor_profile_id: number | null;
+  actor_profile_name: string | null;
+}
+```
+
 ### [src/modules/notifications/notifications.repository.ts](../src/modules/notifications/notifications.repository.ts)
 
-#### L4 â€” interface NotificationRow
+#### L4 — interface NotificationRow
 
 ```ts
 export interface NotificationRow {
@@ -1427,7 +1584,7 @@ export interface NotificationRow {
 }
 ```
 
-#### L12 â€” interface NotificationCursor
+#### L12 — interface NotificationCursor
 
 ```ts
 export interface NotificationCursor {
@@ -1435,7 +1592,7 @@ export interface NotificationCursor {
 }
 ```
 
-#### L134 â€” interface MarkReadRow
+#### L134 — interface MarkReadRow
 
 ```ts
 export interface MarkReadRow {
@@ -1446,13 +1603,13 @@ export interface MarkReadRow {
 
 ### [src/modules/notifications/notifications.schema.ts](../src/modules/notifications/notifications.schema.ts)
 
-#### L12 â€” alias NotificationCursorPayload
+#### L12 — alias NotificationCursorPayload
 
 ```ts
 export type NotificationCursorPayload = z.infer<typeof notificationCursorPayloadSchema>;
 ```
 
-#### L65 â€” alias ListNotificationsQuery
+#### L65 — alias ListNotificationsQuery
 
 ```ts
 export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema>;
@@ -1460,7 +1617,7 @@ export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-#### L11 â€” interface RequestRef
+#### L12 — interface RequestRef
 
 ```ts
 export interface RequestRef {
@@ -1473,22 +1630,23 @@ export interface RequestRef {
   requester_user_id: number | null;
   requester_name: string;
   requester_email: string;
+  responsible_user_id: number | null;
 }
 ```
 
-#### L54 â€” alias PendingItemRow
+#### L56 — alias PendingItemRow
 
 ```ts
 export type PendingItemRow = z.infer<typeof pendingItemRowSchema>;
 ```
 
-#### L66 â€” alias PendingAttachmentRow
+#### L68 — alias PendingAttachmentRow
 
 ```ts
 export type PendingAttachmentRow = z.infer<typeof pendingAttachmentRowSchema>;
 ```
 
-#### L388 â€” alias PendingItemInsert
+#### L412 — alias PendingItemInsert
 
 ```ts
 export type PendingItemInsert = {
@@ -1505,7 +1663,7 @@ export type PendingItemInsert = {
 };
 ```
 
-#### L401 â€” alias RespondFacts
+#### L425 — alias RespondFacts
 
 ```ts
 export type RespondFacts = {
@@ -1515,7 +1673,7 @@ export type RespondFacts = {
 };
 ```
 
-#### L407 â€” alias ReviewDecisionInput
+#### L431 — alias ReviewDecisionInput
 
 ```ts
 export type ReviewDecisionInput =
@@ -1529,13 +1687,13 @@ export type ReviewDecisionInput =
   | { id: string; decision: "reopen"; comment: string };
 ```
 
-#### L417 â€” alias ReviewFacts
+#### L441 — alias ReviewFacts
 
 ```ts
 export type ReviewFacts = { hasReopen: boolean };
 ```
 
-#### L419 â€” alias SavedPendingAttachment
+#### L443 — alias SavedPendingAttachment
 
 ```ts
 export type SavedPendingAttachment = {
@@ -1546,13 +1704,13 @@ export type SavedPendingAttachment = {
 };
 ```
 
-#### L577 â€” alias PendingItemResponsePatch
+#### L591 — alias PendingItemResponsePatch
 
 ```ts
 export type PendingItemResponsePatch = { corrected_value: string } | { response_text: string };
 ```
 
-#### L579 â€” interface PendingItemResponseInput
+#### L593 — interface PendingItemResponseInput
 
 ```ts
 export interface PendingItemResponseInput {
@@ -1568,7 +1726,7 @@ export interface PendingItemResponseInput {
 }
 ```
 
-#### L591 â€” interface PendingItemResponseResult
+#### L605 — interface PendingItemResponseResult
 
 ```ts
 export interface PendingItemResponseResult {
@@ -1580,25 +1738,25 @@ export interface PendingItemResponseResult {
 
 ### [src/modules/pendingItems/pendingItems.schema.ts](../src/modules/pendingItems/pendingItems.schema.ts)
 
-#### L52 â€” alias PendingItemResponseBody
+#### L52 — alias PendingItemResponseBody
 
 ```ts
 export type PendingItemResponseBody = z.infer<typeof pendingItemResponseBodySchema>;
 ```
 
-#### L75 â€” alias CreatePendingItemsInput
+#### L75 — alias CreatePendingItemsInput
 
 ```ts
 export type CreatePendingItemsInput = z.infer<typeof createPendingItemsSchema>;
 ```
 
-#### L76 â€” alias VerifyInput
+#### L76 — alias VerifyInput
 
 ```ts
 export type VerifyInput = z.infer<typeof verifySchema>;
 ```
 
-#### L77 â€” alias ReviewInput
+#### L77 — alias ReviewInput
 
 ```ts
 export type ReviewInput = z.infer<typeof reviewSchema>;
@@ -1606,46 +1764,19 @@ export type ReviewInput = z.infer<typeof reviewSchema>;
 
 ### [src/modules/pendingItems/pendingItems.service.ts](../src/modules/pendingItems/pendingItems.service.ts)
 
-#### L248 â€” alias PendingCaller
+#### L299 — alias PendingCaller
 
 ```ts
 export type PendingCaller = {
   user?: AuthenticatedUser;
+  permissions?: readonly EffectivePermission[];
   requesterIdentity?: { name: string; email: string } | null;
 };
 ```
 
-#### L254 â€” alias PendingResponseActor
-
-```ts
-export type PendingResponseActor = { id: number; email: string; role: string } | null;
-```
-
-#### L375 â€” interface PendingItemResponseCommitInput
-
-```ts
-interface PendingItemResponseCommitInput {
-  request: RequestRef;
-  pendingItemId: string;
-  batchId: string;
-  patch: PendingItemResponsePatch;
-  actor: PendingResponseActor;
-  ip: string | undefined;
-}
-```
-
-#### L384 â€” interface PendingItemResponseCommitResult
-
-```ts
-interface PendingItemResponseCommitResult {
-  row: PendingItemRow;
-  committedNotifications: CommittedNotification[];
-}
-```
-
 ### [src/modules/portalConfig/portalConfig.mappers.ts](../src/modules/portalConfig/portalConfig.mappers.ts)
 
-#### L29 â€” alias Palette
+#### L29 — alias Palette
 
 ```ts
 type Palette = "light" | "dark";
@@ -1653,7 +1784,7 @@ type Palette = "light" | "dark";
 
 ### [src/modules/portalConfig/portalConfig.repository.ts](../src/modules/portalConfig/portalConfig.repository.ts)
 
-#### L67 â€” interface CriteriaRow
+#### L67 — interface CriteriaRow
 
 ```ts
 interface CriteriaRow {
@@ -1664,7 +1795,7 @@ interface CriteriaRow {
 
 ### [src/modules/prioritization/prioritization.repository.ts](../src/modules/prioritization/prioritization.repository.ts)
 
-#### L16 â€” interface RequestEvaluationContext
+#### L16 — interface RequestEvaluationContext
 
 ```ts
 interface RequestEvaluationContext {
@@ -1674,20 +1805,106 @@ interface RequestEvaluationContext {
 }
 ```
 
-### [src/modules/prioritization/prioritization.service.ts](../src/modules/prioritization/prioritization.service.ts)
+### [src/modules/profiles/profiles.audit.ts](../src/modules/profiles/profiles.audit.ts)
 
-#### L34 â€” interface Actor
+#### L15 — alias ProfileAuditAction
 
 ```ts
-interface Actor {
-  id: number;
-  role: string;
+export type ProfileAuditAction = ComposedAuditAction<"profile">;
+```
+
+#### L22 — interface ProfileAuditState
+
+```ts
+export interface ProfileAuditState {
+  row: ProfileWithUserCountRow;
+  permissions: readonly EffectivePermission[];
+}
+```
+
+#### L27 — interface ProfileAuditEntry
+
+```ts
+export interface ProfileAuditEntry {
+  actorUserId: number;
+  profileId: number;
+  actionType: ProfileAuditAction;
+  /** Estado anterior; `null` em criação e duplicação. */
+  previous: ProfileAuditState | null;
+  next: ProfileAuditState;
+  ipAddress: string | undefined;
+  /** Justificativa interna, quando a ação tiver uma (ex.: origem da duplicação). */
+  note?: string | null;
+}
+```
+
+### [src/modules/profiles/profiles.composition.ts](../src/modules/profiles/profiles.composition.ts)
+
+#### L22 — alias AssignabilityStage
+
+```ts
+export type AssignabilityStage = "triage" | "mapping";
+```
+
+#### L43 — interface CompositionState
+
+```ts
+export interface CompositionState {
+  isAssignableTriage: boolean;
+  isAssignableMapping: boolean;
+  permissions: readonly EffectivePermission[];
+}
+```
+
+#### L201 — interface WorkKeyLoss
+
+```ts
+export interface WorkKeyLoss {
+  stage: AssignabilityStage;
+  missingKeys: readonly PermissionKey[];
+  sourceFlag: boolean;
+  targetFlag: boolean;
+}
+```
+
+#### L275 — interface ProfileSnapshotSource
+
+```ts
+export interface ProfileSnapshotSource {
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  isRoot: boolean;
+  isAssignableTriage: boolean;
+  isAssignableMapping: boolean;
+  permissions: readonly EffectivePermission[];
+}
+```
+
+### [src/modules/profiles/profiles.repository.ts](../src/modules/profiles/profiles.repository.ts)
+
+#### L29 — interface ProfileWithCountRow
+
+```ts
+interface ProfileWithCountRow extends Omit<ProfileWithUserCountRow, "user_count"> {
+  user_count: string;
+}
+```
+
+### [src/modules/profiles/profiles.service.ts](../src/modules/profiles/profiles.service.ts)
+
+#### L38 — interface ProfileActor
+
+```ts
+export interface ProfileActor {
+  userId: number;
+  permissions: readonly EffectivePermission[];
 }
 ```
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-#### L17 â€” interface MappingRow
+#### L19 — interface MappingRow
 
 ```ts
 export interface MappingRow {
@@ -1710,7 +1927,7 @@ export interface MappingRow {
 }
 ```
 
-#### L41 â€” interface MappingParticipantRow
+#### L43 — interface MappingParticipantRow
 
 ```ts
 export interface MappingParticipantRow {
@@ -1720,7 +1937,7 @@ export interface MappingParticipantRow {
 }
 ```
 
-#### L48 â€” interface MappingRequestContext
+#### L50 — interface MappingRequestContext
 
 ```ts
 export interface MappingRequestContext {
@@ -1732,18 +1949,18 @@ export interface MappingRequestContext {
   /** `details_professional.user_id` do responsável (id de `users`, não UUID). */
   assignee_user_id: number | null;
   mapping_assignee_user_id: number | null;
+  /** Conta que criou a solicitação; `null` nas linhas anônimas e legadas. */
+  requester_user_id: number | null;
   /** Motor de Status v4 (issue #124): flags do status vigente. */
   status_id: number | null;
   is_terminal: boolean;
   is_restricted: boolean;
   /** Título da solicitação — compõe a Allowlist do Evento de Agendamento. */
   title: string;
-  /** Destinatário do Evento de Agendamento (solicitante autenticado). */
-  requester_user_id: number | null;
 }
 ```
 
-#### L68 â€” interface MappingAssigneeCandidate
+#### L70 — interface MappingAssigneeCandidate
 
 ```ts
 export interface MappingAssigneeCandidate {
@@ -1754,11 +1971,12 @@ export interface MappingAssigneeCandidate {
   jobTitle: string | null;
   professional_status: "active" | "inactive";
   user_is_active: boolean;
-  profile_name: string;
+  profile_id: number;
+  profile_is_active: boolean;
 }
 ```
 
-#### L125 â€” interface MappingTargetRow
+#### L130 — interface MappingTargetRow
 
 ```ts
 export interface MappingTargetRow {
@@ -1770,7 +1988,7 @@ export interface MappingTargetRow {
 
 ### [src/modules/queue/mapping.schemas.ts](../src/modules/queue/mapping.schemas.ts)
 
-#### L123 â€” alias MappingPayload
+#### L123 — alias MappingPayload
 
 ```ts
 export type MappingPayload = z.infer<typeof mappingPayloadSchema>;
@@ -1778,7 +1996,7 @@ export type MappingPayload = z.infer<typeof mappingPayloadSchema>;
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-#### L5 â€” interface QueueRepositoryFilters
+#### L5 — interface QueueRepositoryFilters
 
 ```ts
 export interface QueueRepositoryFilters extends QueueFilterQuery {
@@ -1787,9 +2005,18 @@ export interface QueueRepositoryFilters extends QueueFilterQuery {
 }
 ```
 
+#### L10 — alias MappingAssigneeSelector
+
+```ts
+type MappingAssigneeSelector = {
+  readonly field: "user_id" | "professional_id";
+  readonly value: number | string;
+};
+```
+
 ### [src/modules/reports/reports.repository.ts](../src/modules/reports/reports.repository.ts)
 
-#### L15 â€” interface DashboardSummaryRow
+#### L15 — interface DashboardSummaryRow
 
 ```ts
 interface DashboardSummaryRow {
@@ -1801,7 +2028,7 @@ interface DashboardSummaryRow {
 }
 ```
 
-#### L23 â€” interface DashboardStatusRow
+#### L23 — interface DashboardStatusRow
 
 ```ts
 interface DashboardStatusRow {
@@ -1813,7 +2040,7 @@ interface DashboardStatusRow {
 }
 ```
 
-#### L31 â€” interface DashboardPriorityRow
+#### L31 — interface DashboardPriorityRow
 
 ```ts
 interface DashboardPriorityRow {
@@ -1823,7 +2050,7 @@ interface DashboardPriorityRow {
 }
 ```
 
-#### L37 â€” interface DashboardCategoryRow
+#### L37 — interface DashboardCategoryRow
 
 ```ts
 interface DashboardCategoryRow {
@@ -1833,7 +2060,7 @@ interface DashboardCategoryRow {
 }
 ```
 
-#### L43 â€” interface DashboardTrendRow
+#### L43 — interface DashboardTrendRow
 
 ```ts
 interface DashboardTrendRow {
@@ -1842,7 +2069,7 @@ interface DashboardTrendRow {
 }
 ```
 
-#### L48 â€” interface DashboardStatusOptionRow
+#### L48 — interface DashboardStatusOptionRow
 
 ```ts
 interface DashboardStatusOptionRow {
@@ -1851,7 +2078,7 @@ interface DashboardStatusOptionRow {
 }
 ```
 
-#### L53 â€” interface DashboardCategoryOptionRow
+#### L53 — interface DashboardCategoryOptionRow
 
 ```ts
 interface DashboardCategoryOptionRow {
@@ -1860,7 +2087,7 @@ interface DashboardCategoryOptionRow {
 }
 ```
 
-#### L58 â€” interface DashboardPriorityOptionRow
+#### L58 — interface DashboardPriorityOptionRow
 
 ```ts
 interface DashboardPriorityOptionRow {
@@ -1869,7 +2096,7 @@ interface DashboardPriorityOptionRow {
 }
 ```
 
-#### L63 â€” interface DashboardFilterOptionRows
+#### L63 — interface DashboardFilterOptionRows
 
 ```ts
 export interface DashboardFilterOptionRows {
@@ -1881,11 +2108,11 @@ export interface DashboardFilterOptionRows {
 
 ### [src/modules/requests/requests-reopen.service.ts](../src/modules/requests/requests-reopen.service.ts)
 
-#### L21 â€” interface ReopenRequestInput
+#### L21 — interface ReopenRequestInput
 
 ```ts
 interface ReopenRequestInput {
-  actor: Pick<AuthenticatedUser, "id" | "email" | "role">;
+  actor: PermissionActor;
   protocol: string;
   justification: string;
   closureRef: string;
@@ -1893,7 +2120,7 @@ interface ReopenRequestInput {
 }
 ```
 
-#### L29 â€” interface ReopenRequestResult
+#### L29 — interface ReopenRequestResult
 
 ```ts
 interface ReopenRequestResult {
@@ -1905,7 +2132,7 @@ interface ReopenRequestResult {
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
-#### L42 â€” interface LockedRequestClosure
+#### L46 — interface LockedRequestClosure
 
 ```ts
 interface LockedRequestClosure {
@@ -1917,7 +2144,7 @@ interface LockedRequestClosure {
 }
 ```
 
-#### L63 â€” interface RequestWriteState
+#### L67 — interface RequestWriteState
 
 ```ts
 interface RequestWriteState {
@@ -1929,7 +2156,7 @@ interface RequestWriteState {
 }
 ```
 
-#### L116 â€” interface YesNoDetailColumns
+#### L120 — interface YesNoDetailColumns
 
 ```ts
 interface YesNoDetailColumns {
@@ -1938,7 +2165,7 @@ interface YesNoDetailColumns {
 }
 ```
 
-#### L231 â€” interface RequestInsertReturning
+#### L235 — interface RequestInsertReturning
 
 ```ts
 interface RequestInsertReturning {
@@ -1948,7 +2175,7 @@ interface RequestInsertReturning {
 }
 ```
 
-#### L420 â€” interface RequestSummaryRow
+#### L424 — interface RequestSummaryRow
 
 ```ts
 interface RequestSummaryRow {
@@ -1962,16 +2189,17 @@ interface RequestSummaryRow {
 }
 ```
 
-#### L500 â€” interface RequestWithOwner
+#### L504 — interface RequestWithOwner
 
 ```ts
 export interface RequestWithOwner {
   detail: RequestDetail;
   requesterEmail: string;
+  requesterUserId: number | null;
 }
 ```
 
-#### L572 â€” interface RequestAttachmentRow
+#### L579 — interface RequestAttachmentRow
 
 ```ts
 export interface RequestAttachmentRow {
@@ -1982,7 +2210,7 @@ export interface RequestAttachmentRow {
 }
 ```
 
-#### L580 â€” interface SchedulePreferenceRow
+#### L587 — interface SchedulePreferenceRow
 
 ```ts
 export interface SchedulePreferenceRow {
@@ -1990,7 +2218,7 @@ export interface SchedulePreferenceRow {
 }
 ```
 
-#### L915 â€” interface CancellationContext
+#### L938 — interface CancellationContext
 
 ```ts
 interface CancellationContext {
@@ -2003,7 +2231,7 @@ interface CancellationContext {
 }
 ```
 
-#### L961 â€” interface RequestStatusContext
+#### L984 — interface RequestStatusContext
 
 ```ts
 export interface RequestStatusContext {
@@ -2024,7 +2252,7 @@ export interface RequestStatusContext {
 }
 ```
 
-#### L979 â€” interface RequestStatusTarget
+#### L1002 — interface RequestStatusTarget
 
 ```ts
 export interface RequestStatusTarget {
@@ -2041,31 +2269,31 @@ export interface RequestStatusTarget {
 
 ### [src/modules/requests/requests.schema.ts](../src/modules/requests/requests.schema.ts)
 
-#### L157 â€” alias UpdateRequestPayload
+#### L157 — alias UpdateRequestPayload
 
 ```ts
 export type UpdateRequestPayload = z.infer<typeof updateRequestPayloadSchema>;
 ```
 
-#### L188 â€” alias AssignRequestPayload
+#### L188 — alias AssignRequestPayload
 
 ```ts
 export type AssignRequestPayload = z.infer<typeof assignRequestSchema>;
 ```
 
-#### L212 â€” alias AssignAnalystPayload
+#### L212 — alias AssignAnalystPayload
 
 ```ts
 export type AssignAnalystPayload = z.infer<typeof assignAnalystSchema>;
 ```
 
-#### L228 â€” alias CancelRequestPayload
+#### L228 — alias CancelRequestPayload
 
 ```ts
 export type CancelRequestPayload = z.infer<typeof cancelRequestSchema>;
 ```
 
-#### L241 â€” alias UpdateStatusPayload
+#### L241 — alias UpdateStatusPayload
 
 ```ts
 export type UpdateStatusPayload = z.infer<typeof updateStatusSchema>;
@@ -2073,7 +2301,7 @@ export type UpdateStatusPayload = z.infer<typeof updateStatusSchema>;
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-#### L73 â€” interface AuthenticatedIdentity
+#### L92 — interface AuthenticatedIdentity
 
 ```ts
 interface AuthenticatedIdentity {
@@ -2082,7 +2310,22 @@ interface AuthenticatedIdentity {
 }
 ```
 
-#### L428 â€” interface TrackingCaller
+#### L97 — alias RequestActor
+
+```ts
+type RequestActor = PermissionActor;
+```
+
+#### L99 — interface RequestMutationAcknowledgement
+
+```ts
+interface RequestMutationAcknowledgement {
+  readonly protocol: string;
+  readonly updated: true;
+}
+```
+
+#### L523 — interface TrackingCaller
 
 ```ts
 export interface TrackingCaller {
@@ -2091,9 +2334,55 @@ export interface TrackingCaller {
 }
 ```
 
+#### L831 — interface InternalRequestRow
+
+```ts
+interface InternalRequestRow {
+  request_id: string;
+  requester_id: string;
+  professional_id: string | null;
+  title: string;
+  request_type: string;
+  category: string;
+  process_name: string;
+  need_description: string;
+  problem_opportunity: string;
+  expected_result: string;
+  justification: string;
+  process_description: string;
+  process_steps: string;
+  systems_used: string;
+  execution_frequency: string;
+  approximate_volume: string;
+  people_involved: number;
+  average_duration: string;
+  estimated_monthly_effort: string | number;
+  has_manual_controls: boolean;
+  manual_controls_detail: string | null;
+  main_risks: string;
+  client_impact: string;
+  operational_impact: OperationalImpact;
+  desired_deadline: Date | string;
+  perceived_criticality: RequestPriority;
+  has_process_documentation: boolean | null;
+  process_documentation_detail: string | null;
+  has_similar_solution: boolean | null;
+  similar_solution_detail: string | null;
+  depends_on_other_areas: boolean | null;
+  other_areas_detail: string | null;
+  handles_restricted_info: boolean | null;
+  restricted_info_detail: string | null;
+  additional_notes: string | null;
+  requester_area: string | null;
+  requester_department: string | null;
+  requester_manager: string | null;
+  requester_additional_contact: string | null;
+}
+```
+
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
-#### L4 â€” interface StatusTransitionTarget
+#### L4 — interface StatusTransitionTarget
 
 ```ts
 export interface StatusTransitionTarget {
@@ -2103,7 +2392,7 @@ export interface StatusTransitionTarget {
 }
 ```
 
-#### L10 â€” interface StatusTransitionInput
+#### L10 — interface StatusTransitionInput
 
 ```ts
 export interface StatusTransitionInput {
@@ -2117,7 +2406,7 @@ export interface StatusTransitionInput {
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-#### L6 â€” interface StatusRow
+#### L7 — interface StatusRow
 
 ```ts
 export interface StatusRow {
@@ -2128,7 +2417,7 @@ export interface StatusRow {
 }
 ```
 
-#### L13 â€” interface CategoryRow
+#### L14 — interface CategoryRow
 
 ```ts
 interface CategoryRow {
@@ -2137,7 +2426,7 @@ interface CategoryRow {
 }
 ```
 
-#### L18 â€” interface RequestContextRow
+#### L19 — interface RequestContextRow
 
 ```ts
 export interface RequestContextRow {
@@ -2145,6 +2434,7 @@ export interface RequestContextRow {
   protocol: string;
   professional_id: string | null;
   assignee_user_id: number | null;
+  mapping_assignee_user_id: number | null;
   status_id: number;
   reopen_ref: string | null;
   status_name: string | null;
@@ -2156,7 +2446,7 @@ export interface RequestContextRow {
 }
 ```
 
-#### L56 â€” interface TriageRow
+#### L60 — interface TriageRow
 
 ```ts
 interface TriageRow {
@@ -2179,7 +2469,7 @@ interface TriageRow {
 }
 ```
 
-#### L192 â€” interface ApplyRequestOutcomeInput
+#### L196 — interface ApplyRequestOutcomeInput
 
 ```ts
 export interface ApplyRequestOutcomeInput {
@@ -2196,7 +2486,7 @@ export interface ApplyRequestOutcomeInput {
 
 ### [src/modules/requests/triage/triage.schema.ts](../src/modules/requests/triage/triage.schema.ts)
 
-#### L3 â€” interface TriageAssignee
+#### L3 — interface TriageAssignee
 
 ```ts
 export interface TriageAssignee {
@@ -2206,7 +2496,7 @@ export interface TriageAssignee {
 }
 ```
 
-#### L9 â€” interface TriageAssessment
+#### L9 — interface TriageAssessment
 
 ```ts
 export interface TriageAssessment {
@@ -2227,7 +2517,7 @@ export interface TriageAssessment {
 }
 ```
 
-#### L26 â€” alias CreateTriagePayload
+#### L26 — alias CreateTriagePayload
 
 ```ts
 export type CreateTriagePayload = Omit<
@@ -2240,18 +2530,7 @@ export type CreateTriagePayload = Omit<
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-#### L17 â€” interface Actor
-
-```ts
-interface Actor {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-}
-```
-
-#### L51 â€” interface CommitTriageDecisionInput
+#### L64 — interface CommitTriageDecisionInput
 
 ```ts
 interface CommitTriageDecisionInput {
@@ -2260,14 +2539,14 @@ interface CommitTriageDecisionInput {
   triage: TriageAssessment;
   categoryId: number | null;
   exitStatus: StatusRow;
-  actor: Actor;
+  actor: NamedPermissionActor;
   ipAddress?: string;
 }
 ```
 
 ### [src/modules/users/users.repository.ts](../src/modules/users/users.repository.ts)
 
-#### L19 â€” interface UserSummaryRow
+#### L19 — interface UserSummaryRow
 
 ```ts
 interface UserSummaryRow {
@@ -2275,6 +2554,7 @@ interface UserSummaryRow {
   full_name: string;
   email: string;
   avatar_url: string | null;
+  profile_id: number;
   profile_name: string;
   is_active: boolean;
   must_change_password: boolean;
@@ -2282,15 +2562,41 @@ interface UserSummaryRow {
 }
 ```
 
-#### L219 â€” interface UserProfileRow
+#### L31 — interface ProfileLookupRow
+
+```ts
+export interface ProfileLookupRow {
+  profile_id: number;
+  name: string;
+  is_root: boolean;
+  is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
+}
+```
+
+#### L56 — interface FindProfileByIdOptions
+
+```ts
+export interface FindProfileByIdOptions {
+  readonly queryable?: Knex;
+  readonly shouldLockForShare?: boolean;
+}
+```
+
+#### L268 — interface UserProfileRow
 
 ```ts
 export interface UserProfileRow {
   user_id: number;
+  profile_id: number;
   full_name: string;
   email: string;
   avatar_url: string | null;
   profile_name: string;
+  is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
   requester: {
     area: string | null;
     department: string | null;
@@ -2306,42 +2612,207 @@ export interface UserProfileRow {
 }
 ```
 
-#### L524 â€” interface AnalystRow
+#### L614 — interface AssignableProfessionalRow
 
 ```ts
-interface AnalystRow {
+interface AssignableProfessionalRow {
   user_id: number;
   full_name: string;
   email: string;
   job_title: string | null;
   attended_category_ids: string | null;
   notes: string | null;
-  professional_id: string | null;
+  professional_id: string;
+}
+```
+
+### [src/modules/users/users.service.ts](../src/modules/users/users.service.ts)
+
+#### L91 — alias AccountActor
+
+```ts
+export type AccountActor = Pick<PermissionActor, "id" | "permissions">;
+```
+
+#### L93 — interface ActorAuthority
+
+```ts
+interface ActorAuthority {
+  readonly isRoot: boolean;
+  readonly grants: readonly EffectivePermission[];
+}
+```
+
+### [src/shared/access/assignability.ts](../src/shared/access/assignability.ts)
+
+#### L10 — alias AssignabilityStage
+
+```ts
+export type AssignabilityStage = "triage" | "mapping";
+```
+
+#### L17 — interface AssigneeEligibilityRow
+
+```ts
+export interface AssigneeEligibilityRow {
+  readonly professional_status: string;
+  readonly user_is_active: boolean;
+  readonly profile_is_active: boolean;
+}
+```
+
+#### L61 — interface FindAssignableProfilesOptions
+
+```ts
+export interface FindAssignableProfilesOptions {
+  readonly queryable?: Knex;
+  /** Omit to return profiles assignable to either stage. */
+  readonly stage?: AssignabilityStage;
+}
+```
+
+#### L67 — interface IsProfileAssignableOptions
+
+```ts
+export interface IsProfileAssignableOptions {
+  readonly queryable?: Knex;
+}
+```
+
+#### L71 — interface ProfileAssignablePermissionsOptions
+
+```ts
+export interface ProfileAssignablePermissionsOptions {
+  readonly queryable?: Knex;
+  readonly requireFlag?: boolean;
+  readonly requireActive?: boolean;
+}
+```
+
+#### L77 — interface PermissionKeysPredicate
+
+```ts
+export interface PermissionKeysPredicate {
+  readonly sql: string;
+  readonly bindings: Array<string | number>;
+}
+```
+
+### [src/shared/access/custody.ts](../src/shared/access/custody.ts)
+
+#### L12 — interface CustodyActor
+
+```ts
+export interface CustodyActor {
+  readonly userId: number;
+  readonly email: string;
+}
+```
+
+#### L22 — interface CustodySubject
+
+```ts
+export interface CustodySubject {
+  readonly responsibleIds?: readonly number[];
+  readonly requesterEmail?: string | null;
+}
+```
+
+#### L27 — alias ResponsibleScope
+
+```ts
+export type ResponsibleScope =
+  { readonly kind: "all" } | { readonly kind: "assigned"; readonly userId: number };
+```
+
+### [src/shared/access/permissionActor.ts](../src/shared/access/permissionActor.ts)
+
+#### L5 — interface PermissionActor
+
+```ts
+export interface PermissionActor {
+  readonly id: number;
+  readonly email: string;
+  readonly permissions: readonly EffectivePermission[];
+}
+```
+
+#### L11 — interface NamedPermissionActor
+
+```ts
+export interface NamedPermissionActor extends PermissionActor {
+  readonly name: string;
+}
+```
+
+### [src/shared/access/requestAccess.ts](../src/shared/access/requestAccess.ts)
+
+#### L17 — interface PermissionActor
+
+```ts
+export interface PermissionActor {
+  readonly id: number;
+  readonly email: string;
+  readonly permissions: readonly EffectivePermission[];
+}
+```
+
+#### L24 — interface RequestActorSource
+
+```ts
+export interface RequestActorSource {
+  readonly user?: { readonly id: string; readonly email: string };
+  readonly permissions?: readonly EffectivePermission[];
+}
+```
+
+### [src/shared/audit/accessDenied.ts](../src/shared/audit/accessDenied.ts)
+
+#### L5 — alias AccessDeniedEntity
+
+```ts
+export type AccessDeniedEntity = "request" | "queue" | "reports" | "prioritization";
+```
+
+#### L7 — interface AccessDeniedAttempt
+
+```ts
+export interface AccessDeniedAttempt {
+  readonly entityType: AccessDeniedEntity;
+  readonly entityId: string;
+  readonly userId: number;
+  readonly note: string;
+  readonly ipAddress?: string;
+  /**
+   * Chaves de Permissão avaliadas na recusa: ausentes no gate ou presentes sem
+   * o vínculo suficiente (Custódia ou Posse) na linha. Vazio quando a recusa não é de Permissão.
+   */
+  readonly deniedPermissionKeys?: readonly PermissionKey[];
 }
 ```
 
 ### [src/shared/audit/auditCatalog.ts](../src/shared/audit/auditCatalog.ts)
 
-#### L61 â€” alias AuditEntityType
+#### L74 — alias AuditEntityType
 
 ```ts
 export type AuditEntityType = keyof typeof auditCatalog;
 ```
 
-#### L69 â€” alias ChangeOrigin
+#### L82 — alias ChangeOrigin
 
 ```ts
 export type ChangeOrigin =
   "user" | "admin" | "system" | "requester" | "manual" | "internal" | "self";
 ```
 
-#### L73 â€” alias AuditActionOf
+#### L86 — alias AuditActionOf
 
 ```ts
 export type AuditActionOf<E extends AuditEntityType> = (typeof auditCatalog)[E]["actions"][number];
 ```
 
-#### L76 â€” alias ComposedAuditAction
+#### L89 — alias ComposedAuditAction
 
 ```ts
 export type ComposedAuditAction<E extends AuditEntityType> = `${E}.${AuditActionOf<E>}`;
@@ -2349,29 +2820,35 @@ export type ComposedAuditAction<E extends AuditEntityType> = `${E}.${AuditAction
 
 ### [src/shared/audit/auditLogger.ts](../src/shared/audit/auditLogger.ts)
 
-#### L12 â€” interface AuditEntryBase
+#### L13 — interface AuditEntryBase
 
 ```ts
 export interface AuditEntryBase {
   /** Identificador da entidade afetada. */
   entityId: string;
-  /** Ator (quem executou). Nulo para aÃ§Ãµes de sistema. */
+  /** Ator (quem executou). Nulo para ações de sistema. */
   userId: number | null;
   /** Valor anterior (texto livre), ex.: is_active antes. */
   previousValue?: string | null;
   newValue?: string | null;
-  /** Justificativa interna da transiÃ§Ã£o (nunca o retorno pÃºblico). */
+  /** Justificativa interna da transição (nunca o retorno público). */
   note?: string | null;
-  /** Snapshot do retorno pÃºblico submetido na transiÃ§Ã£o (sÃ³ status pÃºblico). */
+  /** Snapshot do retorno público submetido na transição (só status público). */
   lastTechnicalMessage?: string | null;
   ipAddress?: string | null;
   previousMeeting?: { scheduledFor: string | null; link: string | null };
   /** Origem da alteração — restrita aos valores gravados pelo sistema. */
   changeOrigin?: ChangeOrigin | null;
+  /**
+   * Chaves de Permissão avaliadas na recusa (`*.access_denied`): ausentes no
+   * gate ou presentes sem o vínculo suficiente (Custódia ou Posse) na linha.
+   * Vazio nas demais ações: a chave que **autorizou** não é registrada.
+   */
+  deniedPermissionKeys?: readonly PermissionKey[];
 }
 ```
 
-#### L34 â€” alias AuditEntry
+#### L41 — alias AuditEntry
 
 ```ts
 export type AuditEntry<
@@ -2380,17 +2857,119 @@ export type AuditEntry<
 > = AuditEntryBase & { entityType: E; actionType: A };
 ```
 
+#### L46 — interface ActorProfileRow
+
+```ts
+interface ActorProfileRow {
+  profile_id: number;
+  name: string;
+}
+```
+
+### [src/shared/catalog/baseProfiles.ts](../src/shared/catalog/baseProfiles.ts)
+
+#### L14 — interface BaseProfilePermission
+
+```ts
+export interface BaseProfilePermission {
+  readonly key: PermissionKey;
+  readonly custody: Custody;
+}
+```
+
+#### L19 — interface BaseProfile
+
+```ts
+export interface BaseProfile {
+  /** Rótulo de exibição atual em `profiles.name`. */
+  readonly profileName: string;
+  /** Marca de Perfil Admin Root — escrita exclusiva do seed (§ 4.2). */
+  readonly isRoot: boolean;
+  readonly isAssignableTriage: boolean;
+  readonly isAssignableMapping: boolean;
+  readonly permissions: readonly BaseProfilePermission[];
+}
+```
+
+#### L30 — alias CustodialPolicy
+
+```ts
+type CustodialPolicy = Extract<Custody, "assigned" | "all">;
+```
+
 ### [src/shared/catalog/fieldCatalog.ts](../src/shared/catalog/fieldCatalog.ts)
 
-#### L42 â€” alias FieldKey
+#### L42 — alias FieldKey
 
 ```ts
 export type FieldKey = (typeof FIELD_KEYS)[number];
 ```
 
+### [src/shared/catalog/permissionCatalog.ts](../src/shared/catalog/permissionCatalog.ts)
+
+#### L14 — alias Custody
+
+```ts
+export type Custody = (typeof CUSTODIES)[number];
+```
+
+#### L17 — alias CustodyType
+
+```ts
+export type CustodyType = "global" | "custodial";
+```
+
+#### L19 — interface PermissionDefinition
+
+```ts
+export interface PermissionDefinition {
+  /** Chave `recurso:ação`, o vocabulário único de acesso. */
+  readonly key: string;
+  /** Se a chave depende da linha (`custodial`) ou não (`global`). */
+  readonly custodyType: CustodyType;
+  /**
+   * Vínculos aceitos pela chave. Chave `global` aceita só `global`; chave
+   * custodial aceita `assigned`/`all`, exceto as de posse fixa (`own`).
+   */
+  readonly allowedCustodies: readonly Custody[];
+  /** Chaves que a composição precisa conter junto (§ 1.7 do contrato). */
+  readonly dependencies: readonly string[];
+}
+```
+
+#### L269 — alias PermissionKey
+
+```ts
+export type PermissionKey = (typeof PERMISSION_CATALOG)[number]["key"];
+```
+
+#### L271 — alias CatalogEntry
+
+```ts
+export type CatalogEntry = (typeof PERMISSION_CATALOG)[number];
+```
+
+#### L312 — interface PermissionGrantSource
+
+```ts
+export interface PermissionGrantSource {
+  readonly permission_key: string;
+  readonly custody: string;
+}
+```
+
+#### L318 — interface EffectivePermission
+
+```ts
+export interface EffectivePermission {
+  readonly key: PermissionKey;
+  readonly custody: Custody;
+}
+```
+
 ### [src/shared/datetime/businessDay.ts](../src/shared/datetime/businessDay.ts)
 
-#### L8 â€” interface DayRange
+#### L8 — interface DayRange
 
 ```ts
 export interface DayRange {
@@ -2401,7 +2980,7 @@ export interface DayRange {
 
 ### [src/shared/errors/AppError.ts](../src/shared/errors/AppError.ts)
 
-#### L1 â€” class AppError
+#### L1 — class AppError
 
 ```ts
 export class AppError extends Error {
@@ -2419,7 +2998,7 @@ export class AppError extends Error {
 
 ### [src/shared/errors/ValidationError.ts](../src/shared/errors/ValidationError.ts)
 
-#### L10 â€” class ValidationError
+#### L10 — class ValidationError
 
 ```ts
 export class ValidationError extends AppError {
@@ -2435,7 +3014,7 @@ export class ValidationError extends AppError {
 
 ### [src/shared/middleware/rateLimit.ts](../src/shared/middleware/rateLimit.ts)
 
-#### L1 â€” alias RateLimitOptions
+#### L1 — alias RateLimitOptions
 
 ```ts
 type RateLimitOptions = {
@@ -2447,7 +3026,7 @@ type RateLimitOptions = {
 
 ### [src/shared/notifications/emitNotification.ts](../src/shared/notifications/emitNotification.ts)
 
-#### L9 â€” interface CommittedNotification
+#### L9 — interface CommittedNotification
 
 ```ts
 export interface CommittedNotification {
@@ -2458,7 +3037,7 @@ export interface CommittedNotification {
 
 ### [src/shared/notifications/inAppNotificationChannel.ts](../src/shared/notifications/inAppNotificationChannel.ts)
 
-#### L8 â€” interface InsertedNotificationRow
+#### L8 — interface InsertedNotificationRow
 
 ```ts
 interface InsertedNotificationRow {
@@ -2469,7 +3048,7 @@ interface InsertedNotificationRow {
 
 ### [src/shared/notifications/mappingScheduledNotification.ts](../src/shared/notifications/mappingScheduledNotification.ts)
 
-#### L5 â€” interface MappingScheduledNotificationInput
+#### L5 — interface MappingScheduledNotificationInput
 
 ```ts
 export interface MappingScheduledNotificationInput extends Omit<
@@ -2492,7 +3071,7 @@ export interface MappingScheduledNotificationInput extends Omit<
 
 ### [src/shared/notifications/notificationChannel.ts](../src/shared/notifications/notificationChannel.ts)
 
-#### L4 â€” interface NotificationToDeliver
+#### L4 — interface NotificationToDeliver
 
 ```ts
 export interface NotificationToDeliver {
@@ -2504,7 +3083,7 @@ export interface NotificationToDeliver {
 }
 ```
 
-#### L12 â€” interface NotificationDelivery
+#### L12 — interface NotificationDelivery
 
 ```ts
 export interface NotificationDelivery {
@@ -2513,7 +3092,7 @@ export interface NotificationDelivery {
 }
 ```
 
-#### L23 â€” interface NotificationChannel
+#### L23 — interface NotificationChannel
 
 ```ts
 export interface NotificationChannel {
@@ -2527,7 +3106,7 @@ export interface NotificationChannel {
 
 ### [src/shared/notifications/notificationEmitter.ts](../src/shared/notifications/notificationEmitter.ts)
 
-#### L6 â€” interface NotificationCommittedPayload
+#### L6 — interface NotificationCommittedPayload
 
 ```ts
 export interface NotificationCommittedPayload {
@@ -2538,25 +3117,25 @@ export interface NotificationCommittedPayload {
 
 ### [src/shared/notifications/notificationEvents.ts](../src/shared/notifications/notificationEvents.ts)
 
-#### L21 â€” alias RequestPointer
+#### L21 — alias RequestPointer
 
 ```ts
 export type RequestPointer = z.infer<typeof requestPointerPayloadSchema>;
 ```
 
-#### L85 â€” alias StatusChangedNotificationPayload
+#### L85 — alias StatusChangedNotificationPayload
 
 ```ts
 export type StatusChangedNotificationPayload = z.infer<typeof statusChangedPayloadSchema>;
 ```
 
-#### L86 â€” alias MappingScheduledNotificationPayload
+#### L86 — alias MappingScheduledNotificationPayload
 
 ```ts
 export type MappingScheduledNotificationPayload = z.infer<typeof mappingScheduledPayloadSchema>;
 ```
 
-#### L87 â€” alias PendingItemRespondedNotificationPayload
+#### L87 — alias PendingItemRespondedNotificationPayload
 
 ```ts
 export type PendingItemRespondedNotificationPayload = z.infer<
@@ -2564,7 +3143,7 @@ export type PendingItemRespondedNotificationPayload = z.infer<
 >;
 ```
 
-#### L90 â€” alias PendingItemRespondedUnassignedNotificationPayload
+#### L90 — alias PendingItemRespondedUnassignedNotificationPayload
 
 ```ts
 export type PendingItemRespondedUnassignedNotificationPayload = z.infer<
@@ -2572,7 +3151,7 @@ export type PendingItemRespondedUnassignedNotificationPayload = z.infer<
 >;
 ```
 
-#### L93 â€” alias ResponsibleAssignedNotificationPayload
+#### L93 — alias ResponsibleAssignedNotificationPayload
 
 ```ts
 export type ResponsibleAssignedNotificationPayload = z.infer<
@@ -2580,37 +3159,37 @@ export type ResponsibleAssignedNotificationPayload = z.infer<
 >;
 ```
 
-#### L96 â€” alias NotificationPayload
+#### L96 — alias NotificationPayload
 
 ```ts
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 ```
 
-#### L121 â€” alias NotificationEventBase
+#### L121 — alias NotificationEventBase
 
 ```ts
 export type NotificationEventBase = z.infer<typeof notificationEventBaseSchema>;
 ```
 
-#### L208 â€” alias StatusChangedNotificationEvent
+#### L208 — alias StatusChangedNotificationEvent
 
 ```ts
 export type StatusChangedNotificationEvent = z.infer<typeof statusChangedEventSchema>;
 ```
 
-#### L209 â€” alias MappingScheduledNotificationEvent
+#### L209 — alias MappingScheduledNotificationEvent
 
 ```ts
 export type MappingScheduledNotificationEvent = z.infer<typeof mappingScheduledEventSchema>;
 ```
 
-#### L210 â€” alias PendingItemRespondedNotificationEvent
+#### L210 — alias PendingItemRespondedNotificationEvent
 
 ```ts
 export type PendingItemRespondedNotificationEvent = z.infer<typeof pendingItemRespondedEventSchema>;
 ```
 
-#### L211 â€” alias PendingItemRespondedUnassignedNotificationEvent
+#### L211 — alias PendingItemRespondedUnassignedNotificationEvent
 
 ```ts
 export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
@@ -2618,31 +3197,31 @@ export type PendingItemRespondedUnassignedNotificationEvent = z.infer<
 >;
 ```
 
-#### L214 â€” alias ResponsibleAssignedNotificationEvent
+#### L214 — alias ResponsibleAssignedNotificationEvent
 
 ```ts
 export type ResponsibleAssignedNotificationEvent = z.infer<typeof responsibleAssignedEventSchema>;
 ```
 
-#### L215 â€” alias NotificationEvent
+#### L215 — alias NotificationEvent
 
 ```ts
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 ```
 
-#### L216 â€” alias NotificationEventType
+#### L216 — alias NotificationEventType
 
 ```ts
 export type NotificationEventType = NotificationEvent["type"];
 ```
 
-#### L225 â€” alias PendingItemEventType
+#### L225 — alias PendingItemEventType
 
 ```ts
 export type PendingItemEventType = (typeof PENDING_ITEM_EVENT_TYPES)[number];
 ```
 
-#### L227 â€” alias PendingItemNotificationEvent
+#### L227 — alias PendingItemNotificationEvent
 
 ```ts
 export type PendingItemNotificationEvent = Extract<
@@ -2653,13 +3232,13 @@ export type PendingItemNotificationEvent = Extract<
 
 ### [src/shared/notifications/pendingItemNotification.ts](../src/shared/notifications/pendingItemNotification.ts)
 
-#### L11 â€” alias PendingItemNotificationAction
+#### L11 — alias PendingItemNotificationAction
 
 ```ts
 export type PendingItemNotificationAction = "create" | "reopen" | "validate";
 ```
 
-#### L14 â€” interface PendingItemNotificationRequest
+#### L14 — interface PendingItemNotificationRequest
 
 ```ts
 export interface PendingItemNotificationRequest {
@@ -2669,7 +3248,7 @@ export interface PendingItemNotificationRequest {
 }
 ```
 
-#### L21 â€” interface PendingItemNotificationEventInput
+#### L21 — interface PendingItemNotificationEventInput
 
 ```ts
 export interface PendingItemNotificationEventInput {
@@ -2678,7 +3257,7 @@ export interface PendingItemNotificationEventInput {
 }
 ```
 
-#### L26 â€” interface PendingItemNotificationsInput
+#### L26 — interface PendingItemNotificationsInput
 
 ```ts
 export interface PendingItemNotificationsInput {
@@ -2688,7 +3267,7 @@ export interface PendingItemNotificationsInput {
 }
 ```
 
-#### L32 â€” interface PendingItemEventBuilder
+#### L32 — interface PendingItemEventBuilder
 
 ```ts
 interface PendingItemEventBuilder {
@@ -2702,14 +3281,14 @@ interface PendingItemEventBuilder {
 
 ### [src/shared/notifications/pendingItemRespondedNotification.ts](../src/shared/notifications/pendingItemRespondedNotification.ts)
 
-#### L14 â€” alias PendingItemRespondedAudience
+#### L14 — alias PendingItemRespondedAudience
 
 ```ts
 export type PendingItemRespondedAudience =
   { kind: "assignee"; userId: number } | { kind: "active_admins"; userIds: readonly number[] };
 ```
 
-#### L17 â€” interface PendingItemRespondedNotificationInput
+#### L17 — interface PendingItemRespondedNotificationInput
 
 ```ts
 export interface PendingItemRespondedNotificationInput {
@@ -2725,14 +3304,14 @@ export interface PendingItemRespondedNotificationInput {
 }
 ```
 
-#### L29 â€” alias PendingItemRespondedEvent
+#### L29 — alias PendingItemRespondedEvent
 
 ```ts
 type PendingItemRespondedEvent =
   PendingItemRespondedNotificationEvent | PendingItemRespondedUnassignedNotificationEvent;
 ```
 
-#### L32 â€” interface NotificationEventBase
+#### L32 — interface NotificationEventBase
 
 ```ts
 interface NotificationEventBase {
@@ -2744,7 +3323,7 @@ interface NotificationEventBase {
 
 ### [src/shared/notifications/responsibleAssignedNotification.ts](../src/shared/notifications/responsibleAssignedNotification.ts)
 
-#### L5 â€” interface ResponsibleAssignedNotificationInput
+#### L5 — interface ResponsibleAssignedNotificationInput
 
 ```ts
 export interface ResponsibleAssignedNotificationInput extends Omit<
@@ -2763,13 +3342,13 @@ export interface ResponsibleAssignedNotificationInput extends Omit<
 
 ### [src/shared/notifications/statusChangedNotification.ts](../src/shared/notifications/statusChangedNotification.ts)
 
-#### L6 â€” alias StatusChangeSource
+#### L6 — alias StatusChangeSource
 
 ```ts
 export type StatusChangeSource = "status_patch" | "triage_verdict";
 ```
 
-#### L14 â€” interface StatusTarget
+#### L14 — interface StatusTarget
 
 ```ts
 export interface StatusTarget {
@@ -2779,7 +3358,7 @@ export interface StatusTarget {
 }
 ```
 
-#### L20 â€” interface StatusChangedNotificationInput
+#### L20 — interface StatusChangedNotificationInput
 
 ```ts
 export interface StatusChangedNotificationInput extends Omit<
@@ -2801,7 +3380,7 @@ export interface StatusChangedNotificationInput extends Omit<
 
 ### [src/shared/storage/fileStorage.ts](../src/shared/storage/fileStorage.ts)
 
-#### L6 â€” interface SavedAttachment
+#### L6 — interface SavedAttachment
 
 ```ts
 export interface SavedAttachment {
@@ -2815,27 +3394,24 @@ export interface SavedAttachment {
 
 ### [src/shared/types/internalNotes.ts](../src/shared/types/internalNotes.ts)
 
-#### L4 â€” alias InternalRole
-
-```ts
-export type InternalRole = Exclude<Role, "Solicitante">;
-```
-
-#### L6 â€” interface InternalNoteRow
+#### L1 — interface InternalNoteRow
 
 ```ts
 export interface InternalNoteRow {
   internal_note_id: string;
   request_id: string;
   author_user_id: number;
-  author_role_at_creation: InternalRole;
+  /** Snapshot da identidade do Perfil na criação; `null` em notas antigas. */
+  author_profile_id_at_creation: number | null;
+  /** Snapshot do nome do Perfil na criação; não participa da autorização. */
+  author_profile_name_at_creation: string;
   content: string;
   created_at: Date;
   author_name: string;
 }
 ```
 
-#### L16 â€” interface InternalNoteReadStateRow
+#### L14 — interface InternalNoteReadStateRow
 
 ```ts
 export interface InternalNoteReadStateRow {
@@ -2846,7 +3422,7 @@ export interface InternalNoteReadStateRow {
 }
 ```
 
-#### L23 â€” alias TimelineEventAction
+#### L21 — alias TimelineEventAction
 
 ```ts
 export type TimelineEventAction =
@@ -2858,22 +3434,20 @@ export type TimelineEventAction =
   | "mapping.assign";
 ```
 
-#### L38 â€” alias AuditTimelineAction
+#### L36 — alias AuditTimelineAction
 
 ```ts
-export type AuditTimelineAction = TimelineEventAction | "request.override_status_admin";
+export type AuditTimelineAction =
+  TimelineEventAction | "request.override_status_admin" | "request.status_override";
 ```
 
-#### L44 â€” alias TimelineChangeOrigin
+#### L39 — alias TimelineChangeOrigin
 
 ```ts
-export type TimelineChangeOrigin = Extract<
-  ChangeOrigin,
-  "admin" | "system" | "internal" | "requester"
-> | null;
+export type TimelineChangeOrigin = "admin" | "system" | "internal" | "requester" | null;
 ```
 
-#### L49 â€” interface TimelineCursor
+#### L41 — interface TimelineCursor
 
 ```ts
 export interface TimelineCursor {
@@ -2883,7 +3457,7 @@ export interface TimelineCursor {
 }
 ```
 
-#### L55 â€” interface TimelineEventRow
+#### L47 — interface TimelineEventRow
 
 ```ts
 export interface TimelineEventRow {
@@ -2899,11 +3473,14 @@ export interface TimelineEventRow {
   occurred_at: Date;
   actor_user_id: number | null;
   actor_name: string | null;
+  /** Snapshot da identidade do Perfil do ator; `null` em eventos antigos. */
+  actor_profile_id: number | null;
+  /** Snapshot do nome do Perfil do ator; `null` em eventos antigos. */
   actor_profile_name: string | null;
 }
 ```
 
-#### L72 â€” interface TriageHistoryRow
+#### L67 — interface TriageHistoryRow
 
 ```ts
 export interface TriageHistoryRow {
@@ -2927,7 +3504,7 @@ export interface TriageHistoryRow {
 }
 ```
 
-#### L93 â€” interface MappingHistoryParticipant
+#### L88 — interface MappingHistoryParticipant
 
 ```ts
 export interface MappingHistoryParticipant {
@@ -2937,7 +3514,7 @@ export interface MappingHistoryParticipant {
 }
 ```
 
-#### L100 â€” interface MappingHistoryAssignee
+#### L95 — interface MappingHistoryAssignee
 
 ```ts
 export interface MappingHistoryAssignee {
@@ -2949,7 +3526,7 @@ export interface MappingHistoryAssignee {
 }
 ```
 
-#### L109 â€” interface MappingHistoryRow
+#### L104 — interface MappingHistoryRow
 
 ```ts
 export interface MappingHistoryRow {
@@ -2973,7 +3550,7 @@ export interface MappingHistoryRow {
 
 ### [src/shared/types/pagination.ts](../src/shared/types/pagination.ts)
 
-#### L1 â€” interface PaginatedResponse
+#### L1 — interface PaginatedResponse
 
 ```ts
 export interface PaginatedResponse<T> {
@@ -2987,25 +3564,25 @@ export interface PaginatedResponse<T> {
 
 ### [src/shared/types/pendingItems.ts](../src/shared/types/pendingItems.ts)
 
-#### L8 â€” alias PendencyStatus
+#### L8 — alias PendencyStatus
 
 ```ts
 export type PendencyStatus = "requested" | "responded" | "validated";
 ```
 
-#### L10 â€” alias PendingItemType
+#### L10 — alias PendingItemType
 
 ```ts
 export type PendingItemType = "field_edit" | "observation";
 ```
 
-#### L12 â€” alias PendingFieldValue
+#### L12 — alias PendingFieldValue
 
 ```ts
 export type PendingFieldValue = string | number | boolean | null;
 ```
 
-#### L14 â€” interface PendingFieldRef
+#### L14 — interface PendingFieldRef
 
 ```ts
 export interface PendingFieldRef {
@@ -3016,7 +3593,7 @@ export interface PendingFieldRef {
 }
 ```
 
-#### L21 â€” interface InternalAttachment
+#### L21 — interface InternalAttachment
 
 ```ts
 export interface InternalAttachment {
@@ -3029,7 +3606,7 @@ export interface InternalAttachment {
 }
 ```
 
-#### L30 â€” interface UnreadState
+#### L30 — interface UnreadState
 
 ```ts
 export interface UnreadState {
@@ -3039,7 +3616,7 @@ export interface UnreadState {
 }
 ```
 
-#### L36 â€” interface CorrectionAlert
+#### L36 — interface CorrectionAlert
 
 ```ts
 export interface CorrectionAlert {
@@ -3048,7 +3625,7 @@ export interface CorrectionAlert {
 }
 ```
 
-#### L41 â€” interface PendingSummary
+#### L41 — interface PendingSummary
 
 ```ts
 export interface PendingSummary {
@@ -3061,13 +3638,13 @@ export interface PendingSummary {
 
 ### [src/shared/types/portalConfig.ts](../src/shared/types/portalConfig.ts)
 
-#### L15 â€” alias SolicitationMode
+#### L15 — alias SolicitationMode
 
 ```ts
 export type SolicitationMode = "PUBLIC" | "AUTHENTICATED";
 ```
 
-#### L20 â€” interface PortalAssets
+#### L20 — interface PortalAssets
 
 ```ts
 export interface PortalAssets {
@@ -3084,13 +3661,13 @@ export interface PortalAssets {
 }
 ```
 
-#### L45 â€” alias AssetKey
+#### L45 — alias AssetKey
 
 ```ts
 export type AssetKey = (typeof ASSET_KEYS)[number];
 ```
 
-#### L49 â€” alias PortalAssetsPatch
+#### L49 — alias PortalAssetsPatch
 
 ```ts
 export type PortalAssetsPatch = Partial<Record<AssetKey, string>> & {
@@ -3098,13 +3675,13 @@ export type PortalAssetsPatch = Partial<Record<AssetKey, string>> & {
 };
 ```
 
-#### L74 â€” alias ThemeTokenKey
+#### L74 — alias ThemeTokenKey
 
 ```ts
 export type ThemeTokenKey = (typeof THEME_TOKEN_KEYS)[number];
 ```
 
-#### L78 â€” interface StatusToneTokens
+#### L78 — interface StatusToneTokens
 
 ```ts
 export interface StatusToneTokens {
@@ -3114,7 +3691,7 @@ export interface StatusToneTokens {
 }
 ```
 
-#### L85 â€” interface ThemeGradient
+#### L85 — interface ThemeGradient
 
 ```ts
 export interface ThemeGradient {
@@ -3124,7 +3701,7 @@ export interface ThemeGradient {
 }
 ```
 
-#### L94 â€” interface ThemeTokens
+#### L94 — interface ThemeTokens
 
 ```ts
 export interface ThemeTokens extends Record<ThemeTokenKey, string> {
@@ -3133,7 +3710,7 @@ export interface ThemeTokens extends Record<ThemeTokenKey, string> {
 }
 ```
 
-#### L100 â€” interface PortalTheme
+#### L100 — interface PortalTheme
 
 ```ts
 export interface PortalTheme {
@@ -3142,7 +3719,7 @@ export interface PortalTheme {
 }
 ```
 
-#### L108 â€” interface PortalCategory
+#### L108 — interface PortalCategory
 
 ```ts
 export interface PortalCategory {
@@ -3153,13 +3730,13 @@ export interface PortalCategory {
 }
 ```
 
-#### L123 â€” alias StatusMode
+#### L123 — alias StatusMode
 
 ```ts
 export type StatusMode = (typeof STATUS_MODES)[number];
 ```
 
-#### L139 â€” interface PortalStatus
+#### L139 — interface PortalStatus
 
 ```ts
 export interface PortalStatus {
@@ -3176,19 +3753,19 @@ export interface PortalStatus {
 }
 ```
 
-#### L166 â€” alias PrioritizationCriterion
+#### L166 — alias PrioritizationCriterion
 
 ```ts
 export type PrioritizationCriterion = (typeof PRIORITIZATION_CRITERIA)[number];
 ```
 
-#### L171 â€” alias PrioritizationWeights
+#### L171 — alias PrioritizationWeights
 
 ```ts
 export type PrioritizationWeights = Record<PrioritizationCriterion, number>;
 ```
 
-#### L174 â€” interface PortalConfig
+#### L174 — interface PortalConfig
 
 ```ts
 export interface PortalConfig {
@@ -3203,49 +3780,55 @@ export interface PortalConfig {
 }
 ```
 
-#### L185 â€” alias AccessSection
+#### L190 — alias PortalSections
+
+```ts
+export type PortalSections = Partial<PortalConfig>;
+```
+
+#### L192 — alias AccessSection
 
 ```ts
 export type AccessSection = Pick<PortalConfig, "solicitationMode">;
 ```
 
-#### L186 â€” alias IdentitySection
+#### L193 — alias IdentitySection
 
 ```ts
 export type IdentitySection = Pick<PortalConfig, "platformName" | "protocolMask">;
 ```
 
-#### L187 â€” alias ThemeSection
+#### L194 — alias ThemeSection
 
 ```ts
 export type ThemeSection = Pick<PortalConfig, "theme">;
 ```
 
-#### L188 â€” alias AssetsSection
+#### L195 — alias AssetsSection
 
 ```ts
 export type AssetsSection = Pick<PortalConfig, "assets">;
 ```
 
-#### L189 â€” alias CategoriesSection
+#### L196 — alias CategoriesSection
 
 ```ts
 export type CategoriesSection = Pick<PortalConfig, "categories">;
 ```
 
-#### L190 â€” alias StatusesSection
+#### L197 — alias StatusesSection
 
 ```ts
 export type StatusesSection = Pick<PortalConfig, "statuses">;
 ```
 
-#### L191 â€” alias PrioritizationWeightsSection
+#### L198 — alias PrioritizationWeightsSection
 
 ```ts
 export type PrioritizationWeightsSection = Pick<PortalConfig, "prioritizationWeights">;
 ```
 
-#### L194 â€” interface CategoryRow
+#### L201 — interface CategoryRow
 
 ```ts
 export interface CategoryRow {
@@ -3257,7 +3840,7 @@ export interface CategoryRow {
 }
 ```
 
-#### L203 â€” interface StatusRow
+#### L210 — interface StatusRow
 
 ```ts
 export interface StatusRow {
@@ -3277,7 +3860,7 @@ export interface StatusRow {
 
 ### [src/shared/types/prioritization.ts](../src/shared/types/prioritization.ts)
 
-#### L2 â€” interface CriterionRow
+#### L2 — interface CriterionRow
 
 ```ts
 export interface CriterionRow {
@@ -3289,13 +3872,13 @@ export interface CriterionRow {
 }
 ```
 
-#### L17 â€” alias Classification
+#### L17 — alias Classification
 
 ```ts
 export type Classification = RequestPriority;
 ```
 
-#### L20 â€” interface PriorityRangeRow
+#### L20 — interface PriorityRangeRow
 
 ```ts
 export interface PriorityRangeRow {
@@ -3306,7 +3889,7 @@ export interface PriorityRangeRow {
 }
 ```
 
-#### L28 â€” interface EvaluationRow
+#### L28 — interface EvaluationRow
 
 ```ts
 export interface EvaluationRow {
@@ -3319,9 +3902,71 @@ export interface EvaluationRow {
 }
 ```
 
+### [src/shared/types/profile.ts](../src/shared/types/profile.ts)
+
+#### L9 — interface ProfileRow
+
+```ts
+export interface ProfileRow {
+  profile_id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  is_root: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+```
+
+#### L22 — interface ProfileWithUserCountRow
+
+```ts
+export interface ProfileWithUserCountRow extends ProfileRow {
+  user_count: number;
+}
+```
+
+#### L27 — interface ProfilePermissionRow
+
+```ts
+export interface ProfilePermissionRow {
+  profile_id: number;
+  permission_key: string;
+  custody: string;
+}
+```
+
+#### L41 — interface ProfileReference
+
+```ts
+export interface ProfileReference {
+  id: string;
+  name: string;
+}
+```
+
+#### L51 — interface ProfileSnapshot
+
+```ts
+export interface ProfileSnapshot {
+  id: string | null;
+  name: string;
+}
+```
+
+#### L68 — interface SessionProfileReference
+
+```ts
+export interface SessionProfileReference extends ProfileReference {
+  isRoot: boolean;
+}
+```
+
 ### [src/shared/types/queue.types.ts](../src/shared/types/queue.types.ts)
 
-#### L4 â€” interface RequestSummary
+#### L4 — interface RequestSummary
 
 ```ts
 export interface RequestSummary {
@@ -3335,7 +3980,7 @@ export interface RequestSummary {
 }
 ```
 
-#### L14 â€” interface QueueMetricsResponse
+#### L14 — interface QueueMetricsResponse
 
 ```ts
 export interface QueueMetricsResponse {
@@ -3346,25 +3991,25 @@ export interface QueueMetricsResponse {
 }
 ```
 
-#### L21 â€” alias QueuePriorityFilter
+#### L21 — alias QueuePriorityFilter
 
 ```ts
 export type QueuePriorityFilter = RequestPriority | "nenhum";
 ```
 
-#### L25 â€” alias QueueSortBy
+#### L25 — alias QueueSortBy
 
 ```ts
 export type QueueSortBy = (typeof QUEUE_SORT_BY)[number];
 ```
 
-#### L29 â€” alias QueueSortOrder
+#### L29 — alias QueueSortOrder
 
 ```ts
 export type QueueSortOrder = (typeof QUEUE_SORT_ORDER)[number];
 ```
 
-#### L32 â€” interface QueueFilterQuery
+#### L32 — interface QueueFilterQuery
 
 ```ts
 export interface QueueFilterQuery {
@@ -3382,7 +4027,7 @@ export interface QueueFilterQuery {
 }
 ```
 
-#### L47 â€” interface QueueSortQuery
+#### L47 — interface QueueSortQuery
 
 ```ts
 export interface QueueSortQuery {
@@ -3391,13 +4036,13 @@ export interface QueueSortQuery {
 }
 ```
 
-#### L53 â€” alias QueueExportQuery
+#### L53 — alias QueueExportQuery
 
 ```ts
 export type QueueExportQuery = QueueFilterQuery & QueueSortQuery;
 ```
 
-#### L56 â€” interface QueueQuery
+#### L56 — interface QueueQuery
 
 ```ts
 export interface QueueQuery extends QueueFilterQuery, QueueSortQuery {
@@ -3406,7 +4051,7 @@ export interface QueueQuery extends QueueFilterQuery, QueueSortQuery {
 }
 ```
 
-#### L61 â€” interface QueueAssignee
+#### L61 — interface QueueAssignee
 
 ```ts
 export interface QueueAssignee {
@@ -3415,7 +4060,7 @@ export interface QueueAssignee {
 }
 ```
 
-#### L66 â€” interface QueueItem
+#### L66 — interface QueueItem
 
 ```ts
 export interface QueueItem extends RequestSummary {
@@ -3424,7 +4069,7 @@ export interface QueueItem extends RequestSummary {
 }
 ```
 
-#### L71 â€” interface QueueResponse
+#### L71 — interface QueueResponse
 
 ```ts
 export interface QueueResponse extends PaginatedResponse<QueueItem> {
@@ -3436,19 +4081,19 @@ export interface QueueResponse extends PaginatedResponse<QueueItem> {
 
 ### [src/shared/types/requests.ts](../src/shared/types/requests.ts)
 
-#### L7 â€” alias RequestStatus
+#### L7 — alias RequestStatus
 
 ```ts
 export type RequestStatus = string;
 ```
 
-#### L12 â€” alias RequestPriority
+#### L12 — alias RequestPriority
 
 ```ts
 export type RequestPriority = (typeof REQUEST_PRIORITIES)[number];
 ```
 
-#### L23 â€” alias TriageResult
+#### L23 — alias TriageResult
 
 ```ts
 export type TriageResult =
@@ -3461,25 +4106,25 @@ export type TriageResult =
   | "Backlog";
 ```
 
-#### L32 â€” alias OperationalImpact
+#### L32 — alias OperationalImpact
 
 ```ts
 export type OperationalImpact = "Baixo" | "Médio" | "Alto" | "Crítico";
 ```
 
-#### L34 â€” alias YesNoDetail
+#### L34 — alias YesNoDetail
 
 ```ts
 export type YesNoDetail = false | string;
 ```
 
-#### L46 â€” alias RequestCategoryName
+#### L46 — alias RequestCategoryName
 
 ```ts
 export type RequestCategoryName = string;
 ```
 
-#### L48 â€” interface AttachmentMetadata
+#### L48 — interface AttachmentMetadata
 
 ```ts
 export interface AttachmentMetadata {
@@ -3489,7 +4134,7 @@ export interface AttachmentMetadata {
 }
 ```
 
-#### L54 â€” interface RequesterBlock
+#### L54 — interface RequesterBlock
 
 ```ts
 export interface RequesterBlock {
@@ -3504,7 +4149,7 @@ export interface RequesterBlock {
 }
 ```
 
-#### L65 â€” interface DemandBlock
+#### L65 — interface DemandBlock
 
 ```ts
 export interface DemandBlock {
@@ -3521,7 +4166,7 @@ export interface DemandBlock {
 }
 ```
 
-#### L78 â€” interface OperationalBlock
+#### L78 — interface OperationalBlock
 
 ```ts
 export interface OperationalBlock {
@@ -3543,7 +4188,7 @@ export interface OperationalBlock {
 }
 ```
 
-#### L96 â€” interface ComplementaryBlock
+#### L96 — interface ComplementaryBlock
 
 ```ts
 export interface ComplementaryBlock {
@@ -3555,13 +4200,13 @@ export interface ComplementaryBlock {
 }
 ```
 
-#### L104 â€” alias SchedulePreferences
+#### L104 — alias SchedulePreferences
 
 ```ts
 export type SchedulePreferences = string[];
 ```
 
-#### L106 â€” interface RequesterTable
+#### L106 — interface RequesterTable
 
 ```ts
 export interface RequesterTable {
@@ -3577,7 +4222,7 @@ export interface RequesterTable {
 }
 ```
 
-#### L118 â€” interface AssignmentContextRow
+#### L118 — interface AssignmentContextRow
 
 ```ts
 export interface AssignmentContextRow {
@@ -3592,6 +4237,8 @@ export interface AssignmentContextRow {
   status: RequestStatus;
   category: string;
   screening_result: string | null;
+  /** Conta do Solicitante; `null` nas linhas anônimas e legadas sem vínculo. */
+  requester_user_id: number | null;
   /** `details_professional.user_id` do responsável da triagem (issue #124). */
   assignee_user_id: number | null;
   /** `details_professional.user_id` do designado do mapeamento (issue #124). */
@@ -3599,7 +4246,7 @@ export interface AssignmentContextRow {
 }
 ```
 
-#### L136 â€” interface AssignmentCandidateRow
+#### L138 — interface AssignmentCandidateRow
 
 ```ts
 export interface AssignmentCandidateRow {
@@ -3610,11 +4257,14 @@ export interface AssignmentCandidateRow {
   email: string;
   professional_status: "active" | "inactive";
   user_is_active: boolean;
-  profile_name: string;
+  profile_id: number;
+  profile_is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
 }
 ```
 
-#### L157 â€” interface InternalRequestRow
+#### L162 — interface InternalRequestRow
 
 ```ts
 export interface InternalRequestRow {
@@ -3688,23 +4338,9 @@ export interface InternalRequestRow {
 }
 ```
 
-### [src/shared/types/role.ts](../src/shared/types/role.ts)
-
-#### L3 â€” alias Role
-
-```ts
-export type Role = (typeof ROLES)[number];
-```
-
-#### L14 â€” alias ProfileName
-
-```ts
-export type ProfileName = string;
-```
-
 ### [src/shared/types/status.ts](../src/shared/types/status.ts)
 
-#### L20 â€” alias StatusId
+#### L20 — alias StatusId
 
 ```ts
 export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
@@ -3712,13 +4348,13 @@ export type StatusId = (typeof STATUS_IDS)[keyof typeof STATUS_IDS];
 
 ### [src/shared/types/systemSettings.ts](../src/shared/types/systemSettings.ts)
 
-#### L4 â€” alias PortalSolicitationMode
+#### L4 — alias PortalSolicitationMode
 
 ```ts
 export type PortalSolicitationMode = SolicitationMode;
 ```
 
-#### L20 â€” interface SystemSettingsRow
+#### L20 — interface SystemSettingsRow
 
 ```ts
 export interface SystemSettingsRow {
@@ -3744,25 +4380,25 @@ export interface SystemSettingsRow {
 
 ### [src/shared/types/systemTheme.ts](../src/shared/types/systemTheme.ts)
 
-#### L3 â€” alias StatusTone
+#### L3 — alias StatusTone
 
 ```ts
 export type StatusTone = (typeof STATUS_TONES)[number];
 ```
 
-#### L21 â€” alias ThemeTokenKey
+#### L21 — alias ThemeTokenKey
 
 ```ts
 export type ThemeTokenKey = (typeof THEME_TOKEN_KEYS)[number];
 ```
 
-#### L24 â€” alias ThemePalette
+#### L24 — alias ThemePalette
 
 ```ts
 export type ThemePalette = "light" | "dark";
 ```
 
-#### L36 â€” interface SystemThemeRow
+#### L36 — interface SystemThemeRow
 
 ```ts
 export interface SystemThemeRow {
@@ -3838,7 +4474,7 @@ export interface SystemThemeRow {
 
 ### [src/shared/types/user.ts](../src/shared/types/user.ts)
 
-#### L3 â€” interface User
+#### L1 — interface User
 
 ```ts
 export interface User {
@@ -3846,23 +4482,26 @@ export interface User {
   email: string;
   name: string;
   password: string;
-  role: Role;
+  /** `String(profiles.profile_id)` — identidade estável do Perfil. */
+  profileId: string;
+  /** Nome vigente do Perfil — rótulo, nunca autorização. */
+  profileName: string;
 }
 ```
 
-#### L11 â€” alias AuthenticatedUser
+#### L12 — alias AuthenticatedUser
 
 ```ts
 export type AuthenticatedUser = Omit<User, "password">;
 ```
 
-#### L12 â€” alias UserRequestDTO
+#### L13 — alias UserRequestDTO
 
 ```ts
 export type UserRequestDTO = Omit<User, "id">;
 ```
 
-#### L15 â€” interface UserRow
+#### L16 — interface UserRow
 
 ```ts
 export interface UserRow {
@@ -3880,16 +4519,18 @@ export interface UserRow {
 }
 ```
 
-#### L30 â€” interface AuthUserRow
+#### L31 — interface AuthUserRow
 
 ```ts
 export interface AuthUserRow extends UserRow {
   profile_name: string;
   profile_is_active: boolean;
+  /** Marca de Perfil Admin Root — a conta é única e fora das rotas administrativas. */
+  profile_is_root: boolean;
 }
 ```
 
-#### L36 â€” interface UserMetricsResponse
+#### L39 — interface UserMetricsResponse
 
 ```ts
 export interface UserMetricsResponse {
@@ -3902,20 +4543,19 @@ export interface UserMetricsResponse {
 
 ### [src/shared/utils/jwtUtil.ts](../src/shared/utils/jwtUtil.ts)
 
-#### L9 â€” alias TokenScope
+#### L8 — alias TokenScope
 
 ```ts
 export type TokenScope = "session" | "change_password";
 ```
 
-#### L11 â€” interface TokenPayload
+#### L10 — interface TokenPayload
 
 ```ts
 export interface TokenPayload {
   id: string;
   name: string;
   email: string;
-  role: Role;
   /** Época (ms) de `users.password_changed_at` no momento da emissão — usado
    *  para revogar tokens emitidos antes de uma troca/redefinição de senha. */
   password_changed_at: number;
@@ -3925,7 +4565,7 @@ export interface TokenPayload {
 
 ### [src/shared/validation/zodErrors.ts](../src/shared/validation/zodErrors.ts)
 
-#### L23 â€” interface GroupedIssues
+#### L23 — interface GroupedIssues
 
 ```ts
 interface GroupedIssues {
@@ -3934,2531 +4574,2949 @@ interface GroupedIssues {
 }
 ```
 
-## 2. DeclaraÃ§Ãµes sem anotaÃ§Ã£o explÃ­cita
+## 2. Declarações sem anotação explícita
 
 ### [src/app.ts](../src/app.ts)
 
-- L10 â€” variÃ¡vel: `app`
+- L10 — variável: `app`
 
 ### [src/configs.ts](../src/configs.ts)
 
-- L1 â€” variÃ¡vel: `NODE_ENV`
-- L4 â€” variÃ¡vel: `key`
-- L14 â€” variÃ¡vel: `Config`
-- L19 â€” parÃ¢metro: `s`
-- L19 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L30 â€” variÃ¡vel: `num`
-- L31 â€” variÃ¡vel: `unit`
+- L1 — variável: `NODE_ENV`
+- L4 — variável: `key`
+- L14 — variável: `Config`
+- L19 — parâmetro: `s`
+- L19 — retorno da função: `<anônima>()`
+- L34 — variável: `num`
+- L35 — variável: `unit`
 
 ### [src/database/conection.ts](../src/database/conection.ts)
 
-- L10 â€” variÃ¡vel: `db`
+- L10 — variável: `db`
 
 ### [src/docs/components/parameters.ts](../src/docs/components/parameters.ts)
 
-- L3 â€” variÃ¡vel: `protocolParam`
-- L11 â€” variÃ¡vel: `searchParam`
-- L24 â€” variÃ¡vel: `createdFromParam`
-- L34 â€” variÃ¡vel: `createdToParam`
-- L43 â€” variÃ¡vel: `departmentParam`
-- L52 â€” variÃ¡vel: `sortByParam`
-- L65 â€” variÃ¡vel: `sortOrderParam`
+- L3 — variável: `protocolParam`
+- L11 — variável: `searchParam`
+- L24 — variável: `createdFromParam`
+- L34 — variável: `createdToParam`
+- L43 — variável: `departmentParam`
+- L52 — variável: `sortByParam`
+- L65 — variável: `sortOrderParam`
 
 ### [src/docs/components/responses.ts](../src/docs/components/responses.ts)
 
-- L1 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1 â€” variÃ¡vel: `json`
-- L5 â€” parÃ¢metro: `schema`
-- L5 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L5 â€” variÃ¡vel: `error`
+- L1 — retorno da função: `<anônima>()`
+- L1 — variável: `json`
+- L5 — parâmetro: `schema`
+- L5 — retorno da função: `<anônima>()`
+- L5 — variável: `error`
 
 ### [src/docs/components/security.ts](../src/docs/components/security.ts)
 
-- L1 â€” variÃ¡vel: `securitySchemes`
+- L1 — variável: `securitySchemes`
 
 ### [src/docs/openapi.ts](../src/docs/openapi.ts)
 
-- L1 â€” variÃ¡vel: `openapiBase`
+- L1 — variável: `openapiBase`
 
 ### [src/docs/paths/index.ts](../src/docs/paths/index.ts)
 
-- L13 â€” variÃ¡vel: `paths`
+- L14 — variável: `paths`
 
 ### [src/docs/paths/pendingItems.ts](../src/docs/paths/pendingItems.ts)
 
-- L4 â€” variÃ¡vel: `dualAuth`
-- L6 â€” variÃ¡vel: `pendingItemParam`
+- L4 — variável: `dualAuth`
+- L6 — variável: `pendingItemParam`
+
+### [src/docs/paths/profiles.ts](../src/docs/paths/profiles.ts)
+
+- L1 — retorno da função: `<anônima>()`
+- L1 — variável: `errorResponse`
+- L10 — retorno da função: `<anônima>()`
+- L10 — variável: `validationErrorResponse`
+- L20 — retorno da função: `<anônima>()`
+- L20 — variável: `formatErrorCodes`
+- L21 — parâmetro: `code`
+- L21 — retorno da função: `<anônima>()`
+- L24 — variável: `COMPOSITION_ERROR_CODES`
+- L36 — variável: `CREATE_ERROR_CODES`
+- L38 — variável: `UPDATE_ERROR_CODES`
+- L50 — variável: `CONFLICT_ERROR_CODES`
+- L52 — variável: `STATUS_ERROR_CODES`
 
 ### [src/docs/paths/users.ts](../src/docs/paths/users.ts)
 
-- L3 â€” variÃ¡vel: `idParam`
+- L3 — variável: `idParam`
 
 ### [src/docs/schemas/auditHistory.ts](../src/docs/schemas/auditHistory.ts)
 
-- L1 â€” variÃ¡vel: `AuditActor`
-- L11 â€” variÃ¡vel: `AuditHistorySummary`
-- L29 â€” variÃ¡vel: `AuditHistoryListResponse`
-- L40 â€” variÃ¡vel: `AuditHistoryDetail`
+- L5 — variável: `AuditActor`
+- L21 — variável: `AuditHistorySummary`
+- L34 — variável: `AuditHistoryDetail`
+- L84 — variável: `AuditHistoryListResponse`
 
 ### [src/docs/schemas/auth.ts](../src/docs/schemas/auth.ts)
 
-- L1 â€” variÃ¡vel: `AuthenticatedUser`
-- L18 â€” variÃ¡vel: `LoginRequest`
-- L28 â€” variÃ¡vel: `LoginResponse`
-- L32 â€” variÃ¡vel: `LogoutResponse`
-- L40 â€” variÃ¡vel: `ChangePasswordRequest`
-- L51 â€” variÃ¡vel: `ChangePasswordResponse`
+- L8 — variável: `SessionProfileReference`
+- L22 — variável: `AuthenticatedUser`
+- L35 — variável: `LoginRequest`
+- L44 — variável: `LoginResponse`
+- L57 — variável: `LogoutResponse`
+- L65 — variável: `ChangePasswordRequest`
+- L75 — variável: `ChangePasswordResponse`
 
 ### [src/docs/schemas/common.ts](../src/docs/schemas/common.ts)
 
-- L1 â€” variÃ¡vel: `ErrorResponse`
-- L22 â€” variÃ¡vel: `ValidationErrorResponse`
+- L1 — variável: `ErrorResponse`
+- L22 — variável: `ValidationErrorResponse`
 
 ### [src/docs/schemas/index.ts](../src/docs/schemas/index.ts)
 
-- L179 â€” variÃ¡vel: `schemas`
+- L191 — variável: `schemas`
 
 ### [src/docs/schemas/internalNotes.ts](../src/docs/schemas/internalNotes.ts)
 
-- L1 â€” variÃ¡vel: `TimelineActor`
-- L11 â€” variÃ¡vel: `TimelineEventActor`
-- L19 â€” variÃ¡vel: `TimelineNote`
-- L31 â€” variÃ¡vel: `TimelineEvent`
-- L82 â€” variÃ¡vel: `TimelineItem`
-- L90 â€” variÃ¡vel: `TriageHistoryEntry`
-- L99 â€” variÃ¡vel: `MappingHistoryEntry`
-- L108 â€” variÃ¡vel: `InternalNotesResponse`
-- L139 â€” variÃ¡vel: `CreateInternalNoteRequest`
-- L147 â€” variÃ¡vel: `MarkInternalNotesReadRequest`
+- L8 — variável: `TimelineActor`
+- L24 — variável: `TimelineNote`
+- L36 — variável: `TimelineEvent`
+- L73 — variável: `InternalNotesResponse`
+- L93 — variável: `CreateInternalNoteRequest`
+- L101 — variável: `MarkInternalNotesReadRequest`
 
 ### [src/docs/schemas/notifications.ts](../src/docs/schemas/notifications.ts)
 
-- L3 â€” variÃ¡vel: `NotificationStatusChangedPayload`
-- L17 â€” variÃ¡vel: `NotificationPendingItemRespondedPayload`
-- L33 â€” variÃ¡vel: `NotificationPendingItemRespondedUnassignedPayload`
-- L54 â€” variÃ¡vel: `NotificationResponsibleAssignedPayload`
-- L72 â€” variÃ¡vel: `NotificationMappingScheduledPayload`
-- L89 â€” variÃ¡vel: `NotificationPendingItemLifecyclePayload`
-- L106 â€” variÃ¡vel: `NotificationPayload`
-- L120 â€” variÃ¡vel: `NotificationItem`
-- L145 â€” variÃ¡vel: `NotificationListResponse`
-- L162 â€” variÃ¡vel: `NotificationUnreadCountResponse`
-- L170 â€” variÃ¡vel: `NotificationMarkReadResponse`
-- L183 â€” variÃ¡vel: `NotificationMarkAllReadResponse`
+- L3 — variável: `NotificationStatusChangedPayload`
+- L17 — variável: `NotificationPendingItemRespondedPayload`
+- L33 — variável: `NotificationPendingItemRespondedUnassignedPayload`
+- L54 — variável: `NotificationResponsibleAssignedPayload`
+- L72 — variável: `NotificationMappingScheduledPayload`
+- L89 — variável: `NotificationPendingItemLifecyclePayload`
+- L106 — variável: `NotificationPayload`
+- L120 — variável: `NotificationItem`
+- L145 — variável: `NotificationListResponse`
+- L162 — variável: `NotificationUnreadCountResponse`
+- L170 — variável: `NotificationMarkReadResponse`
+- L183 — variável: `NotificationMarkAllReadResponse`
 
 ### [src/docs/schemas/pendingItems.ts](../src/docs/schemas/pendingItems.ts)
 
-- L1 â€” variÃ¡vel: `PendingFieldRef`
-- L19 â€” variÃ¡vel: `PendingAttachment`
-- L31 â€” variÃ¡vel: `PendingItem`
-- L90 â€” variÃ¡vel: `ListPendingItemsResponse`
-- L103 â€” variÃ¡vel: `CreatePendingItemsBody`
-- L133 â€” variÃ¡vel: `CreatePendingItemsResponse`
-- L143 â€” variÃ¡vel: `ReviewPendingItemsBody`
-- L169 â€” variÃ¡vel: `ReviewDecisionValidate`
-- L179 â€” variÃ¡vel: `ReviewDecisionReopen`
-- L189 â€” variÃ¡vel: `ReviewPendingItemsResponse`
-- L198 â€” variÃ¡vel: `RespondPendingItemBody`
-- L221 â€” variÃ¡vel: `PublicVerifyBody`
-- L235 â€” variÃ¡vel: `PublicVerifyResponse`
+- L1 — variável: `PendingFieldRef`
+- L19 — variável: `PendingAttachment`
+- L31 — variável: `PendingItem`
+- L90 — variável: `ListPendingItemsResponse`
+- L103 — variável: `CreatePendingItemsBody`
+- L133 — variável: `CreatePendingItemsResponse`
+- L143 — variável: `ReviewPendingItemsBody`
+- L169 — variável: `ReviewDecisionValidate`
+- L179 — variável: `ReviewDecisionReopen`
+- L189 — variável: `ReviewPendingItemsResponse`
+- L198 — variável: `RespondPendingItemBody`
+- L221 — variável: `PublicVerifyBody`
+- L235 — variável: `PublicVerifyResponse`
 
 ### [src/docs/schemas/portal.ts](../src/docs/schemas/portal.ts)
 
-- L7 â€” variÃ¡vel: `StatusMode`
-- L17 â€” variÃ¡vel: `StatusToneTokens`
-- L35 â€” variÃ¡vel: `ThemeGradient`
-- L49 â€” variÃ¡vel: `ThemeTokens`
-- L136 â€” variÃ¡vel: `PortalTheme`
-- L149 â€” variÃ¡vel: `PortalAssets`
-- L179 â€” variÃ¡vel: `PortalCategory`
-- L194 â€” variÃ¡vel: `PortalStatus`
-- L230 â€” variÃ¡vel: `PrioritizationWeights`
-- L262 â€” variÃ¡vel: `PortalConfig`
-- L296 â€” variÃ¡vel: `PortalAccessPatchBody`
-- L309 â€” variÃ¡vel: `PortalIdentityPatchBody`
-- L323 â€” variÃ¡vel: `PortalThemePatchBody`
-- L332 â€” variÃ¡vel: `PortalCategoriesPatchBody`
-- L346 â€” variÃ¡vel: `PortalStatusesPatchBody`
-- L360 â€” variÃ¡vel: `PortalPrioritizationWeightsPatchBody`
+- L7 — variável: `StatusMode`
+- L17 — variável: `StatusToneTokens`
+- L35 — variável: `ThemeGradient`
+- L49 — variável: `ThemeTokens`
+- L136 — variável: `PortalTheme`
+- L149 — variável: `PortalAssets`
+- L179 — variável: `PortalCategory`
+- L194 — variável: `PortalStatus`
+- L230 — variável: `PrioritizationWeights`
+- L262 — variável: `PortalConfig`
+- L296 — variável: `PortalSections`
+- L324 — variável: `PortalAccessPatchBody`
+- L337 — variável: `PortalIdentityPatchBody`
+- L351 — variável: `PortalThemePatchBody`
+- L360 — variável: `PortalCategoriesPatchBody`
+- L374 — variável: `PortalStatusesPatchBody`
+- L388 — variável: `PortalPrioritizationWeightsPatchBody`
 
 ### [src/docs/schemas/prioritization.ts](../src/docs/schemas/prioritization.ts)
 
-- L1 â€” variÃ¡vel: `PrioritizationCriterion`
-- L11 â€” variÃ¡vel: `PrioritizationCriteriaList`
-- L22 â€” variÃ¡vel: `EvaluatePrioritizationRequest`
-- L39 â€” variÃ¡vel: `EvaluatePrioritizationResponse`
+- L1 — variável: `PrioritizationCriterion`
+- L11 — variável: `PrioritizationCriteriaList`
+- L22 — variável: `EvaluatePrioritizationRequest`
+- L39 — variável: `EvaluatePrioritizationResponse`
+
+### [src/docs/schemas/profile.ts](../src/docs/schemas/profile.ts)
+
+- L1 — variável: `profilePermission`
+- L10 — variável: `ProfilePermission`
+- L20 — variável: `ProfileReference`
+- L41 — variável: `ProfileSnapshot`
+- L59 — variável: `Profile`
+- L99 — variável: `ProfilePermissionCatalogEntry`
+- L119 — variável: `ProfileKeyCatalog`
+- L147 — variável: `ProfileCreateRequest`
+- L176 — variável: `ProfileUpdateRequest`
+- L193 — variável: `ProfileStatusRequest`
+- L201 — variável: `ProfileStatusResponse`
+- L210 — variável: `ProfileDuplicateRequest`
 
 ### [src/docs/schemas/queue.ts](../src/docs/schemas/queue.ts)
 
-- L1 â€” variÃ¡vel: `QueueMetrics`
-- L12 â€” variÃ¡vel: `QueueAssignee`
-- L21 â€” variÃ¡vel: `QueueItem`
-- L57 â€” variÃ¡vel: `QueueResponse`
-- L81 â€” variÃ¡vel: `MappingParticipant`
-- L95 â€” variÃ¡vel: `MappingParticipantInput`
-- L109 â€” variÃ¡vel: `MappingAssignee`
-- L125 â€” variÃ¡vel: `MappingResponse`
-- L171 â€” variÃ¡vel: `MappingHistoryResponse`
-- L192 â€” variÃ¡vel: `MappingPayload`
+- L1 — variável: `QueueMetrics`
+- L12 — variável: `QueueAssignee`
+- L21 — variável: `QueueItem`
+- L57 — variável: `QueueResponse`
+- L81 — variável: `MappingParticipant`
+- L95 — variável: `MappingParticipantInput`
+- L109 — variável: `MappingAssignee`
+- L125 — variável: `MappingResponse`
+- L171 — variável: `MappingHistoryResponse`
+- L192 — variável: `MappingPayload`
 
 ### [src/docs/schemas/reports.ts](../src/docs/schemas/reports.ts)
 
-- L1 â€” variÃ¡vel: `DashboardSituation`
-- L6 â€” variÃ¡vel: `DashboardSummary`
-- L26 â€” variÃ¡vel: `DashboardStatusMetric`
-- L41 â€” variÃ¡vel: `DashboardPriorityMetric`
-- L54 â€” variÃ¡vel: `DashboardCategoryMetric`
-- L64 â€” variÃ¡vel: `DashboardTrendPoint`
-- L73 â€” variÃ¡vel: `DashboardResponse`
+- L1 — variável: `DashboardSituation`
+- L6 — variável: `DashboardSummary`
+- L26 — variável: `DashboardStatusMetric`
+- L41 — variável: `DashboardPriorityMetric`
+- L54 — variável: `DashboardCategoryMetric`
+- L64 — variável: `DashboardTrendPoint`
+- L73 — variável: `DashboardResponse`
 
 ### [src/docs/schemas/request.ts](../src/docs/schemas/request.ts)
 
-- L1 â€” variÃ¡vel: `dateTime`
-- L2 â€” variÃ¡vel: `nullableDateTime`
-- L3 â€” variÃ¡vel: `nullableString`
-- L6 â€” variÃ¡vel: `RequestStatus`
-- L13 â€” variÃ¡vel: `RequestPriority`
-- L19 â€” variÃ¡vel: `RequestCategory`
-- L31 â€” variÃ¡vel: `YesNoDetail`
-- L37 â€” variÃ¡vel: `RequesterBlock`
-- L60 â€” variÃ¡vel: `DemandBlock`
-- L84 â€” variÃ¡vel: `OperationalBlock`
-- L124 â€” variÃ¡vel: `ComplementaryBlock`
-- L135 â€” variÃ¡vel: `CreateRequestPayload`
-- L152 â€” variÃ¡vel: `CreateRequestResponse`
-- L162 â€” variÃ¡vel: `RequestSummary`
-- L189 â€” variÃ¡vel: `PaginatedRequestSummary`
-- L201 â€” variÃ¡vel: `PublicMeeting`
-- L210 â€” variÃ¡vel: `PublicRequestDetail`
-- L261 â€” variÃ¡vel: `Assignee`
-- L275 â€” variÃ¡vel: `PrioritizationBlock`
-- L293 â€” variÃ¡vel: `PendingSummary`
-- L304 â€” variÃ¡vel: `UnreadState`
-- L314 â€” variÃ¡vel: `CorrectionAlert`
-- L323 â€” variÃ¡vel: `InternalAttachment`
-- L335 â€” variÃ¡vel: `InternalRequestDetail`
-- L408 â€” variÃ¡vel: `UpdateRequesterBlock`
-- L419 â€” variÃ¡vel: `UpdateInternalRequestPayload`
-- L432 â€” variÃ¡vel: `PublicOperationalImpacts`
-- L453 â€” variÃ¡vel: `RequesterOperational`
-- L486 â€” variÃ¡vel: `RequesterAttachment`
-- L499 â€” variÃ¡vel: `PublicRequestDetails`
-- L529 â€” variÃ¡vel: `ReopenRequestPayload`
-- L549 â€” variÃ¡vel: `ReopenRequestResponse`
-- L559 â€” variÃ¡vel: `CancelRequestPayload`
-- L581 â€” variÃ¡vel: `CancelRequestResponse`
-- L587 â€” variÃ¡vel: `RequesterRequestDetails`
-- L672 â€” variÃ¡vel: `PublicTrackingResponse`
-- L681 â€” variÃ¡vel: `AuthenticatedTrackingResponse`
-- L690 â€” variÃ¡vel: `TrackingResponse`
-- L698 â€” variÃ¡vel: `AssigneeSummary`
-- L710 â€” variÃ¡vel: `AssignRequestPayload`
-- L724 â€” variÃ¡vel: `AssignRequestResponse`
-- L743 â€” variÃ¡vel: `AssignAnalystPayload`
-- L766 â€” variÃ¡vel: `UpdateStatusPayload`
-- L794 â€” variÃ¡vel: `UpdateStatusResponse`
+- L1 — variável: `dateTime`
+- L2 — variável: `nullableDateTime`
+- L3 — variável: `nullableString`
+- L6 — variável: `RequestStatus`
+- L13 — variável: `RequestPriority`
+- L19 — variável: `RequestCategory`
+- L31 — variável: `YesNoDetail`
+- L37 — variável: `RequesterBlock`
+- L60 — variável: `DemandBlock`
+- L84 — variável: `OperationalBlock`
+- L124 — variável: `ComplementaryBlock`
+- L135 — variável: `CreateRequestPayload`
+- L152 — variável: `CreateRequestResponse`
+- L162 — variável: `RequestSummary`
+- L189 — variável: `PaginatedRequestSummary`
+- L201 — variável: `PublicMeeting`
+- L210 — variável: `PublicRequestDetail`
+- L261 — variável: `Assignee`
+- L275 — variável: `PrioritizationBlock`
+- L293 — variável: `PendingSummary`
+- L304 — variável: `UnreadState`
+- L314 — variável: `CorrectionAlert`
+- L323 — variável: `InternalAttachment`
+- L335 — variável: `InternalRequestDetail`
+- L408 — variável: `UpdateRequesterBlock`
+- L419 — variável: `UpdateInternalRequestPayload`
+- L432 — variável: `PublicOperationalImpacts`
+- L453 — variável: `RequesterOperational`
+- L486 — variável: `RequesterAttachment`
+- L499 — variável: `PublicRequestDetails`
+- L529 — variável: `ReopenRequestPayload`
+- L549 — variável: `ReopenRequestResponse`
+- L559 — variável: `CancelRequestPayload`
+- L581 — variável: `CancelRequestResponse`
+- L587 — variável: `RequesterRequestDetails`
+- L672 — variável: `PublicTrackingResponse`
+- L681 — variável: `AuthenticatedTrackingResponse`
+- L690 — variável: `TrackingResponse`
+- L698 — variável: `AssigneeSummary`
+- L710 — variável: `AssignRequestPayload`
+- L724 — variável: `AssignRequestResponse`
+- L743 — variável: `AssignAnalystPayload`
+- L766 — variável: `UpdateStatusPayload`
+- L794 — variável: `UpdateStatusResponse`
+
+### [src/docs/schemas/requestsInternal.ts](../src/docs/schemas/requestsInternal.ts)
+
+- L1 — variável: `AssigneeSummary`
+- L13 — variável: `RequestMutationAcknowledgement`
+- L22 — variável: `RequestInternalDetail`
+- L219 — variável: `AssignRequestResponse`
+- L238 — variável: `RequestStatusChangeResponse`
+- L250 — variável: `InternalRequestUpdate`
 
 ### [src/docs/schemas/triage.ts](../src/docs/schemas/triage.ts)
 
-- L1 â€” variÃ¡vel: `TriageAssignee`
-- L11 â€” variÃ¡vel: `TriagemResponse`
-- L64 â€” variÃ¡vel: `CreateTriagePayload`
+- L1 — variável: `TriageAssignee`
+- L11 — variável: `TriagemResponse`
+- L64 — variável: `CreateTriagePayload`
 
 ### [src/docs/schemas/user.ts](../src/docs/schemas/user.ts)
 
-- L2 â€” variÃ¡vel: `Role`
-- L9 â€” variÃ¡vel: `ProfileName`
-- L17 â€” variÃ¡vel: `UserMetrics`
-- L44 â€” variÃ¡vel: `UserSummary`
-- L68 â€” variÃ¡vel: `UserListResponse`
-- L80 â€” variÃ¡vel: `RequesterProfileBlock`
-- L91 â€” variÃ¡vel: `ProfessionalProfileBlock`
-- L102 â€” variÃ¡vel: `UserProfileResponse`
-- L124 â€” variÃ¡vel: `AssignAnalyst`
-- L149 â€” variÃ¡vel: `RequesterInput`
-- L160 â€” variÃ¡vel: `ProfessionalInput`
-- L179 â€” variÃ¡vel: `CreateUserRequest`
-- L194 â€” variÃ¡vel: `CreateUserResponse`
-- L221 â€” variÃ¡vel: `UpdateUserRequest`
-- L243 â€” variÃ¡vel: `UpdateProfilePayload`
-- L264 â€” variÃ¡vel: `ChangeUserStatusRequest`
-- L272 â€” variÃ¡vel: `ChangeUserStatusResponse`
-- L281 â€” variÃ¡vel: `ResetPasswordResponse`
+- L2 — variável: `UserMetrics`
+- L29 — variável: `UserSummary`
+- L53 — variável: `UserListResponse`
+- L65 — variável: `RequesterProfileBlock`
+- L76 — variável: `ProfessionalProfileBlock`
+- L87 — variável: `UserProfileResponse`
+- L109 — variável: `AssignableProfessional`
+- L127 — variável: `RequesterInput`
+- L138 — variável: `ProfessionalInput`
+- L157 — variável: `CreateUserRequest`
+- L176 — variável: `CreateUserResponse`
+- L203 — variável: `UpdateUserRequest`
+- L228 — variável: `UpdateProfilePayload`
+- L249 — variável: `ChangeUserStatusRequest`
+- L257 — variável: `ChangeUserStatusResponse`
+- L266 — variável: `ResetPasswordResponse`
 
 ### [src/docs/swagger.ts](../src/docs/swagger.ts)
 
-- L30 â€” variÃ¡vel: `openapiSpec`
-- L39 â€” variÃ¡vel: `swaggerOptions`
-- L48 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L61 â€” parÃ¢metro: `_req`
-- L61 â€” parÃ¢metro: `res`
-- L61 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L30 — variável: `openapiSpec`
+- L39 — variável: `swaggerOptions`
+- L48 — retorno da função: `<anônima>()`
+- L61 — parâmetro: `_req`
+- L61 — parâmetro: `res`
+- L61 — retorno da função: `<anônima>()`
 
 ### [src/modules/auditHistory/auditHistory.controller.ts](../src/modules/auditHistory/auditHistory.controller.ts)
 
-- L12 â€” variÃ¡vel: `parsed`
-- L25 â€” variÃ¡vel: `id`
-- L31 â€” variÃ¡vel: `detail`
-- L43 â€” variÃ¡vel: `protocol`
-- L48 â€” variÃ¡vel: `logs`
+- L13 — variável: `parsed`
+- L28 — variável: `id`
+- L34 — variável: `detail`
+- L42 — variável: `protocol`
+- L47 — variável: `logs`
 
 ### [src/modules/auditHistory/auditHistory.repository.ts](../src/modules/auditHistory/auditHistory.repository.ts)
 
-- L37 â€” variÃ¡vel: `query`
-- L53 â€” variÃ¡vel: `totalRow`
-- L54 â€” parÃ¢metro: `builder`
-- L54 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L61 â€” variÃ¡vel: `total`
-- L63 â€” variÃ¡vel: `page`
-- L64 â€” variÃ¡vel: `limit`
-- L65 â€” variÃ¡vel: `offset`
-- L66 â€” variÃ¡vel: `items`
-- L126 â€” parÃ¢metro: `rows`
-- L126 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L46 — retorno da função: `responsibleProtocols()`
+- L54 — retorno da função: `responsibleMappingIds()`
+- L63 — retorno da função: `responsiblePendingItemIds()`
+- L80 — variável: `userId`
+- L82 — parâmetro: `where`
+- L82 — retorno da função: `<anônima>()`
+- L84 — parâmetro: `requestScope`
+- L84 — retorno da função: `<anônima>()`
+- L89 — parâmetro: `mappingScope`
+- L89 — retorno da função: `<anônima>()`
+- L94 — parâmetro: `pendingScope`
+- L94 — retorno da função: `<anônima>()`
+- L95 — parâmetro: `pendingTarget`
+- L95 — retorno da função: `<anônima>()`
+- L108 — variável: `query`
+- L127 — variável: `countQuery`
+- L133 — variável: `totalRow`
+- L134 — variável: `total`
+- L136 — variável: `page`
+- L137 — variável: `limit`
+- L138 — variável: `offset`
+- L139 — variável: `items`
+- L186 — variável: `row`
+- L194 — variável: `byProtocol`
+- L199 — variável: `byItem`
+- L244 — parâmetro: `rows`
+- L244 — retorno da função: `<anônima>()`
 
 ### [src/modules/auditHistory/auditHistory.router.ts](../src/modules/auditHistory/auditHistory.router.ts)
 
-- L10 â€” variÃ¡vel: `noStore`
-- L19 â€” variÃ¡vel: `auditHistoryRoutes`
-- L44 â€” variÃ¡vel: `auditLogsRouter`
+- L10 — variável: `noStore`
+- L19 — variável: `auditHistoryRoutes`
+- L46 — variável: `auditLogsRouter`
 
 ### [src/modules/auditHistory/auditHistory.schema.ts](../src/modules/auditHistory/auditHistory.schema.ts)
 
-- L5 â€” variÃ¡vel: `optionalPositiveInt`
-- L9 â€” variÃ¡vel: `auditEntityNames`
-- L11 â€” variÃ¡vel: `auditHistoryQuerySchema`
-- L18 â€” parÃ¢metro: `query`
-- L18 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L22 â€” parÃ¢metro: `query`
-- L22 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L26 â€” parÃ¢metro: `query`
-- L26 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L30 â€” parÃ¢metro: `query`
-- L30 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L5 — variável: `optionalPositiveInt`
+- L9 — variável: `auditEntityNames`
+- L11 — variável: `auditHistoryQuerySchema`
+- L18 — parâmetro: `query`
+- L18 — retorno da função: `<anônima>()`
+- L22 — parâmetro: `query`
+- L22 — retorno da função: `<anônima>()`
+- L26 — parâmetro: `query`
+- L26 — retorno da função: `<anônima>()`
+- L30 — parâmetro: `query`
+- L30 — retorno da função: `<anônima>()`
 
 ### [src/modules/auditHistory/auditHistory.service.ts](../src/modules/auditHistory/auditHistory.service.ts)
 
-- L22 â€” variÃ¡vel: `{ items, total }`
-- L24 â€” parÃ¢metro: `row`
-- L24 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L47 â€” variÃ¡vel: `previousMeetingSchema`
-- L55 â€” variÃ¡vel: `occurredAt`
-- L57 â€” variÃ¡vel: `userId`
-- L58 â€” variÃ¡vel: `previousMeeting`
-- L84 â€” variÃ¡vel: `row`
-- L100 â€” variÃ¡vel: `normalized`
-- L101 â€” variÃ¡vel: `isManagerLike`
-- L103 â€” variÃ¡vel: `request`
-- L117 â€” variÃ¡vel: `isAssignee`
-- L119 â€” variÃ¡vel: `isMappingAssignee`
-- L131 â€” variÃ¡vel: `rows`
-- L132 â€” parÃ¢metro: `row`
-- L132 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L29 — variável: `custody`
+- L45 — variável: `{ items, total }`
+- L47 — parâmetro: `row`
+- L47 — retorno da função: `<anônima>()`
+- L71 — variável: `previousMeetingSchema`
+- L79 — variável: `occurredAt`
+- L81 — variável: `userId`
+- L82 — variável: `previousMeeting`
+- L118 — variável: `row`
+- L129 — variável: `scope`
+- L131 — variável: `protocol`
+- L132 — variável: `request`
+- L133 — variável: `isVisible`
+- L165 — variável: `normalized`
+- L167 — variável: `request`
+- L180 — variável: `rows`
+- L181 — parâmetro: `row`
+- L181 — retorno da função: `<anônima>()`
 
 ### [src/modules/auth/auth.controller.ts](../src/modules/auth/auth.controller.ts)
 
-- L12 â€” variÃ¡vel: `COOKIE_OPTIONS`
-- L26 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L26 â€” variÃ¡vel: `logout`
-- L31 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L31 â€” variÃ¡vel: `authenticate`
-- L32 â€” variÃ¡vel: `parsed`
-- L38 â€” variÃ¡vel: `foundUser`
-- L41 â€” variÃ¡vel: `changeToken`
-- L64 â€” variÃ¡vel: `sessionToken`
-- L87 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L87 â€” variÃ¡vel: `me`
-- L88 â€” variÃ¡vel: `userId`
-- L89 â€” variÃ¡vel: `sessionUser`
-- L103 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L103 â€” variÃ¡vel: `changePassword`
-- L104 â€” variÃ¡vel: `parsed`
-- L110 â€” variÃ¡vel: `userId`
-- L111 â€” variÃ¡vel: `updated`
-- L113 â€” variÃ¡vel: `sessionToken`
+- L12 — variável: `COOKIE_OPTIONS`
+- L26 — retorno da função: `<anônima>()`
+- L26 — variável: `logout`
+- L31 — retorno da função: `<anônima>()`
+- L31 — variável: `authenticate`
+- L32 — variável: `parsed`
+- L38 — variável: `foundUser`
+- L41 — variável: `changeToken`
+- L63 — variável: `sessionToken`
+- L85 — retorno da função: `<anônima>()`
+- L85 — variável: `me`
+- L86 — variável: `userId`
+- L87 — variável: `sessionUser`
+- L102 — retorno da função: `<anônima>()`
+- L102 — variável: `changePassword`
+- L103 — variável: `parsed`
+- L109 — variável: `userId`
+- L110 — variável: `updated`
+- L112 — variável: `sessionToken`
 
 ### [src/modules/auth/auth.repository.ts](../src/modules/auth/auth.repository.ts)
 
-- L6 â€” retorno da funÃ§Ã£o: `authUserQuery()`
-- L77 â€” variÃ¡vel: `updated`
-- L87 â€” variÃ¡vel: `passwordChangedAt`
+- L6 — retorno da função: `authUserQuery()`
+- L102 — variável: `updated`
+- L112 — variável: `passwordChangedAt`
 
 ### [src/modules/auth/auth.router.ts](../src/modules/auth/auth.router.ts)
 
-- L2 â€” variÃ¡vel: `authRoutes`
+- L2 — variável: `authRoutes`
 
 ### [src/modules/auth/auth.schema.ts](../src/modules/auth/auth.schema.ts)
 
-- L4 â€” variÃ¡vel: `maxPasswordBytes`
-- L7 â€” parÃ¢metro: `value`
-- L7 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L9 â€” variÃ¡vel: `loginSchema`
-- L14 â€” variÃ¡vel: `changePasswordSchema`
-- L20 â€” parÃ¢metro: `data`
-- L20 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L24 â€” parÃ¢metro: `data`
-- L24 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L4 — variável: `maxPasswordBytes`
+- L7 — parâmetro: `value`
+- L7 — retorno da função: `<anônima>()`
+- L9 — variável: `loginSchema`
+- L14 — variável: `changePasswordSchema`
+- L20 — parâmetro: `data`
+- L20 — retorno da função: `<anônima>()`
+- L24 — parâmetro: `data`
+- L24 — retorno da função: `<anônima>()`
 
 ### [src/modules/auth/auth.service.ts](../src/modules/auth/auth.service.ts)
 
-- L24 â€” variÃ¡vel: `DUMMY_PASSWORD_HASH`
-- L27 â€” variÃ¡vel: `email`
-- L29 â€” variÃ¡vel: `user`
-- L45 â€” variÃ¡vel: `isPasswordValid`
-- L64 â€” variÃ¡vel: `user`
-- L86 â€” variÃ¡vel: `user`
-- L96 â€” variÃ¡vel: `isCurrentPasswordValid`
-- L102 â€” variÃ¡vel: `isSamePassword`
-- L108 â€” variÃ¡vel: `newPasswordHash`
-- L112 â€” parÃ¢metro: `trx`
-- L112 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L112 â€” variÃ¡vel: `{ password_changed_at }`
-- L113 â€” variÃ¡vel: `result`
+- L32 — variável: `DUMMY_PASSWORD_HASH`
+- L35 — variável: `email`
+- L37 — variável: `user`
+- L53 — variável: `isPasswordValid`
+- L73 — variável: `user`
+- L79 — variável: `grants`
+- L98 — variável: `user`
+- L108 — variável: `isCurrentPasswordValid`
+- L114 — variável: `isSamePassword`
+- L120 — variável: `newPasswordHash`
+- L124 — parâmetro: `trx`
+- L124 — retorno da função: `<anônima>()`
+- L124 — variável: `{ password_changed_at }`
+- L125 — variável: `result`
 
 ### [src/modules/DTOs/users/UpdateProfileRequest.dto.ts](../src/modules/DTOs/users/UpdateProfileRequest.dto.ts)
 
-- L15 â€” variÃ¡vel: `updateRequesterSelfSchema`
-- L29 â€” variÃ¡vel: `updateRequesterSchema`
-- L47 â€” variÃ¡vel: `updateProfileSchema`
+- L15 — variável: `updateRequesterSelfSchema`
+- L29 — variável: `updateRequesterSchema`
+- L47 — variável: `updateProfileSchema`
 
 ### [src/modules/internalNotes/internalNotes.controller.ts](../src/modules/internalNotes/internalNotes.controller.ts)
 
-- L14 â€” variÃ¡vel: `parsed`
-- L26 â€” variÃ¡vel: `userId`
-- L38 â€” variÃ¡vel: `listInternalNotes`
-- L39 â€” variÃ¡vel: `parsed`
-- L44 â€” variÃ¡vel: `actor`
-- L45 â€” variÃ¡vel: `response`
-- L53 â€” variÃ¡vel: `createInternalNote`
-- L54 â€” variÃ¡vel: `parsed`
-- L59 â€” variÃ¡vel: `response`
-- L67 â€” variÃ¡vel: `markInternalNotesRead`
-- L68 â€” variÃ¡vel: `parsed`
-- L73 â€” variÃ¡vel: `actor`
+- L15 — variável: `parsed`
+- L23 — variável: `actor`
+- L24 — variável: `profileId`
+- L25 — variável: `profileName`
+- L34 — variável: `listInternalNotes`
+- L35 — variável: `parsed`
+- L40 — variável: `response`
+- L49 — variável: `createInternalNote`
+- L50 — variável: `parsed`
+- L55 — variável: `response`
+- L64 — variável: `markInternalNotesRead`
+- L65 — variável: `parsed`
 
 ### [src/modules/internalNotes/internalNotes.repository.ts](../src/modules/internalNotes/internalNotes.repository.ts)
 
-- L31 â€” variÃ¡vel: `MAPPING_RECORD_ACTIONS`
-- L33 â€” variÃ¡vel: `NOTE_COLUMNS`
-- L54 â€” variÃ¡vel: `query`
-- L60 â€” parÃ¢metro: `builder`
-- L60 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L61 â€” parÃ¢metro: `nested`
-- L61 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L85 â€” variÃ¡vel: `query`
-- L88 â€” parÃ¢metro: `scope`
-- L88 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L90 â€” parÃ¢metro: `requestScope`
-- L90 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L96 â€” parÃ¢metro: `mappingScope`
-- L96 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L109 â€” variÃ¡vel: `auditId`
-- L110 â€” parÃ¢metro: `builder`
-- L110 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L111 â€” parÃ¢metro: `nested`
-- L111 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L144 â€” variÃ¡vel: `query`
-- L152 â€” variÃ¡vel: `row`
-- L159 â€” variÃ¡vel: `TRIAGE_HISTORY_COLUMNS`
-- L206 â€” variÃ¡vel: `latestAudit`
-- L215 â€” variÃ¡vel: `rows`
-- L217 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L243 â€” parÃ¢metro: `row`
-- L243 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L243 â€” variÃ¡vel: `mappingIds`
-- L244 â€” variÃ¡vel: `professionalIds`
-- L245 â€” parÃ¢metro: `id`
-- L245 â€” parÃ¢metro: `row`
-- L245 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L248 â€” variÃ¡vel: `[participantRows, assigneeRows]`
-- L275 â€” variÃ¡vel: `participantsByMapping`
-- L276 â€” variÃ¡vel: `participant`
-- L277 â€” variÃ¡vel: `list`
-- L286 â€” parÃ¢metro: `assignee`
-- L286 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L286 â€” variÃ¡vel: `assigneeById`
-- L288 â€” parÃ¢metro: `row`
-- L288 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L305 â€” parÃ¢metro: `row`
-- L305 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L313 â€” variÃ¡vel: `rows`
-- L317 â€” parÃ¢metro: `row`
-- L317 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L334 â€” parÃ¢metro: `row`
-- L334 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L351 â€” variÃ¡vel: `rows`
-- L360 â€” variÃ¡vel: `row`
+- L33 — variável: `MAPPING_RECORD_ACTIONS`
+- L35 — variável: `NOTE_COLUMNS`
+- L79 — variável: `query`
+- L85 — parâmetro: `builder`
+- L85 — retorno da função: `<anônima>()`
+- L86 — parâmetro: `nested`
+- L86 — retorno da função: `<anônima>()`
+- L110 — variável: `query`
+- L112 — parâmetro: `scope`
+- L112 — retorno da função: `<anônima>()`
+- L114 — parâmetro: `requestScope`
+- L114 — retorno da função: `<anônima>()`
+- L120 — parâmetro: `mappingScope`
+- L120 — retorno da função: `<anônima>()`
+- L133 — variável: `auditId`
+- L134 — parâmetro: `builder`
+- L134 — retorno da função: `<anônima>()`
+- L135 — parâmetro: `nested`
+- L135 — retorno da função: `<anônima>()`
+- L169 — variável: `query`
+- L177 — variável: `row`
+- L184 — variável: `TRIAGE_HISTORY_COLUMNS`
+- L231 — variável: `latestAudit`
+- L240 — variável: `rows`
+- L242 — retorno da função: `<anônima>()`
+- L268 — parâmetro: `row`
+- L268 — retorno da função: `<anônima>()`
+- L268 — variável: `mappingIds`
+- L269 — variável: `professionalIds`
+- L270 — parâmetro: `id`
+- L270 — parâmetro: `row`
+- L270 — retorno da função: `<anônima>()`
+- L273 — variável: `[participantRows, assigneeRows]`
+- L300 — variável: `participantsByMapping`
+- L301 — variável: `participant`
+- L302 — variável: `list`
+- L311 — parâmetro: `assignee`
+- L311 — retorno da função: `<anônima>()`
+- L311 — variável: `assigneeById`
+- L313 — parâmetro: `row`
+- L313 — retorno da função: `<anônima>()`
+- L330 — parâmetro: `row`
+- L330 — retorno da função: `<anônima>()`
+- L338 — variável: `rows`
+- L342 — parâmetro: `row`
+- L342 — retorno da função: `<anônima>()`
+- L359 — parâmetro: `row`
+- L359 — retorno da função: `<anônima>()`
+- L376 — variável: `rows`
+- L386 — variável: `row`
 
 ### [src/modules/internalNotes/internalNotes.router.ts](../src/modules/internalNotes/internalNotes.router.ts)
 
-- L10 â€” variÃ¡vel: `internalNotesRoutes`
+- L10 — variável: `internalNotesRoutes`
 
 ### [src/modules/internalNotes/internalNotes.schema.ts](../src/modules/internalNotes/internalNotes.schema.ts)
 
-- L3 â€” variÃ¡vel: `protocolParamsSchema`
-- L7 â€” variÃ¡vel: `createInternalNoteSchema`
-- L15 â€” variÃ¡vel: `markInternalNotesReadSchema`
-- L22 â€” variÃ¡vel: `cursorPayloadSchema`
-- L28 â€” parÃ¢metro: `ctx`
-- L28 â€” parÃ¢metro: `cursor`
-- L28 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L29 â€” variÃ¡vel: `pattern`
-- L37 â€” variÃ¡vel: `listTimelineQuerySchema`
-- L48 â€” parÃ¢metro: `ctx`
-- L48 â€” parÃ¢metro: `raw`
-- L61 â€” variÃ¡vel: `payload`
+- L3 — variável: `protocolParamsSchema`
+- L7 — variável: `createInternalNoteSchema`
+- L15 — variável: `markInternalNotesReadSchema`
+- L22 — variável: `cursorPayloadSchema`
+- L28 — parâmetro: `ctx`
+- L28 — parâmetro: `cursor`
+- L28 — retorno da função: `<anônima>()`
+- L29 — variável: `pattern`
+- L37 — variável: `listTimelineQuerySchema`
+- L48 — parâmetro: `ctx`
+- L48 — parâmetro: `raw`
+- L61 — variável: `payload`
 
 ### [src/modules/internalNotes/internalNotes.service.ts](../src/modules/internalNotes/internalNotes.service.ts)
 
-- L27 â€” variÃ¡vel: `EVENT_ID_PREFIX`
-- L28 â€” variÃ¡vel: `NOTE_RANK`
-- L29 â€” variÃ¡vel: `EVENT_RANK`
-- L46 â€” variÃ¡vel: `request`
-- L61 â€” variÃ¡vel: `payload`
-- L99 â€” variÃ¡vel: `entries`
-- L100 â€” variÃ¡vel: `page`
-- L101 â€” variÃ¡vel: `oldest`
-- L102 â€” variÃ¡vel: `nextCursor`
-- L104 â€” parÃ¢metro: `entry`
-- L104 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L109 â€” variÃ¡vel: `parsed`
-- L145 â€” variÃ¡vel: `numericId`
-- L146 â€” variÃ¡vel: `statusName`
-- L150 â€” variÃ¡vel: `userId`
-- L151 â€” variÃ¡vel: `name`
-- L155 â€” variÃ¡vel: `userId`
-- L156 â€” variÃ¡vel: `name`
-- L163 â€” variÃ¡vel: `name`
-- L181 â€” variÃ¡vel: `role`
-- L192 â€” variÃ¡vel: `date`
-- L236 â€” parÃ¢metro: `participant`
-- L236 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L260 â€” variÃ¡vel: `userIds`
-- L261 â€” variÃ¡vel: `professionalIds`
-- L262 â€” variÃ¡vel: `statusIds`
-- L264 â€” variÃ¡vel: `row`
-- L266 â€” variÃ¡vel: `userId`
-- L271 â€” variÃ¡vel: `statusId`
-- L280 â€” variÃ¡vel: `[userNames, professionalNames, statusNames]`
-- L286 â€” parÃ¢metro: `row`
-- L286 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L308 â€” variÃ¡vel: `requestId`
-- L309 â€” variÃ¡vel: `cursor`
-- L310 â€” variÃ¡vel: `pageLimit`
-- L312 â€” variÃ¡vel: `readState`
-- L314 â€” variÃ¡vel: `[noteRows, eventRows, unseenCount, triageRows, mappingRows]`
-- L322 â€” variÃ¡vel: `events`
-- L323 â€” variÃ¡vel: `notes`
-- L324 â€” variÃ¡vel: `{ items, nextCursor }`
-- L340 â€” variÃ¡vel: `requestId`
-- L341 â€” variÃ¡vel: `internalNoteId`
-- L342 â€” variÃ¡vel: `note`
-- L355 â€” variÃ¡vel: `requestId`
-- L356 â€” variÃ¡vel: `note`
+- L32 — variável: `EVENT_ID_PREFIX`
+- L33 — variável: `NOTE_RANK`
+- L34 — variável: `EVENT_RANK`
+- L64 — variável: `request`
+- L88 — variável: `payload`
+- L126 — variável: `entries`
+- L127 — variável: `page`
+- L128 — variável: `oldest`
+- L129 — variável: `nextCursor`
+- L131 — parâmetro: `entry`
+- L131 — retorno da função: `<anônima>()`
+- L136 — variável: `parsed`
+- L176 — variável: `numericId`
+- L177 — variável: `statusName`
+- L181 — variável: `userId`
+- L182 — variável: `name`
+- L186 — variável: `userId`
+- L187 — variável: `name`
+- L194 — variável: `name`
+- L226 — variável: `date`
+- L270 — parâmetro: `participant`
+- L270 — retorno da função: `<anônima>()`
+- L294 — variável: `userIds`
+- L295 — variável: `professionalIds`
+- L296 — variável: `statusIds`
+- L298 — variável: `row`
+- L300 — variável: `userId`
+- L305 — variável: `statusId`
+- L314 — variável: `[userNames, professionalNames, statusNames]`
+- L320 — parâmetro: `row`
+- L320 — retorno da função: `<anônima>()`
+- L343 — variável: `requestId`
+- L344 — variável: `cursor`
+- L345 — variável: `pageLimit`
+- L347 — variável: `readState`
+- L349 — variável: `[noteRows, eventRows, unseenCount, triageRows, mappingRows]`
+- L357 — variável: `events`
+- L358 — variável: `notes`
+- L359 — variável: `{ items, nextCursor }`
+- L376 — variável: `requestId`
+- L377 — variável: `internalNoteId`
+- L382 — variável: `note`
+- L396 — variável: `requestId`
+- L397 — variável: `note`
 
 ### [src/modules/notifications/notifications.controller.ts](../src/modules/notifications/notifications.controller.ts)
 
-- L16 â€” variÃ¡vel: `HEARTBEAT_INTERVAL_MS`
-- L17 â€” variÃ¡vel: `SSE_RETRY_MS`
-- L24 â€” variÃ¡vel: `userId`
-- L34 â€” variÃ¡vel: `parsed`
-- L40 â€” variÃ¡vel: `result`
-- L45 â€” variÃ¡vel: `result`
-- L50 â€” variÃ¡vel: `parsed`
-- L56 â€” variÃ¡vel: `result`
-- L61 â€” variÃ¡vel: `result`
-- L66 â€” variÃ¡vel: `header`
-- L67 â€” variÃ¡vel: `raw`
-- L83 â€” variÃ¡vel: `userId`
-- L95 â€” variÃ¡vel: `sentIds`
-- L97 â€” variÃ¡vel: `writeNotification`
-- L104 â€” variÃ¡vel: `deliver`
-- L105 â€” variÃ¡vel: `items`
-- L106 â€” variÃ¡vel: `item`
-- L111 â€” variÃ¡vel: `isReplaying`
-- L112 â€” variÃ¡vel: `isClosed`
-- L115 â€” parÃ¢metro: `payload`
-- L115 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L115 â€” variÃ¡vel: `unsubscribe`
-- L123 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L129 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L129 â€” variÃ¡vel: `heartbeat`
-- L151 â€” variÃ¡vel: `lastEventId`
-- L154 â€” variÃ¡vel: `missed`
-- L155 â€” variÃ¡vel: `item`
-- L162 â€” variÃ¡vel: `payload`
-- L165 â€” variÃ¡vel: `error`
+- L16 — variável: `HEARTBEAT_INTERVAL_MS`
+- L17 — variável: `SSE_RETRY_MS`
+- L24 — variável: `userId`
+- L34 — variável: `parsed`
+- L40 — variável: `result`
+- L45 — variável: `result`
+- L50 — variável: `parsed`
+- L56 — variável: `result`
+- L61 — variável: `result`
+- L66 — variável: `header`
+- L67 — variável: `raw`
+- L83 — variável: `userId`
+- L95 — variável: `sentIds`
+- L97 — variável: `writeNotification`
+- L104 — variável: `deliver`
+- L105 — variável: `items`
+- L106 — variável: `item`
+- L111 — variável: `isReplaying`
+- L112 — variável: `isClosed`
+- L115 — parâmetro: `payload`
+- L115 — retorno da função: `<anônima>()`
+- L115 — variável: `unsubscribe`
+- L123 — retorno da função: `<anônima>()`
+- L129 — retorno da função: `<anônima>()`
+- L129 — variável: `heartbeat`
+- L151 — variável: `lastEventId`
+- L154 — variável: `missed`
+- L155 — variável: `item`
+- L162 — variável: `payload`
+- L165 — variável: `error`
 
 ### [src/modules/notifications/notifications.repository.ts](../src/modules/notifications/notifications.repository.ts)
 
-- L16 â€” variÃ¡vel: `NOTIFICATION_COLUMNS`
-- L34 â€” variÃ¡vel: `row`
-- L50 â€” variÃ¡vel: `query`
-- L63 â€” variÃ¡vel: `anchorCreatedAt`
-- L106 â€” variÃ¡vel: `anchorCreatedAt`
-- L125 â€” variÃ¡vel: `row`
-- L143 â€” variÃ¡vel: `updated`
-- L152 â€” variÃ¡vel: `row`
-- L156 â€” variÃ¡vel: `existing`
-- L167 â€” variÃ¡vel: `updated`
+- L16 — variável: `NOTIFICATION_COLUMNS`
+- L34 — variável: `row`
+- L50 — variável: `query`
+- L63 — variável: `anchorCreatedAt`
+- L106 — variável: `anchorCreatedAt`
+- L125 — variável: `row`
+- L143 — variável: `updated`
+- L152 — variável: `row`
+- L156 — variável: `existing`
+- L167 — variável: `updated`
 
 ### [src/modules/notifications/notifications.router.ts](../src/modules/notifications/notifications.router.ts)
 
-- L11 â€” variÃ¡vel: `notificationsRoutes`
+- L11 — variável: `notificationsRoutes`
 
 ### [src/modules/notifications/notifications.schema.ts](../src/modules/notifications/notifications.schema.ts)
 
-- L3 â€” variÃ¡vel: `notificationIdSchema`
-- L5 â€” variÃ¡vel: `CURSOR_SEPARATOR`
-- L7 â€” variÃ¡vel: `notificationCursorPayloadSchema`
-- L14 â€” variÃ¡vel: `listNotificationsQuerySchema`
-- L26 â€” parÃ¢metro: `ctx`
-- L26 â€” parÃ¢metro: `raw`
-- L34 â€” variÃ¡vel: `text`
-- L35 â€” variÃ¡vel: `separatorIndex`
-- L50 â€” variÃ¡vel: `payload`
-- L61 â€” variÃ¡vel: `notificationIdParamSchema`
+- L3 — variável: `notificationIdSchema`
+- L5 — variável: `CURSOR_SEPARATOR`
+- L7 — variável: `notificationCursorPayloadSchema`
+- L14 — variável: `listNotificationsQuerySchema`
+- L26 — parâmetro: `ctx`
+- L26 — parâmetro: `raw`
+- L34 — variável: `text`
+- L35 — variável: `separatorIndex`
+- L50 — variável: `payload`
+- L61 — variável: `notificationIdParamSchema`
 
 ### [src/modules/notifications/notifications.service.ts](../src/modules/notifications/notifications.service.ts)
 
-- L15 â€” variÃ¡vel: `CURSOR_SEPARATOR`
-- L18 â€” variÃ¡vel: `payload`
-- L19 â€” variÃ¡vel: `createdAt`
-- L53 â€” variÃ¡vel: `rows`
-- L59 â€” variÃ¡vel: `hasNextPage`
-- L60 â€” variÃ¡vel: `pageRows`
-- L61 â€” variÃ¡vel: `items`
-- L62 â€” variÃ¡vel: `lastItem`
-- L80 â€” variÃ¡vel: `row`
-- L86 â€” variÃ¡vel: `readAt`
-- L104 â€” variÃ¡vel: `rows`
-- L112 â€” variÃ¡vel: `rows`
+- L15 — variável: `CURSOR_SEPARATOR`
+- L18 — variável: `payload`
+- L19 — variável: `createdAt`
+- L53 — variável: `rows`
+- L59 — variável: `hasNextPage`
+- L60 — variável: `pageRows`
+- L61 — variável: `items`
+- L62 — variável: `lastItem`
+- L80 — variável: `row`
+- L86 — variável: `readAt`
+- L104 — variável: `rows`
+- L112 — variável: `rows`
 
 ### [src/modules/pendingItems/pendingItems.controller.ts](../src/modules/pendingItems/pendingItems.controller.ts)
 
-- L13 â€” variÃ¡vel: `{ checkRateLimit }`
-- L27 â€” variÃ¡vel: `p`
-- L35 â€” variÃ¡vel: `id`
-- L41 â€” variÃ¡vel: `protocol`
-- L42 â€” variÃ¡vel: `parsed`
-- L44 â€” variÃ¡vel: `result`
-- L54 â€” variÃ¡vel: `protocol`
-- L55 â€” variÃ¡vel: `result`
-- L60 â€” variÃ¡vel: `protocol`
-- L61 â€” variÃ¡vel: `pendingItemId`
-- L64 â€” variÃ¡vel: `actor`
-- L65 â€” variÃ¡vel: `parsed`
-- L67 â€” variÃ¡vel: `item`
-- L79 â€” variÃ¡vel: `protocol`
-- L80 â€” variÃ¡vel: `pendingItemId`
-- L83 â€” variÃ¡vel: `file`
-- L85 â€” variÃ¡vel: `result`
-- L96 â€” variÃ¡vel: `protocol`
-- L97 â€” variÃ¡vel: `parsed`
-- L99 â€” variÃ¡vel: `result`
-- L109 â€” variÃ¡vel: `protocol`
-- L111 â€” variÃ¡vel: `key`
-- L115 â€” variÃ¡vel: `parsed`
+- L9 — variável: `{ checkRateLimit }`
+- L28 — variável: `p`
+- L35 — variável: `protocol`
+- L36 — variável: `parsed`
+- L38 — variável: `result`
+- L48 — variável: `protocol`
+- L49 — variável: `result`
+- L54 — variável: `protocol`
+- L55 — variável: `pendingItemId`
+- L58 — variável: `item`
+- L69 — variável: `protocol`
+- L70 — variável: `pendingItemId`
+- L73 — variável: `file`
+- L75 — variável: `result`
+- L86 — variável: `protocol`
+- L87 — variável: `parsed`
+- L89 — variável: `result`
+- L99 — variável: `protocol`
+- L100 — variável: `body`
+- L105 — variável: `key`
+- L109 — variável: `parsed`
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-- L24 â€” variÃ¡vel: `pendingFieldValueSchema`
-- L27 â€” variÃ¡vel: `dbBigIntStringSchema`
-- L29 â€” parÃ¢metro: `value`
-- L29 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L31 â€” variÃ¡vel: `dbTimestampSchema`
-- L34 â€” variÃ¡vel: `pendingItemRowSchema`
-- L57 â€” variÃ¡vel: `pendingAttachmentRowSchema`
-- L63 â€” parÃ¢metro: `value`
-- L63 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L69 â€” variÃ¡vel: `parsed`
-- L92 â€” variÃ¡vel: `conn`
-- L93 â€” variÃ¡vel: `row`
-- L115 â€” variÃ¡vel: `conn`
-- L116 â€” variÃ¡vel: `row`
-- L134 â€” retorno da funÃ§Ã£o: `currentPendingRows()`
-- L141 â€” parÃ¢metro: `query`
-- L141 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L149 â€” retorno da funÃ§Ã£o: `lockActiveRequest()`
-- L150 â€” variÃ¡vel: `request`
-- L152 â€” variÃ¡vel: `status`
-- L168 â€” variÃ¡vel: `custodian`
-- L198 â€” variÃ¡vel: `row`
-- L211 â€” variÃ¡vel: `conn`
-- L212 â€” variÃ¡vel: `row`
-- L222 â€” variÃ¡vel: `conn`
-- L223 â€” variÃ¡vel: `rows`
-- L233 â€” variÃ¡vel: `conn`
-- L234 â€” variÃ¡vel: `row`
-- L245 â€” variÃ¡vel: `grouped`
-- L248 â€” variÃ¡vel: `conn`
-- L249 â€” variÃ¡vel: `rows`
-- L254 â€” variÃ¡vel: `row`
-- L255 â€” variÃ¡vel: `attachment`
-- L256 â€” variÃ¡vel: `list`
-- L268 â€” variÃ¡vel: `conn`
-- L269 â€” variÃ¡vel: `row`
-- L282 â€” variÃ¡vel: `conn`
-- L283 â€” variÃ¡vel: `rows`
-- L288 â€” parÃ¢metro: `r`
-- L288 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L288 â€” variÃ¡vel: `map`
-- L289 â€” variÃ¡vel: `requested`
-- L290 â€” variÃ¡vel: `responded`
-- L291 â€” variÃ¡vel: `validated`
-- L304 â€” variÃ¡vel: `conn`
-- L306 â€” variÃ¡vel: `rows`
-- L315 â€” variÃ¡vel: `byBatch`
-- L316 â€” variÃ¡vel: `row`
-- L317 â€” variÃ¡vel: `entry`
-- L318 â€” variÃ¡vel: `count`
-- L325 â€” variÃ¡vel: `candidates`
-- L326 â€” parÃ¢metro: `[, s]`
-- L326 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L330 â€” variÃ¡vel: `requiresAttachment`
-- L334 â€” parÃ¢metro: `[batchId]`
-- L334 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L338 â€” parÃ¢metro: `r`
-- L338 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L338 â€” variÃ¡vel: `requiresSet`
-- L340 â€” variÃ¡vel: `attachmentCounts`
-- L342 â€” variÃ¡vel: `counts`
-- L352 â€” variÃ¡vel: `c`
-- L355 â€” variÃ¡vel: `[batchId, summary]`
-- L366 â€” variÃ¡vel: `conn`
-- L367 â€” variÃ¡vel: `row`
-- L373 â€” variÃ¡vel: `count`
-- L375 â€” variÃ¡vel: `lastUnreadAt`
-- L380 â€” variÃ¡vel: `row`
-- L469 â€” variÃ¡vel: `row`
-- L474 â€” variÃ¡vel: `row`
-- L483 â€” variÃ¡vel: `conn`
-- L484 â€” variÃ¡vel: `rows`
-- L504 â€” variÃ¡vel: `current`
-- L517 â€” parÃ¢metro: `row`
-- L517 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L517 â€” variÃ¡vel: `toInsert`
-- L533 â€” variÃ¡vel: `pendingStatusId`
-- L568 â€” variÃ¡vel: `rows`
-- L605 â€” variÃ¡vel: `current`
-- L606 â€” variÃ¡vel: `row`
-- L607 â€” variÃ¡vel: `currentItem`
-- L620 â€” variÃ¡vel: `auditId`
-- L631 â€” variÃ¡vel: `requestedCount`
-- L635 â€” variÃ¡vel: `requestedRemaining`
-- L637 â€” variÃ¡vel: `requiresAttachment`
-- L640 â€” variÃ¡vel: `attachmentSatisfied`
-- L644 â€” variÃ¡vel: `nextStatusName`
-- L651 â€” variÃ¡vel: `statusId`
-- L665 â€” variÃ¡vel: `updated`
-- L678 â€” parÃ¢metro: `trx`
-- L678 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L721 â€” variÃ¡vel: `current`
-- L723 â€” variÃ¡vel: `currentBatch`
-- L728 â€” parÃ¢metro: `{ id }`
-- L728 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L731 â€” variÃ¡vel: `currentStatuses`
-- L732 â€” parÃ¢metro: `{ pending_item_id, status }`
-- L732 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L734 â€” parÃ¢metro: `{ id }`
-- L734 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L740 â€” variÃ¡vel: `hasReopen`
-- L742 â€” variÃ¡vel: `actionAuditIds`
-- L743 â€” variÃ¡vel: `rememberFirstAudit`
-- L747 â€” variÃ¡vel: `dec`
-- L748 â€” variÃ¡vel: `currentStatus`
-- L760 â€” variÃ¡vel: `validateAuditId`
-- L786 â€” variÃ¡vel: `reopenAuditId`
-- L801 â€” variÃ¡vel: `nextStatusName`
-- L803 â€” variÃ¡vel: `statusId`
-- L815 â€” variÃ¡vel: `rows`
-- L818 â€” parÃ¢metro: `d`
-- L818 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L841 â€” variÃ¡vel: `col`
-- L843 â€” variÃ¡vel: `v`
-- L847 â€” variÃ¡vel: `requesterRow`
-- L869 â€” variÃ¡vel: `col`
-- L872 â€” variÃ¡vel: `category`
-- L915 â€” variÃ¡vel: `col`
-- L942 â€” variÃ¡vel: `entry`
+- L26 — variável: `pendingFieldValueSchema`
+- L29 — variável: `dbBigIntStringSchema`
+- L31 — parâmetro: `value`
+- L31 — retorno da função: `<anônima>()`
+- L33 — variável: `dbTimestampSchema`
+- L36 — variável: `pendingItemRowSchema`
+- L59 — variável: `pendingAttachmentRowSchema`
+- L65 — parâmetro: `value`
+- L65 — retorno da função: `<anônima>()`
+- L71 — variável: `parsed`
+- L94 — variável: `conn`
+- L95 — variável: `row`
+- L128 — variável: `conn`
+- L129 — variável: `row`
+- L158 — retorno da função: `currentPendingRows()`
+- L165 — parâmetro: `query`
+- L165 — retorno da função: `<anônima>()`
+- L173 — retorno da função: `lockActiveRequest()`
+- L174 — variável: `request`
+- L176 — variável: `status`
+- L192 — variável: `custodian`
+- L222 — variável: `row`
+- L235 — variável: `conn`
+- L236 — variável: `row`
+- L246 — variável: `conn`
+- L247 — variável: `rows`
+- L257 — variável: `conn`
+- L258 — variável: `row`
+- L269 — variável: `grouped`
+- L272 — variável: `conn`
+- L273 — variável: `rows`
+- L278 — variável: `row`
+- L279 — variável: `attachment`
+- L280 — variável: `list`
+- L292 — variável: `conn`
+- L293 — variável: `row`
+- L306 — variável: `conn`
+- L307 — variável: `rows`
+- L312 — parâmetro: `r`
+- L312 — retorno da função: `<anônima>()`
+- L312 — variável: `map`
+- L313 — variável: `requested`
+- L314 — variável: `responded`
+- L315 — variável: `validated`
+- L328 — variável: `conn`
+- L330 — variável: `rows`
+- L339 — variável: `byBatch`
+- L340 — variável: `row`
+- L341 — variável: `entry`
+- L342 — variável: `count`
+- L349 — variável: `candidates`
+- L350 — parâmetro: `[, s]`
+- L350 — retorno da função: `<anônima>()`
+- L354 — variável: `requiresAttachment`
+- L358 — parâmetro: `[batchId]`
+- L358 — retorno da função: `<anônima>()`
+- L362 — parâmetro: `r`
+- L362 — retorno da função: `<anônima>()`
+- L362 — variável: `requiresSet`
+- L364 — variável: `attachmentCounts`
+- L366 — variável: `counts`
+- L376 — variável: `c`
+- L379 — variável: `[batchId, summary]`
+- L390 — variável: `conn`
+- L391 — variável: `row`
+- L397 — variável: `count`
+- L399 — variável: `lastUnreadAt`
+- L404 — variável: `row`
+- L497 — variável: `conn`
+- L498 — variável: `rows`
+- L518 — variável: `current`
+- L531 — parâmetro: `row`
+- L531 — retorno da função: `<anônima>()`
+- L531 — variável: `toInsert`
+- L547 — variável: `pendingStatusId`
+- L582 — variável: `rows`
+- L619 — variável: `current`
+- L620 — variável: `row`
+- L621 — variável: `currentItem`
+- L634 — variável: `auditId`
+- L645 — variável: `requestedCount`
+- L649 — variável: `requestedRemaining`
+- L651 — variável: `requiresAttachment`
+- L654 — variável: `attachmentSatisfied`
+- L658 — variável: `nextStatusName`
+- L665 — variável: `statusId`
+- L679 — variável: `updated`
+- L692 — parâmetro: `trx`
+- L692 — retorno da função: `<anônima>()`
+- L735 — variável: `current`
+- L737 — variável: `currentBatch`
+- L742 — parâmetro: `{ id }`
+- L742 — retorno da função: `<anônima>()`
+- L745 — variável: `currentStatuses`
+- L746 — parâmetro: `{ pending_item_id, status }`
+- L746 — retorno da função: `<anônima>()`
+- L748 — parâmetro: `{ id }`
+- L748 — retorno da função: `<anônima>()`
+- L754 — variável: `hasReopen`
+- L756 — variável: `actionAuditIds`
+- L757 — variável: `rememberFirstAudit`
+- L761 — variável: `dec`
+- L762 — variável: `currentStatus`
+- L774 — variável: `validateAuditId`
+- L800 — variável: `reopenAuditId`
+- L815 — variável: `nextStatusName`
+- L817 — variável: `statusId`
+- L829 — variável: `rows`
+- L832 — parâmetro: `d`
+- L832 — retorno da função: `<anônima>()`
+- L855 — variável: `col`
+- L857 — variável: `v`
+- L861 — variável: `requesterRow`
+- L883 — variável: `col`
+- L886 — variável: `category`
+- L929 — variável: `col`
+- L956 — variável: `entry`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
-- L17 â€” variÃ¡vel: `router`
-- L19 â€” variÃ¡vel: `upload`
-- L22 â€” parÃ¢metro: `_req`
-- L22 â€” parÃ¢metro: `cb`
-- L22 â€” parÃ¢metro: `file`
-- L22 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L33 â€” variÃ¡vel: `uploadSingle`
-- L53 â€” parÃ¢metro: `next`
-- L53 â€” parÃ¢metro: `req`
-- L53 â€” parÃ¢metro: `res`
-- L53 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L54 â€” parÃ¢metro: `err`
-- L54 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L69 â€” variÃ¡vel: `publicVerifyRouter`
+- L20 — variável: `router`
+- L22 — variável: `upload`
+- L25 — parâmetro: `_req`
+- L25 — parâmetro: `cb`
+- L25 — parâmetro: `file`
+- L25 — retorno da função: `<anônima>()`
+- L36 — variável: `uploadSingle`
+- L62 — parâmetro: `next`
+- L62 — parâmetro: `req`
+- L62 — parâmetro: `res`
+- L62 — retorno da função: `<anônima>()`
+- L63 — parâmetro: `err`
+- L63 — retorno da função: `<anônima>()`
+- L78 — variável: `publicVerifyRouter`
 
 ### [src/modules/pendingItems/pendingItems.schema.ts](../src/modules/pendingItems/pendingItems.schema.ts)
 
-- L7 â€” variÃ¡vel: `createPendingItemsSchema`
-- L21 â€” parÃ¢metro: `ctx`
-- L21 â€” parÃ¢metro: `data`
-- L21 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L22 â€” variÃ¡vel: `hasObservation`
-- L24 â€” variÃ¡vel: `hasItems`
-- L34 â€” variÃ¡vel: `verifySchema`
-- L45 â€” variÃ¡vel: `pendingItemResponseBodySchema`
-- L54 â€” variÃ¡vel: `reviewSchema`
+- L7 — variável: `createPendingItemsSchema`
+- L21 — parâmetro: `ctx`
+- L21 — parâmetro: `data`
+- L21 — retorno da função: `<anônima>()`
+- L22 — variável: `hasObservation`
+- L24 — variável: `hasItems`
+- L34 — variável: `verifySchema`
+- L45 — variável: `pendingItemResponseBodySchema`
+- L54 — variável: `reviewSchema`
 
 ### [src/modules/pendingItems/pendingItems.service.ts](../src/modules/pendingItems/pendingItems.service.ts)
 
-- L42 â€” variÃ¡vel: `TERMINAL_STATUSES`
-- L54 â€” variÃ¡vel: `request`
-- L73 â€” variÃ¡vel: `{ result, notifications }`
-- L100 â€” parÃ¢metro: `row`
-- L100 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L100 â€” variÃ¡vel: `bases`
-- L101 â€” variÃ¡vel: `base`
-- L105 â€” parÃ¢metro: `b`
-- L105 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L105 â€” variÃ¡vel: `attachmentsByItem`
-- L108 â€” variÃ¡vel: `base`
-- L109 â€” variÃ¡vel: `atts`
-- L110 â€” parÃ¢metro: `a`
-- L110 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L110 â€” variÃ¡vel: `attachments`
-- L118 â€” variÃ¡vel: `currentValue`
-- L134 â€” variÃ¡vel: `request`
-- L143 â€” variÃ¡vel: `observation`
-- L144 â€” variÃ¡vel: `items`
-- L145 â€” variÃ¡vel: `hasObservation`
-- L146 â€” variÃ¡vel: `hasItems`
-- L157 â€” variÃ¡vel: `raw`
-- L161 â€” variÃ¡vel: `item`
-- L162 â€” variÃ¡vel: `fieldKey`
-- L187 â€” variÃ¡vel: `batchId`
-- L188 â€” variÃ¡vel: `requestAttachment`
-- L205 â€” variÃ¡vel: `{ item, fieldKey }`
-- L206 â€” variÃ¡vel: `snapshot`
-- L223 â€” parÃ¢metro: `trx`
-- L223 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L223 â€” variÃ¡vel: `{ rows: createdRows }`
-- L224 â€” variÃ¡vel: `{ rows: insertedRows, auditId }`
-- L235 â€” variÃ¡vel: `notifications`
-- L244 â€” variÃ¡vel: `mapped`
-- L265 â€” variÃ¡vel: `professionalId`
-- L266 â€” variÃ¡vel: `requestProfessionalId`
-- L273 â€” variÃ¡vel: `request`
-- L277 â€” variÃ¡vel: `requesterUserId`
-- L289 â€” variÃ¡vel: `nameOk`
-- L290 â€” variÃ¡vel: `emailOk`
-- L300 â€” variÃ¡vel: `identity`
-- L302 â€” variÃ¡vel: `nameOk`
-- L303 â€” variÃ¡vel: `emailOk`
-- L314 â€” variÃ¡vel: `request`
-- L316 â€” variÃ¡vel: `rows`
-- L317 â€” variÃ¡vel: `items`
-- L326 â€” parÃ¢metro: `row`
-- L326 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L326 â€” variÃ¡vel: `openRow`
-- L327 â€” variÃ¡vel: `targetRow`
-- L328 â€” variÃ¡vel: `batchId`
-- L329 â€” variÃ¡vel: `requestAttachment`
-- L331 â€” parÃ¢metro: `row`
-- L331 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L357 â€” parÃ¢metro: `userId`
-- L357 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L365 â€” variÃ¡vel: `assigneeUserId`
-- L396 â€” parÃ¢metro: `trx`
-- L396 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L397 â€” variÃ¡vel: `result`
-- L406 â€” parÃ¢metro: `facts`
-- L406 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L414 â€” variÃ¡vel: `actorUserId`
-- L415 â€” variÃ¡vel: `audience`
-- L421 â€” variÃ¡vel: `committedNotifications`
-- L445 â€” variÃ¡vel: `request`
-- L447 â€” variÃ¡vel: `row`
-- L455 â€” variÃ¡vel: `type`
-- L465 â€” variÃ¡vel: `serialized`
-- L474 â€” variÃ¡vel: `response`
-- L487 â€” variÃ¡vel: `{ row: updated, committedNotifications }`
-- L500 â€” variÃ¡vel: `list`
-- L518 â€” variÃ¡vel: `request`
-- L520 â€” variÃ¡vel: `row`
-- L536 â€” variÃ¡vel: `[saved]`
-- L546 â€” variÃ¡vel: `err`
-- L586 â€” variÃ¡vel: `date`
-- L608 â€” variÃ¡vel: `nullableComplement`
-- L639 â€” variÃ¡vel: `request`
-- L644 â€” variÃ¡vel: `batchId`
-- L645 â€” variÃ¡vel: `batchRows`
-- L648 â€” parÃ¢metro: `row`
-- L648 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L648 â€” variÃ¡vel: `byId`
-- L650 â€” variÃ¡vel: `decision`
-- L651 â€” variÃ¡vel: `row`
-- L653 â€” variÃ¡vel: `status`
-- L665 â€” parÃ¢metro: `decision`
-- L665 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L669 â€” variÃ¡vel: `row`
-- L671 â€” variÃ¡vel: `fieldKey`
-- L680 â€” parÃ¢metro: `trx`
-- L680 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L680 â€” variÃ¡vel: `{ rows: decidedRows }`
-- L681 â€” variÃ¡vel: `{ rows: reviewedRows, actionAuditIds }`
-- L691 â€” parÃ¢metro: `facts`
-- L691 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L695 â€” variÃ¡vel: `notifications`
-- L698 â€” parÃ¢metro: `[action, auditId]`
-- L698 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L704 â€” variÃ¡vel: `mapped`
-- L714 â€” variÃ¡vel: `mode`
-- L719 â€” variÃ¡vel: `found`
-- L721 â€” variÃ¡vel: `nameOk`
-- L722 â€” variÃ¡vel: `emailOk`
+- L43 — variável: `TERMINAL_STATUSES`
+- L55 — variável: `request`
+- L74 — variável: `{ result, notifications }`
+- L100 — parâmetro: `userId`
+- L100 — retorno da função: `<anônima>()`
+- L108 — variável: `assigneeUserId`
+- L126 — parâmetro: `row`
+- L126 — retorno da função: `<anônima>()`
+- L126 — variável: `bases`
+- L127 — variável: `base`
+- L131 — parâmetro: `b`
+- L131 — retorno da função: `<anônima>()`
+- L131 — variável: `attachmentsByItem`
+- L134 — variável: `base`
+- L135 — variável: `atts`
+- L136 — parâmetro: `a`
+- L136 — retorno da função: `<anônima>()`
+- L136 — variável: `attachments`
+- L144 — variável: `currentValue`
+- L147 — variável: `parsed`
+- L156 — variável: `corrected`
+- L159 — variável: `parsed`
+- L179 — variável: `request`
+- L195 — variável: `observation`
+- L196 — variável: `items`
+- L197 — variável: `hasObservation`
+- L198 — variável: `hasItems`
+- L208 — variável: `raw`
+- L214 — variável: `item`
+- L215 — variável: `fieldKey`
+- L237 — variável: `batchId`
+- L238 — variável: `requestAttachment`
+- L255 — variável: `item`
+- L256 — variável: `fieldKey`
+- L257 — variável: `snapshot`
+- L274 — parâmetro: `trx`
+- L274 — retorno da função: `<anônima>()`
+- L274 — variável: `createdRows`
+- L275 — variável: `{ rows: insertedRows, auditId }`
+- L286 — variável: `notifications`
+- L295 — variável: `mapped`
+- L305 — variável: `TRACKING_INVALID_IDENTITY`
+- L322 — variável: `nameOk`
+- L323 — variável: `emailOk`
+- L340 — variável: `request`
+- L343 — variável: `actor`
+- L348 — variável: `canReadAssigned`
+- L353 — variável: `canRespondOwn`
+- L382 — variável: `request`
+- L385 — variável: `actor`
+- L407 — variável: `request`
+- L408 — variável: `rows`
+- L409 — variável: `items`
+- L418 — variável: `openRow`
+- L419 — parâmetro: `row`
+- L419 — retorno da função: `<anônima>()`
+- L421 — variável: `targetRow`
+- L422 — variável: `batchId`
+- L423 — variável: `requestAttachment`
+- L425 — parâmetro: `row`
+- L425 — retorno da função: `<anônima>()`
+- L437 — variável: `{ request, actorEmail }`
+- L443 — variável: `row`
+- L451 — variável: `type`
+- L469 — variável: `response`
+- L482 — parâmetro: `trx`
+- L482 — retorno da função: `<anônima>()`
+- L482 — variável: `updated`
+- L483 — variável: `result`
+- L492 — parâmetro: `facts`
+- L492 — retorno da função: `<anônima>()`
+- L500 — variável: `actorUserId`
+- L501 — variável: `audience`
+- L507 — variável: `committedNotifications`
+- L521 — variável: `list`
+- L538 — variável: `{ request }`
+- L544 — variável: `row`
+- L560 — variável: `[saved]`
+- L570 — variável: `err`
+- L610 — variável: `date`
+- L632 — variável: `nullableComplement`
+- L662 — variável: `request`
+- L672 — variável: `batchId`
+- L673 — variável: `batchRows`
+- L676 — parâmetro: `row`
+- L676 — retorno da função: `<anônima>()`
+- L676 — variável: `byId`
+- L678 — variável: `decision`
+- L679 — variável: `row`
+- L681 — variável: `status`
+- L693 — parâmetro: `decision`
+- L693 — retorno da função: `<anônima>()`
+- L697 — variável: `row`
+- L698 — variável: `fieldKey`
+- L707 — parâmetro: `trx`
+- L707 — retorno da função: `<anônima>()`
+- L707 — variável: `decidedRows`
+- L708 — variável: `{ rows: reviewedRows, actionAuditIds }`
+- L718 — parâmetro: `facts`
+- L718 — retorno da função: `<anônima>()`
+- L722 — variável: `notifications`
+- L725 — parâmetro: `[action, auditId]`
+- L725 — retorno da função: `<anônima>()`
+- L731 — variável: `mapped`
+- L741 — variável: `mode`
+- L746 — variável: `found`
+- L748 — variável: `nameOk`
+- L749 — variável: `emailOk`
 
 ### [src/modules/portalConfig/portalConfig.controller.ts](../src/modules/portalConfig/portalConfig.controller.ts)
 
-- L27 â€” variÃ¡vel: `id`
-- L50 â€” variÃ¡vel: `getConfig`
-- L51 â€” variÃ¡vel: `response`
-- L59 â€” variÃ¡vel: `updateAccess`
-- L60 â€” variÃ¡vel: `parsed`
-- L65 â€” variÃ¡vel: `response`
-- L73 â€” variÃ¡vel: `updateIdentity`
-- L74 â€” variÃ¡vel: `parsed`
-- L79 â€” variÃ¡vel: `response`
-- L87 â€” variÃ¡vel: `updateTheme`
-- L88 â€” variÃ¡vel: `parsed`
-- L93 â€” variÃ¡vel: `response`
-- L101 â€” variÃ¡vel: `updateAssets`
-- L106 â€” variÃ¡vel: `rawAssets`
-- L107 â€” variÃ¡vel: `filesMap`
-- L108 â€” parÃ¢metro: `list`
-- L108 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L108 â€” variÃ¡vel: `hasBinary`
-- L121 â€” variÃ¡vel: `validated`
-- L129 â€” variÃ¡vel: `files`
-- L137 â€” variÃ¡vel: `[fieldName, fileArray]`
-- L139 â€” variÃ¡vel: `file`
-- L145 â€” variÃ¡vel: `targetDir`
-- L147 â€” variÃ¡vel: `saved`
-- L148 â€” parÃ¢metro: `[, file]`
-- L148 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L150 â€” parÃ¢metro: `[fieldName]`
-- L150 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L154 â€” parÃ¢metro: `attachment`
-- L154 â€” parÃ¢metro: `index`
-- L154 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L155 â€” variÃ¡vel: `fieldName`
-- L165 â€” variÃ¡vel: `response`
-- L167 â€” variÃ¡vel: `err`
-- L180 â€” variÃ¡vel: `updateCategories`
-- L181 â€” variÃ¡vel: `parsed`
-- L186 â€” variÃ¡vel: `response`
-- L194 â€” variÃ¡vel: `updateStatuses`
-- L195 â€” variÃ¡vel: `parsed`
-- L200 â€” variÃ¡vel: `response`
-- L208 â€” variÃ¡vel: `updatePrioritizationWeights`
-- L212 â€” variÃ¡vel: `parsed`
-- L217 â€” variÃ¡vel: `response`
+- L27 — variável: `id`
+- L38 — variável: `getSections`
+- L43 — variável: `response`
+- L64 — variável: `getConfig`
+- L65 — variável: `response`
+- L73 — variável: `updateAccess`
+- L74 — variável: `parsed`
+- L79 — variável: `response`
+- L87 — variável: `updateIdentity`
+- L88 — variável: `parsed`
+- L93 — variável: `response`
+- L101 — variável: `updateTheme`
+- L102 — variável: `parsed`
+- L107 — variável: `response`
+- L115 — variável: `updateAssets`
+- L120 — variável: `rawAssets`
+- L121 — variável: `filesMap`
+- L122 — parâmetro: `list`
+- L122 — retorno da função: `<anônima>()`
+- L122 — variável: `hasBinary`
+- L135 — variável: `validated`
+- L143 — variável: `files`
+- L151 — variável: `[fieldName, fileArray]`
+- L153 — variável: `file`
+- L159 — variável: `targetDir`
+- L161 — variável: `saved`
+- L162 — parâmetro: `[, file]`
+- L162 — retorno da função: `<anônima>()`
+- L164 — parâmetro: `[fieldName]`
+- L164 — retorno da função: `<anônima>()`
+- L168 — parâmetro: `attachment`
+- L168 — parâmetro: `index`
+- L168 — retorno da função: `<anônima>()`
+- L169 — variável: `fieldName`
+- L179 — variável: `response`
+- L181 — variável: `err`
+- L194 — variável: `updateCategories`
+- L195 — variável: `parsed`
+- L200 — variável: `response`
+- L208 — variável: `updateStatuses`
+- L209 — variável: `parsed`
+- L214 — variável: `response`
+- L222 — variável: `updatePrioritizationWeights`
+- L226 — variável: `parsed`
+- L231 — variável: `response`
 
 ### [src/modules/portalConfig/portalConfig.mappers.ts](../src/modules/portalConfig/portalConfig.mappers.ts)
 
-- L27 â€” variÃ¡vel: `TONES`
-- L121 â€” variÃ¡vel: `palette`
-- L122 â€” variÃ¡vel: `tokens`
-- L123 â€” variÃ¡vel: `token`
-- L130 â€” variÃ¡vel: `tone`
-- L131 â€” variÃ¡vel: `{ color, background, backgroundLocked }`
-- L151 â€” variÃ¡vel: `read`
-- L155 â€” variÃ¡vel: `readGradient`
-- L159 â€” variÃ¡vel: `readAngle`
-- L163 â€” variÃ¡vel: `readStatus`
-- L167 â€” variÃ¡vel: `{ color, background, backgroundLocked }`
-- L181 â€” variÃ¡vel: `buildPalette`
-- L182 â€” parÃ¢metro: `token`
-- L182 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L182 â€” variÃ¡vel: `tokenEntries`
+- L27 — variável: `TONES`
+- L121 — variável: `palette`
+- L122 — variável: `tokens`
+- L123 — variável: `token`
+- L130 — variável: `tone`
+- L131 — variável: `{ color, background, backgroundLocked }`
+- L151 — variável: `read`
+- L155 — variável: `readGradient`
+- L159 — variável: `readAngle`
+- L163 — variável: `readStatus`
+- L167 — variável: `{ color, background, backgroundLocked }`
+- L181 — variável: `buildPalette`
+- L182 — parâmetro: `token`
+- L182 — retorno da função: `<anônima>()`
+- L182 — variável: `tokenEntries`
 
 ### [src/modules/portalConfig/portalConfig.repository.ts](../src/modules/portalConfig/portalConfig.repository.ts)
 
-- L22 â€” variÃ¡vel: `source`
-- L23 â€” variÃ¡vel: `row`
-- L46 â€” variÃ¡vel: `source`
-- L54 â€” variÃ¡vel: `source`
-- L60 â€” variÃ¡vel: `source`
-- L73 â€” variÃ¡vel: `source`
-- L129 â€” variÃ¡vel: `now`
-- L147 â€” variÃ¡vel: `now`
-- L175 â€” variÃ¡vel: `category`
-- L193 â€” parÃ¢metro: `c`
-- L193 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L193 â€” variÃ¡vel: `keepIds`
-- L215 â€” parÃ¢metro: `index`
-- L215 â€” parÃ¢metro: `status`
-- L215 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L215 â€” variÃ¡vel: `orderById`
-- L217 â€” variÃ¡vel: `status`
-- L218 â€” variÃ¡vel: `orderNumber`
-- L219 â€” variÃ¡vel: `triageMode`
-- L220 â€” variÃ¡vel: `mappingMode`
-- L221 â€” variÃ¡vel: `isTerminal`
-- L222 â€” variÃ¡vel: `row`
-- L243 â€” parÃ¢metro: `status`
-- L243 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L243 â€” variÃ¡vel: `keepIds`
-- L245 â€” variÃ¡vel: `omitted`
-- L250 â€” variÃ¡vel: `nextOrder`
-- L251 â€” variÃ¡vel: `row`
-- L275 â€” variÃ¡vel: `[contractKey, weight]`
-- L276 â€” variÃ¡vel: `criterionId`
+- L22 — variável: `source`
+- L23 — variável: `row`
+- L46 — variável: `source`
+- L54 — variável: `source`
+- L60 — variável: `source`
+- L73 — variável: `source`
+- L129 — variável: `now`
+- L147 — variável: `now`
+- L175 — variável: `category`
+- L193 — parâmetro: `c`
+- L193 — retorno da função: `<anônima>()`
+- L193 — variável: `keepIds`
+- L215 — parâmetro: `index`
+- L215 — parâmetro: `status`
+- L215 — retorno da função: `<anônima>()`
+- L215 — variável: `orderById`
+- L217 — variável: `status`
+- L218 — variável: `orderNumber`
+- L219 — variável: `triageMode`
+- L220 — variável: `mappingMode`
+- L221 — variável: `isTerminal`
+- L222 — variável: `row`
+- L243 — parâmetro: `status`
+- L243 — retorno da função: `<anônima>()`
+- L243 — variável: `keepIds`
+- L245 — variável: `omitted`
+- L250 — variável: `nextOrder`
+- L251 — variável: `row`
+- L275 — variável: `[contractKey, weight]`
+- L276 — variável: `criterionId`
 
 ### [src/modules/portalConfig/portalConfig.router.ts](../src/modules/portalConfig/portalConfig.router.ts)
 
-- L16 â€” variÃ¡vel: `portalConfigRoutes`
+- L21 — variável: `portalConfigRoutes`
 
 ### [src/modules/portalConfig/portalConfig.schema.ts](../src/modules/portalConfig/portalConfig.schema.ts)
 
-- L22 â€” variÃ¡vel: `hexColorSchema`
-- L26 â€” variÃ¡vel: `ThemeGradientSchema`
-- L39 â€” variÃ¡vel: `StatusToneSchema`
-- L47 â€” variÃ¡vel: `statusTonesShape`
-- L48 â€” parÃ¢metro: `tone`
-- L48 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L51 â€” variÃ¡vel: `tokenShape`
-- L52 â€” parÃ¢metro: `key`
-- L52 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L55 â€” variÃ¡vel: `ThemePaletteSchema`
-- L63 â€” variÃ¡vel: `updateThemeSchema`
-- L74 â€” variÃ¡vel: `updateAccessSchema`
-- L82 â€” variÃ¡vel: `updateIdentitySchema`
-- L99 â€” parÃ¢metro: `identity`
-- L99 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L106 â€” variÃ¡vel: `portalCategorySchema`
-- L115 â€” variÃ¡vel: `updateCategoriesSchema`
-- L121 â€” parÃ¢metro: `categories`
-- L121 â€” parÃ¢metro: `ctx`
-- L121 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L122 â€” variÃ¡vel: `seen`
-- L123 â€” parÃ¢metro: `category`
-- L123 â€” parÃ¢metro: `index`
-- L123 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L124 â€” variÃ¡vel: `key`
-- L134 â€” parÃ¢metro: `category`
-- L134 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L145 â€” variÃ¡vel: `StatusModeSchema`
-- L149 â€” variÃ¡vel: `portalStatusSchema`
-- L169 â€” parÃ¢metro: `ctx`
-- L169 â€” parÃ¢metro: `status`
-- L169 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L179 â€” variÃ¡vel: `updateStatusesSchema`
-- L185 â€” parÃ¢metro: `ctx`
-- L185 â€” parÃ¢metro: `statuses`
-- L185 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L186 â€” variÃ¡vel: `seenNames`
-- L187 â€” parÃ¢metro: `index`
-- L187 â€” parÃ¢metro: `status`
-- L187 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L188 â€” variÃ¡vel: `nameKey`
-- L216 â€” parÃ¢metro: `status`
-- L216 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L232 â€” variÃ¡vel: `prioritizationWeightSchema`
-- L238 â€” variÃ¡vel: `updatePrioritizationWeightsSchema`
-- L246 â€” parÃ¢metro: `ctx`
-- L246 â€” parÃ¢metro: `{ prioritizationWeights }`
-- L246 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L247 â€” variÃ¡vel: `missing`
-- L248 â€” parÃ¢metro: `criterion`
-- L248 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L265 â€” variÃ¡vel: `assetUrlSchema`
-- L271 â€” parÃ¢metro: `url`
-- L271 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L275 â€” variÃ¡vel: `portalAssetsPatchSchema`
-- L289 â€” parÃ¢metro: `assets`
-- L289 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L22 — variável: `hexColorSchema`
+- L26 — variável: `ThemeGradientSchema`
+- L39 — variável: `StatusToneSchema`
+- L47 — variável: `statusTonesShape`
+- L48 — parâmetro: `tone`
+- L48 — retorno da função: `<anônima>()`
+- L51 — variável: `tokenShape`
+- L52 — parâmetro: `key`
+- L52 — retorno da função: `<anônima>()`
+- L55 — variável: `ThemePaletteSchema`
+- L63 — variável: `updateThemeSchema`
+- L74 — variável: `updateAccessSchema`
+- L82 — variável: `updateIdentitySchema`
+- L99 — parâmetro: `identity`
+- L99 — retorno da função: `<anônima>()`
+- L106 — variável: `portalCategorySchema`
+- L115 — variável: `updateCategoriesSchema`
+- L121 — parâmetro: `categories`
+- L121 — parâmetro: `ctx`
+- L121 — retorno da função: `<anônima>()`
+- L122 — variável: `seen`
+- L123 — parâmetro: `category`
+- L123 — parâmetro: `index`
+- L123 — retorno da função: `<anônima>()`
+- L124 — variável: `key`
+- L134 — parâmetro: `category`
+- L134 — retorno da função: `<anônima>()`
+- L145 — variável: `StatusModeSchema`
+- L149 — variável: `portalStatusSchema`
+- L169 — parâmetro: `ctx`
+- L169 — parâmetro: `status`
+- L169 — retorno da função: `<anônima>()`
+- L179 — variável: `updateStatusesSchema`
+- L185 — parâmetro: `ctx`
+- L185 — parâmetro: `statuses`
+- L185 — retorno da função: `<anônima>()`
+- L186 — variável: `seenNames`
+- L187 — parâmetro: `index`
+- L187 — parâmetro: `status`
+- L187 — retorno da função: `<anônima>()`
+- L188 — variável: `nameKey`
+- L216 — parâmetro: `status`
+- L216 — retorno da função: `<anônima>()`
+- L232 — variável: `prioritizationWeightSchema`
+- L238 — variável: `updatePrioritizationWeightsSchema`
+- L246 — parâmetro: `ctx`
+- L246 — parâmetro: `{ prioritizationWeights }`
+- L246 — retorno da função: `<anônima>()`
+- L247 — variável: `missing`
+- L248 — parâmetro: `criterion`
+- L248 — retorno da função: `<anônima>()`
+- L265 — variável: `assetUrlSchema`
+- L271 — parâmetro: `url`
+- L271 — retorno da função: `<anônima>()`
+- L275 — variável: `portalAssetsPatchSchema`
+- L289 — parâmetro: `assets`
+- L289 — retorno da função: `<anônima>()`
 
 ### [src/modules/portalConfig/portalConfig.service.ts](../src/modules/portalConfig/portalConfig.service.ts)
 
-- L32 â€” retorno da funÃ§Ã£o: `assetsFromRow()`
-- L67 â€” variÃ¡vel: `[settings, themeRow, categories, statuses, criteria]`
-- L75 â€” variÃ¡vel: `theme`
-- L83 â€” parÃ¢metro: `cat`
-- L83 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L91 â€” parÃ¢metro: `c`
-- L91 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L92 â€” variÃ¡vel: `key`
-- L107 â€” parÃ¢metro: `trx`
-- L107 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L110 â€” variÃ¡vel: `settings`
-- L111 â€” variÃ¡vel: `previous`
-- L136 â€” parÃ¢metro: `trx`
-- L136 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L139 â€” variÃ¡vel: `settings`
-- L140 â€” variÃ¡vel: `previous`
-- L147 â€” variÃ¡vel: `updated`
-- L148 â€” variÃ¡vel: `newValue`
-- L174 â€” parÃ¢metro: `trx`
-- L174 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L178 â€” variÃ¡vel: `themeRow`
-- L179 â€” variÃ¡vel: `previousTheme`
-- L180 â€” variÃ¡vel: `columns`
-- L205 â€” parÃ¢metro: `trx`
-- L205 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L208 â€” variÃ¡vel: `settings`
-- L209 â€” variÃ¡vel: `previous`
-- L213 â€” variÃ¡vel: `updated`
-- L214 â€” variÃ¡vel: `newValue`
-- L237 â€” parÃ¢metro: `trx`
-- L237 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L240 â€” variÃ¡vel: `prevRows`
-- L241 â€” parÃ¢metro: `cat`
-- L241 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L241 â€” variÃ¡vel: `previous`
-- L271 â€” parÃ¢metro: `trx`
-- L271 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L274 â€” variÃ¡vel: `prevRows`
-- L275 â€” variÃ¡vel: `previous`
-- L276 â€” parÃ¢metro: `st`
-- L276 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L276 â€” variÃ¡vel: `prevById`
-- L277 â€” parÃ¢metro: `s`
-- L277 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L277 â€” variÃ¡vel: `incomingById`
-- L279 â€” variÃ¡vel: `coreId`
-- L280 â€” variÃ¡vel: `existing`
-- L289 â€” variÃ¡vel: `incoming`
-- L358 â€” parÃ¢metro: `trx`
-- L358 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L361 â€” variÃ¡vel: `prevRows`
-- L362 â€” variÃ¡vel: `previous`
-- L363 â€” parÃ¢metro: `c`
-- L363 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L364 â€” variÃ¡vel: `key`
+- L35 — retorno da função: `assetsFromRow()`
+- L77 — parâmetro: `permission`
+- L77 — retorno da função: `<anônima>()`
+- L77 — variável: `readableKeys`
+- L78 — variável: `config`
+- L113 — variável: `[settings, themeRow, categories, statuses, criteria]`
+- L121 — variável: `theme`
+- L129 — parâmetro: `cat`
+- L129 — retorno da função: `<anônima>()`
+- L137 — parâmetro: `c`
+- L137 — retorno da função: `<anônima>()`
+- L138 — variável: `key`
+- L153 — parâmetro: `trx`
+- L153 — retorno da função: `<anônima>()`
+- L156 — variável: `settings`
+- L157 — variável: `previous`
+- L182 — parâmetro: `trx`
+- L182 — retorno da função: `<anônima>()`
+- L185 — variável: `settings`
+- L186 — variável: `previous`
+- L193 — variável: `updated`
+- L194 — variável: `newValue`
+- L220 — parâmetro: `trx`
+- L220 — retorno da função: `<anônima>()`
+- L224 — variável: `themeRow`
+- L225 — variável: `previousTheme`
+- L226 — variável: `columns`
+- L251 — parâmetro: `trx`
+- L251 — retorno da função: `<anônima>()`
+- L254 — variável: `settings`
+- L255 — variável: `previous`
+- L259 — variável: `updated`
+- L260 — variável: `newValue`
+- L283 — parâmetro: `trx`
+- L283 — retorno da função: `<anônima>()`
+- L286 — variável: `prevRows`
+- L287 — parâmetro: `cat`
+- L287 — retorno da função: `<anônima>()`
+- L287 — variável: `previous`
+- L317 — parâmetro: `trx`
+- L317 — retorno da função: `<anônima>()`
+- L320 — variável: `prevRows`
+- L321 — variável: `previous`
+- L322 — parâmetro: `st`
+- L322 — retorno da função: `<anônima>()`
+- L322 — variável: `prevById`
+- L323 — parâmetro: `s`
+- L323 — retorno da função: `<anônima>()`
+- L323 — variável: `incomingById`
+- L325 — variável: `coreId`
+- L326 — variável: `existing`
+- L335 — variável: `incoming`
+- L404 — parâmetro: `trx`
+- L404 — retorno da função: `<anônima>()`
+- L407 — variável: `prevRows`
+- L408 — variável: `previous`
+- L409 — parâmetro: `c`
+- L409 — retorno da função: `<anônima>()`
+- L410 — variável: `key`
 
 ### [src/modules/prioritization/prioritization.controller.ts](../src/modules/prioritization/prioritization.controller.ts)
 
-- L12 â€” variÃ¡vel: `id`
-- L20 â€” variÃ¡vel: `protocolParamsSchema`
-- L24 â€” variÃ¡vel: `listCriteria`
-- L25 â€” variÃ¡vel: `response`
-- L30 â€” variÃ¡vel: `evaluateScore`
-- L31 â€” variÃ¡vel: `parsedParams`
-- L36 â€” variÃ¡vel: `parsed`
-- L42 â€” variÃ¡vel: `response`
+- L10 — variável: `protocolParamsSchema`
+- L14 — variável: `listCriteria`
+- L15 — variável: `response`
+- L20 — variável: `evaluateScore`
+- L21 — variável: `parsedParams`
+- L26 — variável: `parsed`
+- L32 — variável: `response`
 
 ### [src/modules/prioritization/prioritization.repository.ts](../src/modules/prioritization/prioritization.repository.ts)
 
-- L39 â€” variÃ¡vel: `scoreRounded`
-- L58 â€” variÃ¡vel: `row`
-- L73 â€” variÃ¡vel: `data`
-- L83 â€” variÃ¡vel: `rows`
-- L89 â€” variÃ¡vel: `row`
+- L39 — variável: `scoreRounded`
+- L58 — variável: `row`
+- L73 — variável: `data`
+- L83 — variável: `rows`
+- L89 — variável: `row`
 
 ### [src/modules/prioritization/prioritization.router.ts](../src/modules/prioritization/prioritization.router.ts)
 
-- L6 â€” variÃ¡vel: `prioritizationRoutes`
+- L9 — variável: `prioritizationRoutes`
 
 ### [src/modules/prioritization/prioritization.schema.ts](../src/modules/prioritization/prioritization.schema.ts)
 
-- L5 â€” variÃ¡vel: `noteSchema`
-- L12 â€” variÃ¡vel: `criterionKeySchema`
-- L24 â€” variÃ¡vel: `evaluateScoreSchema`
-- L25 â€” parÃ¢metro: `notes`
-- L25 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L5 — variável: `noteSchema`
+- L12 — variável: `criterionKeySchema`
+- L24 — variável: `evaluateScoreSchema`
+- L25 — parâmetro: `notes`
+- L25 — retorno da função: `<anônima>()`
 
 ### [src/modules/prioritization/prioritization.service.ts](../src/modules/prioritization/prioritization.service.ts)
 
-- L19 â€” variÃ¡vel: `rows`
-- L20 â€” parÃ¢metro: `row`
-- L20 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L50 â€” variÃ¡vel: `observed`
-- L58 â€” variÃ¡vel: `criteria`
-- L62 â€” variÃ¡vel: `score`
-- L63 â€” variÃ¡vel: `classification`
-- L71 â€” parÃ¢metro: `trx`
-- L71 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L71 â€” variÃ¡vel: `evaluation`
-- L73 â€” variÃ¡vel: `current`
-- L86 â€” variÃ¡vel: `previous`
-- L95 â€” variÃ¡vel: `row`
-- L142 â€” parÃ¢metro: `row`
-- L142 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L142 â€” variÃ¡vel: `validIds`
-- L144 â€” parÃ¢metro: `row`
-- L144 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L144 â€” variÃ¡vel: `missing`
-- L146 â€” parÃ¢metro: `row`
-- L146 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L146 â€” variÃ¡vel: `list`
-- L150 â€” parÃ¢metro: `key`
-- L150 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L150 â€” variÃ¡vel: `unknown`
-- L158 â€” variÃ¡vel: `shown`
-- L164 â€” variÃ¡vel: `somaPonderada`
-- L165 â€” parÃ¢metro: `acc`
-- L165 â€” parÃ¢metro: `row`
-- L165 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L168 â€” parÃ¢metro: `acc`
-- L168 â€” parÃ¢metro: `row`
-- L168 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L168 â€” variÃ¡vel: `somaPesos`
-- L179 â€” variÃ¡vel: `range`
+- L22 — variável: `rows`
+- L23 — parâmetro: `row`
+- L23 — retorno da função: `<anônima>()`
+- L43 — variável: `observed`
+- L47 — retorno da função: `<anônima>()`
+- L47 — variável: `canEvaluate`
+- L67 — variável: `criteria`
+- L71 — variável: `score`
+- L72 — variável: `classification`
+- L80 — parâmetro: `trx`
+- L80 — retorno da função: `<anônima>()`
+- L80 — variável: `evaluation`
+- L82 — variável: `current`
+- L95 — variável: `previous`
+- L104 — variável: `row`
+- L151 — parâmetro: `row`
+- L151 — retorno da função: `<anônima>()`
+- L151 — variável: `validIds`
+- L153 — parâmetro: `row`
+- L153 — retorno da função: `<anônima>()`
+- L153 — variável: `missing`
+- L155 — parâmetro: `row`
+- L155 — retorno da função: `<anônima>()`
+- L155 — variável: `list`
+- L159 — parâmetro: `key`
+- L159 — retorno da função: `<anônima>()`
+- L159 — variável: `unknown`
+- L167 — variável: `shown`
+- L173 — variável: `somaPonderada`
+- L174 — parâmetro: `acc`
+- L174 — parâmetro: `row`
+- L174 — retorno da função: `<anônima>()`
+- L177 — parâmetro: `acc`
+- L177 — parâmetro: `row`
+- L177 — retorno da função: `<anônima>()`
+- L177 — variável: `somaPesos`
+- L188 — variável: `range`
+
+### [src/modules/profiles/profiles.composition.ts](../src/modules/profiles/profiles.composition.ts)
+
+- L25 — variável: `ASSIGNABILITY_STAGES`
+- L31 — variável: `STAGE_FLAG_FIELD`
+- L37 — variável: `STAGE_LABEL`
+- L51 — parâmetro: `entry`
+- L51 — retorno da função: `<anônima>()`
+- L79 — parâmetro: `grant`
+- L79 — retorno da função: `<anônima>()`
+- L105 — variável: `seen`
+- L107 — variável: `grant`
+- L108 — variável: `entry`
+- L140 — variável: `grant`
+- L141 — variável: `entry`
+- L143 — variável: `dependency`
+- L160 — parâmetro: `permission`
+- L160 — retorno da função: `<anônima>()`
+- L160 — variável: `keys`
+- L162 — variável: `stage`
+- L163 — variável: `flagOn`
+- L169 — parâmetro: `key`
+- L169 — retorno da função: `<anônima>()`
+- L169 — variável: `missing`
+- L187 — parâmetro: `permission`
+- L187 — retorno da função: `<anônima>()`
+- L187 — variável: `hasAssigned`
+- L217 — parâmetro: `permission`
+- L217 — retorno da função: `<anônima>()`
+- L217 — variável: `sourceKeys`
+- L218 — parâmetro: `permission`
+- L218 — retorno da função: `<anônima>()`
+- L218 — variável: `targetKeys`
+- L221 — variável: `stage`
+- L222 — variável: `predicate`
+- L223 — parâmetro: `key`
+- L223 — retorno da função: `<anônima>()`
+- L223 — variável: `hadCompletePredicate`
+- L224 — parâmetro: `key`
+- L224 — retorno da função: `<anônima>()`
+- L224 — variável: `missingKeys`
+- L227 — variável: `flagField`
+- L249 — variável: `actorCustodyByKey`
+- L250 — parâmetro: `permission`
+- L250 — retorno da função: `<anônima>()`
+- L253 — variável: `grant`
+- L254 — variável: `actorCustody`
+
+### [src/modules/profiles/profiles.controller.ts](../src/modules/profiles/profiles.controller.ts)
+
+- L17 — variável: `parsed`
+- L32 — variável: `actor`
+- L37 — variável: `listProfiles`
+- L41 — variável: `getKeyCatalog`
+- L45 — variável: `getProfile`
+- L49 — variável: `createProfile`
+- L50 — variável: `parsed`
+- L53 — variável: `{ message, fields }`
+- L57 — variável: `created`
+- L62 — variável: `updateProfile`
+- L63 — variável: `parsed`
+- L66 — variável: `{ message, fields }`
+- L70 — variável: `updated`
+- L80 — variável: `changeProfileStatus`
+- L81 — variável: `parsed`
+- L84 — variável: `{ message, fields }`
+- L88 — variável: `updated`
+- L98 — variável: `duplicateProfile`
+- L99 — variável: `parsed`
+- L102 — variável: `{ message, fields }`
+- L106 — variável: `created`
+
+### [src/modules/profiles/profiles.repository.ts](../src/modules/profiles/profiles.repository.ts)
+
+- L17 — variável: `PROFILE_COLUMNS`
+- L34 — parâmetro: `row`
+- L34 — retorno da função: `<anônima>()`
+- L39 — variável: `rows`
+- L42 — parâmetro: `column`
+- L42 — retorno da função: `<anônima>()`
+- L50 — variável: `rows`
+- L54 — parâmetro: `column`
+- L54 — retorno da função: `<anônima>()`
+- L78 — variável: `query`
+- L84 — parâmetro: `column`
+- L84 — retorno da função: `<anônima>()`
+- L89 — variável: `row`
+- L107 — variável: `inserted`
+- L116 — variável: `row`
+- L155 — variável: `updated`
+- L175 — parâmetro: `permission`
+- L175 — retorno da função: `<anônima>()`
+- L223 — variável: `assignedColumn`
+- L225 — variável: `rows`
+- L234 — parâmetro: `row`
+- L234 — retorno da função: `<anônima>()`
+
+### [src/modules/profiles/profiles.router.ts](../src/modules/profiles/profiles.router.ts)
+
+- L14 — variável: `profilesRoutes`
+
+### [src/modules/profiles/profiles.schema.ts](../src/modules/profiles/profiles.schema.ts)
+
+- L6 — variável: `profileNameSchema`
+- L9 — variável: `profileDescriptionSchema`
+- L12 — variável: `profilePermissionSchema`
+- L18 — variável: `profileIdParamSchema`
+- L22 — variável: `profilePermissionsSchema`
+- L26 — variável: `createProfileSchema`
+- L34 — variável: `updateProfileSchema`
+- L42 — parâmetro: `ctx`
+- L42 — parâmetro: `value`
+- L42 — retorno da função: `<anônima>()`
+- L43 — variável: `hasField`
+- L59 — variável: `changeProfileStatusSchema`
+- L63 — variável: `duplicateProfileSchema`
+
+### [src/modules/profiles/profiles.service.ts](../src/modules/profiles/profiles.service.ts)
+
+- L44 — variável: `id`
+- L59 — variável: `PROFILE_NAME_CONSTRAINTS`
+- L67 — parâmetro: `conflictMessage`
+- L71 — variável: `error`
+- L72 — variável: `hasNameConflict`
+- L117 — variável: `existing`
+- L141 — variável: `loss`
+- L160 — variável: `loss`
+- L165 — variável: `protocols`
+- L180 — variável: `rows`
+- L181 — parâmetro: `row`
+- L181 — retorno da função: `<anônima>()`
+- L181 — variável: `grants`
+- L182 — variável: `grantsByProfile`
+- L184 — variável: `grant`
+- L185 — variável: `list`
+- L190 — parâmetro: `row`
+- L190 — retorno da função: `<anônima>()`
+- L197 — variável: `id`
+- L198 — variável: `row`
+- L210 — parâmetro: `entry`
+- L210 — retorno da função: `<anônima>()`
+- L229 — variável: `permissions`
+- L230 — variável: `flags`
+- L240 — retorno da função: `<anônima>()`
+- L240 — variável: `created`
+- L241 — parâmetro: `trx`
+- L241 — retorno da função: `<anônima>()`
+- L242 — variável: `row`
+- L272 — variável: `id`
+- L273 — variável: `current`
+- L279 — variável: `currentPermissions`
+- L290 — variável: `nextPermissions`
+- L294 — variável: `nextFlags`
+- L301 — parâmetro: `permission`
+- L301 — retorno da função: `<anônima>()`
+- L322 — variável: `currentState`
+- L323 — variável: `nextState`
+- L342 — retorno da função: `<anônima>()`
+- L343 — parâmetro: `trx`
+- L343 — retorno da função: `<anônima>()`
+- L385 — variável: `id`
+- L386 — variável: `current`
+- L413 — variável: `currentPermissions`
+- L416 — retorno da função: `<anônima>()`
+- L417 — parâmetro: `trx`
+- L417 — retorno da função: `<anônima>()`
+- L450 — variável: `id`
+- L451 — variável: `source`
+- L457 — variável: `sourcePermissions`
+- L458 — variável: `flags`
+- L468 — variável: `description`
+- L470 — retorno da função: `<anônima>()`
+- L470 — variável: `created`
+- L471 — parâmetro: `trx`
+- L471 — retorno da função: `<anônima>()`
+- L472 — variável: `row`
 
 ### [src/modules/queue/mapping.controller.ts](../src/modules/queue/mapping.controller.ts)
 
-- L13 â€” variÃ¡vel: `protocol`
-- L28 â€” variÃ¡vel: `id`
-- L36 â€” variÃ¡vel: `getMappingController`
-- L37 â€” variÃ¡vel: `protocol`
-- L42 â€” variÃ¡vel: `putMappingController`
-- L43 â€” variÃ¡vel: `protocol`
-- L47 â€” variÃ¡vel: `actor`
-- L54 â€” variÃ¡vel: `parsed`
-- L56 â€” variÃ¡vel: `{ message, fields }`
-- L60 â€” variÃ¡vel: `response`
+- L13 — variável: `protocol`
+- L22 — variável: `getMappingController`
+- L23 — variável: `protocol`
+- L30 — variável: `putMappingController`
+- L31 — variável: `protocol`
+- L35 — variável: `actor`
+- L42 — variável: `parsed`
+- L44 — variável: `{ message, fields }`
+- L48 — variável: `response`
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-- L86 â€” variÃ¡vel: `findMappingRequestContext`
-- L90 â€” variÃ¡vel: `row`
-- L131 â€” variÃ¡vel: `resolveMappingTarget`
-- L141 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L153 â€” variÃ¡vel: `findMappingAssigneeCandidate`
-- L161 â€” variÃ¡vel: `row`
-- L179 â€” retorno da funÃ§Ã£o: `currentMappingRows()`
-- L186 â€” parÃ¢metro: `query`
-- L186 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L195 â€” variÃ¡vel: `findCurrentMapping`
-- L199 â€” variÃ¡vel: `row`
-- L208 â€” variÃ¡vel: `findLatestOpenMapping`
-- L212 â€” variÃ¡vel: `row`
-- L222 â€” variÃ¡vel: `findMappingById`
-- L227 â€” variÃ¡vel: `row`
-- L241 â€” variÃ¡vel: `findMappingParticipants`
-- L263 â€” variÃ¡vel: `resolveParticipantUsers`
-- L271 â€” variÃ¡vel: `rows`
-- L282 â€” parÃ¢metro: `id`
-- L282 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L282 â€” variÃ¡vel: `invalid`
-- L283 â€” parÃ¢metro: `r`
-- L283 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L283 â€” variÃ¡vel: `row`
-- L292 â€” parÃ¢metro: `row`
-- L292 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L299 â€” variÃ¡vel: `insertMapping`
-- L311 â€” variÃ¡vel: `[row]`
-- L332 â€” variÃ¡vel: `updateMapping`
-- L370 â€” variÃ¡vel: `clearRequestMappingAssignee`
-- L383 â€” variÃ¡vel: `replaceMappingParticipants`
-- L395 â€” parÃ¢metro: `participant`
-- L395 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L93 — variável: `findMappingRequestContext`
+- L97 — variável: `row`
+- L136 — variável: `resolveMappingTarget`
+- L146 — retorno da função: `<anônima>()`
+- L158 — variável: `findMappingAssigneeCandidate`
+- L166 — variável: `row`
+- L185 — retorno da função: `currentMappingRows()`
+- L192 — parâmetro: `query`
+- L192 — retorno da função: `<anônima>()`
+- L212 — variável: `findCurrentMapping`
+- L216 — variável: `row`
+- L225 — variável: `findLatestOpenMapping`
+- L229 — variável: `row`
+- L239 — variável: `findMappingById`
+- L244 — variável: `row`
+- L258 — variável: `findMappingParticipants`
+- L280 — variável: `resolveParticipantUsers`
+- L288 — variável: `rows`
+- L299 — parâmetro: `id`
+- L299 — retorno da função: `<anônima>()`
+- L299 — variável: `invalid`
+- L300 — parâmetro: `r`
+- L300 — retorno da função: `<anônima>()`
+- L300 — variável: `row`
+- L309 — parâmetro: `row`
+- L309 — retorno da função: `<anônima>()`
+- L316 — variável: `insertMapping`
+- L328 — variável: `[row]`
+- L349 — variável: `updateMapping`
+- L387 — variável: `clearRequestMappingAssignee`
+- L400 — variável: `replaceMappingParticipants`
+- L412 — parâmetro: `participant`
+- L412 — retorno da função: `<anônima>()`
 
 ### [src/modules/queue/mapping.schemas.ts](../src/modules/queue/mapping.schemas.ts)
 
-- L20 â€” variÃ¡vel: `participantIdSchema`
-- L30 â€” parÃ¢metro: `value`
-- L30 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L33 â€” parÃ¢metro: `value`
-- L33 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L35 â€” variÃ¡vel: `mappingParticipantSchema`
-- L41 â€” variÃ¡vel: `noDuplicateParticipants`
-- L42 â€” variÃ¡vel: `seen`
-- L44 â€” variÃ¡vel: `participant`
-- L48 â€” variÃ¡vel: `key`
-- L62 â€” variÃ¡vel: `mappingPayloadSchema`
+- L20 — variável: `participantIdSchema`
+- L30 — parâmetro: `value`
+- L30 — retorno da função: `<anônima>()`
+- L33 — parâmetro: `value`
+- L33 — retorno da função: `<anônima>()`
+- L35 — variável: `mappingParticipantSchema`
+- L41 — variável: `noDuplicateParticipants`
+- L42 — variável: `seen`
+- L44 — variável: `participant`
+- L48 — variável: `key`
+- L62 — variável: `mappingPayloadSchema`
 
 ### [src/modules/queue/mapping.service.ts](../src/modules/queue/mapping.service.ts)
 
-- L74 â€” variÃ¡vel: `date`
-- L137 â€” parÃ¢metro: `participant`
-- L137 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L169 â€” parÃ¢metro: `participant`
-- L169 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L200 â€” variÃ¡vel: `textField`
-- L201 â€” variÃ¡vel: `next`
-- L202 â€” variÃ¡vel: `normalized`
-- L249 â€” parÃ¢metro: `participant`
-- L249 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L249 â€” variÃ¡vel: `userIds`
-- L253 â€” variÃ¡vel: `usersById`
-- L255 â€” parÃ¢metro: `participant`
-- L255 â€” variÃ¡vel: `resolved`
-- L260 â€” variÃ¡vel: `user`
-- L267 â€” variÃ¡vel: `seenEmails`
-- L268 â€” variÃ¡vel: `seenUserIds`
-- L269 â€” variÃ¡vel: `participant`
-- L270 â€” variÃ¡vel: `emailKey`
-- L297 â€” variÃ¡vel: `getMappingService`
-- L298 â€” variÃ¡vel: `context`
-- L303 â€” variÃ¡vel: `mapping`
-- L308 â€” variÃ¡vel: `[participants, assigneeCandidate]`
-- L321 â€” variÃ¡vel: `upsertMappingService`
-- L327 â€” variÃ¡vel: `result`
-- L333 â€” parÃ¢metro: `trx`
-- L333 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L336 â€” variÃ¡vel: `context`
-- L388 â€” variÃ¡vel: `isAdmin`
-- L389 â€” variÃ¡vel: `isRequestAssignee`
-- L391 â€” variÃ¡vel: `isRequestMappingAssignee`
-- L395 â€” variÃ¡vel: `mapping`
-- L406 â€” variÃ¡vel: `previousProfessionalId`
-- L417 â€” variÃ¡vel: `explicitDesignation`
-- L418 â€” variÃ¡vel: `isNullOnCreate`
-- L419 â€” variÃ¡vel: `designationAction`
-- L421 â€” variÃ¡vel: `priorDesigneeUserId`
-- L426 â€” variÃ¡vel: `isPriorMappingAssignee`
-- L430 â€” variÃ¡vel: `canCreateByInheritance`
-- L434 â€” variÃ¡vel: `isCurrentMappingAssignee`
-- L438 â€” variÃ¡vel: `canDesignate`
-- L439 â€” variÃ¡vel: `canEditContent`
-- L444 â€” variÃ¡vel: `contentAction`
-- L494 â€” variÃ¡vel: `candidate`
-- L514 â€” variÃ¡vel: `currentValues`
-- L515 â€” variÃ¡vel: `values`
-- L517 â€” variÃ¡vel: `concluding`
-- L527 â€” variÃ¡vel: `target`
-- L558 â€” variÃ¡vel: `missing`
-- L568 â€” variÃ¡vel: `resolvedParticipants`
-- L575 â€” variÃ¡vel: `designationChanged`
-- L610 â€” variÃ¡vel: `changeOrigin`
-- L614 â€” variÃ¡vel: `previousAuditValues`
-- L621 â€” variÃ¡vel: `nextAuditValues`
-- L633 â€” variÃ¡vel: `mappingAuditId`
-- L718 â€” parÃ¢metro: `participant`
-- L718 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L725 â€” variÃ¡vel: `assigneeCandidate`
-- L735 â€” variÃ¡vel: `scheduledAt`
-- L736 â€” variÃ¡vel: `committedNotifications`
-- L750 â€” variÃ¡vel: `response`
+- L122 — variável: `date`
+- L185 — parâmetro: `participant`
+- L185 — retorno da função: `<anônima>()`
+- L217 — parâmetro: `participant`
+- L217 — retorno da função: `<anônima>()`
+- L248 — variável: `textField`
+- L249 — variável: `next`
+- L250 — variável: `normalized`
+- L297 — parâmetro: `participant`
+- L297 — retorno da função: `<anônima>()`
+- L297 — variável: `userIds`
+- L301 — variável: `usersById`
+- L303 — parâmetro: `participant`
+- L303 — variável: `resolved`
+- L308 — variável: `user`
+- L315 — variável: `seenEmails`
+- L316 — variável: `seenUserIds`
+- L317 — variável: `participant`
+- L318 — variável: `emailKey`
+- L346 — variável: `getMappingService`
+- L351 — variável: `context`
+- L368 — variável: `mapping`
+- L373 — variável: `[participants, assigneeCandidate]`
+- L386 — variável: `upsertMappingService`
+- L392 — variável: `result`
+- L398 — parâmetro: `trx`
+- L398 — retorno da função: `<anônima>()`
+- L401 — variável: `context`
+- L452 — variável: `mapping`
+- L463 — variável: `previousProfessionalId`
+- L470 — variável: `explicitDesignation`
+- L471 — variável: `isNullOnCreate`
+- L472 — variável: `designationAction`
+- L476 — variável: `contentAction`
+- L513 — variável: `candidate`
+- L546 — variável: `currentValues`
+- L547 — variável: `values`
+- L549 — variável: `concluding`
+- L559 — variável: `target`
+- L590 — variável: `missing`
+- L600 — variável: `resolvedParticipants`
+- L607 — variável: `designationChanged`
+- L642 — variável: `changeOrigin`
+- L646 — variável: `previousAuditValues`
+- L653 — variável: `nextAuditValues`
+- L665 — variável: `mappingAuditId`
+- L750 — parâmetro: `participant`
+- L750 — retorno da função: `<anônima>()`
+- L757 — variável: `assigneeCandidate`
+- L767 — variável: `scheduledAt`
+- L768 — variável: `committedNotifications`
+- L782 — variável: `response`
 
 ### [src/modules/queue/queue.controller.ts](../src/modules/queue/queue.controller.ts)
 
-- L7 â€” variÃ¡vel: `getMetricsController`
-- L8 â€” variÃ¡vel: `metrics`
-- L13 â€” variÃ¡vel: `centralizedQueue`
-- L14 â€” variÃ¡vel: `parsed`
-- L20 â€” variÃ¡vel: `result`
+- L8 — variável: `getMetricsController`
+- L9 — variável: `metrics`
+- L14 — variável: `centralizedQueue`
+- L15 — variável: `parsed`
+- L21 — variável: `result`
 
 ### [src/modules/queue/queue.filters.ts](../src/modules/queue/queue.filters.ts)
 
-- L27 â€” variÃ¡vel: `{ search, status, priority, assigneeId, unassigned, createdFrom, createdTo, department, scopedUserId, noteCustodianUserId, }`
-- L41 â€” variÃ¡vel: `searchPattern`
-- L43 â€” parÃ¢metro: `builder`
-- L43 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L53 â€” parÃ¢metro: `notesQuery`
-- L53 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L93 â€” parÃ¢metro: `builder`
-- L93 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L19 — parâmetro: `mappingFilter`
+- L19 — retorno da função: `<anônima>()`
+- L21 — parâmetro: `currentMapping`
+- L21 — retorno da função: `<anônima>()`
+- L44 — parâmetro: `initialMappingAssignee`
+- L44 — retorno da função: `<anônima>()`
+- L50 — parâmetro: `mapping`
+- L50 — retorno da função: `<anônima>()`
+- L79 — variável: `{ search, status, priority, assigneeId, unassigned, createdFrom, createdTo, department, scopedUserId, noteCustodianUserId, }`
+- L93 — variável: `searchPattern`
+- L95 — parâmetro: `builder`
+- L95 — retorno da função: `<anônima>()`
+- L105 — parâmetro: `notesQuery`
+- L105 — retorno da função: `<anônima>()`
+- L116 — parâmetro: `custody`
+- L116 — retorno da função: `<anônima>()`
+- L150 — parâmetro: `builder`
+- L150 — retorno da função: `<anônima>()`
+- L158 — parâmetro: `builder`
+- L158 — retorno da função: `<anônima>()`
+- L170 — parâmetro: `builder`
+- L170 — retorno da função: `<anônima>()`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
-- L17 â€” variÃ¡vel: `IN_PROGRESS_STATUS_NAMES`
-- L25 â€” variÃ¡vel: `fetchQueueMetrics`
-- L26 â€” variÃ¡vel: `query`
-- L44 â€” parÃ¢metro: `builder`
-- L44 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L51 â€” variÃ¡vel: `result`
-- L58 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L77 â€” variÃ¡vel: `findQueueRequests`
-- L80 â€” variÃ¡vel: `{ limit, offset }`
-- L82 â€” variÃ¡vel: `baseQuery`
-- L101 â€” variÃ¡vel: `countQuery`
-- L103 â€” variÃ¡vel: `itemsQuery`
-- L119 â€” variÃ¡vel: `[countResult, items]`
-- L120 â€” variÃ¡vel: `total`
-- L131 â€” variÃ¡vel: `fetchAllDepartments`
-- L132 â€” variÃ¡vel: `rows`
-- L140 â€” variÃ¡vel: `seen`
-- L142 â€” parÃ¢metro: `row`
-- L142 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L143 â€” parÃ¢metro: `department`
-- L143 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L144 â€” variÃ¡vel: `key`
-- L151 â€” variÃ¡vel: `fetchAllAssignees`
-- L152 â€” variÃ¡vel: `rows`
+- L18 — variável: `IN_PROGRESS_STATUS_NAMES`
+- L26 — variável: `fetchQueueMetrics`
+- L27 — variável: `query`
+- L42 — variável: `result`
+- L49 — retorno da função: `<anônima>()`
+- L68 — variável: `findQueueRequests`
+- L71 — variável: `{ limit, offset }`
+- L73 — variável: `baseQuery`
+- L86 — variável: `countQuery`
+- L88 — variável: `itemsQuery`
+- L104 — variável: `[countResult, items]`
+- L105 — variável: `total`
+- L116 — variável: `fetchAllDepartments`
+- L117 — variável: `rows`
+- L125 — variável: `seen`
+- L127 — parâmetro: `row`
+- L127 — retorno da função: `<anônima>()`
+- L128 — parâmetro: `department`
+- L128 — retorno da função: `<anônima>()`
+- L129 — variável: `key`
+- L136 — variável: `fetchAllAssignees`
+- L137 — variável: `profileIds`
 
 ### [src/modules/queue/queue.router.ts](../src/modules/queue/queue.router.ts)
 
-- L7 â€” variÃ¡vel: `queueRoutes`
+- L7 — variável: `queueRoutes`
 
 ### [src/modules/queue/queue.schemas.ts](../src/modules/queue/queue.schemas.ts)
 
-- L12 â€” variÃ¡vel: `queueFilterShape`
-- L32 â€” parÃ¢metro: `value`
-- L32 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L44 â€” variÃ¡vel: `queueSortShape`
-- L58 â€” retorno da funÃ§Ã£o: `applyQueueRefinements()`
-- L66 â€” parÃ¢metro: `filters`
-- L66 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L76 â€” variÃ¡vel: `queueFilterQuerySchema`
-- L93 â€” variÃ¡vel: `queueQuerySchema`
+- L12 — variável: `queueFilterShape`
+- L32 — parâmetro: `value`
+- L32 — retorno da função: `<anônima>()`
+- L44 — variável: `queueSortShape`
+- L58 — retorno da função: `applyQueueRefinements()`
+- L66 — parâmetro: `filters`
+- L66 — retorno da função: `<anônima>()`
+- L76 — variável: `queueFilterQuerySchema`
+- L93 — variável: `queueQuerySchema`
 
 ### [src/modules/queue/queue.service.ts](../src/modules/queue/queue.service.ts)
 
-- L23 â€” variÃ¡vel: `resolveAnalystUserId`
-- L26 â€” variÃ¡vel: `userId`
-- L30 â€” variÃ¡vel: `getQueueMetricsService`
-- L41 â€” variÃ¡vel: `listQueueService`
-- L45 â€” variÃ¡vel: `{ page, pageSize, assigneeId, sortBy, sortOrder, ...queueFilters }`
-- L46 â€” variÃ¡vel: `offset`
-- L48 â€” variÃ¡vel: `repoUnassigned`
-- L49 â€” variÃ¡vel: `repoAssigneeId`
-- L51 â€” variÃ¡vel: `analystUserId`
-- L53 â€” variÃ¡vel: `[{ items, total }, assignees, departments]`
-- L71 â€” variÃ¡vel: `totalPages`
-- L74 â€” variÃ¡vel: `effectivePage`
-- L76 â€” parÃ¢metro: `item`
-- L76 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L76 â€” variÃ¡vel: `formattedData`
+- L21 — variável: `resolveQueueScope`
+- L22 — variável: `scope`
+- L36 — variável: `resolveNoteCustodianUserId`
+- L37 — variável: `custody`
+- L45 — variável: `getQueueMetricsService`
+- L56 — variável: `listQueueService`
+- L60 — variável: `{ page, pageSize, assigneeId, sortBy, sortOrder, ...queueFilters }`
+- L61 — variável: `offset`
+- L63 — variável: `repoUnassigned`
+- L64 — variável: `repoAssigneeId`
+- L66 — variável: `scopedUserId`
+- L67 — variável: `noteCustodianUserId`
+- L69 — variável: `[{ items, total }, assignees, departments]`
+- L87 — variável: `totalPages`
+- L90 — variável: `effectivePage`
+- L92 — parâmetro: `item`
+- L92 — retorno da função: `<anônima>()`
+- L92 — variável: `formattedData`
 
 ### [src/modules/queue/queue.sort.ts](../src/modules/queue/queue.sort.ts)
 
-- L10 â€” variÃ¡vel: `SORT_COLUMNS`
-- L34 â€” variÃ¡vel: `direction`
+- L10 — variável: `SORT_COLUMNS`
+- L34 — variável: `direction`
 
 ### [src/modules/reports/reports.controller.ts](../src/modules/reports/reports.controller.ts)
 
-- L9 â€” variÃ¡vel: `parsed`
-- L19 â€” variÃ¡vel: `parsed`
-- L25 â€” variÃ¡vel: `file`
+- L10 — variável: `parsed`
+- L20 — variável: `parsed`
+- L26 — variável: `file`
 
 ### [src/modules/reports/reports.repository.ts](../src/modules/reports/reports.repository.ts)
 
-- L10 â€” variÃ¡vel: `OPENED_MONTH_SQL`
-- L104 â€” variÃ¡vel: `query`
-- L132 â€” variÃ¡vel: `query`
-- L151 â€” variÃ¡vel: `query`
-- L166 â€” variÃ¡vel: `query`
-- L180 â€” variÃ¡vel: `query`
-- L194 â€” variÃ¡vel: `[statuses, categories, priorities]`
-- L213 â€” variÃ¡vel: `query`
+- L10 — variável: `OPENED_MONTH_SQL`
+- L104 — variável: `query`
+- L132 — variável: `query`
+- L151 — variável: `query`
+- L166 — variável: `query`
+- L180 — variável: `query`
+- L194 — variável: `[statuses, categories, priorities]`
+- L216 — variável: `query`
 
 ### [src/modules/reports/reports.router.ts](../src/modules/reports/reports.router.ts)
 
-- L6 â€” variÃ¡vel: `reportsRoutes`
+- L6 — variável: `reportsRoutes`
 
 ### [src/modules/reports/reports.schema.ts](../src/modules/reports/reports.schema.ts)
 
-- L5 â€” variÃ¡vel: `optionalDate`
-- L6 â€” variÃ¡vel: `optionalId`
-- L8 â€” variÃ¡vel: `dashboardQuerySchema`
-- L18 â€” parÃ¢metro: `query`
-- L18 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L5 — variável: `optionalDate`
+- L6 — variável: `optionalId`
+- L8 — variável: `dashboardQuerySchema`
+- L18 — parâmetro: `query`
+- L18 — retorno da função: `<anônima>()`
 
 ### [src/modules/reports/reports.service.ts](../src/modules/reports/reports.service.ts)
 
-- L13 â€” variÃ¡vel: `CSV_HEADERS`
-- L28 â€” variÃ¡vel: `dateTimeFormatter`
-- L38 â€” variÃ¡vel: `filenameDateFormatter`
-- L46 â€” variÃ¡vel: `[summary, byStatus, byPriority, byCategory, openedOverTime, filterOptions]`
-- L66 â€” parÃ¢metro: `item`
-- L66 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L70 â€” parÃ¢metro: `item`
-- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L74 â€” parÃ¢metro: `item`
-- L74 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L86 â€” parÃ¢metro: `item`
-- L86 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L93 â€” parÃ¢metro: `item`
-- L98 â€” parÃ¢metro: `item`
-- L98 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L103 â€” parÃ¢metro: `item`
-- L103 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L113 â€” variÃ¡vel: `date`
-- L124 â€” variÃ¡vel: `record`
-- L125 â€” variÃ¡vel: `assessment`
-- L138 â€” variÃ¡vel: `raw`
-- L139 â€” variÃ¡vel: `protectedValue`
-- L163 â€” variÃ¡vel: `rows`
-- L164 â€” variÃ¡vel: `lines`
+- L16 — variável: `CSV_HEADERS`
+- L31 — variável: `dateTimeFormatter`
+- L41 — variável: `filenameDateFormatter`
+- L49 — variável: `[summary, byStatus, byPriority, byCategory, openedOverTime, filterOptions]`
+- L69 — parâmetro: `item`
+- L69 — retorno da função: `<anônima>()`
+- L73 — parâmetro: `item`
+- L73 — retorno da função: `<anônima>()`
+- L77 — parâmetro: `item`
+- L77 — retorno da função: `<anônima>()`
+- L89 — parâmetro: `item`
+- L89 — retorno da função: `<anônima>()`
+- L96 — parâmetro: `item`
+- L101 — parâmetro: `item`
+- L101 — retorno da função: `<anônima>()`
+- L106 — parâmetro: `item`
+- L106 — retorno da função: `<anônima>()`
+- L116 — variável: `date`
+- L127 — variável: `record`
+- L128 — variável: `assessment`
+- L141 — variável: `raw`
+- L142 — variável: `protectedValue`
+- L171 — variável: `scope`
+- L175 — variável: `scopedUserId`
+- L176 — variável: `rows`
+- L177 — variável: `lines`
 
 ### [src/modules/requests/requests-reopen.service.ts](../src/modules/requests/requests-reopen.service.ts)
 
-- L14 â€” variÃ¡vel: `REOPEN_TARGET`
-- L19 â€” variÃ¡vel: `REOPEN_PUBLIC_MESSAGE`
-- L44 â€” variÃ¡vel: `protocol`
-- L49 â€” variÃ¡vel: `justification`
-- L57 â€” variÃ¡vel: `requesterUserId`
-- L58 â€” parÃ¢metro: `trx`
-- L58 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L59 â€” variÃ¡vel: `request`
-- L64 â€” variÃ¡vel: `previousStatusId`
-- L84 â€” variÃ¡vel: `previousMeeting`
+- L14 — variável: `REOPEN_TARGET`
+- L19 — variável: `REOPEN_PUBLIC_MESSAGE`
+- L44 — variável: `protocol`
+- L49 — variável: `justification`
+- L57 — parâmetro: `trx`
+- L57 — retorno da função: `<anônima>()`
+- L58 — variável: `request`
+- L63 — variável: `previousStatusId`
+- L83 — variável: `previousMeeting`
 
 ### [src/modules/requests/requests.controller.ts](../src/modules/requests/requests.controller.ts)
 
-- L30 â€” variÃ¡vel: `userId`
-- L39 â€” variÃ¡vel: `getRequestsByProtocol`
-- L40 â€” variÃ¡vel: `protocol`
-- L42 â€” variÃ¡vel: `foundRequest`
-- L50 â€” variÃ¡vel: `getTracking`
-- L51 â€” variÃ¡vel: `protocol`
-- L53 â€” variÃ¡vel: `response`
-- L61 â€” variÃ¡vel: `postReopenRequest`
-- L62 â€” variÃ¡vel: `protocol`
-- L63 â€” variÃ¡vel: `parsed`
-- L65 â€” variÃ¡vel: `{ message, fields }`
-- L72 â€” variÃ¡vel: `response`
-- L85 â€” variÃ¡vel: `getInternalRequestByProtocol`
-- L89 â€” variÃ¡vel: `protocol`
-- L91 â€” variÃ¡vel: `request`
-- L98 â€” variÃ¡vel: `protocol`
-- L112 â€” variÃ¡vel: `id`
-- L122 â€” variÃ¡vel: `patchInternalRequestByProtocol`
-- L126 â€” variÃ¡vel: `protocol`
-- L128 â€” variÃ¡vel: `parsed`
-- L130 â€” variÃ¡vel: `{ message, fields }`
-- L134 â€” variÃ¡vel: `updated`
-- L144 â€” variÃ¡vel: `postRequest`
-- L158 â€” variÃ¡vel: `parsed`
-- L162 â€” variÃ¡vel: `multerFiles`
-- L163 â€” variÃ¡vel: `attachments`
-- L165 â€” variÃ¡vel: `savedAttachments`
-- L167 â€” variÃ¡vel: `response`
-- L176 â€” variÃ¡vel: `getRequestsByEmail`
-- L183 â€” variÃ¡vel: `parsed`
-- L189 â€” variÃ¡vel: `requests`
-- L201 â€” variÃ¡vel: `parsed`
-- L207 â€” variÃ¡vel: `requests`
-- L212 â€” variÃ¡vel: `getAssignees`
-- L216 â€” variÃ¡vel: `patchAssignee`
-- L217 â€” variÃ¡vel: `protocol`
-- L219 â€” variÃ¡vel: `parsed`
-- L224 â€” variÃ¡vel: `response`
-- L234 â€” variÃ¡vel: `patchInternalAssignee`
-- L235 â€” variÃ¡vel: `protocol`
-- L237 â€” variÃ¡vel: `parsed`
-- L242 â€” variÃ¡vel: `response`
-- L252 â€” variÃ¡vel: `patchRequestStatus`
-- L253 â€” variÃ¡vel: `protocol`
-- L255 â€” variÃ¡vel: `parsed`
-- L260 â€” variÃ¡vel: `response`
-- L270 â€” variÃ¡vel: `postCancelRequest`
-- L271 â€” variÃ¡vel: `protocol`
-- L272 â€” variÃ¡vel: `parsed`
-- L274 â€” variÃ¡vel: `{ fields, message }`
-- L278 â€” variÃ¡vel: `response`
+- L30 — variável: `userId`
+- L39 — variável: `getRequestsByProtocol`
+- L40 — variável: `protocol`
+- L42 — variável: `foundRequest`
+- L50 — variável: `getTracking`
+- L51 — variável: `protocol`
+- L53 — variável: `response`
+- L61 — variável: `postReopenRequest`
+- L62 — variável: `protocol`
+- L63 — variável: `parsed`
+- L65 — variável: `{ message, fields }`
+- L72 — variável: `response`
+- L85 — variável: `getInternalRequestByProtocol`
+- L89 — variável: `protocol`
+- L91 — variável: `request`
+- L98 — variável: `protocol`
+- L116 — variável: `id`
+- L129 — variável: `patchInternalRequestByProtocol`
+- L133 — variável: `protocol`
+- L135 — variável: `parsed`
+- L137 — variável: `{ message, fields }`
+- L141 — variável: `updated`
+- L151 — variável: `postRequest`
+- L165 — variável: `parsed`
+- L169 — variável: `multerFiles`
+- L170 — variável: `attachments`
+- L172 — variável: `savedAttachments`
+- L174 — variável: `response`
+- L183 — variável: `getRequestsByEmail`
+- L191 — variável: `parsed`
+- L197 — variável: `requests`
+- L209 — variável: `parsed`
+- L215 — variável: `requests`
+- L220 — variável: `getAssignees`
+- L224 — variável: `patchAssignee`
+- L225 — variável: `protocol`
+- L227 — variável: `parsed`
+- L232 — variável: `response`
+- L242 — variável: `patchInternalAssignee`
+- L243 — variável: `protocol`
+- L245 — variável: `parsed`
+- L250 — variável: `response`
+- L260 — variável: `patchRequestStatus`
+- L261 — variável: `protocol`
+- L263 — variável: `parsed`
+- L268 — variável: `response`
+- L278 — variável: `postCancelRequest`
+- L279 — variável: `protocol`
+- L280 — variável: `parsed`
+- L282 — variável: `{ fields, message }`
+- L286 — variável: `response`
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
-- L40 â€” variÃ¡vel: `INITIAL_STATUS`
-- L86 â€” variÃ¡vel: `{ request_id, meeting_scheduled_for, meeting_link }`
-- L89 â€” variÃ¡vel: `mapping`
-- L97 â€” variÃ¡vel: `reopenedAt`
-- L154 â€” variÃ¡vel: `email`
-- L201 â€” variÃ¡vel: `row`
-- L215 â€” variÃ¡vel: `requesterId`
-- L238 â€” variÃ¡vel: `result`
-- L242 â€” variÃ¡vel: `row`
-- L259 â€” variÃ¡vel: `email`
-- L260 â€” variÃ¡vel: `requestId`
-- L262 â€” variÃ¡vel: `manualControls`
-- L263 â€” variÃ¡vel: `processDocumentation`
-- L264 â€” variÃ¡vel: `similarSolution`
-- L265 â€” variÃ¡vel: `otherAreas`
-- L266 â€” variÃ¡vel: `restrictedInfo`
-- L268 â€” variÃ¡vel: `insertedRows`
-- L327 â€” variÃ¡vel: `row`
-- L346 â€” parÃ¢metro: `scheduledFor`
-- L346 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L365 â€” parÃ¢metro: `attachment`
-- L365 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L382 â€” parÃ¢metro: `trx`
-- L382 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L383 â€” variÃ¡vel: `categoryId`
-- L389 â€” variÃ¡vel: `statusId`
-- L390 â€” variÃ¡vel: `requesterId`
-- L391 â€” variÃ¡vel: `saved`
-- L400 â€” variÃ¡vel: `email`
-- L415 â€” variÃ¡vel: `row`
-- L430 â€” variÃ¡vel: `PUBLIC_STATUS_SUMMARY_SQL`
-- L433 â€” retorno da funÃ§Ã£o: `baseSummaryQuery()`
-- L450 â€” parÃ¢metro: `builder`
-- L450 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L460 â€” variÃ¡vel: `countRows`
-- L466 â€” variÃ¡vel: `total`
-- L468 â€” variÃ¡vel: `rows`
-- L483 â€” parÃ¢metro: `row`
-- L483 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L508 â€” variÃ¡vel: `response`
-- L540 â€” variÃ¡vel: `meetingScheduledFor`
-- L542 â€” variÃ¡vel: `meeting`
-- L546 â€” variÃ¡vel: `openedAt`
-- L587 â€” variÃ¡vel: `hasMapping`
-- L589 â€” variÃ¡vel: `query`
-- L617 â€” variÃ¡vel: `baseSelect`
-- L688 â€” variÃ¡vel: `mappingSelect`
-- L732 â€” variÃ¡vel: `row`
-- L735 â€” parÃ¢metro: `query`
-- L735 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L754 â€” variÃ¡vel: `ASSIGNABLE_PROFILES`
-- L777 â€” variÃ¡vel: `numericId`
-- L823 â€” variÃ¡vel: `hasMapping`
-- L843 â€” variÃ¡vel: `query`
-- L855 â€” variÃ¡vel: `row`
-- L903 â€” variÃ¡vel: `statusId`
-- L904 â€” variÃ¡vel: `expectedStatusId`
-- L936 â€” variÃ¡vel: `triages`
-- L994 â€” variÃ¡vel: `hasMappingColumn`
-- L1012 â€” variÃ¡vel: `query`
-- L1024 â€” variÃ¡vel: `row`
-- L1052 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1111 â€” variÃ¡vel: `manualControls`
-- L1112 â€” variÃ¡vel: `processDocumentation`
-- L1113 â€” variÃ¡vel: `similarSolution`
-- L1114 â€” variÃ¡vel: `otherAreas`
-- L1115 â€” variÃ¡vel: `restrictedInfo`
+- L44 — variável: `INITIAL_STATUS`
+- L90 — variável: `{ request_id, meeting_scheduled_for, meeting_link }`
+- L93 — variável: `mapping`
+- L101 — variável: `reopenedAt`
+- L158 — variável: `email`
+- L205 — variável: `row`
+- L219 — variável: `requesterId`
+- L242 — variável: `result`
+- L246 — variável: `row`
+- L263 — variável: `email`
+- L264 — variável: `requestId`
+- L266 — variável: `manualControls`
+- L267 — variável: `processDocumentation`
+- L268 — variável: `similarSolution`
+- L269 — variável: `otherAreas`
+- L270 — variável: `restrictedInfo`
+- L272 — variável: `insertedRows`
+- L331 — variável: `row`
+- L350 — parâmetro: `scheduledFor`
+- L350 — retorno da função: `<anônima>()`
+- L369 — parâmetro: `attachment`
+- L369 — retorno da função: `<anônima>()`
+- L386 — parâmetro: `trx`
+- L386 — retorno da função: `<anônima>()`
+- L387 — variável: `categoryId`
+- L393 — variável: `statusId`
+- L394 — variável: `requesterId`
+- L395 — variável: `saved`
+- L404 — variável: `email`
+- L419 — variável: `row`
+- L434 — variável: `PUBLIC_STATUS_SUMMARY_SQL`
+- L437 — retorno da função: `baseSummaryQuery()`
+- L454 — parâmetro: `builder`
+- L454 — retorno da função: `<anônima>()`
+- L464 — variável: `countRows`
+- L470 — variável: `total`
+- L472 — variável: `rows`
+- L487 — parâmetro: `row`
+- L487 — retorno da função: `<anônima>()`
+- L513 — variável: `response`
+- L546 — variável: `meetingScheduledFor`
+- L548 — variável: `meeting`
+- L552 — variável: `openedAt`
+- L594 — variável: `hasMapping`
+- L596 — variável: `query`
+- L624 — variável: `baseSelect`
+- L695 — variável: `mappingSelect`
+- L739 — variável: `row`
+- L742 — parâmetro: `query`
+- L742 — retorno da função: `<anônima>()`
+- L767 — variável: `profileIds`
+- L793 — variável: `numericId`
+- L845 — variável: `hasMapping`
+- L866 — variável: `query`
+- L878 — variável: `row`
+- L926 — variável: `statusId`
+- L927 — variável: `expectedStatusId`
+- L959 — variável: `triages`
+- L1017 — variável: `hasMappingColumn`
+- L1035 — variável: `query`
+- L1047 — variável: `row`
+- L1075 — retorno da função: `<anônima>()`
+- L1134 — variável: `manualControls`
+- L1135 — variável: `processDocumentation`
+- L1136 — variável: `similarSolution`
+- L1137 — variável: `otherAreas`
+- L1138 — variável: `restrictedInfo`
 
 ### [src/modules/requests/requests.router.ts](../src/modules/requests/requests.router.ts)
 
-- L22 â€” variÃ¡vel: `requestsRoutes`
+- L25 — variável: `requestsRoutes`
 
 ### [src/modules/requests/requests.schema.ts](../src/modules/requests/requests.schema.ts)
 
-- L15 â€” variÃ¡vel: `reopenJustificationSchema`
-- L17 â€” variÃ¡vel: `reopenRequestSchema`
-- L22 â€” variÃ¡vel: `yesNoDetailSchema`
-- L32 â€” variÃ¡vel: `requesterSchema`
-- L41 â€” variÃ¡vel: `demandSchema`
-- L52 â€” variÃ¡vel: `operationalSchema`
-- L79 â€” variÃ¡vel: `complementarySchema`
-- L87 â€” variÃ¡vel: `isRealCalendarDateTime`
-- L88 â€” variÃ¡vel: `[datePart, timePart]`
-- L89 â€” variÃ¡vel: `[year, month, day]`
-- L90 â€” variÃ¡vel: `[hour = 0, minute = 0]`
-- L93 â€” variÃ¡vel: `lastDay`
-- L97 â€” variÃ¡vel: `createRequestPayloadSchema`
-- L116 â€” parÃ¢metro: `preferences`
-- L116 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L133 â€” variÃ¡vel: `todaySaoPauloYmd`
-- L135 â€” variÃ¡vel: `desiredDeadlineUpdateSchema`
-- L138 â€” parÃ¢metro: `value`
-- L138 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L142 â€” variÃ¡vel: `operationalUpdateSchema`
-- L148 â€” variÃ¡vel: `updateRequesterSchema`
-- L150 â€” variÃ¡vel: `updateRequestPayloadSchema`
-- L159 â€” variÃ¡vel: `listRequestsQuerySchema`
-- L180 â€” variÃ¡vel: `listAuthenticatedRequestsQuerySchema`
-- L182 â€” variÃ¡vel: `assignRequestSchema`
-- L193 â€” variÃ¡vel: `analystIdSchema`
-- L195 â€” variÃ¡vel: `assignAnalystSchema`
-- L200 â€” parÃ¢metro: `ctx`
-- L200 â€” parÃ¢metro: `data`
-- L200 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L201 â€” variÃ¡vel: `hasAssignee`
-- L202 â€” variÃ¡vel: `hasMapping`
-- L221 â€” variÃ¡vel: `cancelRequestSchema`
-- L230 â€” variÃ¡vel: `updateStatusSchema`
+- L15 — variável: `reopenJustificationSchema`
+- L17 — variável: `reopenRequestSchema`
+- L22 — variável: `yesNoDetailSchema`
+- L32 — variável: `requesterSchema`
+- L41 — variável: `demandSchema`
+- L52 — variável: `operationalSchema`
+- L79 — variável: `complementarySchema`
+- L87 — variável: `isRealCalendarDateTime`
+- L88 — variável: `[datePart, timePart]`
+- L89 — variável: `[year, month, day]`
+- L90 — variável: `[hour = 0, minute = 0]`
+- L93 — variável: `lastDay`
+- L97 — variável: `createRequestPayloadSchema`
+- L116 — parâmetro: `preferences`
+- L116 — retorno da função: `<anônima>()`
+- L133 — variável: `todaySaoPauloYmd`
+- L135 — variável: `desiredDeadlineUpdateSchema`
+- L138 — parâmetro: `value`
+- L138 — retorno da função: `<anônima>()`
+- L142 — variável: `operationalUpdateSchema`
+- L148 — variável: `updateRequesterSchema`
+- L150 — variável: `updateRequestPayloadSchema`
+- L159 — variável: `listRequestsQuerySchema`
+- L180 — variável: `listAuthenticatedRequestsQuerySchema`
+- L182 — variável: `assignRequestSchema`
+- L193 — variável: `analystIdSchema`
+- L195 — variável: `assignAnalystSchema`
+- L200 — parâmetro: `ctx`
+- L200 — parâmetro: `data`
+- L200 — retorno da função: `<anônima>()`
+- L201 — variável: `hasAssignee`
+- L202 — variável: `hasMapping`
+- L221 — variável: `cancelRequestSchema`
+- L230 — variável: `updateStatusSchema`
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-- L84 â€” variÃ¡vel: `user`
-- L97 â€” variÃ¡vel: `normalizedProtocol`
-- L99 â€” variÃ¡vel: `found`
-- L108 â€” variÃ¡vel: `identity`
-- L117 â€” retorno da funÃ§Ã£o: `registerRequest()`
-- L125 â€” variÃ¡vel: `payload`
-- L131 â€” variÃ¡vel: `err`
-- L141 â€” variÃ¡vel: `identity`
-- L158 â€” variÃ¡vel: `email`
-- L167 â€” variÃ¡vel: `normalizedEmail`
-- L203 â€” parÃ¢metro: `value`
-- L203 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L210 â€” variÃ¡vel: `request`
-- L220 â€” variÃ¡vel: `assigneeUserId`
-- L221 â€” variÃ¡vel: `mappingUserId`
-- L222 â€” variÃ¡vel: `isAssignee`
-- L228 â€” variÃ¡vel: `requestId`
-- L229 â€” variÃ¡vel: `[attachments, schedulePreferences, evaluation]`
-- L238 â€” variÃ¡vel: `meeting`
-- L247 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L247 â€” variÃ¡vel: `pendingSummary`
-- L249 â€” variÃ¡vel: `summary`
-- L250 â€” variÃ¡vel: `correctionAlert`
-- L251 â€” variÃ¡vel: `unreadRaw`
-- L287 â€” variÃ¡vel: `openedAt`
-- L288 â€” variÃ¡vel: `lastUpdate`
-- L290 â€” variÃ¡vel: `assigneeUserId`
-- L291 â€” variÃ¡vel: `mappingUserId`
-- L293 â€” variÃ¡vel: `assignee`
-- L302 â€” variÃ¡vel: `mappingAssignee`
-- L367 â€” parÃ¢metro: `row`
-- L367 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L371 â€” parÃ¢metro: `attachment`
-- L371 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L397 â€” variÃ¡vel: `trimmed`
-- L404 â€” variÃ¡vel: `record`
-- L408 â€” variÃ¡vel: `{ __triage: _triage, observations: _obs, ...rest }`
-- L433 â€” variÃ¡vel: `TRACKING_INVALID_IDENTITY`
-- L443 â€” variÃ¡vel: `scheduledFor`
-- L500 â€” variÃ¡vel: `openedAt`
-- L516 â€” variÃ¡vel: `INITIAL_CANCEL_CYCLE`
-- L528 â€” parÃ¢metro: `trx`
-- L528 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L529 â€” variÃ¡vel: `locked`
-- L531 â€” variÃ¡vel: `request`
-- L550 â€” variÃ¡vel: `lastTechnicalMessage`
-- L579 â€” variÃ¡vel: `requestId`
-- L580 â€” variÃ¡vel: `[attachments, schedulePreferences]`
-- L585 â€” variÃ¡vel: `meeting`
-- L586 â€” variÃ¡vel: `complementary`
-- L589 â€” variÃ¡vel: `{ impacts, ...base }`
-- L590 â€” variÃ¡vel: `closureRef`
-- L595 â€” variÃ¡vel: `canCancel`
-- L617 â€” parÃ¢metro: `preference`
-- L617 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L622 â€” parÃ¢metro: `attachment`
-- L622 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L641 â€” variÃ¡vel: `requesterUserId`
-- L665 â€” variÃ¡vel: `row`
-- L680 â€” variÃ¡vel: `mode`
-- L691 â€” variÃ¡vel: `row`
-- L693 â€” variÃ¡vel: `nameOk`
-- L695 â€” variÃ¡vel: `emailOk`
-- L716 â€” variÃ¡vel: `normalizedProtocol`
-- L800 â€” variÃ¡vel: `request`
-- L811 â€” variÃ¡vel: `professional`
-- L812 â€” variÃ¡vel: `canEdit`
-- L819 â€” parÃ¢metro: `trx`
-- L819 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L848 â€” variÃ¡vel: `RN010_ELIGIBLE_SCREENING`
-- L856 â€” variÃ¡vel: `candidate`
-- L878 â€” variÃ¡vel: `candidate`
-- L899 â€” variÃ¡vel: `request`
-- L914 â€” variÃ¡vel: `assignee`
-- L919 â€” variÃ¡vel: `previousId`
-- L920 â€” variÃ¡vel: `nextId`
-- L923 â€” parÃ¢metro: `c`
-- L923 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L926 â€” variÃ¡vel: `auditNext`
-- L927 â€” variÃ¡vel: `auditPrev`
-- L930 â€” variÃ¡vel: `action`
-- L932 â€” variÃ¡vel: `shouldAdvanceStatus`
-- L940 â€” variÃ¡vel: `previousMapping`
-- L941 â€” variÃ¡vel: `auditPrevMapping`
-- L946 â€” parÃ¢metro: `trx`
-- L946 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L950 â€” variÃ¡vel: `auditId`
-- L1035 â€” variÃ¡vel: `request`
-- L1050 â€” variÃ¡vel: `hasAssignee`
-- L1051 â€” variÃ¡vel: `hasMapping`
-- L1056 â€” variÃ¡vel: `raw`
-- L1058 â€” variÃ¡vel: `previous`
-- L1059 â€” variÃ¡vel: `auditPrev`
-- L1062 â€” parÃ¢metro: `trx`
-- L1062 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1080 â€” variÃ¡vel: `resolved`
-- L1081 â€” variÃ¡vel: `previous`
-- L1082 â€” variÃ¡vel: `auditPrev`
-- L1085 â€” variÃ¡vel: `previousMapping`
-- L1086 â€” variÃ¡vel: `auditPrevMapping`
-- L1089 â€” variÃ¡vel: `action`
-- L1090 â€” variÃ¡vel: `shouldAdvance`
-- L1093 â€” parÃ¢metro: `trx`
-- L1093 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1101 â€” variÃ¡vel: `auditId`
-- L1161 â€” variÃ¡vel: `raw`
-- L1163 â€” variÃ¡vel: `previous`
-- L1164 â€” variÃ¡vel: `auditPrev`
-- L1167 â€” parÃ¢metro: `trx`
-- L1167 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1185 â€” variÃ¡vel: `resolved`
-- L1186 â€” variÃ¡vel: `previous`
-- L1187 â€” variÃ¡vel: `auditPrev`
-- L1190 â€” variÃ¡vel: `previousAssignee`
-- L1191 â€” variÃ¡vel: `auditPrevAssignee`
-- L1194 â€” variÃ¡vel: `action`
-- L1195 â€” parÃ¢metro: `trx`
-- L1195 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1203 â€” variÃ¡vel: `auditId`
-- L1309 â€” variÃ¡vel: `current`
-- L1335 â€” variÃ¡vel: `isTriageAssignee`
-- L1337 â€” variÃ¡vel: `isMappingAssignee`
-- L1362 â€” parÃ¢metro: `trx`
-- L1362 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1383 â€” variÃ¡vel: `request`
-- L1388 â€” variÃ¡vel: `target`
-- L1393 â€” variÃ¡vel: `isAdmin`
-- L1407 â€” variÃ¡vel: `isAssignee`
-- L1409 â€” variÃ¡vel: `isMappingAssignee`
-- L1412 â€” variÃ¡vel: `isAnalystAssignee`
-- L1487 â€” variÃ¡vel: `changeOrigin`
-- L1489 â€” parÃ¢metro: `trx`
-- L1489 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L1489 â€” variÃ¡vel: `{ lastUpdate, committed }`
-- L1490 â€” variÃ¡vel: `locked`
-- L1504 â€” variÃ¡vel: `current`
-- L1515 â€” variÃ¡vel: `persistedAt`
-- L1527 â€” variÃ¡vel: `auditId`
-- L1552 â€” variÃ¡vel: `committedNotifications`
+- L131 — variável: `user`
+- L144 — variável: `normalizedProtocol`
+- L146 — variável: `found`
+- L156 — variável: `identity`
+- L157 — variável: `isOwner`
+- L173 — retorno da função: `registerRequest()`
+- L181 — variável: `payload`
+- L187 — variável: `err`
+- L197 — variável: `identity`
+- L214 — variável: `email`
+- L223 — variável: `normalizedEmail`
+- L259 — parâmetro: `value`
+- L259 — retorno da função: `<anônima>()`
+- L267 — variável: `request`
+- L279 — parâmetro: `row`
+- L279 — retorno da função: `<anônima>()`
+- L289 — variável: `canReadInternalNotes`
+- L293 — variável: `canReadPendingItems`
+- L299 — variável: `requestId`
+- L300 — variável: `[attachments, schedulePreferences, evaluation]`
+- L309 — variável: `meeting`
+- L319 — retorno da função: `<anônima>()`
+- L319 — variável: `pendingSummary`
+- L329 — variável: `summary`
+- L330 — variável: `correctionAlert`
+- L331 — variável: `unreadRaw`
+- L370 — variável: `openedAt`
+- L371 — variável: `lastUpdate`
+- L373 — variável: `assigneeUserId`
+- L374 — variável: `mappingUserId`
+- L376 — variável: `assignee`
+- L385 — variável: `mappingAssignee`
+- L449 — parâmetro: `row`
+- L449 — retorno da função: `<anônima>()`
+- L453 — parâmetro: `attachment`
+- L453 — retorno da função: `<anônima>()`
+- L492 — variável: `trimmed`
+- L499 — variável: `record`
+- L503 — variável: `{ __triage: _triage, observations: _obs, ...rest }`
+- L528 — variável: `TRACKING_INVALID_IDENTITY`
+- L531 — variável: `scheduledFor`
+- L597 — variável: `openedAt`
+- L615 — variável: `INITIAL_CANCEL_CYCLE`
+- L627 — parâmetro: `trx`
+- L627 — retorno da função: `<anônima>()`
+- L628 — variável: `locked`
+- L630 — variável: `request`
+- L649 — variável: `lastTechnicalMessage`
+- L678 — variável: `requestId`
+- L679 — variável: `[attachments, schedulePreferences]`
+- L684 — variável: `meeting`
+- L685 — variável: `complementary`
+- L688 — variável: `{ impacts, ...base }`
+- L689 — variável: `closureRef`
+- L694 — variável: `canCancel`
+- L719 — parâmetro: `preference`
+- L719 — retorno da função: `<anônima>()`
+- L724 — parâmetro: `attachment`
+- L724 — retorno da função: `<anônima>()`
+- L756 — variável: `row`
+- L773 — variável: `mode`
+- L784 — variável: `row`
+- L786 — variável: `nameOk`
+- L789 — variável: `emailOk`
+- L811 — variável: `normalizedProtocol`
+- L938 — variável: `request`
+- L944 — parâmetro: `row`
+- L944 — retorno da função: `<anônima>()`
+- L949 — parâmetro: `trx`
+- L949 — retorno da função: `<anônima>()`
+- L968 — variável: `updatedRequest`
+- L990 — variável: `RN010_ELIGIBLE_SCREENING`
+- L1027 — variável: `candidate`
+- L1028 — variável: `assignable`
+- L1042 — variável: `candidate`
+- L1043 — variável: `assignable`
+- L1060 — variável: `error`
+- L1084 — variável: `request`
+- L1090 — parâmetro: `row`
+- L1090 — retorno da função: `<anônima>()`
+- L1100 — variável: `assignee`
+- L1103 — retorno da função: `<anônima>()`
+- L1107 — variável: `previousId`
+- L1108 — variável: `nextId`
+- L1110 — variável: `auditNext`
+- L1111 — variável: `auditPrev`
+- L1114 — variável: `action`
+- L1116 — variável: `shouldAdvanceStatus`
+- L1124 — variável: `previousMapping`
+- L1125 — variável: `auditPrevMapping`
+- L1131 — parâmetro: `trx`
+- L1131 — retorno da função: `<anônima>()`
+- L1135 — variável: `auditId`
+- L1219 — variável: `request`
+- L1225 — parâmetro: `row`
+- L1225 — retorno da função: `<anônima>()`
+- L1235 — variável: `hasAssignee`
+- L1236 — variável: `hasMapping`
+- L1241 — variável: `raw`
+- L1243 — variável: `previous`
+- L1244 — variável: `auditPrev`
+- L1247 — parâmetro: `trx`
+- L1247 — retorno da função: `<anônima>()`
+- L1265 — retorno da função: `<anônima>()`
+- L1265 — variável: `resolved`
+- L1268 — variável: `previous`
+- L1269 — variável: `auditPrev`
+- L1272 — variável: `previousMapping`
+- L1273 — variável: `auditPrevMapping`
+- L1276 — variável: `action`
+- L1277 — variável: `shouldAdvance`
+- L1280 — parâmetro: `trx`
+- L1280 — retorno da função: `<anônima>()`
+- L1288 — variável: `auditId`
+- L1351 — variável: `raw`
+- L1353 — variável: `previous`
+- L1354 — variável: `auditPrev`
+- L1357 — parâmetro: `trx`
+- L1357 — retorno da função: `<anônima>()`
+- L1375 — retorno da função: `<anônima>()`
+- L1375 — variável: `resolved`
+- L1378 — variável: `previous`
+- L1379 — variável: `auditPrev`
+- L1382 — variável: `previousAssignee`
+- L1383 — variável: `auditPrevAssignee`
+- L1386 — variável: `action`
+- L1387 — parâmetro: `trx`
+- L1387 — retorno da função: `<anônima>()`
+- L1395 — variável: `auditId`
+- L1443 — variável: `updatedRequest`
+- L1513 — variável: `current`
+- L1547 — variável: `request`
+- L1553 — parâmetro: `row`
+- L1553 — retorno da função: `<anônima>()`
+- L1561 — variável: `target`
+- L1589 — variável: `requiresOverride`
+- L1591 — variável: `hasStatusOverride`
+- L1614 — variável: `changeOrigin`
+- L1616 — parâmetro: `trx`
+- L1616 — retorno da função: `<anônima>()`
+- L1616 — variável: `{ lastUpdate, committed }`
+- L1617 — variável: `locked`
+- L1631 — variável: `current`
+- L1644 — variável: `persistedAt`
+- L1656 — variável: `auditId`
+- L1681 — variável: `committedNotifications`
 
 ### [src/modules/requests/statusTransition.ts](../src/modules/requests/statusTransition.ts)
 
-- L29 â€” variÃ¡vel: `lastTechnicalMessage`
-- L38 â€” variÃ¡vel: `query`
-- L42 â€” variÃ¡vel: `rows`
-- L43 â€” variÃ¡vel: `row`
+- L29 — variável: `lastTechnicalMessage`
+- L38 — variável: `query`
+- L42 — variável: `rows`
+- L43 — variável: `row`
 
 ### [src/modules/requests/triage/triage.controller.ts](../src/modules/requests/triage/triage.controller.ts)
 
-- L9 â€” variÃ¡vel: `protocolParamsSchema`
-- L18 â€” variÃ¡vel: `id`
-- L32 â€” variÃ¡vel: `parsed`
-- L40 â€” variÃ¡vel: `getTriage`
-- L41 â€” variÃ¡vel: `protocol`
-- L42 â€” variÃ¡vel: `actor`
-- L44 â€” variÃ¡vel: `triage`
-- L49 â€” variÃ¡vel: `saveTriage`
-- L50 â€” variÃ¡vel: `protocol`
-- L51 â€” variÃ¡vel: `actor`
-- L53 â€” variÃ¡vel: `parsed`
-- L55 â€” variÃ¡vel: `{ message, fields }`
-- L59 â€” variÃ¡vel: `triage`
+- L10 — variável: `protocolParamsSchema`
+- L15 — variável: `parsed`
+- L23 — variável: `getTriage`
+- L24 — variável: `protocol`
+- L25 — variável: `actor`
+- L27 — variável: `triage`
+- L32 — variável: `saveTriage`
+- L33 — variável: `protocol`
+- L34 — variável: `actor`
+- L36 — variável: `parsed`
+- L38 — variável: `{ message, fields }`
+- L42 — variável: `triage`
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L75 â€” variÃ¡vel: `TRIAGE_COLUMNS`
-- L128 â€” variÃ¡vel: `row`
-- L162 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L184 â€” variÃ¡vel: `raw`
-- L204 â€” variÃ¡vel: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
-- L214 â€” variÃ¡vel: `source`
-- L241 â€” variÃ¡vel: `updatedRows`
+- L79 — variável: `TRIAGE_COLUMNS`
+- L132 — variável: `row`
+- L166 — retorno da função: `<anônima>()`
+- L188 — variável: `raw`
+- L208 — variável: `{ protocol, categoryId, statusId, isStatusPublic, lastTechnicalMessage, expectedStatusId, updatedBy, trx, }`
+- L218 — variável: `source`
+- L245 — variável: `updatedRows`
 
 ### [src/modules/requests/triage/triage.router.ts](../src/modules/requests/triage/triage.router.ts)
 
-- L6 â€” variÃ¡vel: `triageRoutes`
+- L6 — variável: `triageRoutes`
 
 ### [src/modules/requests/triage/triage.schema.ts](../src/modules/requests/triage/triage.schema.ts)
 
-- L33 â€” variÃ¡vel: `triageChoice`
-- L35 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L35 â€” variÃ¡vel: `textField`
-- L42 â€” variÃ¡vel: `createTriagePayloadSchema`
-- L80 â€” parÃ¢metro: `ctx`
-- L80 â€” parÃ¢metro: `value`
-- L80 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L33 — variável: `triageChoice`
+- L35 — retorno da função: `<anônima>()`
+- L35 — variável: `textField`
+- L42 — variável: `createTriagePayloadSchema`
+- L80 — parâmetro: `ctx`
+- L80 — parâmetro: `value`
+- L80 — retorno da função: `<anônima>()`
 
 ### [src/modules/requests/triage/triage.service.ts](../src/modules/requests/triage/triage.service.ts)
 
-- L36 â€” parÃ¢metro: `trx`
-- L36 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L69 â€” variÃ¡vel: `{ protocol, request, triage, categoryId, exitStatus, actor, ipAddress }`
-- L71 â€” parÃ¢metro: `trx`
-- L71 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L72 â€” variÃ¡vel: `current`
-- L93 â€” variÃ¡vel: `triageAuditId`
-- L157 â€” variÃ¡vel: `request`
-- L164 â€” variÃ¡vel: `canAccess`
-- L179 â€” variÃ¡vel: `request`
-- L200 â€” variÃ¡vel: `canAccess`
-- L215 â€” variÃ¡vel: `exitStatus`
-- L236 â€” variÃ¡vel: `categoryName`
-- L238 â€” variÃ¡vel: `newCategory`
-- L273 â€” variÃ¡vel: `committedNotifications`
+- L82 — variável: `{ protocol, request, triage, categoryId, exitStatus, actor, ipAddress }`
+- L84 — parâmetro: `trx`
+- L84 — retorno da função: `<anônima>()`
+- L85 — variável: `current`
+- L106 — variável: `triageAuditId`
+- L174 — variável: `request`
+- L179 — variável: `canAccess`
+- L196 — variável: `request`
+- L219 — variável: `canAccess`
+- L236 — variável: `exitStatus`
+- L257 — variável: `categoryName`
+- L259 — variável: `newCategory`
+- L294 — variável: `committedNotifications`
 
 ### [src/modules/users/users.controller.ts](../src/modules/users/users.controller.ts)
 
-- L18 â€” variÃ¡vel: `id`
-- L25 â€” variÃ¡vel: `getUserMetrics`
-- L26 â€” variÃ¡vel: `metrics`
-- L31 â€” variÃ¡vel: `listAnalysts`
-- L32 â€” variÃ¡vel: `analysts`
-- L36 â€” variÃ¡vel: `listUsers`
-- L37 â€” variÃ¡vel: `parsed`
-- L43 â€” variÃ¡vel: `users`
-- L48 â€” variÃ¡vel: `createUser`
-- L49 â€” variÃ¡vel: `parsed`
-- L52 â€” variÃ¡vel: `{ message, fields }`
-- L56 â€” variÃ¡vel: `created`
-- L61 â€” variÃ¡vel: `updateUser`
-- L62 â€” variÃ¡vel: `parsed`
-- L65 â€” variÃ¡vel: `{ message, fields }`
-- L69 â€” variÃ¡vel: `updated`
-- L79 â€” variÃ¡vel: `getUser`
-- L80 â€” variÃ¡vel: `user`
-- L85 â€” variÃ¡vel: `changeUserStatus`
-- L86 â€” variÃ¡vel: `parsed`
-- L92 â€” variÃ¡vel: `updated`
-- L102 â€” variÃ¡vel: `resetUserPassword`
-- L103 â€” variÃ¡vel: `reset`
-- L112 â€” variÃ¡vel: `getMyProfile`
-- L113 â€” variÃ¡vel: `profile`
-- L124 â€” variÃ¡vel: `updateMyProfile`
-- L145 â€” variÃ¡vel: `rawReq`
-- L162 â€” variÃ¡vel: `parsed`
-- L167 â€” variÃ¡vel: `updated`
+- L22 — variável: `id`
+- L36 — variável: `id`
+- L37 — variável: `permissions`
+- L41 — variável: `getUserMetrics`
+- L42 — variável: `metrics`
+- L47 — variável: `listAssignableProfessionals`
+- L51 — variável: `parsed`
+- L57 — variável: `professionals`
+- L64 — variável: `listUsers`
+- L65 — variável: `parsed`
+- L71 — variável: `users`
+- L76 — variável: `createUser`
+- L77 — variável: `parsed`
+- L80 — variável: `{ message, fields }`
+- L84 — variável: `created`
+- L89 — variável: `updateUser`
+- L90 — variável: `parsed`
+- L93 — variável: `{ message, fields }`
+- L97 — variável: `updated`
+- L107 — variável: `getUser`
+- L108 — variável: `user`
+- L113 — variável: `changeUserStatus`
+- L114 — variável: `parsed`
+- L120 — variável: `updated`
+- L130 — variável: `resetUserPassword`
+- L131 — variável: `reset`
+- L140 — variável: `getMyProfile`
+- L141 — variável: `profile`
+- L152 — variável: `updateMyProfile`
+- L153 — variável: `actor`
+- L168 — variável: `parsed`
+- L174 — variável: `updated`
 
 ### [src/modules/users/users.repository.ts](../src/modules/users/users.repository.ts)
 
-- L17 â€” variÃ¡vel: `ADMIN_PROFILE_NAME`
-- L31 â€” variÃ¡vel: `row`
-- L62 â€” variÃ¡vel: `conn`
-- L63 â€” variÃ¡vel: `rows`
-- L71 â€” parÃ¢metro: `row`
-- L71 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L85 â€” variÃ¡vel: `row`
-- L96 â€” variÃ¡vel: `PROFESSIONAL_PROFILES`
-- L131 â€” variÃ¡vel: `inserted`
-- L141 â€” variÃ¡vel: `row`
-- L175 â€” variÃ¡vel: `corporateEmail`
-- L179 â€” variÃ¡vel: `hasRequester`
-- L240 â€” variÃ¡vel: `user`
-- L247 â€” variÃ¡vel: `[requester, professional]`
-- L275 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L308 â€” variÃ¡vel: `updated`
-- L319 â€” variÃ¡vel: `adopted`
-- L356 â€” variÃ¡vel: `specialties`
-- L357 â€” variÃ¡vel: `attendedCategoryIds`
-- L360 â€” variÃ¡vel: `updated`
-- L398 â€” retorno da funÃ§Ã£o: `baseQuery()`
-- L401 â€” parÃ¢metro: `builder`
-- L401 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L406 â€” variÃ¡vel: `escapedSearch`
-- L407 â€” parÃ¢metro: `inner`
-- L407 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L417 â€” variÃ¡vel: `countRows`
-- L420 â€” variÃ¡vel: `total`
-- L422 â€” variÃ¡vel: `rows`
-- L439 â€” parÃ¢metro: `row`
-- L439 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L462 â€” variÃ¡vel: `updated`
-- L483 â€” variÃ¡vel: `updated`
-- L512 â€” variÃ¡vel: `updated`
-- L535 â€” variÃ¡vel: `rows`
-- L545 â€” parÃ¢metro: `builder`
-- L545 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L561 â€” variÃ¡vel: `categoryMap`
-- L562 â€” variÃ¡vel: `categories`
-- L565 â€” variÃ¡vel: `cat`
-- L573 â€” variÃ¡vel: `professionalIds`
-- L574 â€” parÃ¢metro: `r`
-- L574 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L575 â€” parÃ¢metro: `id`
-- L576 â€” variÃ¡vel: `counts`
-- L581 â€” variÃ¡vel: `countByProfessional`
-- L582 â€” variÃ¡vel: `c`
-- L586 â€” parÃ¢metro: `row`
-- L586 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L589 â€” variÃ¡vel: `part`
-- L590 â€” variÃ¡vel: `id`
-- L592 â€” variÃ¡vel: `name`
-- L613 â€” variÃ¡vel: `fetchUserMetrics`
-- L614 â€” variÃ¡vel: `result`
-- L655 â€” variÃ¡vel: `next`
-- L673 â€” variÃ¡vel: `anon`
-- L707 â€” retorno da funÃ§Ã£o: `findRequesterByUserId()`
+- L40 — variável: `PROFILE_LOOKUP_COLUMNS`
+- L66 — variável: `{ queryable = db, shouldLockForShare = false }`
+- L67 — variável: `query`
+- L104 — variável: `conn`
+- L105 — variável: `rows`
+- L115 — parâmetro: `row`
+- L115 — retorno da função: `<anônima>()`
+- L129 — variável: `row`
+- L180 — variável: `inserted`
+- L190 — variável: `row`
+- L224 — variável: `corporateEmail`
+- L228 — variável: `hasRequester`
+- L293 — variável: `user`
+- L310 — variável: `[requester, professional]`
+- L342 — retorno da função: `<anônima>()`
+- L375 — variável: `updated`
+- L386 — variável: `adopted`
+- L423 — variável: `specialties`
+- L424 — variável: `attendedCategoryIds`
+- L427 — variável: `updated`
+- L465 — retorno da função: `baseQuery()`
+- L468 — parâmetro: `builder`
+- L468 — retorno da função: `<anônima>()`
+- L473 — variável: `escapedSearch`
+- L474 — parâmetro: `inner`
+- L474 — retorno da função: `<anônima>()`
+- L484 — variável: `countRows`
+- L487 — variável: `total`
+- L489 — variável: `rows`
+- L507 — parâmetro: `row`
+- L507 — retorno da função: `<anônima>()`
+- L530 — variável: `updated`
+- L551 — variável: `updated`
+- L567 — variável: `rows`
+- L569 — retorno da função: `<anônima>()`
+- L581 — parâmetro: `row`
+- L581 — retorno da função: `<anônima>()`
+- L602 — variável: `updated`
+- L631 — variável: `row`
+- L641 — variável: `assignableProfileIds`
+- L644 — variável: `query`
+- L656 — variável: `rows`
+- L670 — variável: `categoryMap`
+- L671 — variável: `categories`
+- L674 — variável: `cat`
+- L682 — parâmetro: `row`
+- L682 — retorno da função: `<anônima>()`
+- L682 — variável: `professionalIds`
+- L683 — variável: `counts`
+- L688 — variável: `countByProfessional`
+- L689 — variável: `c`
+- L693 — parâmetro: `row`
+- L693 — retorno da função: `<anônima>()`
+- L696 — variável: `part`
+- L697 — variável: `id`
+- L699 — variável: `name`
+- L718 — variável: `fetchUserMetrics`
+- L719 — variável: `result`
+- L753 — variável: `existing`
+- L758 — variável: `next`
+- L776 — variável: `anon`
+- L810 — retorno da função: `findRequesterByUserId()`
 
 ### [src/modules/users/users.router.ts](../src/modules/users/users.router.ts)
 
-- L18 â€” variÃ¡vel: `usersRoutes`
+- L18 — variável: `usersRoutes`
 
 ### [src/modules/users/users.schema.ts](../src/modules/users/users.schema.ts)
 
-- L14 â€” variÃ¡vel: `professionalSchema`
-- L24 â€” variÃ¡vel: `PROFESSIONAL_ROLE`
-- L26 â€” variÃ¡vel: `requesterSchema`
-- L33 â€” variÃ¡vel: `createUserSchema`
-- L41 â€” parÃ¢metro: `ctx`
-- L41 â€” parÃ¢metro: `value`
-- L41 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L42 â€” variÃ¡vel: `isAnalyst`
-- L59 â€” variÃ¡vel: `listUsersQuerySchema`
-- L81 â€” variÃ¡vel: `requesterPatchSchema`
-- L88 â€” variÃ¡vel: `changeUserStatusSchema`
-- L92 â€” variÃ¡vel: `updateUserSchema`
-- L105 â€” parÃ¢metro: `ctx`
-- L105 â€” parÃ¢metro: `value`
-- L105 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L107 â€” variÃ¡vel: `isAnalyst`
+- L14 — variável: `professionalSchema`
+- L23 — variável: `requesterSchema`
+- L31 — variável: `profileIdSchema`
+- L37 — variável: `createUserSchema`
+- L48 — variável: `listUsersQuerySchema`
+- L69 — variável: `listAssignableProfessionalsQuerySchema`
+- L80 — variável: `requesterPatchSchema`
+- L87 — variável: `changeUserStatusSchema`
+- L91 — variável: `updateUserSchema`
+- L100 — parâmetro: `ctx`
+- L100 — parâmetro: `value`
+- L100 — retorno da função: `<anônima>()`
 
 ### [src/modules/users/users.service.ts](../src/modules/users/users.service.ts)
 
-- L35 â€” variÃ¡vel: `AVATAR_DIR`
-- L36 â€” variÃ¡vel: `ROLE_ANALYST`
-- L38 â€” variÃ¡vel: `CHANGE_ORIGIN_ADMIN`
-- L47 â€” variÃ¡vel: `id`
-- L70 â€” variÃ¡vel: `profileId`
-- L83 â€” variÃ¡vel: `getUserMetrics`
-- L95 â€” variÃ¡vel: `profileId`
-- L103 â€” variÃ¡vel: `temporaryPassword`
-- L104 â€” variÃ¡vel: `passwordHash`
-- L111 â€” parÃ¢metro: `trx`
-- L111 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L112 â€” variÃ¡vel: `created`
-- L125 â€” variÃ¡vel: `professional`
-- L148 â€” variÃ¡vel: `error`
-- L177 â€” variÃ¡vel: `id`
-- L183 â€” variÃ¡vel: `user`
-- L192 â€” parÃ¢metro: `trx`
-- L192 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L215 â€” variÃ¡vel: `id`
-- L221 â€” variÃ¡vel: `user`
-- L228 â€” variÃ¡vel: `temporaryPassword`
-- L229 â€” variÃ¡vel: `passwordHash`
-- L233 â€” parÃ¢metro: `trx`
-- L233 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L282 â€” variÃ¡vel: `row`
-- L336 â€” variÃ¡vel: `user`
-- L342 â€” variÃ¡vel: `snapshot`
-- L343 â€” variÃ¡vel: `previousValue`
-- L350 â€” parÃ¢metro: `trx`
-- L350 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L362 â€” variÃ¡vel: `changesAdministrativeFields`
-- L397 â€” variÃ¡vel: `url`
-- L400 â€” variÃ¡vel: `url`
-- L428 â€” variÃ¡vel: `saved`
-- L429 â€” variÃ¡vel: `attachment`
-- L437 â€” variÃ¡vel: `key`
-- L438 â€” variÃ¡vel: `storagePath`
-- L439 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L456 â€” variÃ¡vel: `id`
-- L462 â€” variÃ¡vel: `target`
-- L467 â€” variÃ¡vel: `isTargetAdmin`
-- L468 â€” variÃ¡vel: `hasNonRequesterPatch`
-- L481 â€” variÃ¡vel: `pid`
-- L485 â€” variÃ¡vel: `role`
-- L490 â€” variÃ¡vel: `finalRoleName`
-- L491 â€” variÃ¡vel: `isFinalAnalyst`
-- L492 â€” variÃ¡vel: `wasAnalyst`
-- L510 â€” variÃ¡vel: `before`
-- L513 â€” parÃ¢metro: `trx`
-- L513 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L523 â€” variÃ¡vel: `fullName`
-- L524 â€” variÃ¡vel: `corporateEmail`
-- L537 â€” variÃ¡vel: `fullName`
-- L538 â€” variÃ¡vel: `corporateEmail`
-- L558 â€” variÃ¡vel: `error`
-- L565 â€” variÃ¡vel: `updated`
-- L576 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L43 — variável: `AVATAR_DIR`
+- L45 — variável: `CHANGE_ORIGIN_ADMIN`
+- L48 — variável: `CODE_ACCOUNT_OUT_OF_AUTHORITY`
+- L49 — variável: `CODE_ROOT_ACCOUNT_PROTECTED`
+- L50 — variável: `CODE_SELF_MANAGEMENT_FORBIDDEN`
+- L51 — variável: `CODE_PROFILE_INACTIVE`
+- L52 — variável: `CODE_USER_MANAGE_REQUIRED`
+- L53 — variável: `CODE_PROFESSIONAL_PROFILE_NOT_ASSIGNABLE`
+- L54 — variável: `CODE_USER_HAS_OPEN_ASSIGNMENTS`
+- L73 — variável: `shouldHaveExtension`
+- L99 — variável: `id`
+- L108 — variável: `id`
+- L117 — variável: `actorUser`
+- L131 — variável: `actorUser`
+- L137 — variável: `grants`
+- L144 — variável: `grants`
+- L167 — variável: `assignedProtocols`
+- L202 — variável: `targetGrants`
+- L229 — variável: `profileGrants`
+- L249 — variável: `profile`
+- L271 — variável: `requesterUserId`
+- L280 — variável: `getUserMetrics`
+- L292 — variável: `profile`
+- L299 — variável: `actorAuthority`
+- L302 — variável: `profileId`
+- L304 — variável: `temporaryPassword`
+- L305 — variável: `passwordHash`
+- L312 — parâmetro: `trx`
+- L312 — retorno da função: `<anônima>()`
+- L313 — variável: `currentProfile`
+- L327 — variável: `needsProfessionalExtension`
+- L332 — variável: `created`
+- L361 — variável: `error`
+- L390 — variável: `id`
+- L394 — variável: `user`
+- L399 — variável: `actorAuthority`
+- L404 — parâmetro: `trx`
+- L404 — retorno da função: `<anônima>()`
+- L431 — variável: `id`
+- L435 — variável: `user`
+- L440 — variável: `actorAuthority`
+- L443 — variável: `temporaryPassword`
+- L444 — variável: `passwordHash`
+- L448 — parâmetro: `trx`
+- L448 — retorno da função: `<anônima>()`
+- L501 — variável: `row`
+- L506 — variável: `isAssignable`
+- L542 — variável: `userId`
+- L551 — variável: `user`
+- L557 — variável: `snapshot`
+- L558 — variável: `previousValue`
+- L565 — parâmetro: `trx`
+- L565 — retorno da função: `<anônima>()`
+- L577 — variável: `changesAdministrativeFields`
+- L584 — variável: `canManageAccounts`
+- L585 — parâmetro: `permission`
+- L585 — retorno da função: `<anônima>()`
+- L618 — variável: `url`
+- L621 — variável: `url`
+- L649 — variável: `saved`
+- L650 — variável: `attachment`
+- L658 — variável: `key`
+- L659 — variável: `storagePath`
+- L660 — retorno da função: `<anônima>()`
+- L677 — variável: `id`
+- L681 — variável: `target`
+- L686 — variável: `actorAuthority`
+- L693 — variável: `profile`
+- L704 — variável: `before`
+- L707 — parâmetro: `trx`
+- L707 — retorno da função: `<anônima>()`
+- L708 — variável: `sourceProfile`
+- L715 — variável: `destinationProfileId`
+- L716 — variável: `destinationProfile`
+- L729 — variável: `needsProfessionalExtension`
+- L743 — variável: `fullName`
+- L744 — variável: `corporateEmail`
+- L760 — variável: `fullName`
+- L761 — variável: `corporateEmail`
+- L781 — variável: `error`
+- L788 — variável: `updated`
+- L792 — variável: `isUpdatedProfileAssignable`
+- L793 — variável: `professional`
 
 ### [src/router.ts](../src/router.ts)
 
-- L17 â€” variÃ¡vel: `router`
+- L18 — variável: `router`
 
 ### [src/server.ts](../src/server.ts)
 
-- L5 â€” variÃ¡vel: `PORT`
-- L8 â€” parÃ¢metro: `e`
-- L8 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L10 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L5 — variável: `PORT`
+- L8 — parâmetro: `e`
+- L8 — retorno da função: `<anônima>()`
+- L10 — retorno da função: `<anônima>()`
+
+### [src/shared/access/accountAuthority.ts](../src/shared/access/accountAuthority.ts)
+
+- L29 — parâmetro: `grant`
+- L29 — retorno da função: `<anônima>()`
+- L29 — variável: `actorCustodyByKey`
+- L31 — parâmetro: `grant`
+- L31 — retorno da função: `<anônima>()`
+- L32 — variável: `actorCustody`
+
+### [src/shared/access/assignability.ts](../src/shared/access/assignability.ts)
+
+- L12 — variável: `CODE_ASSIGNEE_NOT_ASSIGNABLE`
+- L15 — variável: `CODE_ASSIGNEE_IS_REQUESTER`
+- L56 — variável: `ASSIGNABILITY_FLAGS`
+- L87 — retorno da função: `<anônima>()`
+- L87 — variável: `placeholders`
+- L98 — parâmetro: `stage`
+- L98 — retorno da função: `<anônima>()`
+- L98 — variável: `predicates`
+- L105 — parâmetro: `{ stage, predicate }`
+- L105 — retorno da função: `<anônima>()`
+- L109 — parâmetro: `{ predicate }`
+- L109 — retorno da função: `<anônima>()`
+- L117 — variável: `{ queryable = db, stage }`
+- L119 — variável: `predicate`
+- L121 — variável: `rows`
+- L126 — parâmetro: `row`
+- L126 — retorno da função: `<anônima>()`
+- L134 — variável: `{ queryable = db }`
+- L135 — variável: `predicate`
+- L136 — variável: `row`
+- L155 — variável: `{ queryable = db, requireFlag = false, requireActive = false }`
+- L156 — variável: `keys`
+- L157 — variável: `predicate`
+- L159 — variável: `query`
+- L170 — variável: `row`
+
+### [src/shared/access/currentMapping.ts](../src/shared/access/currentMapping.ts)
+
+- L13 — variável: `CURRENT_MAPPING_ASSIGNEE_JOIN`
+
+### [src/shared/access/custody.ts](../src/shared/access/custody.ts)
+
+- L60 — variável: `custody`
+- L63 — variável: `validResponsibleIds`
+- L64 — parâmetro: `userId`
+- L76 — parâmetro: `permission`
+- L76 — retorno da função: `<anônima>()`
+- L99 — variável: `custody`
+
+### [src/shared/access/permissionActor.ts](../src/shared/access/permissionActor.ts)
+
+- L20 — variável: `id`
+- L41 — variável: `actor`
+- L42 — variável: `name`
+
+### [src/shared/access/portalSections.ts](../src/shared/access/portalSections.ts)
+
+- L10 — variável: `PORTAL_SECTION_READ_KEY`
+
+### [src/shared/access/requestAccess.ts](../src/shared/access/requestAccess.ts)
+
+- L35 — variável: `id`
+- L51 — parâmetro: `permission`
+- L51 — retorno da função: `<anônima>()`
+- L60 — variável: `custody`
+- L85 — variável: `responsibleIds`
+- L86 — parâmetro: `value`
+- L86 — retorno da função: `<anônima>()`
+- L87 — parâmetro: `value`
+- L87 — retorno da função: `<anônima>()`
+- L103 — variável: `requesterUserId`
+- L125 — parâmetro: `trx`
+- L125 — retorno da função: `<anônima>()`
+
+### [src/shared/audit/accessDenied.ts](../src/shared/audit/accessDenied.ts)
+
+- L21 — parâmetro: `trx`
+- L21 — retorno da função: `<anônima>()`
 
 ### [src/shared/audit/auditCatalog.ts](../src/shared/audit/auditCatalog.ts)
 
-- L13 â€” variÃ¡vel: `auditCatalog`
-- L89 â€” parÃ¢metro: `action`
-- L89 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L13 — variável: `auditCatalog`
+- L102 — parâmetro: `action`
+- L102 — retorno da função: `<anônima>()`
 
 ### [src/shared/audit/auditLogger.ts](../src/shared/audit/auditLogger.ts)
 
-- L67 â€” variÃ¡vel: `rows`
-- L84 â€” variÃ¡vel: `row`
+- L106 — variável: `actorProfile`
+- L108 — variável: `rows`
+- L128 — variável: `row`
+
+### [src/shared/catalog/baseProfiles.ts](../src/shared/catalog/baseProfiles.ts)
+
+- L33 — variável: `entry`
+- L47 — parâmetro: `key`
+- L47 — retorno da função: `<anônima>()`
+- L52 — parâmetro: `entry`
+- L52 — retorno da função: `<anônima>()`
+- L147 — parâmetro: `profile`
+- L147 — retorno da função: `<anônima>()`
+- L147 — variável: `rootProfiles`
+- L153 — variável: `seenNames`
+- L155 — variável: `profile`
+- L161 — variável: `seenKeys`
+- L163 — variável: `grant`
 
 ### [src/shared/catalog/fieldCatalog.ts](../src/shared/catalog/fieldCatalog.ts)
 
-- L6 â€” variÃ¡vel: `FIELD_KEYS`
-- L162 â€” variÃ¡vel: `value`
-- L164 â€” variÃ¡vel: `date`
+- L6 — variável: `FIELD_KEYS`
+- L162 — variável: `value`
+- L164 — variável: `date`
+
+### [src/shared/catalog/permissionCatalog.ts](../src/shared/catalog/permissionCatalog.ts)
+
+- L12 — variável: `CUSTODIES`
+- L37 — variável: `PERMISSION_CATALOG`
+- L274 — variável: `ASSIGNABILITY_PREDICATES`
+- L279 — variável: `DEFINITION_BY_KEY`
+- L280 — parâmetro: `entry`
+- L280 — retorno da função: `<anônima>()`
+- L283 — variável: `ORDER_BY_KEY`
+- L284 — parâmetro: `entry`
+- L284 — parâmetro: `index`
+- L284 — retorno da função: `<anônima>()`
+- L288 — variável: `entry`
+- L331 — variável: `seen`
+- L334 — variável: `grant`
+- L335 — variável: `entry`
+- L363 — variável: `permission`
+- L364 — variável: `dependency`
+- L371 — parâmetro: `left`
+- L371 — parâmetro: `right`
+- L371 — retorno da função: `<anônima>()`
+- L373 — parâmetro: `{ key, custody }`
+- L373 — retorno da função: `<anônima>()`
+- L381 — variável: `keys`
+- L383 — variável: `entry`
+- L393 — variável: `acceptsGlobal`
+- L404 — variável: `entry`
+- L405 — variável: `dependency`
 
 ### [src/shared/datetime/businessDay.ts](../src/shared/datetime/businessDay.ts)
 
-- L4 â€” variÃ¡vel: `BUSINESS_TIME_ZONE`
-- L6 â€” variÃ¡vel: `UTC_TIME_ZONE`
+- L4 — variável: `BUSINESS_TIME_ZONE`
+- L6 — variável: `UTC_TIME_ZONE`
 
 ### [src/shared/errors/AppError.ts](../src/shared/errors/AppError.ts)
 
-- L5 â€” parÃ¢metro: `statusCode`
+- L5 — parâmetro: `statusCode`
 
 ### [src/shared/middleware/accessMode.ts](../src/shared/middleware/accessMode.ts)
 
-- L19 â€” retorno da funÃ§Ã£o: `requireAccessMode()`
-- L27 â€” variÃ¡vel: `error`
+- L7 — variável: `COOKIE_NAME`
+- L24 — retorno da função: `requireAccessMode()`
+- L32 — variável: `error`
+- L39 — variável: `hasSessionCookie`
 
 ### [src/shared/middleware/auth.ts](../src/shared/middleware/auth.ts)
 
-- L9 â€” variÃ¡vel: `{ JsonWebTokenError, NotBeforeError, TokenExpiredError }`
-- L10 â€” variÃ¡vel: `COOKIE_NAME`
-- L25 â€” variÃ¡vel: `token`
-- L35 â€” variÃ¡vel: `userState`
-- L47 â€” variÃ¡vel: `scope`
-- L54 â€” variÃ¡vel: `isPendingChangeAllowedRoute`
-- L66 â€” variÃ¡vel: `tokenPasswordChangedAt`
-- L67 â€” variÃ¡vel: `currentPasswordChangedAt`
-- L87 â€” variÃ¡vel: `error`
+- L8 — variável: `{ JsonWebTokenError, NotBeforeError, TokenExpiredError }`
+- L9 — variável: `COOKIE_NAME`
+- L24 — variável: `token`
+- L34 — variável: `userState`
+- L46 — variável: `scope`
+- L53 — variável: `isPendingChangeAllowedRoute`
+- L65 — variável: `tokenPasswordChangedAt`
+- L66 — variável: `currentPasswordChangedAt`
+- L85 — variável: `error`
 
 ### [src/shared/middleware/dualAuth.ts](../src/shared/middleware/dualAuth.ts)
 
-- L24 â€” variÃ¡vel: `hasCookie`
-- L31 â€” variÃ¡vel: `identity`
+- L24 — variável: `hasCookie`
+- L31 — variável: `identity`
 
 ### [src/shared/middleware/errorHandler.ts](../src/shared/middleware/errorHandler.ts)
 
-- L25 â€” variÃ¡vel: `fields`
-- L34 â€” variÃ¡vel: `maybeHttp`
-- L35 â€” variÃ¡vel: `statusCode`
+- L25 — variável: `fields`
+- L34 — variável: `maybeHttp`
+- L35 — variável: `statusCode`
 
 ### [src/shared/middleware/rateLimit.ts](../src/shared/middleware/rateLimit.ts)
 
-- L7 â€” retorno da funÃ§Ã£o: `createRateLimiter()`
-- L8 â€” variÃ¡vel: `{ windowMs, limit, keyGenerator }`
-- L9 â€” variÃ¡vel: `buckets`
-- L12 â€” variÃ¡vel: `normalized`
-- L13 â€” variÃ¡vel: `now`
-- L14 â€” variÃ¡vel: `arr`
-- L15 â€” parÃ¢metro: `t`
-- L15 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L15 â€” variÃ¡vel: `recent`
+- L7 — retorno da função: `createRateLimiter()`
+- L8 — variável: `{ windowMs, limit, keyGenerator }`
+- L9 — variável: `buckets`
+- L12 — variável: `normalized`
+- L13 — variável: `now`
+- L14 — variável: `arr`
+- L15 — parâmetro: `t`
+- L15 — retorno da função: `<anônima>()`
+- L15 — variável: `recent`
 
-### [src/shared/middleware/requireRole.ts](../src/shared/middleware/requireRole.ts)
+### [src/shared/middleware/requirePermission.ts](../src/shared/middleware/requirePermission.ts)
 
-- L9 â€” retorno da funÃ§Ã£o: `requireRole()`
-- L21 â€” variÃ¡vel: `expected`
+- L12 — variável: `protocol`
+- L13 — variável: `note`
+- L26 — variável: `resource`
+- L29 — variável: `routePath`
+- L62 — retorno da função: `requireAnyPermission()`
+- L63 — variável: `requiredKeys`
+- L80 — variável: `grants`
+- L81 — variável: `permissions`
+- L83 — parâmetro: `permission`
+- L83 — retorno da função: `<anônima>()`
+- L95 — retorno da função: `requirePermission()`
+- L103 — retorno da função: `requirePermissionIfSession()`
+- L104 — variável: `gate`
 
 ### [src/shared/middleware/upload.ts](../src/shared/middleware/upload.ts)
 
-- L6 â€” variÃ¡vel: `ALLOWED_MIMES`
-- L14 â€” variÃ¡vel: `ALLOWED_EXTENSIONS`
-- L16 â€” variÃ¡vel: `MAX_FILE_SIZE_BYTES`
-- L17 â€” variÃ¡vel: `MAX_ATTACHMENT_COUNT`
-- L18 â€” variÃ¡vel: `MAX_FIELD_SIZE_BYTES`
-- L20 â€” variÃ¡vel: `upload`
-- L27 â€” parÃ¢metro: `_req`
-- L27 â€” parÃ¢metro: `cb`
-- L27 â€” parÃ¢metro: `file`
-- L27 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L28 â€” variÃ¡vel: `extension`
-- L43 â€” variÃ¡vel: `multerFields`
-- L57 â€” parÃ¢metro: `err`
-- L57 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L6 — variável: `ALLOWED_MIMES`
+- L14 — variável: `ALLOWED_EXTENSIONS`
+- L16 — variável: `MAX_FILE_SIZE_BYTES`
+- L17 — variável: `MAX_ATTACHMENT_COUNT`
+- L18 — variável: `MAX_FIELD_SIZE_BYTES`
+- L20 — variável: `upload`
+- L27 — parâmetro: `_req`
+- L27 — parâmetro: `cb`
+- L27 — parâmetro: `file`
+- L27 — retorno da função: `<anônima>()`
+- L28 — variável: `extension`
+- L43 — variável: `multerFields`
+- L57 — parâmetro: `err`
+- L57 — retorno da função: `<anônima>()`
 
 ### [src/shared/middleware/uploadAssets.ts](../src/shared/middleware/uploadAssets.ts)
 
-- L58 â€” parÃ¢metro: `r`
-- L58 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L58 â€” variÃ¡vel: `MAX_FILE_SIZE`
-- L59 â€” variÃ¡vel: `MAX_FIELD_SIZE`
-- L61 â€” variÃ¡vel: `upload`
-- L69 â€” parÃ¢metro: `_req`
-- L69 â€” parÃ¢metro: `cb`
-- L69 â€” parÃ¢metro: `file`
-- L69 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L70 â€” variÃ¡vel: `rules`
-- L76 â€” variÃ¡vel: `ext`
-- L101 â€” variÃ¡vel: `multerFields`
-- L125 â€” parÃ¢metro: `err`
-- L125 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L132 â€” variÃ¡vel: `message`
-- L133 â€” variÃ¡vel: `statusCode`
-- L148 â€” variÃ¡vel: `files`
-- L154 â€” variÃ¡vel: `[fieldName, fileArray]`
-- L155 â€” variÃ¡vel: `rules`
-- L158 â€” variÃ¡vel: `file`
-- L160 â€” variÃ¡vel: `maxMb`
+- L58 — parâmetro: `r`
+- L58 — retorno da função: `<anônima>()`
+- L58 — variável: `MAX_FILE_SIZE`
+- L59 — variável: `MAX_FIELD_SIZE`
+- L61 — variável: `upload`
+- L69 — parâmetro: `_req`
+- L69 — parâmetro: `cb`
+- L69 — parâmetro: `file`
+- L69 — retorno da função: `<anônima>()`
+- L70 — variável: `rules`
+- L76 — variável: `ext`
+- L101 — variável: `multerFields`
+- L125 — parâmetro: `err`
+- L125 — retorno da função: `<anônima>()`
+- L132 — variável: `message`
+- L133 — variável: `statusCode`
+- L148 — variável: `files`
+- L154 — variável: `[fieldName, fileArray]`
+- L155 — variável: `rules`
+- L158 — variável: `file`
+- L160 — variável: `maxMb`
 
 ### [src/shared/middleware/uploadAvatar.ts](../src/shared/middleware/uploadAvatar.ts)
 
-- L14 â€” variÃ¡vel: `avatarRules`
-- L20 â€” variÃ¡vel: `MAX_FIELD_SIZE`
-- L22 â€” variÃ¡vel: `upload`
-- L30 â€” parÃ¢metro: `_req`
-- L30 â€” parÃ¢metro: `cb`
-- L30 â€” parÃ¢metro: `file`
-- L30 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L36 â€” variÃ¡vel: `ext`
-- L61 â€” variÃ¡vel: `single`
-- L70 â€” parÃ¢metro: `err`
-- L70 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L77 â€” variÃ¡vel: `message`
-- L78 â€” variÃ¡vel: `statusCode`
+- L14 — variável: `avatarRules`
+- L20 — variável: `MAX_FIELD_SIZE`
+- L22 — variável: `upload`
+- L30 — parâmetro: `_req`
+- L30 — parâmetro: `cb`
+- L30 — parâmetro: `file`
+- L30 — retorno da função: `<anônima>()`
+- L36 — variável: `ext`
+- L61 — variável: `single`
+- L70 — parâmetro: `err`
+- L70 — retorno da função: `<anônima>()`
+- L77 — variável: `message`
+- L78 — variável: `statusCode`
 
 ### [src/shared/notifications/emitNotification.ts](../src/shared/notifications/emitNotification.ts)
 
-- L32 â€” variÃ¡vel: `parsed`
-- L38 â€” variÃ¡vel: `data`
-- L39 â€” variÃ¡vel: `recipients`
-- L40 â€” parÃ¢metro: `userId`
-- L40 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L45 â€” variÃ¡vel: `recipientUserId`
-- L46 â€” variÃ¡vel: `channel`
-- L47 â€” variÃ¡vel: `delivery`
+- L32 — variável: `parsed`
+- L38 — variável: `data`
+- L39 — variável: `recipients`
+- L40 — parâmetro: `userId`
+- L40 — retorno da função: `<anônima>()`
+- L45 — variável: `recipientUserId`
+- L46 — variável: `channel`
+- L47 — variável: `delivery`
 
 ### [src/shared/notifications/inAppNotificationChannel.ts](../src/shared/notifications/inAppNotificationChannel.ts)
 
-- L25 â€” variÃ¡vel: `rows`
-- L37 â€” variÃ¡vel: `row`
+- L25 — variável: `rows`
+- L37 — variável: `row`
 
 ### [src/shared/notifications/mappingScheduledNotification.ts](../src/shared/notifications/mappingScheduledNotification.ts)
 
-- L38 â€” variÃ¡vel: `recipientUserIds`
-- L39 â€” parÃ¢metro: `userId`
+- L38 — variável: `recipientUserIds`
+- L39 — parâmetro: `userId`
 
 ### [src/shared/notifications/notificationEmitter.ts](../src/shared/notifications/notificationEmitter.ts)
 
-- L4 â€” variÃ¡vel: `NOTIFICATIONS_COMMITTED`
-- L15 â€” variÃ¡vel: `emitter`
-- L23 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L27 â€” variÃ¡vel: `idsByUser`
-- L29 â€” variÃ¡vel: `notification`
-- L30 â€” variÃ¡vel: `ids`
-- L39 â€” variÃ¡vel: `[userId, notificationIds]`
+- L4 — variável: `NOTIFICATIONS_COMMITTED`
+- L15 — variável: `emitter`
+- L23 — retorno da função: `<anônima>()`
+- L27 — variável: `idsByUser`
+- L29 — variável: `notification`
+- L30 — variável: `ids`
+- L39 — variável: `[userId, notificationIds]`
 
 ### [src/shared/notifications/notificationEvents.ts](../src/shared/notifications/notificationEvents.ts)
 
-- L13 â€” variÃ¡vel: `PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE`
-- L16 â€” variÃ¡vel: `requestPointerPayloadSchema`
-- L24 â€” retorno da funÃ§Ã£o: `pendingItemPayloadSchema()`
-- L32 â€” variÃ¡vel: `pendingItemCreatedPayloadSchema`
-- L33 â€” variÃ¡vel: `pendingItemReopenedPayloadSchema`
-- L34 â€” variÃ¡vel: `pendingItemValidatedPayloadSchema`
-- L36 â€” variÃ¡vel: `statusChangedPayloadSchema`
-- L44 â€” variÃ¡vel: `mappingScheduledPayloadSchema`
-- L51 â€” variÃ¡vel: `pendingItemRespondedPayloadSchema`
-- L57 â€” variÃ¡vel: `pendingItemRespondedUnassignedPayloadSchema`
-- L64 â€” variÃ¡vel: `responsibleAssignedPayloadSchema`
-- L74 â€” variÃ¡vel: `notificationPayloadSchema`
-- L102 â€” variÃ¡vel: `notificationEventFields`
-- L110 â€” variÃ¡vel: `notificationEventBaseSchema`
-- L124 â€” retorno da funÃ§Ã£o: `notificationEventSchemaFor()`
-- L133 â€” variÃ¡vel: `statusChangedEventSchema`
-- L141 â€” variÃ¡vel: `mappingScheduledEventSchema`
-- L146 â€” variÃ¡vel: `pendingItemCreatedEventSchema`
-- L151 â€” variÃ¡vel: `pendingItemReopenedEventSchema`
-- L156 â€” variÃ¡vel: `pendingItemValidatedEventSchema`
-- L165 â€” variÃ¡vel: `pendingItemEventBaseSchema`
-- L172 â€” variÃ¡vel: `pendingItemRespondedEventSchema`
-- L179 â€” variÃ¡vel: `pendingItemRespondedUnassignedEventSchema`
-- L186 â€” variÃ¡vel: `responsibleAssignedEventSchema`
-- L197 â€” variÃ¡vel: `notificationEventSchema`
-- L219 â€” variÃ¡vel: `PENDING_ITEM_EVENT_TYPES`
-- L233 â€” variÃ¡vel: `NOTIFICATION_EVENT_TYPES`
+- L13 — variável: `PENDING_ITEM_RESPONDED_UNASSIGNED_NOTICE`
+- L16 — variável: `requestPointerPayloadSchema`
+- L24 — retorno da função: `pendingItemPayloadSchema()`
+- L32 — variável: `pendingItemCreatedPayloadSchema`
+- L33 — variável: `pendingItemReopenedPayloadSchema`
+- L34 — variável: `pendingItemValidatedPayloadSchema`
+- L36 — variável: `statusChangedPayloadSchema`
+- L44 — variável: `mappingScheduledPayloadSchema`
+- L51 — variável: `pendingItemRespondedPayloadSchema`
+- L57 — variável: `pendingItemRespondedUnassignedPayloadSchema`
+- L64 — variável: `responsibleAssignedPayloadSchema`
+- L74 — variável: `notificationPayloadSchema`
+- L102 — variável: `notificationEventFields`
+- L110 — variável: `notificationEventBaseSchema`
+- L124 — retorno da função: `notificationEventSchemaFor()`
+- L133 — variável: `statusChangedEventSchema`
+- L141 — variável: `mappingScheduledEventSchema`
+- L146 — variável: `pendingItemCreatedEventSchema`
+- L151 — variável: `pendingItemReopenedEventSchema`
+- L156 — variável: `pendingItemValidatedEventSchema`
+- L165 — variável: `pendingItemEventBaseSchema`
+- L172 — variável: `pendingItemRespondedEventSchema`
+- L179 — variável: `pendingItemRespondedUnassignedEventSchema`
+- L186 — variável: `responsibleAssignedEventSchema`
+- L197 — variável: `notificationEventSchema`
+- L219 — variável: `PENDING_ITEM_EVENT_TYPES`
+- L233 — variável: `NOTIFICATION_EVENT_TYPES`
 
 ### [src/shared/notifications/pendingItemNotification.ts](../src/shared/notifications/pendingItemNotification.ts)
 
-- L45 â€” variÃ¡vel: `PENDING_ITEM_EVENT_BY_ACTION`
-- L48 â€” parÃ¢metro: `eventBase`
-- L48 â€” parÃ¢metro: `requestPointer`
-- L48 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L56 â€” parÃ¢metro: `eventBase`
-- L56 â€” parÃ¢metro: `requestPointer`
-- L56 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L64 â€” parÃ¢metro: `eventBase`
-- L64 â€” parÃ¢metro: `requestPointer`
-- L64 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L77 â€” variÃ¡vel: `{ request, actorUserId }`
-- L80 â€” variÃ¡vel: `eventBuilder`
-- L108 â€” variÃ¡vel: `eventInput`
+- L45 — variável: `PENDING_ITEM_EVENT_BY_ACTION`
+- L48 — parâmetro: `eventBase`
+- L48 — parâmetro: `requestPointer`
+- L48 — retorno da função: `<anônima>()`
+- L56 — parâmetro: `eventBase`
+- L56 — parâmetro: `requestPointer`
+- L56 — retorno da função: `<anônima>()`
+- L64 — parâmetro: `eventBase`
+- L64 — parâmetro: `requestPointer`
+- L64 — retorno da função: `<anônima>()`
+- L77 — variável: `{ request, actorUserId }`
+- L80 — variável: `eventBuilder`
+- L108 — variável: `eventInput`
 
 ### [src/shared/notifications/pendingItemRespondedNotification.ts](../src/shared/notifications/pendingItemRespondedNotification.ts)
 
-- L11 â€” variÃ¡vel: `EVENT_KEY_PREFIX`
-- L62 â€” variÃ¡vel: `recipientUserIds`
-- L93 â€” variÃ¡vel: `event`
+- L11 — variável: `EVENT_KEY_PREFIX`
+- L62 — variável: `recipientUserIds`
+- L93 — variável: `event`
 
 ### [src/shared/protocol/generateProtocol.ts](../src/shared/protocol/generateProtocol.ts)
 
-- L4 â€” variÃ¡vel: `ALPHABET`
-- L5 â€” variÃ¡vel: `CODE_LENGTH`
-- L6 â€” variÃ¡vel: `CODE_BITS`
-- L7 â€” variÃ¡vel: `HALF_BITS`
-- L8 â€” variÃ¡vel: `HALF_MASK`
-- L9 â€” variÃ¡vel: `DOMAIN`
-- L10 â€” variÃ¡vel: `ROUNDS`
-- L15 â€” variÃ¡vel: `digest`
-- L18 â€” variÃ¡vel: `chunk`
-- L23 â€” variÃ¡vel: `left`
-- L24 â€” variÃ¡vel: `right`
-- L26 â€” variÃ¡vel: `round`
-- L27 â€” variÃ¡vel: `nextLeft`
-- L28 â€” variÃ¡vel: `nextRight`
-- L37 â€” variÃ¡vel: `code`
-- L38 â€” variÃ¡vel: `index`
-- L39 â€” variÃ¡vel: `shift`
-- L40 â€” variÃ¡vel: `charIndex`
-- L50 â€” variÃ¡vel: `value`
-- L56 â€” variÃ¡vel: `code`
+- L4 — variável: `ALPHABET`
+- L5 — variável: `CODE_LENGTH`
+- L6 — variável: `CODE_BITS`
+- L7 — variável: `HALF_BITS`
+- L8 — variável: `HALF_MASK`
+- L9 — variável: `DOMAIN`
+- L10 — variável: `ROUNDS`
+- L15 — variável: `digest`
+- L18 — variável: `chunk`
+- L23 — variável: `left`
+- L24 — variável: `right`
+- L26 — variável: `round`
+- L27 — variável: `nextLeft`
+- L28 — variável: `nextRight`
+- L37 — variável: `code`
+- L38 — variável: `index`
+- L39 — variável: `shift`
+- L40 — variável: `charIndex`
+- L50 — variável: `value`
+- L56 — variável: `code`
 
 ### [src/shared/storage/fileStorage.ts](../src/shared/storage/fileStorage.ts)
 
-- L22 â€” variÃ¡vel: `dir`
-- L27 â€” variÃ¡vel: `i`
-- L28 â€” variÃ¡vel: `file`
-- L30 â€” variÃ¡vel: `prefix`
-- L31 â€” variÃ¡vel: `filename`
-- L32 â€” variÃ¡vel: `storagePath`
-- L42 â€” variÃ¡vel: `err`
-- L52 â€” parÃ¢metro: `attachment`
-- L52 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L22 — variável: `dir`
+- L27 — variável: `i`
+- L28 — variável: `file`
+- L30 — variável: `prefix`
+- L31 — variável: `filename`
+- L32 — variável: `storagePath`
+- L42 — variável: `err`
+- L52 — parâmetro: `attachment`
+- L52 — retorno da função: `<anônima>()`
 
 ### [src/shared/types/criteria.ts](../src/shared/types/criteria.ts)
 
-- L22 â€” parÃ¢metro: `[key, id]`
-- L22 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L22 — parâmetro: `[key, id]`
+- L22 — retorno da função: `<anônima>()`
 
 ### [src/shared/types/portalConfig.ts](../src/shared/types/portalConfig.ts)
 
-- L34 â€” variÃ¡vel: `ASSET_KEYS`
-- L56 â€” variÃ¡vel: `THEME_TOKEN_KEYS`
-- L122 â€” variÃ¡vel: `STATUS_MODES`
-- L153 â€” variÃ¡vel: `PRIORITIZATION_CRITERIA`
+- L34 — variável: `ASSET_KEYS`
+- L56 — variável: `THEME_TOKEN_KEYS`
+- L122 — variável: `STATUS_MODES`
+- L153 — variável: `PRIORITIZATION_CRITERIA`
 
 ### [src/shared/types/queue.types.ts](../src/shared/types/queue.types.ts)
 
-- L24 â€” variÃ¡vel: `QUEUE_SORT_BY`
-- L28 â€” variÃ¡vel: `QUEUE_SORT_ORDER`
+- L24 — variável: `QUEUE_SORT_BY`
+- L28 — variável: `QUEUE_SORT_ORDER`
 
 ### [src/shared/types/requests.ts](../src/shared/types/requests.ts)
 
-- L10 â€” variÃ¡vel: `REQUEST_PRIORITIES`
-- L21 â€” variÃ¡vel: `TERMINAL_STATUSES`
-
-### [src/shared/types/role.ts](../src/shared/types/role.ts)
-
-- L1 â€” variÃ¡vel: `ROLES`
+- L10 — variável: `REQUEST_PRIORITIES`
+- L21 — variável: `TERMINAL_STATUSES`
 
 ### [src/shared/types/status.ts](../src/shared/types/status.ts)
 
-- L10 â€” variÃ¡vel: `STATUS_IDS`
-- L23 â€” variÃ¡vel: `CORE_STATUS_IDS`
+- L10 — variável: `STATUS_IDS`
+- L23 — variável: `CORE_STATUS_IDS`
 
 ### [src/shared/types/systemTheme.ts](../src/shared/types/systemTheme.ts)
 
-- L2 â€” variÃ¡vel: `STATUS_TONES`
-- L6 â€” variÃ¡vel: `THEME_TOKEN_KEYS`
+- L2 — variável: `STATUS_TONES`
+- L6 — variável: `THEME_TOKEN_KEYS`
 
 ### [src/shared/utils/date.ts](../src/shared/utils/date.ts)
 
-- L13 â€” variÃ¡vel: `date`
-- L32 â€” variÃ¡vel: `date`
-- L38 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L38 â€” variÃ¡vel: `pad`
-- L49 â€” variÃ¡vel: `date`
-- L69 â€” variÃ¡vel: `year`
-- L70 â€” variÃ¡vel: `month`
-- L71 â€” variÃ¡vel: `day`
-- L81 â€” variÃ¡vel: `year`
-- L82 â€” variÃ¡vel: `month`
-- L83 â€” variÃ¡vel: `day`
-- L84 â€” variÃ¡vel: `hours`
-- L85 â€” variÃ¡vel: `minutes`
+- L13 — variável: `date`
+- L32 — variável: `date`
+- L38 — retorno da função: `<anônima>()`
+- L38 — variável: `pad`
+- L49 — variável: `date`
+- L69 — variável: `year`
+- L70 — variável: `month`
+- L71 — variável: `day`
+- L81 — variável: `year`
+- L82 — variável: `month`
+- L83 — variável: `day`
+- L84 — variável: `hours`
+- L85 — variável: `minutes`
 
 ### [src/shared/utils/ensureDefaultAssets.ts](../src/shared/utils/ensureDefaultAssets.ts)
 
-- L19 â€” variÃ¡vel: `uploadRoot`
-- L20 â€” variÃ¡vel: `assetsRootCandidates`
-- L30 â€” variÃ¡vel: `p`
-- L46 â€” variÃ¡vel: `[srcName, destRel]`
-- L47 â€” variÃ¡vel: `src`
-- L48 â€” variÃ¡vel: `dest`
-- L58 â€” variÃ¡vel: `e`
-- L66 â€” variÃ¡vel: `destToColumn`
-- L76 â€” variÃ¡vel: `[, destRel]`
-- L77 â€” variÃ¡vel: `column`
-- L79 â€” variÃ¡vel: `url`
-- L81 â€” variÃ¡vel: `hasCol`
-- L85 â€” parÃ¢metro: `qb`
-- L85 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L89 â€” variÃ¡vel: `e`
+- L19 — variável: `uploadRoot`
+- L20 — variável: `assetsRootCandidates`
+- L30 — variável: `p`
+- L46 — variável: `[srcName, destRel]`
+- L47 — variável: `src`
+- L48 — variável: `dest`
+- L58 — variável: `e`
+- L66 — variável: `destToColumn`
+- L76 — variável: `[, destRel]`
+- L77 — variável: `column`
+- L79 — variável: `url`
+- L81 — variável: `hasCol`
+- L85 — parâmetro: `qb`
+- L85 — retorno da função: `<anônima>()`
+- L89 — variável: `e`
 
 ### [src/shared/utils/json.ts](../src/shared/utils/json.ts)
 
-- L8 â€” parÃ¢metro: `_`
-- L8 â€” parÃ¢metro: `v`
-- L8 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L11 â€” parÃ¢metro: `[a]`
-- L11 â€” parÃ¢metro: `[b]`
-- L11 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L8 — parâmetro: `_`
+- L8 — parâmetro: `v`
+- L8 — retorno da função: `<anônima>()`
+- L11 — parâmetro: `[a]`
+- L11 — parâmetro: `[b]`
+- L11 — retorno da função: `<anônima>()`
 
 ### [src/shared/utils/jwtUtil.ts](../src/shared/utils/jwtUtil.ts)
 
-- L7 â€” variÃ¡vel: `{ sign, verify }`
-- L23 â€” variÃ¡vel: `secret`
-- L24 â€” variÃ¡vel: `expiresIn`
-- L34 â€” variÃ¡vel: `secret`
-- L40 â€” variÃ¡vel: `decoded`
-- L54 â€” variÃ¡vel: `scope`
+- L6 — variável: `{ sign, verify }`
+- L21 — variável: `secret`
+- L22 — variável: `expiresIn`
+- L32 — variável: `secret`
+- L38 — variável: `decoded`
+- L50 — variável: `scope`
 
 ### [src/shared/utils/passwordHandler.ts](../src/shared/utils/passwordHandler.ts)
 
-- L7 â€” variÃ¡vel: `salt`
-- L9 â€” variÃ¡vel: `hashedPassword`
-- L19 â€” variÃ¡vel: `match`
-- L31 â€” parÃ¢metro: `length`
+- L7 — variável: `salt`
+- L9 — variável: `hashedPassword`
+- L19 — variável: `match`
+- L31 — parâmetro: `length`
 
 ### [src/shared/utils/requesterIdentity.ts](../src/shared/utils/requesterIdentity.ts)
 
-- L1 â€” variÃ¡vel: `EMAIL_PATTERN`
-- L9 â€” variÃ¡vel: `obj`
-- L12 â€” variÃ¡vel: `name`
-- L13 â€” variÃ¡vel: `email`
-
-### [src/shared/utils/roleUtils.ts](../src/shared/utils/roleUtils.ts)
-
-- L15 â€” variÃ¡vel: `role`
+- L1 — variável: `EMAIL_PATTERN`
+- L9 — variável: `obj`
+- L12 — variável: `name`
+- L13 — variável: `email`
 
 ### [src/shared/validation/fieldSchemas.ts](../src/shared/validation/fieldSchemas.ts)
 
-- L3 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L3 â€” variÃ¡vel: `ptNumber`
-- L5 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L5 â€” variÃ¡vel: `requiredString`
-- L12 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L12 â€” variÃ¡vel: `optionalString`
-- L17 â€” parÃ¢metro: `value`
-- L17 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L20 â€” variÃ¡vel: `emailSchema`
-- L27 â€” variÃ¡vel: `passwordSchema`
-- L30 â€” parÃ¢metro: `value`
-- L30 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L32 â€” variÃ¡vel: `TEXT_PATTERN`
-- L38 â€” variÃ¡vel: `PROFILE_AREA_MAX_LENGTH`
-- L39 â€” variÃ¡vel: `PROFILE_DEPARTMENT_MAX_LENGTH`
-- L40 â€” variÃ¡vel: `PROFILE_MANAGER_MAX_LENGTH`
-- L41 â€” variÃ¡vel: `PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH`
-- L43 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L43 â€” variÃ¡vel: `requiredText`
-- L44 â€” parÃ¢metro: `value`
-- L44 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L48 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L48 â€” variÃ¡vel: `optionalText`
-- L53 â€” parÃ¢metro: `value`
-- L53 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L56 â€” parÃ¢metro: `value`
-- L56 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L59 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L59 â€” variÃ¡vel: `nullableOptionalString`
-- L66 â€” parÃ¢metro: `value`
-- L66 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L3 — retorno da função: `<anônima>()`
+- L3 — variável: `ptNumber`
+- L5 — retorno da função: `<anônima>()`
+- L5 — variável: `requiredString`
+- L12 — retorno da função: `<anônima>()`
+- L12 — variável: `optionalString`
+- L17 — parâmetro: `value`
+- L17 — retorno da função: `<anônima>()`
+- L20 — variável: `emailSchema`
+- L27 — variável: `passwordSchema`
+- L30 — parâmetro: `value`
+- L30 — retorno da função: `<anônima>()`
+- L32 — variável: `TEXT_PATTERN`
+- L38 — variável: `PROFILE_AREA_MAX_LENGTH`
+- L39 — variável: `PROFILE_DEPARTMENT_MAX_LENGTH`
+- L40 — variável: `PROFILE_MANAGER_MAX_LENGTH`
+- L41 — variável: `PROFILE_ADDITIONAL_CONTACT_MAX_LENGTH`
+- L43 — retorno da função: `<anônima>()`
+- L43 — variável: `requiredText`
+- L44 — parâmetro: `value`
+- L44 — retorno da função: `<anônima>()`
+- L48 — retorno da função: `<anônima>()`
+- L48 — variável: `optionalText`
+- L53 — parâmetro: `value`
+- L53 — retorno da função: `<anônima>()`
+- L56 — parâmetro: `value`
+- L56 — retorno da função: `<anônima>()`
+- L59 — retorno da função: `<anônima>()`
+- L59 — variável: `nullableOptionalString`
+- L66 — parâmetro: `value`
+- L66 — retorno da função: `<anônima>()`
 
 ### [src/shared/validation/zodErrors.ts](../src/shared/validation/zodErrors.ts)
 
-- L11 â€” variÃ¡vel: `MAX_PATH_LENGTH`
-- L28 â€” variÃ¡vel: `isMissing`
-- L34 â€” variÃ¡vel: `match`
-- L35 â€” variÃ¡vel: `translated`
-- L41 â€” variÃ¡vel: `raw`
-- L46 â€” variÃ¡vel: `key`
-- L53 â€” parÃ¢metro: `issue`
-- L53 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L62 â€” variÃ¡vel: `seen`
-- L66 â€” variÃ¡vel: `missingFields`
-- L67 â€” parÃ¢metro: `issue`
-- L67 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L72 â€” variÃ¡vel: `details`
-- L73 â€” parÃ¢metro: `issue`
-- L73 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L77 â€” parÃ¢metro: `detail`
-- L77 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L82 â€” parÃ¢metro: `detail`
-- L82 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
-- L89 â€” parÃ¢metro: `rootLabel`
-- L102 â€” parÃ¢metro: `rootLabel`
-- L104 â€” variÃ¡vel: `grouped`
-- L107 â€” variÃ¡vel: `issue`
-- L110 â€” variÃ¡vel: `issue`
-- L111 â€” variÃ¡vel: `key`
+- L11 — variável: `MAX_PATH_LENGTH`
+- L28 — variável: `isMissing`
+- L34 — variável: `match`
+- L35 — variável: `translated`
+- L41 — variável: `raw`
+- L46 — variável: `key`
+- L53 — parâmetro: `issue`
+- L53 — retorno da função: `<anônima>()`
+- L62 — variável: `seen`
+- L66 — variável: `missingFields`
+- L67 — parâmetro: `issue`
+- L67 — retorno da função: `<anônima>()`
+- L72 — variável: `details`
+- L73 — parâmetro: `issue`
+- L73 — retorno da função: `<anônima>()`
+- L77 — parâmetro: `detail`
+- L77 — retorno da função: `<anônima>()`
+- L82 — parâmetro: `detail`
+- L82 — retorno da função: `<anônima>()`
+- L89 — parâmetro: `rootLabel`
+- L102 — parâmetro: `rootLabel`
+- L104 — variável: `grouped`
+- L107 — variável: `issue`
+- L110 — variável: `issue`
+- L111 — variável: `key`
 
-## 3. DeclaraÃ§Ãµes com tipo efetivo `any`
+## 3. Declarações com tipo efetivo `any`
 
 ### [src/modules/auth/auth.repository.ts](../src/modules/auth/auth.repository.ts)
 
-- L87 â€” variÃ¡vel: `passwordChangedAt`
+- L112 — variável: `passwordChangedAt`
 
 ### [src/modules/pendingItems/pendingItems.repository.ts](../src/modules/pendingItems/pendingItems.repository.ts)
 
-- L93 â€” variÃ¡vel: `row`
-- L116 â€” variÃ¡vel: `row`
-- L152 â€” variÃ¡vel: `status`
-- L168 â€” variÃ¡vel: `custodian`
-- L212 â€” variÃ¡vel: `row`
-- L380 â€” variÃ¡vel: `row`
-- L469 â€” variÃ¡vel: `row`
-- L474 â€” variÃ¡vel: `row`
-- L637 â€” variÃ¡vel: `requiresAttachment`
-- L847 â€” variÃ¡vel: `requesterRow`
-- L872 â€” variÃ¡vel: `category`
+- L95 — variável: `row`
+- L129 — variável: `row`
+- L176 — variável: `status`
+- L192 — variável: `custodian`
+- L236 — variável: `row`
+- L404 — variável: `row`
+- L651 — variável: `requiresAttachment`
+- L861 — variável: `requesterRow`
+- L886 — variável: `category`
 
 ### [src/modules/pendingItems/pendingItems.router.ts](../src/modules/pendingItems/pendingItems.router.ts)
 
-- L54 â€” parÃ¢metro: `err`
+- L63 — parâmetro: `err`
+
+### [src/modules/pendingItems/pendingItems.service.ts](../src/modules/pendingItems/pendingItems.service.ts)
+
+- L147 — variável: `parsed`
+- L159 — variável: `parsed`
 
 ### [src/modules/portalConfig/portalConfig.controller.ts](../src/modules/portalConfig/portalConfig.controller.ts)
 
-- L106 â€” variÃ¡vel: `rawAssets`
+- L120 — variável: `rawAssets`
 
 ### [src/modules/portalConfig/portalConfig.repository.ts](../src/modules/portalConfig/portalConfig.repository.ts)
 
-- L251 â€” variÃ¡vel: `row`
+- L251 — variável: `row`
 
 ### [src/modules/prioritization/prioritization.repository.ts](../src/modules/prioritization/prioritization.repository.ts)
 
-- L58 â€” variÃ¡vel: `row`
+- L58 — variável: `row`
+
+### [src/modules/profiles/profiles.repository.ts](../src/modules/profiles/profiles.repository.ts)
+
+- L89 — variável: `row`
 
 ### [src/modules/queue/mapping.repository.ts](../src/modules/queue/mapping.repository.ts)
 
-- L90 â€” variÃ¡vel: `row`
-- L161 â€” variÃ¡vel: `row`
-- L199 â€” variÃ¡vel: `row`
-- L212 â€” variÃ¡vel: `row`
-- L227 â€” variÃ¡vel: `row`
-- L283 â€” parÃ¢metro: `r`
-- L283 â€” variÃ¡vel: `row`
-- L292 â€” parÃ¢metro: `row`
-- L311 â€” variÃ¡vel: `[row]`
+- L97 — variável: `row`
+- L166 — variável: `row`
+- L216 — variável: `row`
+- L229 — variável: `row`
+- L244 — variável: `row`
+- L300 — parâmetro: `r`
+- L300 — variável: `row`
+- L309 — parâmetro: `row`
+- L328 — variável: `[row]`
 
 ### [src/modules/queue/queue.repository.ts](../src/modules/queue/queue.repository.ts)
 
-- L51 â€” variÃ¡vel: `result`
+- L42 — variável: `result`
 
 ### [src/modules/requests/requests.repository.ts](../src/modules/requests/requests.repository.ts)
 
-- L89 â€” variÃ¡vel: `mapping`
-- L201 â€” variÃ¡vel: `row`
-- L415 â€” variÃ¡vel: `row`
-- L508 â€” variÃ¡vel: `response`
-- L732 â€” variÃ¡vel: `row`
-- L855 â€” variÃ¡vel: `row`
-- L1024 â€” variÃ¡vel: `row`
+- L93 — variável: `mapping`
+- L205 — variável: `row`
+- L419 — variável: `row`
+- L513 — variável: `response`
+- L739 — variável: `row`
+- L878 — variável: `row`
+- L1047 — variável: `row`
 
 ### [src/modules/requests/requests.service.ts](../src/modules/requests/requests.service.ts)
 
-- L203 â€” parÃ¢metro: `value`
+- L259 — parâmetro: `value`
 
 ### [src/modules/requests/triage/triage.repository.ts](../src/modules/requests/triage/triage.repository.ts)
 
-- L128 â€” variÃ¡vel: `row`
+- L132 — variável: `row`
 
 ### [src/modules/users/users.repository.ts](../src/modules/users/users.repository.ts)
 
-- L31 â€” variÃ¡vel: `row`
-- L240 â€” variÃ¡vel: `user`
-- L247 â€” variÃ¡vel: `[requester, professional]`
-- L614 â€” variÃ¡vel: `result`
-- L673 â€” variÃ¡vel: `anon`
+- L293 — variável: `user`
+- L310 — variável: `[requester, professional]`
+- L719 — variável: `result`
+- L753 — variável: `existing`
+- L776 — variável: `anon`
 
 ### [src/server.ts](../src/server.ts)
 
-- L8 â€” parÃ¢metro: `e`
+- L8 — parâmetro: `e`
+
+### [src/shared/access/assignability.ts](../src/shared/access/assignability.ts)
+
+- L136 — variável: `row`
+- L170 — variável: `row`
 
 ### [src/shared/middleware/auth.ts](../src/shared/middleware/auth.ts)
 
-- L25 â€” variÃ¡vel: `token`
+- L24 — variável: `token`
 
 ### [src/shared/middleware/upload.ts](../src/shared/middleware/upload.ts)
 
-- L57 â€” parÃ¢metro: `err`
+- L57 — parâmetro: `err`
 
 ### [src/shared/middleware/uploadAssets.ts](../src/shared/middleware/uploadAssets.ts)
 
-- L125 â€” parÃ¢metro: `err`
+- L125 — parâmetro: `err`
 
 ### [src/shared/middleware/uploadAvatar.ts](../src/shared/middleware/uploadAvatar.ts)
 
-- L70 â€” parÃ¢metro: `err`
+- L70 — parâmetro: `err`
 
 ### [src/shared/utils/json.ts](../src/shared/utils/json.ts)
 
-- L8 â€” parÃ¢metro: `v`
-- L8 â€” retorno da funÃ§Ã£o: `<anÃ´nima>()`
+- L8 — parâmetro: `v`
+- L8 — retorno da função: `<anônima>()`

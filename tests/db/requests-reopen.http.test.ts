@@ -79,7 +79,7 @@ function expectError(response: HttpResult, statusCode: number, details: object =
   expect(response.body).toMatchObject(details);
 }
 
-it("E01: exige sessão de Solicitante e titularidade direta, com 404 uniforme", async () => {
+it("E01: exige sessão com request:track e titularidade direta, com 404 uniforme", async () => {
   const { protocol, user, client } = await fixture();
   const closureRef = await getClosureRef(protocol);
   const payload = { justification: "Reavaliar", closureRef };
@@ -104,7 +104,7 @@ it("E01: exige sessão de Solicitante e titularidade direta, com 404 uniforme", 
     401,
   );
   for (const actor of [admin, analyst]) {
-    expectError(await actor.post(reopenPath(protocol), payload), 403);
+    expectError(await actor.post(reopenPath(protocol), payload), 404);
   }
   const missing = await client.post(reopenPath("INEXISTENTE"), payload);
   expectError(missing, 404);
@@ -126,6 +126,37 @@ it("E01: exige sessão de Solicitante e titularidade direta, com 404 uniforme", 
   const withoutOwner = await client.post(reopenPath(protocol), payload);
   expectError(withoutOwner, 404);
   expect(withoutOwner.body).toEqual(missing.body);
+  expect(await reopenEvents(protocol)).toHaveLength(0);
+});
+
+it("E01: a titularidade direta exige também a permissão de acompanhamento", async () => {
+  const { protocol, user, client } = await fixture();
+  const closureRef = await getClosureRef(protocol);
+  await testDb("profile_permissions")
+    .where({ profile_id: user.profile_id })
+    .whereIn("permission_key", ["request:create", "request:track", "pending_item:respond"])
+    .del();
+
+  expectError(
+    await client.post(reopenPath(protocol), { justification: "Reavaliar", closureRef }),
+    403,
+  );
+  expect(await getClosureRef(protocol)).toBe(closureRef);
+  expect(await reopenEvents(protocol)).toHaveLength(0);
+});
+
+it("E01: composição RBAC inválida não é mascarada como ausência de permissão", async () => {
+  const { protocol, user, client } = await fixture();
+  const closureRef = await getClosureRef(protocol);
+  await testDb("profile_permissions")
+    .where({ profile_id: user.profile_id, permission_key: "request:track" })
+    .del();
+
+  expectError(
+    await client.post(reopenPath(protocol), { justification: "Reavaliar", closureRef }),
+    500,
+  );
+  expect(await getClosureRef(protocol)).toBe(closureRef);
   expect(await reopenEvents(protocol)).toHaveLength(0);
 });
 
@@ -260,7 +291,12 @@ it("E03/H01: auditoria e timeline autorizadas preservam o evento e a reunião le
   if (!record) throw new Error("Evento de reabertura ausente.");
   expect(record).toMatchObject({
     entity_id: protocol,
-    actor: { kind: "user", userId: user.user_id, displayName: user.full_name },
+    actor: {
+      kind: "user",
+      userId: user.user_id,
+      displayName: user.full_name,
+      profile: { id: String(user.profile_id), name: "Solicitante" },
+    },
     change_origin: "requester",
     previous_value: "Concluído",
     new_value: "Solicitação enviada",
@@ -284,7 +320,11 @@ it("E03/H01: auditoria e timeline autorizadas preservam o evento e a reunião le
       id: `audit:${record.audit_id}`,
       text: "Solicitação reaberta",
       occurredAt: record.occurred_at,
-      actor: { id: String(user.user_id), name: user.full_name, role: "Solicitante" },
+      actor: {
+        id: String(user.user_id),
+        name: user.full_name,
+        profile: { id: String(user.profile_id), name: "Solicitante" },
+      },
       changeOrigin: "requester",
       justification: "Reavaliar requisitos.",
       lastTechnicalMessage: "Solicitação reaberta pelo titular.",

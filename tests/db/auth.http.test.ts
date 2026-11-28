@@ -1,6 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  buildEffectivePermissions,
+  PERMISSION_CATALOG,
+} from "../../src/shared/catalog/permissionCatalog.ts";
+import { PROFILE_IDS } from "../helpers/factories.ts";
 import { startTestServer, TestClient, type TestServer } from "../helpers/http.ts";
-import { closeTestDb, insertAdmin, insertUser, resetTestDb, testDb } from "../helpers/testDb.ts";
+import { closeTestDb, insertUser, resetTestDb, testDb } from "../helpers/testDb.ts";
 
 vi.mock("../../src/database/conection.ts", async () => {
   const { testDb } = await import("../helpers/testDb.ts");
@@ -11,6 +16,26 @@ const usersService = await import("../../src/modules/users/users.service.ts");
 
 const PASSWORD = "SenhaAtual@123";
 const NEW_PASSWORD = "NovaSenha@456";
+
+const ADMIN_PERMISSIONS = buildEffectivePermissions(
+  PERMISSION_CATALOG.map((entry) => ({
+    permission_key: entry.key,
+    custody:
+      entry.custodyType === "global"
+        ? "global"
+        : (entry.allowedCustodies as readonly string[]).includes("own")
+          ? "own"
+          : "all",
+  })),
+);
+
+/** Perfis base são persistidos com o rótulo de exibição (`profiles.name`). */
+async function insertAdminUser() {
+  return insertUser({
+    email: "admin@neo.com",
+    profileName: "Administrador",
+  });
+}
 
 let server: TestServer;
 
@@ -36,7 +61,7 @@ describe("HTTP real — autenticação e sessão", () => {
     const user = await insertUser({
       email: "maria@neo.com",
       password: PASSWORD,
-      profileName: "analista",
+      profileName: "Analista",
     });
     const client = new TestClient(server.baseUrl);
 
@@ -47,7 +72,10 @@ describe("HTTP real — autenticação e sessão", () => {
 
     expect(login.status).toBe(200);
     expect(login.headers.get("content-type")).toContain("application/json");
-    expect(login.body).toMatchObject({ email: "maria@neo.com", role: "Analista" });
+    expect(login.body).toMatchObject({
+      email: "maria@neo.com",
+      profile: { id: String(PROFILE_IDS.Analista), name: "Analista", isRoot: false },
+    });
 
     const cookie = client.getCookie("session_id");
     expect(cookie).toMatchObject({
@@ -109,11 +137,11 @@ describe("HTTP real — autenticação e sessão", () => {
   });
 
   it("revoga a sessão antiga após reset administrativo de senha", async () => {
-    const admin = await insertAdmin();
+    const admin = await insertAdminUser();
     const target = await insertUser({
       email: "alvo@neo.com",
       password: PASSWORD,
-      profileName: "solicitante",
+      profileName: "Solicitante",
     });
     const client = new TestClient(server.baseUrl);
 
@@ -127,7 +155,7 @@ describe("HTTP real — autenticação e sessão", () => {
 
     const reset = await usersService.resetPassword(
       String(target.user_id),
-      admin.user_id,
+      { id: admin.user_id, permissions: ADMIN_PERMISSIONS },
       "203.0.113.70",
     );
 
@@ -149,7 +177,7 @@ describe("HTTP real — autenticação e sessão", () => {
   });
 
   it("devolve envelope de erro para credenciais inválidas", async () => {
-    await insertUser({ email: "maria@neo.com", password: PASSWORD });
+    await insertUser({ email: "maria@neo.com", password: PASSWORD, profileName: "Analista" });
     const client = new TestClient(server.baseUrl);
 
     const response = await client.post("/auth/login", {

@@ -77,7 +77,6 @@ before(async () => {
       id: String(id),
       name: user.full_name,
       email: user.email,
-      role: key === "admin" ? "Administrador" : "Solicitante",
       password_changed_at: user.password_changed_at.getTime(),
     });
     cookies[key] = `${config.COOKIE_NAME}=${token}`;
@@ -146,7 +145,7 @@ test("sessão, perfil, titularidade direta, legado e validação HTTP", async ()
     ).status,
     401,
   );
-  assert.equal((await cancel(request, { actor: "admin" })).status, 403);
+  assert.equal((await cancel(request, { actor: "admin" })).status, 404);
   const missing = await cancel({ protocol: "RF07-INEXISTENTE" });
   assert.equal(missing.status, 404);
   assert.deepEqual(await cancel(request, { actor: "other" }), missing);
@@ -452,7 +451,7 @@ test("override concorrente devolve ao status 1, mas triagem persistida impede ca
   const request = await fixture();
   assert.equal((await assess(request)).status, 201);
   const [changed, canceled] = await overlap(
-    "request.override_status_admin",
+    "request.status_override",
     () => updateStatus(request, 1),
     () => cancel(request),
     "for no key update",
@@ -483,7 +482,7 @@ test("override torna solicitação elegível inelegível antes da releitura", as
   const request = await fixture();
   assert.equal((await call(request, "tracking", { method: "GET" })).body.details.canCancel, true);
   const [changed, canceled] = await overlap(
-    "request.override_status_admin",
+    "request.status_override",
     () => updateStatus(request, 5),
     () => cancel(request),
     "for no key update",

@@ -8,6 +8,9 @@ import { BUSINESS_TIME_ZONE } from "../../shared/datetime/businessDay.ts";
 import type { QueueExportQuery } from "../../shared/types/queue.types.ts";
 import type { RequestPriority } from "../../shared/types/requests.ts";
 import type { StatusTone } from "../../shared/types/systemTheme.ts";
+import { AppError } from "../../shared/errors/AppError.ts";
+import { resolveResponsibleScope } from "../../shared/access/custody.ts";
+import type { PermissionActor } from "../../shared/access/permissionActor.ts";
 import * as repository from "./reports.repository.ts";
 
 const CSV_HEADERS = [
@@ -159,8 +162,18 @@ function rowToCsv(row: QueueExportRow): string {
     .join(";");
 }
 
-export async function exportQueueCsv(filters: QueueExportQuery): Promise<QueueCsvExport> {
-  const rows = await repository.fetchQueueExportRows(filters);
+export async function exportQueueCsv(
+  filters: QueueExportQuery,
+  actor: PermissionActor,
+): Promise<QueueCsvExport> {
+  // A exportação usa a mesma Custódia da Fila: `all` exporta tudo; `assigned`
+  // exporta só as solicitações em que o ator é Responsável.
+  const scope = resolveResponsibleScope(actor.permissions, "queue:export", actor.id);
+  if (!scope) {
+    throw new AppError("Custódia inválida para queue:export.", 403);
+  }
+  const scopedUserId = scope.kind === "assigned" ? scope.userId : undefined;
+  const rows = await repository.fetchQueueExportRows(filters, scopedUserId);
   const lines = [CSV_HEADERS.map(csvField).join(";"), ...rows.map(rowToCsv)];
 
   return {

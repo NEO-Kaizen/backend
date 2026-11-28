@@ -23,6 +23,10 @@ const Config = {
   COOKIE_NAME: process.env.COOKIE_NAME ?? "session_id",
   UPLOAD_DIR: process.env.UPLOAD_DIR ?? "uploads",
   PROTOCOL_FPE_KEY: resolveProtocolFpeKey(),
+  /** Conta Admin Root — criada apenas pelo seed, nunca por rota (contrato RBAC § 4.2). */
+  ADMIN_ROOT_EMAIL: process.env.ADMIN_ROOT_EMAIL,
+  ADMIN_ROOT_PASSWORD: process.env.ADMIN_ROOT_PASSWORD,
+  ADMIN_ROOT_NAME: process.env.ADMIN_ROOT_NAME,
   SWAGGER_ENABLED: process.env.SWAGGER_ENABLED === "true",
 };
 

@@ -88,7 +88,7 @@ export const testDb = knex({
 export async function ensureMigrated(): Promise<void> {
   await testDb.migrate.latest();
 
-  for (const seed of ["002_criteria.js", "003_priorities.js"]) {
+  for (const seed of ["002_criteria.js", "003_priorities.js", "014_base_profile_permissions.js"]) {
     await testDb.seed.run({
       directory: resolve(ROOT_DIR, "seeds/requester_request"),
       specific: seed,
@@ -132,6 +132,14 @@ export async function resetTestDb(): Promise<void> {
   await testDb("system_themes").insert({ theme_id: 1 });
   await testDb("system_settings").insert({ settings_id: 1, theme_id: 1 });
   await testDb("profiles").update({ is_active: true });
+
+  // Restaura a matriz de Permissões dos perfis base (idempotente) depois de
+  // testes que editem concessões/flags.
+  await testDb.seed.run({
+    directory: resolve(ROOT_DIR, "seeds/requester_request"),
+    specific: "014_base_profile_permissions.js",
+    extension: "js",
+  });
 }
 
 export async function closeTestDb(): Promise<void> {
@@ -153,7 +161,9 @@ interface InsertUserInput {
 /** Insere um usuário real com a senha (hash bcrypt) indicada. */
 export async function insertUser(input: InsertUserInput = {}): Promise<UserRow> {
   const profileName = input.profileName ?? "analista";
-  const profile = await testDb("profiles").where({ name: profileName }).first("profile_id");
+  const profile = await testDb("profiles")
+    .whereRaw("lower(name) = lower(?)", [profileName])
+    .first("profile_id");
 
   if (!profile) {
     throw new Error(`Perfil de teste não encontrado: ${profileName}`);

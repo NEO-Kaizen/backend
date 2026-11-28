@@ -21,6 +21,32 @@ export default {
       },
     },
   },
+  "/portal-config/sections": {
+    get: {
+      tags: ["Configuração do portal"],
+      summary: "Consultar seções legíveis da configuração do portal",
+      description:
+        "Configuração do portal recortada pelas seções legíveis ao ator. Exige ao menos uma chave de leitura de seção — `theme:read`, `category:read`, `status:read`, " +
+        "`portal_setting:read` ou `prioritization_config:read` — e devolve apenas as seções que o ator pode ler: " +
+        "`portal_setting:read` → platformName, solicitationMode, protocolMask; `theme:read` → theme, assets; " +
+        "`category:read` → categories; `status:read` → statuses; `prioritization_config:read` → prioritizationWeights. " +
+        "A projeção pública de `GET /portal-config` permanece sem chave.",
+      operationId: "getReadableSections",
+      security: [{ cookieAuth: [] }],
+      responses: {
+        "200": {
+          description: "Configuração recortada pelas seções legíveis ao ator.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PortalSections" },
+            },
+          },
+        },
+        "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem nenhuma chave de leitura do portal."),
+      },
+    },
+  },
   "/portal-config/access": {
     patch: {
       tags: ["Configuração do portal"],

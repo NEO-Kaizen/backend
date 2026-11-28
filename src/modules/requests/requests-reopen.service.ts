@@ -3,7 +3,7 @@ import { recordAudit } from "../../shared/audit/auditLogger.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { ValidationError } from "../../shared/errors/ValidationError.ts";
 import { STATUS_IDS } from "../../shared/types/status.ts";
-import type { AuthenticatedUser } from "../../shared/types/user.ts";
+import { custodyFor, type PermissionActor } from "../../shared/access/requestAccess.ts";
 import {
   lockRequestByDirectOwner,
   clearReopenedRequestProjections,
@@ -19,7 +19,7 @@ const REOPEN_TARGET = {
 const REOPEN_PUBLIC_MESSAGE = "Solicitação reaberta pelo titular.";
 
 interface ReopenRequestInput {
-  actor: Pick<AuthenticatedUser, "id" | "email" | "role">;
+  actor: PermissionActor;
   protocol: string;
   justification: string;
   closureRef: string;
@@ -37,8 +37,8 @@ export function isReopenableStatus(statusId: number): boolean {
 }
 
 export async function reopenRequest(input: ReopenRequestInput): Promise<ReopenRequestResult> {
-  if (input.actor.role !== "Solicitante") {
-    throw new AppError("Ação restrita a solicitantes.", 403);
+  if (custodyFor(input.actor, "request:track") !== "own") {
+    throw new AppError("Permissão de acompanhamento necessária.", 403);
   }
 
   const protocol = input.protocol.trim();
@@ -54,9 +54,8 @@ export async function reopenRequest(input: ReopenRequestInput): Promise<ReopenRe
     );
   }
 
-  const requesterUserId = Number(input.actor.id);
   return db.transaction(async (trx) => {
-    const request = await lockRequestByDirectOwner(trx, protocol, requesterUserId);
+    const request = await lockRequestByDirectOwner(trx, protocol, input.actor.id);
     if (!request) {
       throw new AppError("Protocolo não encontrado.", 404);
     }
@@ -87,7 +86,7 @@ export async function reopenRequest(input: ReopenRequestInput): Promise<ReopenRe
       entityType: "request",
       entityId: protocol,
       actionType: "request.reopen",
-      userId: requesterUserId,
+      userId: input.actor.id,
       previousValue: previousStatusId === STATUS_IDS.completed ? "Concluído" : "Cancelado",
       newValue: REOPEN_TARGET.name,
       note: justification.data,

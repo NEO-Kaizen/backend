@@ -50,11 +50,15 @@ describe("portalConfig.repository (Postgres real)", () => {
   });
 
   it("restaura profiles.is_active no reset", async () => {
-    await testDb("profiles").where({ name: "analista" }).update({ is_active: false });
+    await testDb("profiles")
+      .whereRaw("lower(name) = lower(?)", ["analista"])
+      .update({ is_active: false });
 
     await resetTestDb();
 
-    const profile = await testDb("profiles").where({ name: "analista" }).first();
+    const profile = await testDb("profiles")
+      .whereRaw("lower(name) = lower(?)", ["analista"])
+      .first();
     expect(profile.is_active).toBe(true);
   });
 });

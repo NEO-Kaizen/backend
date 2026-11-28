@@ -1,3 +1,5 @@
+import { listUserPermissions } from "../../src/modules/auth/auth.repository.ts";
+import { buildEffectivePermissions } from "../../src/shared/catalog/permissionCatalog.ts";
 import { randomUUID } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -72,19 +74,25 @@ async function fixture() {
       id: String(requester.user_id),
       name: requester.full_name,
       email: requester.email,
-      role: "Solicitante" as const,
+      profileName: "Solicitante",
+      profileId: String(requester.profile_id),
+      permissions: buildEffectivePermissions(await listUserPermissions(requester.user_id)),
     },
     admin: {
       id: admin.user_id,
       name: admin.full_name,
       email: admin.email,
-      role: "Administrador" as const,
+      profileName: "Administrador",
+      profileId: String(admin.profile_id),
+      permissions: buildEffectivePermissions(await listUserPermissions(admin.user_id)),
     },
     analyst: {
       id: analyst.user_id,
       name: analyst.full_name,
       email: analyst.email,
-      role: "Analista" as const,
+      profileName: "Analista",
+      profileId: String(analyst.profile_id),
+      permissions: buildEffectivePermissions(await listUserPermissions(analyst.user_id)),
     },
   };
 }
@@ -107,7 +115,7 @@ async function reopen(f: Fixture) {
   if (typeof closureRef !== "string") throw new Error("Fixture sem encerramento.");
   return reopenRequest({
     protocol: f.protocol,
-    actor: f.owner,
+    actor: { ...f.owner, id: Number(f.owner.id) },
     closureRef,
     justification: "Reavaliar.",
   });
@@ -126,14 +134,10 @@ async function openPending(f: Fixture) {
 }
 
 const respond = (f: Fixture, id: string) =>
-  pendencies.respondPendingItem(
-    f.protocol,
-    id,
-    { response: "Resposta" },
-    { ...f.owner, id: Number(f.owner.id) },
-    undefined,
-    { user: f.owner },
-  );
+  pendencies.respondPendingItem(f.protocol, id, { response: "Resposta" }, undefined, {
+    user: f.owner,
+    permissions: f.owner.permissions,
+  });
 const review = (f: Fixture, item: { batchId: string; id: string }) =>
   pendencies.reviewPendingItems(
     f.protocol,
@@ -164,7 +168,7 @@ function attach(f: Fixture, id: string) {
       path: "",
     },
     undefined,
-    { user: f.owner },
+    { user: f.owner, permissions: f.owner.permissions },
   );
 }
 
@@ -202,11 +206,11 @@ it("A02: retira a reunião vigente das quatro projeções e permite novo mapeame
 
   expect((await requests.getTracking(f.protocol, { user: f.owner })).details.meeting).toBeNull();
   expect((await requests.findRequest(f.protocol, Number(f.owner.id))).meeting).toBeNull();
-  expect(await requests.findInternalByProtocol(f.protocol)).toMatchObject({
+  expect(await requests.findInternalByProtocol(f.protocol, f.admin)).toMatchObject({
     meeting: null,
     mappingDate: null,
   });
-  expect(await mapping.getMappingService(f.protocol)).toMatchObject({
+  expect(await mapping.getMappingService(f.protocol, f.admin)).toMatchObject({
     id: null,
     meetingLink: null,
   });
@@ -215,7 +219,7 @@ it("A02: retira a reunião vigente das quatro projeções e permite novo mapeame
   ).rejects.toMatchObject({ statusCode: 404 });
   expect(
     JSON.stringify(
-      await listInternalNotes(f.protocol, f.admin.id, { limit: 30, cursor: undefined }),
+      await listInternalNotes(f.protocol, f.admin, { limit: 30, cursor: undefined }, undefined),
     ),
   ).toContain(old.meetingLink);
   const fresh = await schedule(f, "02");
@@ -289,16 +293,21 @@ it("A01/P02: volta à fila, conserva a avaliação anterior e aceita novo cálcu
   });
   expect(
     (
-      await listQueueService({
-        page: 1,
-        pageSize: 20,
-        unassigned: true,
-        status: "Solicitação enviada",
-        search: f.protocol,
-      })
+      await listQueueService(
+        {
+          page: 1,
+          pageSize: 20,
+          unassigned: true,
+          status: "Solicitação enviada",
+          search: f.protocol,
+        },
+        f.admin,
+      )
     ).data,
   ).toEqual([expect.objectContaining({ protocol: f.protocol })]);
-  expect((await requests.findInternalByProtocol(f.protocol)).prioritization.score).toBeNull();
+  expect(
+    (await requests.findInternalByProtocol(f.protocol, f.admin)).prioritization.score,
+  ).toBeNull();
   expect(
     await testDb("prioritization_evaluations").where({ protocol: f.protocol }).first(),
   ).toEqual(previousEvaluation);
@@ -311,7 +320,7 @@ it("A01/P02: volta à fila, conserva a avaliação anterior e aceita novo cálcu
     undefined,
   );
   const fresh = await evaluateScore(f.protocol, { notes }, f.analyst);
-  expect((await requests.findInternalByProtocol(f.protocol)).prioritization.score).toBe(
+  expect((await requests.findInternalByProtocol(f.protocol, f.admin)).prioritization.score).toBe(
     fresh.score,
   );
   const calculations = await events(f.protocol, "prioritization.evaluate").orderBy("audit_id");
@@ -353,11 +362,19 @@ it.each(["requested", "responded"] as const)(
       code: "rf02_pending_historical",
     });
     expect(await row(f.protocol).first("status_id")).toEqual({ status_id: 1 });
-    expect(await pendencies.listPendingItems(f.protocol, { user: f.owner })).toMatchObject({
+    expect(
+      await pendencies.listPendingItems(
+        f.protocol,
+        { user: f.owner, permissions: f.owner.permissions },
+        undefined,
+      ),
+    ).toMatchObject({
       items: [],
       batchId: null,
     });
-    expect((await requests.findInternalByProtocol(f.protocol)).pendingSummary.total).toBe(0);
+    expect((await requests.findInternalByProtocol(f.protocol, f.admin)).pendingSummary.total).toBe(
+      0,
+    );
     expect(await testDb("pending_items").where({ pending_item_id: item.id }).first()).toEqual(
       oldItem,
     );
@@ -437,7 +454,15 @@ it("ordenação: uma gravação anterior ao lock de reabertura continua históri
   expect(await outcome).toMatchObject({ statusId: 1 });
   const current = await row(f.protocol).first();
   expect(current.last_external_update_at).toEqual(current.last_reopened_at);
-  expect((await pendencies.listPendingItems(f.protocol, { user: f.owner })).items).toEqual([]);
+  expect(
+    (
+      await pendencies.listPendingItems(
+        f.protocol,
+        { user: f.owner, permissions: f.owner.permissions },
+        undefined,
+      )
+    ).items,
+  ).toEqual([]);
   await expect(respond(f, item.id)).rejects.toMatchObject({ code: "rf02_pending_historical" });
 });
 
@@ -463,12 +488,19 @@ it.each(["legado", "interno", "mapeamento"] as const)(
         return value;
       },
     );
+    const assigner = {
+      ...f.analyst,
+      permissions: [
+        ...f.analyst.permissions,
+        { key: "request:assign", custody: "assigned" } as const,
+      ],
+    };
     const attempt =
       path === "legado"
         ? requests.assignResponsible(
             f.protocol,
             { professionalId: f.professionalId },
-            f.analyst,
+            assigner,
             undefined,
           )
         : requests.assignAnalyst(
@@ -476,7 +508,7 @@ it.each(["legado", "interno", "mapeamento"] as const)(
             path === "interno"
               ? { assigneeId: String(f.analyst.id) }
               : { mappingAssigneeId: String(f.analyst.id) },
-            f.analyst,
+            assigner,
             undefined,
           );
     const rejected = expect(attempt).rejects.toMatchObject({
@@ -536,9 +568,7 @@ it.each([false, true])(
       await rejected;
     }
     expect(await row(f.protocol).first("status_id")).toEqual({ status_id: closeAgain ? 16 : 1 });
-    expect(await events(f.protocol, "request.override_status_admin")).toHaveLength(
-      closeAgain ? 2 : 1,
-    );
+    expect(await events(f.protocol, "request.status_override")).toHaveLength(closeAgain ? 2 : 1);
     if (!closeAgain) await changeStatus(f, STATUS_IDS.completed);
     await expect(changeStatus(f, STATUS_IDS.canceled)).resolves.toMatchObject({
       status: "Cancelado",
@@ -562,9 +592,8 @@ it("D01: bloqueia a saída direta e o desvio por terminal configurável, mantend
     for (const origin of [STATUS_IDS.completed, STATUS_IDS.canceled]) {
       if (origin === STATUS_IDS.canceled) await changeStatus(f, origin);
       const before = await row(f.protocol).first();
-      const auditBefore = await events(f.protocol, "request.override_status_admin").orderBy(
-        "audit_id",
-      );
+      const auditBefore = await events(f.protocol, "request.status_override").orderBy("audit_id");
+      expect(auditBefore.length).toBeGreaterThan(0);
       for (const target of [STATUS_IDS.requestSent, terminalId]) {
         await expect(changeStatus(f, target)).rejects.toMatchObject({
           statusCode: 409,
@@ -572,7 +601,7 @@ it("D01: bloqueia a saída direta e o desvio por terminal configurável, mantend
         });
       }
       expect(await row(f.protocol).first()).toEqual(before);
-      expect(await events(f.protocol, "request.override_status_admin").orderBy("audit_id")).toEqual(
+      expect(await events(f.protocol, "request.status_override").orderBy("audit_id")).toEqual(
         auditBefore,
       );
     }
@@ -615,7 +644,7 @@ it("ordenação A02: mapeamento que aguardou o lock é gravado com a data efetiv
   await expect(reopening).resolves.toMatchObject({ statusId: 1 });
   const next = await scheduled;
   expect(next?.id).toBeTruthy();
-  expect(await mapping.getMappingService(f.protocol)).toMatchObject({
+  expect(await mapping.getMappingService(f.protocol, f.admin)).toMatchObject({
     id: next?.id,
     meetingLink: next?.meetingLink,
   });
@@ -657,7 +686,9 @@ it("P02: avaliação iniciada no ciclo anterior não sobrescreve a priorização
   expect(
     await testDb("prioritization_evaluations").where({ protocol: f.protocol }).first(),
   ).toEqual(previous);
-  expect((await requests.findInternalByProtocol(f.protocol)).prioritization.score).toBeNull();
+  expect(
+    (await requests.findInternalByProtocol(f.protocol, f.admin)).prioritization.score,
+  ).toBeNull();
 });
 
 it("P02: triagem iniciada no primeiro status 1 não conclui o status 1 do novo ciclo", async () => {

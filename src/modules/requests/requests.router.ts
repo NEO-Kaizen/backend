@@ -1,6 +1,9 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import {
+  requirePermission,
+  requirePermissionIfSession,
+} from "../../shared/middleware/requirePermission.ts";
 import { requireAccessMode } from "../../shared/middleware/accessMode.ts";
 import { requesterDualAuth } from "../../shared/middleware/dualAuth.ts";
 import { uploadFields } from "../../shared/middleware/upload.ts";
@@ -23,86 +26,106 @@ const requestsRoutes = express.Router();
 
 // Rotas de solicitação respeitam o modo de abertura do portal: em `PUBLIC`
 // permanecem públicas; em `AUTHENTICATED` o `requireAccessMode` exige sessão.
-requestsRoutes.get("/", requireAccessMode(), getRequestsByEmail);
+// Com sessão, a chave de autoatendimento gate a operação (RBAC § 7).
+requestsRoutes.get(
+  "/",
+  requireAccessMode(),
+  requirePermissionIfSession("request:track"),
+  getRequestsByEmail,
+);
 
 // Responsáveis pela triagem — lista de profissionais (issue #50).
 requestsRoutes.get(
   "/assignees",
   authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
+  requirePermission("assignee_directory:read"),
   getAssignees,
 );
 
 // Wire format em `src/docs/paths/requests.ts` (`patchInternalAssignee`): PATCH
 // /requests/{protocol}/internal/assignee com body {assigneeId} | {mappingAssigneeId}
 // (user_id string, XOR, null para remover). Regras em `docs/rules/assignment.md`.
-// issue #124: a autorização por atribuição (ANALYST_ASSIGNEE triagem OU
-// mapeamento, ou Administrador) é feita no service — Gestor não atribui
-// (403 no service). Mantida rota legada /:protocol/assignee.
+// A chave request:assign faz o gate da operação; o service valida Custódia
+// da solicitação e a Atribuibilidade do alvo. Mantida rota legada /:protocol/assignee.
 requestsRoutes.patch(
   "/:protocol/internal/assignee",
   authMiddleware,
-  requireRole("Analista", "Administrador"),
+  requirePermission("request:assign"),
   patchInternalAssignee,
 );
 
 requestsRoutes.patch(
   "/:protocol/assignee",
   authMiddleware,
-  requireRole("Analista", "Administrador"),
+  requirePermission("request:assign"),
   patchAssignee,
 );
 
 // Acompanhamento do solicitante (regras em `docs/rules/pending-items.md`):
-// dual-auth (cookie de sessão OU header `X-Requester-Identity`). Declarado
-// antes de `/:protocol` para não ser capturado por engano.
-requestsRoutes.get("/:protocol/tracking", requesterDualAuth, getTracking);
+// dual-auth (cookie de sessão OU header `X-Requester-Identity`). Com sessão,
+// `request:track` gate a operação e a linha é resolvida pela Posse no service.
+// Declarado antes de `/:protocol` para não ser capturado por engano.
+requestsRoutes.get(
+  "/:protocol/tracking",
+  requesterDualAuth,
+  requirePermissionIfSession("request:track"),
+  getTracking,
+);
 requestsRoutes.post(
   "/:protocol/reopen",
   authMiddleware,
-  requireRole("Solicitante"),
+  requirePermission("request:track"),
   postReopenRequest,
 );
 
 // Motor de Status v4 (issue #124 — ver `docs/rules/requests-lifecycle.md`,
 // seção Troca direta de status): troca de status única.
-// Autorização no service: Administrador (bypass) ou responsável com custódia
-// (free). Claim órfão (permitir designado editar) fica como pendência no PR.
+// `request:status_change` e Custódia são resolvidos no service; alvos
+// restritos ou fora do fluxo exigem `request:status_override` global.
 requestsRoutes.patch(
   "/:protocol/status",
   authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
+  requirePermission("request:status_change"),
   patchRequestStatus,
 );
 
+// Cancelamento pelo titular (RF07). A chave é o gate grosso: `request:track`
+// em `own`; a Posse da linha é resolvida no service (404 anti-enumeração).
 requestsRoutes.post(
   "/:protocol/cancel",
   authMiddleware,
-  requireRole("Solicitante"),
+  requirePermission("request:track"),
   postCancelRequest,
 );
 
-requestsRoutes.get("/:protocol", requireAccessMode(), getRequestsByProtocol);
+requestsRoutes.get(
+  "/:protocol",
+  requireAccessMode(),
+  requirePermissionIfSession("request:track"),
+  getRequestsByProtocol,
+);
 requestsRoutes.get(
   "/:protocol/internal",
   authMiddleware,
-  // Acesso à consulta administrativa restrito aos perfis internos de triagem
-  // (RN — decisão P2). O perfil "Solicitante" usa a consulta pública.
-  requireRole("Analista", "Gestor", "Administrador"),
+  requirePermission("request:read"),
   getInternalRequestByProtocol,
 );
-// Atualização interna dos blocos editáveis (issue #88). Perfis internos passam
-// pelo requireRole; a autorização por atribuição (issue #121) acontece no
-// service: Administrador/Gestor editam qualquer; Analista só as próprias.
+// Atualização interna dos blocos editáveis; o service aplica Custódia assigned/all.
 requestsRoutes.patch(
   "/:protocol/internal",
   authMiddleware,
-  requireRole("Analista", "Gestor", "Administrador"),
+  requirePermission("request:write"),
   patchInternalRequestByProtocol,
 );
 
 // O guard vem antes do `uploadFields` para não processar multipart de uma
-// requisição que será rejeitada por falta de sessão.
-requestsRoutes.post("/", requireAccessMode(), uploadFields, postRequest);
+// requisição que será rejeitada por falta de sessão ou de `request:create`.
+requestsRoutes.post(
+  "/",
+  requireAccessMode(),
+  requirePermissionIfSession("request:create"),
+  uploadFields,
+  postRequest,
+);
 
 export default requestsRoutes;

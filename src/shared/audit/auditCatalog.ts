@@ -25,7 +25,7 @@ export const auditCatalog = {
   },
   prioritization: {
     label: "Priorização",
-    actions: ["evaluate"],
+    actions: ["evaluate", "access_denied"],
   },
   request: {
     label: "Solicitações",
@@ -40,8 +40,17 @@ export const auditCatalog = {
       // Motor de Status v4 (issue #124): bypass de perfil/restrição do
       // `PATCH /requests/:protocol/status` e tentativas de acesso negado.
       "override_status_admin",
+      "status_override",
       "access_denied",
     ],
+  },
+  queue: {
+    label: "Fila",
+    actions: ["access_denied"],
+  },
+  reports: {
+    label: "Relatórios",
+    actions: ["access_denied"],
   },
   mapping: {
     label: "Mapeamento",
@@ -54,6 +63,10 @@ export const auditCatalog = {
   pending_item: {
     label: "Pendências",
     actions: ["create", "respond", "attach", "validate", "reopen"],
+  },
+  profile: {
+    label: "Perfis",
+    actions: ["create", "update", "activate", "deactivate", "duplicate"],
   },
 } as const;
 

@@ -73,24 +73,36 @@ export default {
   "/users/analysts": {
     get: {
       tags: ["Usuários"],
-      summary: "Listar analistas",
+      summary: "Listar profissionais atribuíveis",
       description:
-        "Lista os analistas ativos para o modal de atribuição. Endpoint definitivo, sem query e sem paginação — filtros são feitos no cliente.",
-      operationId: "listAnalysts",
+        "Diretório de Responsáveis por etapa: Perfil ativo com flag de Atribuibilidade e o predicado de chaves da etapa. Sem paginação. Exige `assignee_directory:read`.",
+      operationId: "listAssignableProfessionals",
       security: [{ cookieAuth: [] }],
+      parameters: [
+        {
+          name: "protocol",
+          in: "query",
+          required: false,
+          description:
+            "Quando presente, omite o criador da solicitação e responde `404 request_not_found` se o protocolo não existir.",
+          schema: { type: "string" },
+        },
+      ],
       responses: {
         "200": {
-          description: "Lista direta de analistas.",
+          description: "Lista direta de profissionais atribuíveis.",
           content: {
             "application/json": {
               schema: {
                 type: "array",
-                items: { $ref: "#/components/schemas/AssignAnalyst" },
+                items: { $ref: "#/components/schemas/AssignableProfessional" },
               },
             },
           },
         },
         "401": error("Sem sessão ou token inválido."),
+        "403": error("Sem `assignee_directory:read`."),
+        "404": error("Protocolo informado não existe (`request_not_found`)."),
       },
     },
   },
@@ -120,11 +132,11 @@ export default {
       security: [{ cookieAuth: [] }],
       parameters: [
         {
-          name: "profile",
+          name: "profileId",
           in: "query",
           required: false,
-          description: "Nome do Perfil em `profiles.name`.",
-          schema: { type: "string", example: "analista" },
+          description: "Identidade estável do Perfil (`profiles.profile_id`).",
+          schema: { type: "string", example: "2" },
         },
         {
           name: "search",
@@ -171,7 +183,7 @@ export default {
                 value: {
                   fullName: "Maria Silva",
                   email: "maria.silva@empresa.com",
-                  role: "analista",
+                  profileId: "2",
                   requester: {
                     area: "TI",
                     department: "Desenvolvimento",
@@ -191,7 +203,7 @@ export default {
                 value: {
                   fullName: "Carlos Souza",
                   email: "carlos.souza@empresa.com",
-                  role: "solicitante",
+                  profileId: "1",
                   requester: {
                     area: "Administrativo",
                     manager: "Ana Paula",
@@ -233,7 +245,7 @@ export default {
       tags: ["Usuários"],
       summary: "Atualizar usuário",
       description:
-        "Edição administrativa parcial (merge): `fullName`, `email`, `role`, `professional` e `requester`. Contas de Administrador só podem ter o bloco `requester` alterado.",
+        "Edição administrativa parcial (merge): `fullName`, `email`, `profileId`, `professional` e `requester`. Contas de Administrador só podem ter o bloco `requester` alterado.",
       operationId: "updateUser",
       security: [{ cookieAuth: [] }],
       parameters: [idParam],

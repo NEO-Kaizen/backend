@@ -1,19 +1,21 @@
 import type {
-  InternalRole,
   TimelineChangeOrigin,
   TimelineEventAction,
 } from "../../../shared/types/internalNotes.ts";
+import type { ProfileSnapshot } from "../../../shared/types/profile.ts";
 import type { TriageAssessment } from "../../requests/triage/triage.schema.ts";
 import type { MappingResponseDTO } from "../queue/mapping.dto.ts";
-import type { Role } from "../../../shared/types/role.ts";
 
 export interface TimelineActorDTO {
   id: string;
   name: string;
-  role: InternalRole;
+  /**
+   * Snapshot do Perfil no momento do registro. `null` quando o evento não
+   * guardou Perfil; em notas antigas, `id` é `null` porque só o nome foi
+   * preservado — nunca inferido do nome.
+   */
+  profile: ProfileSnapshot | null;
 }
-
-export type TimelineEventActorDTO = Omit<TimelineActorDTO, "role"> & { role: Role };
 
 export interface TimelineNote {
   type: "note";
@@ -29,13 +31,13 @@ export interface TimelineEvent {
   action: TimelineEventAction;
   text: string;
   occurredAt: string;
-  actor: TimelineEventActorDTO | null;
+  actor: TimelineActorDTO | null;
   changeOrigin: TimelineChangeOrigin;
   /** Justificativa interna da transição (nunca o retorno público). */
   justification?: string | null;
   /**
    * Snapshot do retorno público da própria transição — populado **somente**
-   * em transições com retorno público; `null`/ausente nas demais.
+   * em `request.status_change` de destino público; `null`/ausente nos demais.
    */
   lastTechnicalMessage?: string | null;
 }

@@ -43,7 +43,7 @@ describe("auth.service (Postgres real)", () => {
     expect(result).toMatchObject({
       id: String(user.user_id),
       email: "maria@neo.com",
-      role: "Analista",
+      profile: { id: "2", name: "Analista" },
       mustChangePassword: false,
     });
   });
@@ -63,14 +63,18 @@ describe("auth.service (Postgres real)", () => {
 
   it("rejeita perfil inativo mesmo com senha correta", async () => {
     await insertUser({ email: "maria@neo.com", password: PASSWORD });
-    await testDb("profiles").where({ name: "analista" }).update({ is_active: false });
+    await testDb("profiles")
+      .whereRaw("lower(name) = lower(?)", ["analista"])
+      .update({ is_active: false });
 
     try {
       await expect(
         authService.authenticate({ email: "maria@neo.com", password: PASSWORD }),
       ).rejects.toMatchObject({ statusCode: 401 });
     } finally {
-      await testDb("profiles").where({ name: "analista" }).update({ is_active: true });
+      await testDb("profiles")
+        .whereRaw("lower(name) = lower(?)", ["analista"])
+        .update({ is_active: true });
     }
   });
 
@@ -156,7 +160,9 @@ describe("auth.service (Postgres real)", () => {
 
   it("rejeita sessão quando o perfil está inativo", async () => {
     const user = await insertUser({ email: "maria@neo.com" });
-    await testDb("profiles").where({ name: "analista" }).update({ is_active: false });
+    await testDb("profiles")
+      .whereRaw("lower(name) = lower(?)", ["analista"])
+      .update({ is_active: false });
 
     await expect(authService.getSessionUser(user.user_id)).rejects.toMatchObject({
       statusCode: 401,
@@ -179,7 +185,9 @@ describe("auth.service (Postgres real)", () => {
     });
 
     await testDb("users").where({ user_id: user.user_id }).update({ is_active: true });
-    await testDb("profiles").where({ name: "analista" }).update({ is_active: false });
+    await testDb("profiles")
+      .whereRaw("lower(name) = lower(?)", ["analista"])
+      .update({ is_active: false });
     await expect(authService.changePassword(user.user_id, body, undefined)).rejects.toMatchObject({
       statusCode: 401,
       message: "Token inválido ou expirado",

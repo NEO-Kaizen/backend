@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { permissionActorFromRequest } from "../../shared/access/permissionActor.ts";
 import { AppError } from "../../shared/errors/AppError.ts";
 import { formatZodIssues } from "../../shared/validation/zodErrors.ts";
 import { queueFilterQuerySchema } from "../queue/queue.schemas.ts";
@@ -22,7 +23,7 @@ export async function exportQueueCsvController(req: Request, res: Response): Pro
     throw new AppError(formatZodIssues(parsed.error, "query"), 400);
   }
 
-  const file = await exportQueueCsv(parsed.data);
+  const file = await exportQueueCsv(parsed.data, permissionActorFromRequest(req));
 
   return res
     .status(200)

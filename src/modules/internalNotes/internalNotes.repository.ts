@@ -3,7 +3,6 @@ import type {
   AuditTimelineAction,
   InternalNoteReadStateRow,
   InternalNoteRow,
-  InternalRole,
   MappingHistoryAssignee,
   MappingHistoryParticipant,
   MappingHistoryRow,
@@ -14,6 +13,8 @@ import type {
 
 interface RequestIdentityRow {
   request_id: string;
+  responsible_user_id: number | null;
+  mapping_user_id: number | null;
 }
 
 // `request.override_status_admin` é persistido pelo bypass de Administrador no
@@ -26,6 +27,7 @@ const REQUEST_EVENT_ACTIONS: AuditTimelineAction[] = [
   "request.status_change",
   "request.reopen",
   "request.override_status_admin",
+  "request.status_override",
 ];
 
 const MAPPING_RECORD_ACTIONS = ["mapping.save", "mapping.complete", "mapping.assign"];
@@ -34,7 +36,8 @@ const NOTE_COLUMNS = [
   "note.internal_note_id",
   "note.request_id",
   "note.author_user_id",
-  "note.author_role_at_creation",
+  "note.author_profile_id_at_creation",
+  "note.author_profile_name_at_creation",
   "note.content",
   "note.created_at",
   "author.full_name as author_name",
@@ -43,7 +46,29 @@ const NOTE_COLUMNS = [
 export async function findRequestIdByProtocol(
   protocol: string,
 ): Promise<RequestIdentityRow | undefined> {
-  return db("requests").where({ protocol }).first("request_id");
+  return db("requests")
+    .leftJoin(
+      "details_professional as responsible_professional",
+      "responsible_professional.professional_id",
+      "requests.professional_id",
+    )
+    .leftJoin(
+      "users as responsible_user",
+      "responsible_user.user_id",
+      "responsible_professional.user_id",
+    )
+    .leftJoin(
+      "details_professional as mapping_professional",
+      "mapping_professional.professional_id",
+      "requests.mapping_professional_id",
+    )
+    .leftJoin("users as mapping_user", "mapping_user.user_id", "mapping_professional.user_id")
+    .where({ "requests.protocol": protocol })
+    .first({
+      request_id: "requests.request_id",
+      responsible_user_id: "responsible_user.user_id",
+      mapping_user_id: "mapping_user.user_id",
+    });
 }
 
 export async function listNotesPage(
@@ -84,7 +109,6 @@ export async function listEventsPage(
 ): Promise<TimelineEventRow[]> {
   const query = db("audit_history as audit")
     .leftJoin("users as actor", "actor.user_id", "audit.user_id")
-    .leftJoin("profiles as actor_profile", "actor_profile.profile_id", "actor.profile_id")
     .where((scope) => {
       scope
         .where((requestScope) => {
@@ -129,7 +153,8 @@ export async function listEventsPage(
       "audit.occurred_at",
       "audit.user_id as actor_user_id",
       "actor.full_name as actor_name",
-      "actor_profile.name as actor_profile_name",
+      "audit.actor_profile_id",
+      "audit.actor_profile_name",
     )
     .orderBy("audit.occurred_at", "desc")
     .orderBy("audit.audit_id", "desc")
@@ -345,14 +370,15 @@ export async function findReadState(
 
 export async function insert(
   requestId: string,
-  author: { userId: number; role: InternalRole },
+  author: { userId: number; profileId: string; profileName: string },
   content: string,
 ): Promise<string> {
   const rows = (await db("request_internal_notes")
     .insert({
       request_id: requestId,
       author_user_id: author.userId,
-      author_role_at_creation: author.role,
+      author_profile_id_at_creation: Number(author.profileId),
+      author_profile_name_at_creation: author.profileName,
       content,
     })
     .returning("internal_note_id")) as Array<{ internal_note_id: string }>;

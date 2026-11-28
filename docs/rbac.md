@@ -28,13 +28,16 @@ Toda chave é `global` ou `custodial`.
 
 A custódia não vai no token e não envelhece com ele. As fontes do vínculo com a linha são:
 
-| Fonte                                            | Vale para                                                                                     |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `requests.responsible_id`                        | solicitação, fila, triagem, priorização, pendências internas, notas internas e auditoria      |
-| `mappings.responsible_id` do mapeamento corrente | `mapping:read`, `mapping:write` e visibilidade da fila (#102); não amplia a custódia de notas |
-| `requests.requester_email`                       | posse: `request:track` e `pending_item:respond`, comparando com o e-mail da conta             |
+| Fonte                                                                 | Vale para                                                                                                           |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `requests.professional_id` via `details_professional.user_id`         | escrita da triagem: `triage:write`, `pending_item:*`, `prioritization:write` e as ações comuns abaixo               |
+| `mappings.professional_id` do Mapeamento aberto mais recente          | escrita do mapeamento: `mapping:write` e as ações comuns abaixo                                                     |
+| `requests.mapping_professional_id`                                    | Responsável do mapeamento antes de existir qualquer linha de Mapeamento                                             |
+| `requests.requester_user_id`; sem vínculo, `requests.requester_email` | posse: `request:track` e `pending_item:respond`, comparando com a conta (id; e-mail só nas linhas legadas/anônimas) |
 
-A visibilidade da fila (`queue:read`/`queue:export`, #102) inclui o responsável do mapeamento corrente; a custódia de `internal_note:read`, usada pela busca por notas, continua restrita a `requests.responsible_id`.
+**Ações comuns** (`request:read`, `request:write`, `request:status_change`, `internal_note:*`, `audit:read`, `queue:*`) e a **leitura de cada etapa** (`triage:read`, `mapping:read`) valem para o Responsável da triagem **ou** do mapeamento corrente. A etapa do Status não depende de quem age: o alvo precisa ser ativo e ter `triageMode` ou `mappingMode` `free`; restrito ou fora do modo exige `request:status_override` global.
+
+`triage:write` é exclusivo da triagem e `mapping:write` é exclusivo do mapeamento: a triagem não edita nem designa o mapeamento, e o mapeamento não registra triagem. A leitura de ambas as etapas é simétrica.
 
 Snapshots de triagem e de mapeamento são histórico: eles registram o que aconteceu, não concedem acesso ao que acontece agora.
 
@@ -50,9 +53,11 @@ Uma chave `custodial` é concedida em um de três vínculos. O valor é o mesmo 
 
 `own` não significa “dono da fila” nem “dono do sistema”: significa a solicitação em que o ator é o Solicitante. `assigned` é a custódia — o vínculo que o Responsável corrente tem com a linha. `all` dispensa o filtro de linha.
 
-Abrir uma solicitação estabelece a posse: o autor passa a ser o Solicitante daquela linha. As chaves `request:track` e `pending_item:respond` operam sobre esse vínculo em `own`. Autoria **não** concede `request:read`, `queue:read`, `triage:read` nem custódia interna: para ver a solicitação na visão interna, o autor precisa da chave interna e do vínculo `assigned`/`all`.
+Abrir uma solicitação estabelece a posse: o autor passa a ser o Solicitante daquela linha. As chaves `request:track` e `pending_item:respond` operam sobre esse vínculo em `own`. A posse autenticada vem de `requests.requester_user_id`; só nas linhas legadas ou anônimas sem vínculo a comparação cai para `requests.requester_email` normalizado. Autoria **não** concede `request:read`, `queue:read`, `triage:read` nem custódia interna: para ver a solicitação na visão interna, o autor precisa da chave interna e do vínculo `assigned`/`all`.
 
 Só `request:track` e `pending_item:respond` aceitam `own` — nenhuma outra chave custodial usa esse vínculo. As duas têm **custódia fixa em `own`**: posse é o único vínculo que elas modelam. Não existe `request:track` em `assigned`/`all` — acompanhar a solicitação de outra pessoa é papel da visão interna (`request:read`), e responder à pendência de outra pessoa é papel de `pending_item:review`.
+
+`assigned` só é coerente em um perfil que possa receber atribuições: toda composição com pelo menos uma chave em `assigned` exige `is_assignable_triage` ou `is_assignable_mapping`. Sem a flag, a escrita é recusada com `400 profile_assigned_scope_without_assignability` — a guarda vale em criação, edição e duplicação, sem exceção de legado.
 
 Chave `global` não tem vínculo de linha: no código e na API, o valor é `global`.
 
@@ -71,12 +76,12 @@ Atribuibilidade não é `request:assign`: atribuir é escolher o Responsável; s
 
 ### 1.5 O que não se confunde
 
-| Termo                | Pergunta que responde                   | Exemplo                                                  |
-| -------------------- | --------------------------------------- | -------------------------------------------------------- |
-| **`request:assign`** | quem pode escolher o Responsável        | o Analista redistribui a solicitação que custodía        |
-| **Atribuibilidade**  | quem pode ser escolhido                 | perfil com `is_assignable_triage` e as chaves de triagem |
-| **Custódia**         | sobre qual linha a chave custodial vale | `requests.responsible_id = analista.id`                  |
-| **Posse**            | quem abriu a solicitação                | o autor acompanha a própria solicitação em `own`         |
+| Termo                | Pergunta que responde                   | Exemplo                                                            |
+| -------------------- | --------------------------------------- | ------------------------------------------------------------------ |
+| **`request:assign`** | quem pode escolher o Responsável        | Administrador e Admin Root escolhem qualquer Responsável           |
+| **Atribuibilidade**  | quem pode ser escolhido                 | perfil com `is_assignable_triage` e as chaves de triagem           |
+| **Custódia**         | sobre qual linha a chave custodial vale | `details_professional.user_id` ligado a `requests.professional_id` |
+| **Posse**            | quem abriu a solicitação                | o autor acompanha a própria solicitação em `own`                   |
 
 ### 1.6 Solicitante público × Solicitante autenticado
 
@@ -99,15 +104,19 @@ O perfil `Solicitante` não é um caso fora do RBAC: ele é a composição de `r
 
 ### 1.7 Dependências de chave
 
-Três dependências são validadas no servidor. Uma composição que viole qualquer uma delas é recusada, e o editor de perfis bloqueia o grant correspondente.
+As dependências abaixo são validadas no servidor. Uma composição que viole qualquer uma delas é recusada, e o editor de perfis bloqueia o grant correspondente.
 
 | Chave que exige           | Dependência               | Por quê                                                                                |
 | ------------------------- | ------------------------- | -------------------------------------------------------------------------------------- |
 | `*:manage`                | `*:read` da mesma família | quem altera precisa ler o que altera                                                   |
+| `request:create`          | `request:track`           | abrir sem poder acompanhar o que abriu não é uma capability completa                   |
+| `request:assign`          | `assignee_directory:read` | quem escolhe o Responsável precisa ler o diretório de quem pode ser escolhido          |
+| `request:write`           | `request:read`            | editar o conteúdo interno sem poder ler a solicitação não é uma capability válida      |
 | `request:status_override` | `request:status_change`   | o override libera o alvo protegido; a decisão sobre qual solicitação continua na outra |
 | `pending_item:respond`    | `request:track`           | a pendência vive dentro de uma solicitação; responder sem acompanhar é agir às cegas   |
+| `user:manage`             | `profile:read`            | gerir contas exige ler os perfis que podem ser atribuídos                              |
 
-As demais combinações não têm dependência: `request:create` é independente — um perfil pode abrir sem acompanhar — e `request:track` sozinho é um Solicitante somente-leitura, que vê a própria solicitação mas não responde pendências.
+`request:track` sozinho é um Solicitante somente-leitura, que vê a própria solicitação mas não responde pendências. A chave `request:write` também precisa de `request:read`; suas Custódias podem ter alcances diferentes, e a resposta da mutação não revela conteúdo fora da Custódia de leitura.
 
 ## 2. Os onze verbos
 
@@ -125,23 +134,23 @@ Toda chave termina em um destes verbos. O verbo é parte do contrato: `export` n
 | `export`          | extrair a fila em arquivo                                       | `queue:export`                             |
 | `review`          | validar um lote de pendências                                   | `pending_item:review`                      |
 | `respond`         | responder às pendências da própria solicitação                  | `pending_item:respond`                     |
-| `manage`          | criar, editar, ativar ou desativar uma entidade ou configuração | `user:manage`, `form:manage`               |
+| `manage`          | criar, editar, ativar ou desativar uma entidade ou configuração | `user:manage`, `profile:manage`            |
 
-## 3. Catálogo das 39 chaves
+## 3. Catálogo das 37 chaves
 
 A coluna **Custódia** diz se a chave depende da linha. A coluna **O que permite** descreve a capability, não o perfil: quem recebe a chave é decisão da matriz da § 4.
 
 ### 3.1 Solicitação
 
-| Chave                     | Recurso | Ação            | Custódia    | O que permite                                                                                                  |
-| ------------------------- | ------- | --------------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
-| `request:create`          | request | create          | `global`    | Abrir uma solicitação; o autor passa a ser o Solicitante dela e a posse nasce com a linha                      |
-| `request:track`           | request | track           | `custodial` | Acompanhar as próprias solicitações na projeção do Solicitante — nunca a visão interna; custódia fixa em `own` |
-| `request:read`            | request | read            | `custodial` | Ler a solicitação na visão interna                                                                             |
-| `request:write`           | request | write           | `custodial` | Editar o conteúdo interno da solicitação                                                                       |
-| `request:assign`          | request | assign          | `custodial` | Atribuir e reatribuir o Responsável                                                                            |
-| `request:status_change`   | request | status_change   | `custodial` | Mudar o status para um alvo permitido pelo fluxo                                                               |
-| `request:status_override` | request | status_override | `global`    | Mudar o status para alvo restrito ou fora do modo da etapa; não torna o alvo elegível na triagem/mapeamento    |
+| Chave                     | Recurso | Ação            | Custódia    | O que permite                                                                                                                                                                     |
+| ------------------------- | ------- | --------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request:create`          | request | create          | `global`    | Abrir uma solicitação; o autor passa a ser o Solicitante dela e a posse nasce com a linha                                                                                         |
+| `request:track`           | request | track           | `custodial` | Acompanhar as próprias solicitações na projeção do Solicitante — nunca a visão interna; custódia fixa em `own`                                                                    |
+| `request:read`            | request | read            | `custodial` | Ler a solicitação na visão interna                                                                                                                                                |
+| `request:write`           | request | write           | `custodial` | Editar o conteúdo interno da solicitação; exige também `request:read`                                                                                                             |
+| `request:assign`          | request | assign          | `custodial` | Atribuir e reatribuir o Responsável                                                                                                                                               |
+| `request:status_change`   | request | status_change   | `custodial` | Mudar o status para um alvo permitido pelo fluxo                                                                                                                                  |
+| `request:status_override` | request | status_override | `global`    | Mudar o status para alvo restrito ou fora do modo da etapa; também libera a Triagem em Status restrito quando há `triage:write` + Custódia, sem tornar o alvo da Triagem elegível |
 
 ### 3.2 Fila e relatórios
 
@@ -203,24 +212,17 @@ A coluna **Custódia** diz se a chave depende da linha. A coluna **O que permite
 | `prioritization_config:read`   | prioritization_config | read   | `global` | Ler os critérios e os pesos da priorização                                    |
 | `prioritization_config:manage` | prioritization_config | manage | `global` | Alterar os critérios e os pesos                                               |
 
-### 3.8 Formulário
-
-| Chave         | Recurso | Ação   | Custódia | O que permite                     |
-| ------------- | ------- | ------ | -------- | --------------------------------- |
-| `form:read`   | form    | read   | `global` | Ler a definição do formulário     |
-| `form:manage` | form    | manage | `global` | Alterar a definição do formulário |
-
-**Totais:** 39 chaves em onze verbos. **19 `custodial`** e **20 `global`**.
+**Totais:** 37 chaves em onze verbos. **19 `custodial`** e **18 `global`**. As chaves `form:read` e `form:manage` existiram até a Rodada 01 e foram removidas por não terem rota nem consumidor.
 
 Detalhes que costumam gerar bug:
 
 - `request:create` é `global` porque a linha ainda não existe; a posse nasce com ela.
 - `request:track` é a projeção do Solicitante; `request:read` é a visão interna. Uma não substitui a outra. `request:track` devolve status, reunião e pendências, nunca triagem, prioridade ou notas internas.
-- `request:status_override` é `global` porque libera o **alvo protegido**; a solicitação sobre a qual ele incide continua limitada por `request:status_change`. Ele não substitui a outra chave.
+- `request:status_override` é `global` porque libera o **alvo protegido** de `PATCH /status`; não substitui `request:status_change` nem sua Custódia. Na Triagem, também libera o Status atual restrito, mas não substitui `triage:write` + Custódia nem permite um Status de saída restrito.
 - `prioritization:write` é `custodial` para a avaliação, mas inclui a leitura global dos critérios necessários ao cálculo. Quem só lê a configuração usa `prioritization_config:read`; não reutilize `prioritization:write` para isso.
 - `request:track` e `pending_item:respond` têm custódia fixa em `own` (dependências na § 1.7). Responder à pendência de outra pessoa é `pending_item:review`; acompanhar a solicitação de outra pessoa é `request:read`. `pending_item:respond` inclui a leitura das próprias pendências, como `prioritization:write` inclui os critérios; não crie uma chave separada de leitura para o Solicitante.
 - `assignee_directory:read` não é `user:read`: é o diretório de quem pode receber solicitações — extensão de profissional, flag, predicado e conta ativa —, não a lista de usuários.
-- `queue:read` e `queue:export` são a própria Fila e as métricas sobre ela.
+- `queue:read` e `queue:export` são a própria Fila do ator: `assigned` inclui o Responsável da solicitação ou do Mapeamento corrente; `all` dispensa o filtro.
 - `audit:read` tem uma porta por domínio: `request:read` lê a solicitação; `triage:read`, `mapping:read`, `pending_item:read`, `internal_note:read` e `audit:read` leem as suas.
 - `theme` cobre tema e assets. `portal_setting` cobre modo de acesso e identidade (nome da plataforma e máscara do protocolo).
 
@@ -260,7 +262,7 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | 2   | `request:track`                | own         | own      | own          | own           | own        |
 | 3   | `request:read`                 | —           | assigned | all          | all           | all        |
 | 4   | `request:write`                | —           | assigned | —            | all           | all        |
-| 5   | `request:assign`               | —           | assigned | —            | all           | all        |
+| 5   | `request:assign`               | —           | —        | —            | all           | all        |
 | 6   | `request:status_change`        | —           | assigned | —            | all           | all        |
 | 7   | `request:status_override`      | —           | —        | —            | global        | global     |
 | 8   | `queue:read`                   | —           | assigned | all          | all           | all        |
@@ -277,7 +279,7 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | 19  | `pending_item:respond`         | own         | own      | own          | own           | own        |
 | 20  | `internal_note:read`           | —           | assigned | all          | all           | all        |
 | 21  | `internal_note:write`          | —           | assigned | all          | all           | all        |
-| 22  | `audit:read`                   | —           | assigned | all          | all           | all        |
+| 22  | `audit:read`                   | —           | —        | all          | all           | all        |
 | 23  | `assignee_directory:read`      | —           | global   | global       | global        | global     |
 | 24  | `user:read`                    | —           | —        | —            | global        | global     |
 | 25  | `user:manage`                  | —           | —        | —            | global        | global     |
@@ -293,18 +295,16 @@ Legenda: `—` = o perfil não tem a chave; `global` = chave global; `own` = pos
 | 35  | `portal_setting:manage`        | —           | —        | —            | global        | global     |
 | 36  | `prioritization_config:read`   | —           | —        | —            | global        | global     |
 | 37  | `prioritization_config:manage` | —           | —        | —            | global        | global     |
-| 38  | `form:read`                    | —           | —        | —            | global        | global     |
-| 39  | `form:manage`                  | —           | —        | —            | global        | global     |
 
 **Contagem por perfil**
 
 | Perfil        | Chaves | `custodial` | `global` |
 | ------------- | ------ | ----------- | -------- |
 | Solicitante   | 3      | 2           | 1        |
-| Analista      | 20     | 18          | 2        |
+| Analista      | 18     | 16          | 2        |
 | Visualizador  | 14     | 11          | 3        |
-| Administrador | 39     | 19          | 20       |
-| Admin Root    | 39     | 19          | 20       |
+| Administrador | 37     | 19          | 18       |
+| Admin Root    | 37     | 19          | 18       |
 
 Todo perfil base recebe `request:track` e `pending_item:respond` em `own`: qualquer usuário autenticado é também um Solicitante. `own` é posse; `assigned` é custódia; autoria nunca vira custódia interna.
 
@@ -323,32 +323,40 @@ Conceder `profile:manage` não é exclusividade do Admin Root: segue a regra com
 
 ## 5. Como a custódia é resolvida
 
-| Chave                                                                      | Fonte do vínculo                                                                                                                                              |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `request:read`, `request:write`, `request:assign`, `request:status_change` | `requests.responsible_id`                                                                                                                                     |
-| `triage:read`, `triage:write`                                              | `requests.responsible_id`                                                                                                                                     |
-| `mapping:read`, `mapping:write`                                            | `requests.responsible_id` **ou** `mappings.responsible_id` do mapeamento corrente                                                                             |
-| `prioritization:write`                                                     | `requests.responsible_id`                                                                                                                                     |
-| `pending_item:read`, `pending_item:write`, `pending_item:review`           | `requests.responsible_id`                                                                                                                                     |
-| `internal_note:read`, `internal_note:write`                                | `requests.responsible_id`                                                                                                                                     |
-| `audit:read`                                                               | `requests.responsible_id`, com uma porta por domínio                                                                                                          |
-| `queue:read`, `queue:export`                                               | Fila do ator: `requests.responsible_id = ator.id` ou responsável do mapeamento corrente (#102); a busca por nota usa `internal_note:read` (ver regras abaixo) |
-| `request:track`, `pending_item:respond`                                    | posse: `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                                                                          |
-| chaves `global`                                                            | nenhuma verificação de linha                                                                                                                                  |
+| Chave                                                            | Fonte do vínculo                                                                                                                                        |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `request:read`, `request:write`, `request:status_change`         | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `request:assign`                                                 | Responsável da triagem **ou** do mapeamento corrente (na matriz base, só Administrador/Admin Root têm a chave)                                          |
+| `triage:read`                                                    | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `triage:write`                                                   | Responsável da triagem                                                                                                                                  |
+| `mapping:read`                                                   | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `mapping:write`                                                  | Responsável do mapeamento corrente                                                                                                                      |
+| `prioritization:write`                                           | Responsável da triagem — **comportamento anterior ao RBAC; confirmação pendente com Produto**                                                           |
+| `pending_item:read`, `pending_item:write`, `pending_item:review` | Responsável da triagem — **comportamento anterior ao RBAC; confirmação pendente com Produto**                                                           |
+| `internal_note:read`, `internal_note:write`                      | Responsável da triagem **ou** do mapeamento corrente                                                                                                    |
+| `audit:read`                                                     | Responsável da triagem **ou** do mapeamento corrente, com uma porta por domínio                                                                         |
+| `queue:read`, `queue:export`                                     | Responsável da solicitação **ou** do Mapeamento aberto mais recente; antes da primeira linha, `requests.mapping_professional_id`; `all` dispensa filtro |
+| `request:track`, `pending_item:respond`                          | posse: `requests.requester_user_id`; sem vínculo, `requests.requester_email` = e-mail da conta do ator (custódia fixa em `own`)                         |
+| chaves `global`                                                  | nenhuma verificação de linha                                                                                                                            |
 
 Regras de aplicação:
 
 - A custódia é lida na operação, não no login. O guard relê o usuário e o perfil no banco a cada requisição; desativação, troca de perfil e troca de Responsável valem imediatamente.
 - A rota tem o gate grosso: sessão válida e a chave. O serviço do domínio aplica a custódia, em um lugar só por domínio.
 - `all` dispensa o filtro de linha. `assigned` compara o Responsável corrente com o ator. `own` compara o e-mail do Solicitante (`requests.requester_email`) com o e-mail da conta.
+- A escrita alinha com o vínculo: `triage:write`, `pending_item:*` e `prioritization:write` são exclusivos da triagem; `mapping:write` é exclusivo do mapeamento corrente. A leitura de cada etapa (`triage:read` e `mapping:read`) vale para o Responsável da triagem **ou** do mapeamento corrente; as ações comuns valem para os dois.
+- Designar o mapeamento zera `requests.professional_id` por exclusividade. Por isso as ações comuns — `request:read`, `request:write`, `request:status_change`, `internal_note:*`, `audit:read` e `queue:*` — somam os dois vínculos. A designação de qualquer etapa exige `request:assign` com custódia da linha (na matriz base, só Administrador/Admin Root); `mapping:write` não designa.
+- `pending_item:*` e `prioritization:write` seguem o comportamento anterior ao RBAC (só triagem). **Não são decisão fechada:** precisam de confirmação do Produto antes de qualquer ampliação.
+- Quem lê a visão interna sem `internal_note:read` recebe `internalObservations: null`; sem `pending_item:read`, os blocos de Pendência saem zerados.
+- A etapa do Status não depende do vínculo: o alvo precisa ser ativo e ter `triageMode` ou `mappingMode` `free`; restrito ou fora do modo exige `request:status_override` global.
 - Sem sessão, não há ator: a porta pública do modo `PUBLIC` é a única que não avalia chaves. Ela usa o e-mail declarado e o protocolo.
-- Snapshots de triagem e de mapeamento não concedem acesso. Mapeamento concluído é histórico.
-- A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: só casa nota de solicitação cujo Responsável é o ator. O responsável de mapeamento não amplia essa busca, embora amplie a fila conforme a #102. Essa divergência entre o escopo da fila e a custódia da nota é pré-existente; a tabela acima e `docs/rules/internal-observations.md` a explicitam.
+- Snapshots de triagem e de mapeamento não concedem acesso. A linha aberta mais recente do Mapeamento é a fonte vigente; quando ainda não existe linha de Mapeamento, vale a designação inicial da solicitação. Mapeamento concluído é histórico.
+- A busca agregada por notas (`GET /queue?search`) usa a custódia de `internal_note:read`: casa nota de solicitação cujo Responsável da triagem **ou** do mapeamento corrente é o ator. Quem não tem a chave não casa nota alguma.
 - Solicitação órfã não é visível ao Analista custodial; ela é atribuída por quem tem `request:assign` em `all`.
 
 ## 6. Atribuir e ser atribuível
 
-`request:assign` é a permissão de escolher ou trocar o Responsável. Ela é `custodial`: o Analista atribui as solicitações que custodía; o Visualizador não atribui; o Administrador e o Admin Root atribuem qualquer uma.
+`request:assign` é a permissão de escolher ou trocar o Responsável — de triagem ou de mapeamento. Ela é `custodial`: no perfil base, só Administrador e Admin Root a têm (`all`). O Analista não atribui — a matriz não concede `request:assign` a ele; perfis customizados podem recebê-la explicitamente.
 
 A atribuibilidade é independente:
 
@@ -362,67 +370,76 @@ Regras de validação do alvo:
 - usuário inativo ou perfil inativo não é alvo;
 - a flag sozinha não basta: o predicado de chaves é revalidado no servidor;
 - reatribuir usa a mesma chave e as mesmas validações;
+- o criador da solicitação não pode ser o Responsável dela: a recusa é `400 assignee_is_requester` na triagem, no mapeamento (inclusive a designação pelo `PUT /queue/requests/:protocol/mapping`) e na rota legada. O diretório com `?protocol=` já omite o criador; remover o Responsável (`null`) continua permitido, e solicitações anônimas ou legadas sem `requester_user_id` não são afetadas;
 - o Administrador e o Admin Root têm as chaves, mas não são atribuíveis.
 
 Nos perfis base, só o Analista tem as duas flags ligadas.
 
 ### 6.1 Extensão de profissional
 
-A extensão de profissional (`details_professional`, 1:1 com a conta) habilita o usuário a ser designado _Responsável_. Ela segue a atribuibilidade, não o nome do perfil:
+A extensão de profissional (`details_professional`, 1:1 com a conta) é a âncora persistida da designação de _Responsável_. Sua provisão depende do Perfil ativo ter uma flag de Atribuibilidade, não do predicado de chaves de trabalho nem do nome:
 
-- nasce na criação de usuário cujo perfil tem `is_assignable_triage` ou `is_assignable_mapping`;
+- nasce na mesma transação da criação de usuário cujo Perfil ativo tem `is_assignable_triage` ou `is_assignable_mapping`;
 - backfill transacional ao ligar a flag num perfil que já tem usuários ativos;
-- backfill transacional ao mover uma conta, via `user:manage`, para um perfil com a flag;
-- o diretório de atribuíveis (`assignee_directory:read`) exige extensão, flag, predicado de chaves e conta ativa.
+- backfill transacional ao mover uma conta, via `user:manage`, para um Perfil ativo com a flag;
+- mover a conta para um Perfil sem flag remove a extensão, e a remoção é bloqueada enquanto houver designação aberta;
+- o diretório de atribuíveis (`assignee_directory:read`) e a designação exigem extensão ativa, conta e Perfil ativos e a Atribuibilidade completa (flag + predicado de chaves).
 
 ## 7. Mapa rota → chave
 
-As rotas abaixo são a referência de contrato. O que vale é a chave; a rota pode variar sem mudar a permissão.
+O contrato de rotas é a especificação OpenAPI em `src/docs/`; a tabela abaixo
+resume o mapeamento de capabilities. O que vale é a chave; a rota pode variar
+sem mudar a permissão.
 
-| Rota                                                                                                  | Chave / regra                                                                                            |
-| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `POST /requests`                                                                                      | `request:create` com sessão; sem sessão no modo `PUBLIC`, porta pública sem chave                        |
-| `POST /requests/:protocol/public/verify`                                                              | nenhuma; porta pública de verificação de identidade do Solicitante, com rate-limit                       |
-| `GET /requests?email=`                                                                                | `request:track` em `own` com sessão; porta pública sem sessão                                            |
-| `GET /requests/:protocol`                                                                             | `request:track` em `own` com sessão; porta pública sem sessão                                            |
-| `GET /requests/:protocol/tracking`                                                                    | `request:track` em `own` com sessão; porta pública sem sessão                                            |
-| `GET /requests/:protocol/internal`                                                                    | `request:read` + custódia                                                                                |
-| `PATCH /requests/:protocol/internal`                                                                  | `request:write` + custódia                                                                               |
-| `PATCH /requests/:protocol/internal/assignee`, `PATCH /requests/:protocol/assignee`                   | `request:assign`; alvo validado pela atribuibilidade                                                     |
-| `PATCH /requests/:protocol/status`                                                                    | `request:status_change`; alvo restrito exige `request:status_override`                                   |
-| `GET /requests/assignees`, `GET /users/analysts`                                                      | `assignee_directory:read` (`/users/analysts` é nome legado; o diretório é por flag, não por perfil)      |
-| `GET /queue`, `GET /queue/metrics`                                                                    | `queue:read`                                                                                             |
-| `GET /reports/requests.csv`                                                                           | `queue:export`                                                                                           |
-| `GET /reports/dashboard`                                                                              | `reports:read`                                                                                           |
-| `GET /requests/:protocol/triage`                                                                      | `triage:read` + custódia                                                                                 |
-| `POST /requests/:protocol/triage`                                                                     | `triage:write` + custódia                                                                                |
-| `GET /queue/requests/:protocol/mapping`                                                               | `mapping:read` + custódia do mapeamento corrente                                                         |
-| `PUT /queue/requests/:protocol/mapping`                                                               | `mapping:write` + custódia do mapeamento corrente                                                        |
-| `GET /prioritization/criteria`                                                                        | `prioritization:write` (avaliador) ou `prioritization_config:read` (configuração)                        |
-| `PUT /prioritization/:protocol/score`                                                                 | `prioritization:write` + custódia                                                                        |
-| `GET /requests/:protocol/pending-items`                                                               | `pending_item:respond` em `own` na porta do Solicitante; `pending_item:read` + custódia na porta interna |
-| `POST /requests/:protocol/pending-items`                                                              | `pending_item:write` + custódia                                                                          |
-| `PATCH /requests/:protocol/pending-items/review`                                                      | `pending_item:review` + custódia                                                                         |
-| `PATCH /requests/:protocol/pending-items/:id`                                                         | `pending_item:respond` em `own` com sessão; porta pública sem sessão                                     |
-| `POST /requests/:protocol/pending-items/:id/attachments`                                              | `pending_item:respond` em `own` com sessão; porta pública sem sessão                                     |
-| `GET /requests/:protocol/internal-notes`                                                              | `internal_note:read` + custódia                                                                          |
-| `POST /requests/:protocol/internal-notes`                                                             | `internal_note:write` + custódia                                                                         |
-| `PUT /requests/:protocol/internal-notes/read`                                                         | `internal_note:read` + custódia                                                                          |
-| `GET /audit-history`, `GET /audit-logs/:protocol`                                                     | `audit:read` + custódia                                                                                  |
-| `GET /users`, `GET /users/:id`, `GET /users/metrics`                                                  | `user:read`                                                                                              |
-| `POST /users`, `PUT /users/:id`, `PATCH /users/:id/status`, `POST /users/:id/reset-password`          | `user:manage` + matriz de contas                                                                         |
-| `GET /users/me`, `PUT /users/me`                                                                      | sessão; autoatendimento sem chave                                                                        |
-| `GET /profiles`, `GET /profiles/keys`, `GET /profiles/:id`                                            | `profile:read`                                                                                           |
-| `POST /profiles`, `PATCH /profiles/:id`, `PATCH /profiles/:id/status`, `POST /profiles/:id/duplicate` | `profile:manage`                                                                                         |
-| `GET /portal-config`                                                                                  | nenhuma; projeção pública                                                                                |
-| `GET /portal-config/<seção>`                                                                          | `theme:read`, `category:read`, `status:read`, `portal_setting:read` ou `prioritization_config:read`      |
-| `PATCH /portal-config/theme`, `/assets`                                                               | `theme:manage`                                                                                           |
-| `PATCH /portal-config/categories`                                                                     | `category:manage`                                                                                        |
-| `PATCH /portal-config/statuses`                                                                       | `status:manage`                                                                                          |
-| `PATCH /portal-config/access`, `/identity`                                                            | `portal_setting:manage`                                                                                  |
-| `PATCH /portal-config/prioritization-weights`                                                         | `prioritization_config:manage`                                                                           |
-| rotas de formulário                                                                                   | `form:read` / `form:manage`                                                                              |
-| `GET /auth/me`                                                                                        | sessão válida, sem chave específica                                                                      |
+| Rota                                                                                                  | Chave / regra                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /requests`                                                                                      | `request:create` com sessão; sem sessão no modo `PUBLIC`, porta pública sem chave                                                                                                                                                                            |
+| `POST /requests/:protocol/public/verify`                                                              | nenhuma; porta pública de verificação de identidade do Solicitante, com rate-limit                                                                                                                                                                           |
+| `GET /requests?email=`                                                                                | `request:track` em `own` com sessão; porta pública sem sessão                                                                                                                                                                                                |
+| `GET /requests/:protocol`                                                                             | `request:track` em `own` com sessão; porta pública sem sessão                                                                                                                                                                                                |
+| `GET /requests/:protocol/tracking`                                                                    | `request:track` em `own` com sessão; porta pública sem sessão                                                                                                                                                                                                |
+| `POST /requests/:protocol/cancel`                                                                     | `request:track` em `own` com sessão; linha de terceiro retorna 404; solicitação inelegível retorna 422 `rf07_not_eligible`                                                                                                                                   |
+| `GET /requests/:protocol/internal`                                                                    | `request:read` + custódia do Responsável da triagem **ou** do Mapeamento corrente; fora dela retorna 404                                                                                                                                                     |
+| `PATCH /requests/:protocol/internal`                                                                  | `request:write` + custódia do Responsável da triagem **ou** do Mapeamento corrente; exige também `request:read`; sem custódia de leitura retorna acknowledgement                                                                                             |
+| `PATCH /requests/:protocol/internal/assignee`                                                         | `request:assign` (matriz base: Administrador/Admin Root) + custódia do Responsável da triagem **ou** do mapeamento corrente; alvo inválido retorna 400 `assignee_not_assignable`; criador como responsável retorna 400 `assignee_is_requester`               |
+| `PATCH /requests/:protocol/assignee`                                                                  | `request:assign` (rota legada de triagem) + custódia; mesmas validações de alvo                                                                                                                                                                              |
+| `PATCH /requests/:protocol/status`                                                                    | `request:status_change` + custódia; alvo restrito exige `request:status_override` global                                                                                                                                                                     |
+| `GET /requests/assignees`, `GET /users/analysts`                                                      | `assignee_directory:read` (diretório por flag e predicado, não por nome de Perfil). `GET /users/analysts?protocol=` omite o criador da solicitação e responde 404 `request_not_found` se o protocolo não existir; `GET /requests/assignees` permanece global |
+| `GET /queue`, `GET /queue/metrics`                                                                    | `queue:read`                                                                                                                                                                                                                                                 |
+| `GET /reports/requests.csv`                                                                           | `queue:export`                                                                                                                                                                                                                                               |
+| `GET /reports/dashboard`                                                                              | `reports:read`                                                                                                                                                                                                                                               |
+| `GET /requests/:protocol/triage`                                                                      | `triage:read` + custódia do Responsável da triagem                                                                                                                                                                                                           |
+| `POST /requests/:protocol/triage`                                                                     | `triage:write` + custódia do Responsável da triagem                                                                                                                                                                                                          |
+| `GET /queue/requests/:protocol/mapping`                                                               | `mapping:read` + custódia do mapeamento corrente                                                                                                                                                                                                             |
+| `PUT /queue/requests/:protocol/mapping`                                                               | `mapping:write` + custódia do mapeamento corrente                                                                                                                                                                                                            |
+| `GET /prioritization/criteria`                                                                        | `prioritization:write` (avaliador) ou `prioritization_config:read` (configuração)                                                                                                                                                                            |
+| `PUT /prioritization/:protocol/score`                                                                 | `prioritization:write` + custódia do Responsável da triagem                                                                                                                                                                                                  |
+| `GET /requests/:protocol/pending-items`                                                               | `pending_item:respond` em `own` na porta do Solicitante; `pending_item:read` + custódia do Responsável da triagem na porta interna                                                                                                                           |
+| `POST /requests/:protocol/pending-items`                                                              | `pending_item:write` + custódia do Responsável da triagem                                                                                                                                                                                                    |
+| `PATCH /requests/:protocol/pending-items/review`                                                      | `pending_item:review` + custódia                                                                                                                                                                                                                             |
+| `PATCH /requests/:protocol/pending-items/:id`                                                         | `pending_item:respond` em `own` com sessão; porta pública sem sessão                                                                                                                                                                                         |
+| `POST /requests/:protocol/pending-items/:id/attachments`                                              | `pending_item:respond` em `own` com sessão; porta pública sem sessão                                                                                                                                                                                         |
+| `GET /requests/:protocol/internal-notes`                                                              | `internal_note:read` + custódia                                                                                                                                                                                                                              |
+| `POST /requests/:protocol/internal-notes`                                                             | `internal_note:write` + custódia                                                                                                                                                                                                                             |
+| `PUT /requests/:protocol/internal-notes/read`                                                         | `internal_note:read` + custódia                                                                                                                                                                                                                              |
+| `GET /audit-history`, `GET /audit-history/:id`                                                        | `audit:read` + custódia                                                                                                                                                                                                                                      |
+| `GET /audit-logs/:protocol`                                                                           | `request:read` + custódia do Responsável da triagem **ou** do mapeamento corrente (timeline da solicitação)                                                                                                                                                  |
+| `GET /users`, `GET /users/:id`, `GET /users/metrics`                                                  | `user:read`                                                                                                                                                                                                                                                  |
+| `POST /users`, `PUT /users/:id`, `PATCH /users/:id/status`, `POST /users/:id/reset-password`          | `user:manage` + matriz de contas                                                                                                                                                                                                                             |
+| `GET /users/me`, `PUT /users/me`                                                                      | sessão; autoatendimento sem chave (área, departamento e gestor do próprio bloco exigem `user:manage`)                                                                                                                                                        |
+| `GET /profiles`, `GET /profiles/keys`, `GET /profiles/:id`                                            | `profile:read`                                                                                                                                                                                                                                               |
+| `POST /profiles`, `PATCH /profiles/:id`, `PATCH /profiles/:id/status`, `POST /profiles/:id/duplicate` | `profile:manage`                                                                                                                                                                                                                                             |
+| `GET /portal-config`                                                                                  | nenhuma; projeção pública                                                                                                                                                                                                                                    |
+| `GET /portal-config/sections`                                                                         | seções legíveis ao ator; devolve só as seções cujas chaves de leitura o ator tem (`theme:read`, `category:read`, `status:read`, `portal_setting:read`, `prioritization_config:read`)                                                                         |
+| `PATCH /portal-config/theme`, `/assets`                                                               | `theme:manage`                                                                                                                                                                                                                                               |
+| `PATCH /portal-config/categories`                                                                     | `category:manage`                                                                                                                                                                                                                                            |
+| `PATCH /portal-config/statuses`                                                                       | `status:manage`                                                                                                                                                                                                                                              |
+| `PATCH /portal-config/access`, `/identity`                                                            | `portal_setting:manage`                                                                                                                                                                                                                                      |
+| `PATCH /portal-config/prioritization-weights`                                                         | `prioritization_config:manage`                                                                                                                                                                                                                               |
+| rotas de formulário                                                                                   | removidas na Rodada 01; as chaves `form:read` / `form:manage` saíram do catálogo                                                                                                                                                                             |
+| `GET /auth/me`                                                                                        | sessão válida, sem chave específica                                                                                                                                                                                                                          |
+| `GET /notifications`, `GET /notifications/stream`, `GET /notifications/unread-count`                  | sessão; autoatendimento sem chave — o destinatário é sempre o usuário da sessão                                                                                                                                                                              |
+| `PATCH /notifications/:notificationId/read`, `PATCH /notifications/read-all`                          | sessão; autoatendimento sem chave — só a própria Notificação                                                                                                                                                                                                 |
 
 A leitura administrativa do portal é por seção: a resposta devolve apenas as seções que o ator pode ler. A projeção pública de `GET /portal-config` continua sem chave.
 
@@ -436,7 +453,7 @@ A leitura administrativa do portal é por seção: a resposta devolve apenas as 
   "name": "Ana",
   "email": "ana@empresa.com",
   "avatarUrl": null,
-  "role": "Analista",
+  "profile": { "id": "2", "name": "Analista", "isRoot": false },
   "mustChangePassword": false,
   "permissions": [
     { "key": "request:create", "custody": "global" },
@@ -452,7 +469,7 @@ O perfil `Solicitante` devolve exatamente as três chaves de autoatendimento:
 
 ```json
 {
-  "role": "Solicitante",
+  "profile": { "id": "1", "name": "Solicitante", "isRoot": false },
   "permissions": [
     { "key": "request:create", "custody": "global" },
     { "key": "request:track", "custody": "own" },
@@ -461,7 +478,7 @@ O perfil `Solicitante` devolve exatamente as três chaves de autoatendimento:
 }
 ```
 
-- `role` é o nome do perfil, para exibição.
+- `profile` é `{ id, name, isRoot }`: `id` é a identidade estável do Perfil; `name` é o rótulo de exibição, mutável, e não participa da autorização; `isRoot` é a marca estável do Perfil Admin Root e não muda quando o Perfil é renomeado. A marca existe só na sessão — listagens e snapshots de auditoria continuam com `{ id, name }`.
 - `permissions` é a lista efetiva, na ordem do catálogo. Chave ausente significa permissão ausente.
 - `custody` usa os valores `global`, `own`, `assigned` e `all`.
 - A lista é calculada a partir do perfil vigente a cada requisição; mudanças no perfil valem na requisição seguinte.
@@ -476,8 +493,8 @@ Estas regras não são expressáveis como chave e continuam no código:
 - A atribuibilidade exige a flag explícita e o predicado de chaves; ter as chaves não torna o perfil atribuível.
 - Autoria estabelece posse; as chaves de posse operam sobre ela e não aceitam outro vínculo (§ 1.3). Autoria não concede `request:read` nem custódia interna.
 - A custódia é por linha e é lida a cada operação. Snapshots e token não concedem acesso.
-- `request:status_override` libera o alvo protegido; não substitui `request:status_change` para decidir sobre qual solicitação o status muda.
-- `queue:read` e `queue:export` são a própria Fila do ator; `requests.responsible_id` e o responsável do mapeamento corrente (#102) ampliam a visibilidade, mas não a custódia de notas usada na busca.
+- `request:status_override` libera o alvo protegido em `PATCH /status`; não substitui `request:status_change` nem sua Custódia. Na Triagem, a mesma chave global permite atuar sobre uma solicitação cujo Status atual é restrito, mas não substitui `triage:write` + Custódia nem torna o Status de saída restrito elegível.
+- `queue:read` e `queue:export` são a própria Fila do ator: `assigned` inclui o Responsável da solicitação ou do Mapeamento corrente; `all` dispensa o filtro. A visibilidade da fila não amplia a custódia de notas usada na busca.
 - Sem escalação cobre chave e vínculo: o concedente não amplia o que possui (`all` > `assigned`; `own` fixo nas chaves de posse; `profile:manage` incluída).
 - Contas, por autoridade (§ 4.2): quem tem `user:manage` gerencia perfis estritamente abaixo; o Admin Root gerencia qualquer conta, inclusive de autoridade igual; contas com o perfil Admin Root ficam fora de rota; ninguém gerencia a própria conta pelas rotas administrativas.
 - O Admin Root é único: no máximo uma conta `is_root`, criada só pelo seed; o perfil não perde `profile:manage` nem é desativado, e não é atribuível.

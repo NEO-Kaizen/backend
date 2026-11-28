@@ -290,6 +290,34 @@ export const PortalConfig = {
 };
 
 // ---------------------------------------------------------------------------
+// Portal config — GET /portal-config/sections (seções legíveis ao ator)
+// ---------------------------------------------------------------------------
+
+export const PortalSections = {
+  type: "object",
+  description:
+    "Visão administrativa da configuração. Cada membro está presente apenas quando o ator tem a chave de leitura da seção: " +
+    "`portal_setting:read` → platformName, solicitationMode, protocolMask; `theme:read` → theme, assets; " +
+    "`category:read` → categories; `status:read` → statuses; `prioritization_config:read` → prioritizationWeights.",
+  properties: {
+    platformName: { type: "string", example: "MAAT" },
+    solicitationMode: { type: "string", enum: ["PUBLIC", "AUTHENTICATED"], example: "PUBLIC" },
+    protocolMask: { type: "string", example: "MAAT" },
+    theme: { $ref: "#/components/schemas/PortalTheme" },
+    assets: { $ref: "#/components/schemas/PortalAssets" },
+    categories: {
+      type: "array",
+      items: { $ref: "#/components/schemas/PortalCategory" },
+    },
+    statuses: {
+      type: "array",
+      items: { $ref: "#/components/schemas/PortalStatus" },
+    },
+    prioritizationWeights: { $ref: "#/components/schemas/PrioritizationWeights" },
+  },
+};
+
+// ---------------------------------------------------------------------------
 // PATCH request bodies
 // ---------------------------------------------------------------------------
 

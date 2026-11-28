@@ -1,31 +1,43 @@
 import jwt from "jsonwebtoken";
 import type { AuthUserRow, UserRow } from "../../src/shared/types/user.ts";
 import type { AuthState } from "../../src/modules/auth/auth.repository.ts";
-import type { Role } from "../../src/shared/types/role.ts";
 import { generateToken, type TokenPayload } from "../../src/shared/utils/jwtUtil.ts";
 import type { CriterionRow } from "../../src/shared/types/prioritization.ts";
 import type { LoginResponseDTO } from "../../src/modules/DTOs/auth/LoginResponse.dto.ts";
 import type { CreateRequestPayload } from "../../src/modules/DTOs/requests/RequestRequests.dto.ts";
 import type { CreateRequestResponse } from "../../src/modules/DTOs/requests/RequestResponse.dto.ts";
 import type { TrackingDetailsResponse } from "../../src/modules/DTOs/requests/RequestTracking.dto.ts";
-import type { AssignAnalyst, UserSummary } from "../../src/modules/DTOs/users/UserResponse.dto.ts";
+import type {
+  AssignableProfessional,
+  UserSummary,
+} from "../../src/modules/DTOs/users/UserResponse.dto.ts";
 import type { UserProfileResponseDTO } from "../../src/modules/DTOs/users/UserProfileResponse.dto.ts";
 import type { PaginatedResponse } from "../../src/shared/types/pagination.ts";
 import Config from "../../src/configs.ts";
 
-export const PROFILE_IDS: Record<Role, number> = {
+/** Ids das seeds de referência (`seeds/requester_request/004_users.js`). */
+export const PROFILE_IDS: Record<string, number> = {
   Solicitante: 1,
   Analista: 2,
   Administrador: 3,
   Gestor: 4,
+  "Admin Root": 5,
 };
 
-const PROFILE_NAMES: Record<Role, string> = {
+const PROFILE_NAMES: Record<string, string> = {
   Solicitante: "solicitante",
   Analista: "analista",
   Gestor: "gestor",
   Administrador: "administrador",
+  "Admin Root": "admin root",
 };
+
+function profileIdForName(profileName: string): number {
+  const match = Object.entries(PROFILE_NAMES).find(
+    ([, value]) => value === profileName.trim().toLowerCase(),
+  );
+  return match ? (PROFILE_IDS[match[0]] as number) : (PROFILE_IDS.Analista as number);
+}
 
 /** Linha completa de `users` (retorno direto do Knex). */
 export function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
@@ -37,7 +49,7 @@ export function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
     email: "teste@neo.com",
     avatar_url: null,
     password_hash: "$2b$10$abcdefghijklmnopqrstuvabcdefghijklmnopqrstuvwxyz01234",
-    profile_id: PROFILE_IDS.Analista,
+    profile_id: PROFILE_IDS.Analista as number,
     is_active: true,
     must_change_password: false,
     password_changed_at: now,
@@ -49,17 +61,15 @@ export function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
 
 /** Linha completa de autenticação (`users` JOIN `profiles`). */
 export function makeAuthUser(overrides: Partial<AuthUserRow> = {}): AuthUserRow {
-  const profileName = overrides.profile_name ?? "analista";
-  const role =
-    (Object.keys(PROFILE_NAMES) as Role[]).find((key) => PROFILE_NAMES[key] === profileName) ??
-    "Analista";
+  const profileName = overrides.profile_name ?? "Analista";
 
   return {
     ...makeUserRow({
-      profile_id: overrides.profile_id ?? PROFILE_IDS[role],
+      profile_id: overrides.profile_id ?? profileIdForName(profileName),
     }),
     profile_name: profileName,
     profile_is_active: true,
+    profile_is_root: false,
     ...overrides,
   };
 }
@@ -71,7 +81,7 @@ export function makeSessionResponse(overrides: Partial<LoginResponseDTO> = {}): 
     name: "Usuário de Teste",
     email: "teste@neo.com",
     avatarUrl: null,
-    role: "Analista",
+    profile: { id: String(PROFILE_IDS.Analista as number), name: "Analista", isRoot: false },
     mustChangePassword: false,
     ...overrides,
   };
@@ -81,6 +91,9 @@ export function makeSessionResponse(overrides: Partial<LoginResponseDTO> = {}): 
 export function makeAuthState(overrides: Partial<AuthState> = {}): AuthState {
   return {
     is_active: true,
+    full_name: "Usuário de Teste",
+    email: "teste@neo.com",
+    profile_id: PROFILE_IDS.Analista as number,
     profile_is_active: true,
     profile_name: "analista",
     must_change_password: false,
@@ -95,7 +108,6 @@ export function makeTokenPayload(overrides: Partial<TokenPayload> = {}): TokenPa
     id: "1",
     name: "Usuário de Teste",
     email: "teste@neo.com",
-    role: "Analista",
     password_changed_at: new Date("2026-01-01T00:00:00.000Z").getTime(),
     scope: "session",
     ...overrides,
@@ -229,7 +241,7 @@ export function makeUserSummary(overrides: Partial<UserSummary> = {}): UserSumma
     fullName: "Usuário de Teste",
     email: "teste@neo.com",
     avatarUrl: null,
-    profile: "Analista",
+    profile: { id: String(PROFILE_IDS.Analista as number), name: "Analista" },
     isActive: true,
     mustChangePassword: false,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -237,7 +249,9 @@ export function makeUserSummary(overrides: Partial<UserSummary> = {}): UserSumma
   };
 }
 
-export function makeAnalyst(overrides: Partial<AssignAnalyst> = {}): AssignAnalyst {
+export function makeAnalyst(
+  overrides: Partial<AssignableProfessional> = {},
+): AssignableProfessional {
   return {
     id: "2",
     fullName: "Ana Analista",
@@ -257,7 +271,7 @@ export function makeUserProfile(
     id: "7",
     fullName: "Maria",
     email: "maria@neo.com",
-    role: "Solicitante",
+    profile: { id: String(PROFILE_IDS.Solicitante as number), name: "Solicitante" },
     avatarUrl: null,
     requester: {
       area: "Financeiro",

@@ -7,7 +7,7 @@ export default {
       tags: ["Priorização"],
       summary: "Listar critérios de priorização",
       description:
-        "Lista os critérios ativos e seus pesos. Leitura liberada aos perfis internos (Gestor é somente leitura também aqui).",
+        "Lista os critérios ativos e seus pesos. Exige `prioritization:write` (avaliador) ou `prioritization_config:read` (configuração).",
       operationId: "listPrioritizationCriteria",
       security: [{ cookieAuth: [] }],
       responses: {
@@ -16,7 +16,7 @@ export default {
           ...json("PrioritizationCriteriaList"),
         },
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso."),
+        "403": error("Sem chave de priorização."),
       },
     },
   },
@@ -27,7 +27,7 @@ export default {
       summary: "Avaliar pontuação de priorização",
       description:
         "Calcula e persiste a priorização (RN-007/RN-008) na mesma transação do evento `prioritization.evaluate`. " +
-        "Todas as notas dos critérios ativos são obrigatórias. Perfis: Administrador ou Analista responsável pela solicitação.",
+        "Todas as notas dos critérios ativos são obrigatórias. Exige `prioritization:write` + Custódia do Responsável da triagem (comportamento anterior ao RBAC; confirmação pendente com Produto).",
       operationId: "evaluatePrioritizationScore",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -46,7 +46,7 @@ export default {
         },
         "400": error("Payload inválido ou notas incompletas."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil ou custódia insuficiente."),
+        "403": error("Sem `prioritization:write` ou Custódia da linha."),
         "404": error("Protocolo inexistente."),
         "409": error("Ciclo ou custódia alterado durante a avaliação."),
       },

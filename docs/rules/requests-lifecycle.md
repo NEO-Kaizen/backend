@@ -79,7 +79,7 @@ conflito e nenhuma auditoria de cancelamento.
 - Administrador tem bypass de perfil/restrição. Os demais precisam ser o
   Analista responsável (triagem **ou** mapeamento) e só podem ir para Status com
   `triageMode = free` **ou** `mappingMode = free`, nunca restrito.
-- Gestor é somente leitura.
+- Perfil sem `request:status_change` não altera o Status, mesmo com leitura.
 - Status público exige retorno ao solicitante para qualquer ator; o bypass do
   Administrador **não** dispensa campos obrigatórios.
 - A auditoria do Administrador usa `request.override_status_admin`; na Linha do

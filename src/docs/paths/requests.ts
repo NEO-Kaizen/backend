@@ -148,7 +148,7 @@ export default {
           },
         },
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem acesso (Analista, Gestor ou Administrador)."),
+        "403": error("Sem `assignee_directory:read`."),
       },
     },
   },
@@ -177,15 +177,17 @@ export default {
       summary: "Consulta administrativa de solicitação",
       description:
         "Retorna os blocos completos, status, priorização, responsáveis, anexos, pendências e estado de leitura. " +
-        "Requer perfil Analista (restrito às solicitações atribuídas), Gestor ou Administrador.",
+        "Exige `request:read` + Custódia do Responsável da triagem ou do Designado do mapeamento corrente. " +
+        "Sem `internal_note:read` na linha, `internalObservations` vem `null`; sem `pending_item:read`, " +
+        "`pendingSummary`/`unread` vêm zerados e `correctionAlert` vem `null`.",
       operationId: "getInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
       responses: {
         "200": { description: "Detalhe interno da solicitação.", ...json("InternalRequestDetail") },
         "401": error("Sem cookie ou token inválido/expirado."),
-        "403": error("Perfil ou custódia insuficiente."),
-        "404": error("Protocolo inexistente."),
+        "403": error("Sem `request:read`."),
+        "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
       },
     },
     patch: {
@@ -193,7 +195,7 @@ export default {
       summary: "Atualização interna de solicitação",
       description:
         "Substitui os blocos editáveis (`requester`, `demand`, `operational`, `complementary`). " +
-        "Chave ausente = campo limpo (NULL). Administrador/Gestor editam qualquer solicitação; Analista apenas as atribuídas a ele.",
+        "Chave ausente = campo limpo (NULL). Exige `request:write` + Custódia do Responsável da triagem ou do mapeamento corrente; quem escreve sem `request:read` recebe `200 { protocol, updated: true }` em vez do detalhe.",
       operationId: "patchInternalRequestByProtocol",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -206,11 +208,23 @@ export default {
         },
       },
       responses: {
-        "200": { description: "Solicitação atualizada.", ...json("InternalRequestDetail") },
+        "200": {
+          description: "Solicitação atualizada (detalhe) ou acknowledgement sem `request:read`.",
+          content: {
+            "application/json": {
+              schema: {
+                oneOf: [
+                  { $ref: "#/components/schemas/InternalRequestDetail" },
+                  { $ref: "#/components/schemas/RequestMutationAcknowledgement" },
+                ],
+              },
+            },
+          },
+        },
         "400": error("Payload inválido."),
         "401": error("Sem cookie de sessão."),
-        "403": error("Perfil ou custódia insuficiente."),
-        "404": error("Protocolo inexistente."),
+        "403": error("Sem `request:write`."),
+        "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
         "422": error("Erro de validação com `fields`.", "ValidationErrorResponse"),
       },
     },
@@ -221,7 +235,7 @@ export default {
       tags: ["Triagem"],
       summary: "Consultar triagem da solicitação",
       description:
-        "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Gestor tem leitura; Analista só acessa as atribuídas.",
+        "Retorna a triagem vigente (a última criada) ou `null` se ainda não houver. Exige `triage:read` + Custódia do Responsável da triagem **ou** do mapeamento corrente; fora dela responde `403`.",
       operationId: "getTriage",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -239,8 +253,10 @@ export default {
           },
         },
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Usuário sem acesso à solicitação."),
-        "404": error("Protocolo inexistente."),
+        "403": error(
+          "Sem `triage:read` ou Custódia do Responsável da triagem ou do mapeamento corrente.",
+        ),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
       },
     },
     post: {
@@ -264,8 +280,8 @@ export default {
         "201": { description: "Triagem criada.", ...json("TriagemResponse") },
         "400": error("Payload inválido."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil ou custódia insuficiente."),
-        "404": error("Protocolo inexistente."),
+        "403": error("Sem `triage:write` ou Custódia da linha."),
+        "404": error("Protocolo inexistente (`request_not_found`)."),
         "409": error("Conflito de estado (ex.: transição concorrente)."),
         "422": error("Erro de validação da triagem; pode conter `fields`."),
       },
@@ -302,8 +318,10 @@ export default {
           ...json("TrackingResponse"),
         },
         "401": error("Identidade ausente/divergente ou sessão inválida."),
-        "403": error("Perfil interno ou verificação indisponível no modo AUTHENTICATED."),
-        "404": error("Protocolo não encontrado ou de terceiro."),
+        "403": error(
+          "Sessão sem `request:track` ou verificação indisponível no modo AUTHENTICATED.",
+        ),
+        "404": error("Protocolo não encontrado ou de terceiro (anti-enumeração)."),
       },
     },
   },
@@ -313,7 +331,7 @@ export default {
       tags: ["Solicitações"],
       summary: "Reabrir solicitação encerrada",
       description:
-        "O Solicitante autenticado e titular direto pode reabrir um encerramento vigente em Concluído (16) ou Cancelado (17). " +
+        "O titular direto com sessão e `request:track` em `own` pode reabrir um encerramento vigente em Concluído (16) ou Cancelado (17). " +
         "O servidor preserva o protocolo, retorna ao status 1, atualiza as projeções e grava a auditoria na mesma transação. " +
         "O acompanhamento público e o vínculo por e-mail não autorizam esta operação.",
       operationId: "postReopenRequest",
@@ -332,7 +350,7 @@ export default {
         },
         "400": error("Protocolo vazio ou composto apenas por espaços."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil sem permissão para reabrir."),
+        "403": error("Sessão sem a permissão request:track."),
         "404": error("Protocolo inexistente ou sem vínculo direto com o solicitante autenticado."),
         "409": error(
           "Estado inelegível ou referência de encerramento obsoleta (rf02_closure_conflict).",
@@ -398,8 +416,10 @@ export default {
         "200": { description: "Status alterado.", ...json("UpdateStatusResponse") },
         "400": error("Payload inválido ou retorno público ausente."),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Sem permissão para alterar o status."),
-        "404": error("Protocolo ou status de destino inexistente."),
+        "403": error(
+          "Sem `request:status_change`; alvo restrito ou fora do modo `free` exige `request:status_override` global (`request_status_override_required`).",
+        ),
+        "404": error("Protocolo inexistente, fora da Custódia ou status de destino inexistente."),
         "409": error(
           "Status de destino inativo, conflito de concorrência ou saída de Concluído/Cancelado sem reabertura formal (rf02_use_reopen).",
         ),
@@ -414,7 +434,7 @@ export default {
       summary: "Atribuir responsável interno",
       description:
         "Define/remove o responsável de triagem (`assigneeId`) ou o designado do mapeamento (`mappingAssigneeId`) — exatamente um por chamada. " +
-        "Nesta rota ambos são `users.user_id` numérico em string. Liberado ao Administrador ou ao Analista responsável pela solicitação; Gestor não atribui.",
+        "Nesta rota ambos são `users.user_id` numérico em string. Exige `request:assign` + Custódia do Responsável da triagem ou do mapeamento corrente; na matriz base, só Administrador e Admin Root atribuem.",
       operationId: "patchInternalAssignee",
       security: [{ cookieAuth: [] }],
       parameters: [protocolParam],
@@ -432,8 +452,8 @@ export default {
           "Payload inválido (não informou exatamente um dos campos), responsável inativo ou perfil não atribuível.",
         ),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil ou custódia insuficiente."),
-        "404": error("Protocolo inexistente."),
+        "403": error("Sem `request:assign`."),
+        "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
         "409": error("Estado ou custódia mudou durante a atribuição."),
       },
     },
@@ -464,8 +484,8 @@ export default {
           "UUID inválido, profissional inexistente, inativo ou com perfil não atribuível.",
         ),
         "401": error("Sem sessão ou token inválido."),
-        "403": error("Perfil ou custódia insuficiente."),
-        "404": error("Protocolo inexistente."),
+        "403": error("Sem `request:assign`."),
+        "404": error("Protocolo inexistente ou fora da Custódia (`request_not_found`)."),
         "409": error("Estado ou custódia mudou durante a atribuição."),
       },
     },

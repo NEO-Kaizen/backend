@@ -1,12 +1,17 @@
 import type { NextFunction, Request, Response } from "express";
 import { authMiddleware } from "./auth.ts";
+import Config from "../../configs.ts";
 import { getSolicitationMode } from "../../modules/portalConfig/portalConfig.repository.ts";
 import type { PortalSolicitationMode } from "../types/systemSettings.ts";
+
+const COOKIE_NAME = Config.COOKIE_NAME;
 
 /**
  * Guard do modo de abertura do portal (`system_settings.solicitation_mode`).
  *
- * - `PUBLIC`: libera a rota sem autenticação (comportamento público).
+ * - `PUBLIC`: libera a rota sem sessão. Se houver cookie de sessão, autentica
+ *   e usa a porta autenticada — a sessão decide qual porta o ator usa (RBAC
+ *   §1.6), inclusive para o escopo por Posse.
  * - `AUTHENTICATED`: delega ao `authMiddleware`, exigindo sessão JWT válida.
  *   Reaproveita toda a validação já existente (cookie, revogação por
  *   `password_changed_at`, `mustChangePassword` e resolução de perfil).
@@ -31,7 +36,9 @@ export function requireAccessMode() {
 
     req.accessMode = mode;
 
-    if (mode === "AUTHENTICATED") {
+    const hasSessionCookie = Boolean(req.cookies?.[COOKIE_NAME]);
+
+    if (mode === "AUTHENTICATED" || hasSessionCookie) {
       // Delega ao authMiddleware — ele chama `next()` (ou encaminha o erro).
       await authMiddleware(req, res, next);
       return;

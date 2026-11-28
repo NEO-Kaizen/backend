@@ -127,6 +127,8 @@ export interface AssignmentContextRow {
   status: RequestStatus;
   category: string;
   screening_result: string | null;
+  /** Conta do Solicitante; `null` nas linhas anônimas e legadas sem vínculo. */
+  requester_user_id: number | null;
   /** `details_professional.user_id` do responsável da triagem (issue #124). */
   assignee_user_id: number | null;
   /** `details_professional.user_id` do designado do mapeamento (issue #124). */
@@ -141,7 +143,10 @@ export interface AssignmentCandidateRow {
   email: string;
   professional_status: "active" | "inactive";
   user_is_active: boolean;
-  profile_name: string;
+  profile_id: number;
+  profile_is_active: boolean;
+  is_assignable_triage: boolean;
+  is_assignable_mapping: boolean;
 }
 
 /**

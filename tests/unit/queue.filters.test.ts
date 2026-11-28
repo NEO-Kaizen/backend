@@ -65,10 +65,11 @@ describe("applyQueueFilters", () => {
       noteCustodianUserId: 7,
     });
 
-    // 9 correspondências de search + custódia da nota + 2 do escopo.
-    expect(bindings).toEqual([...Array(9).fill("%kickoff%"), 7, 7, 7]);
+    // 9 correspondências de search + custódia da nota (triagem OU mapeamento)
+    // + escopo da fila (triagem OU mapeamento).
+    expect(bindings).toEqual([...Array(9).fill("%kickoff%"), 7, false, 7, 7, 7, false, 7, 7]);
     expect(sql.match(/"assignee_user"\."user_id" = \?/g)).toHaveLength(2);
-    expect(sql.match(/"mapping_assignee"\."user_id" = \?/g)).toHaveLength(1);
+    expect(sql.match(/"mapping_assignee"\."user_id" = \?/g)).toHaveLength(2);
   });
 
   it("sem noteCustodianUserId (Gestor/Administrador) a nota não é recortada", () => {
@@ -110,12 +111,12 @@ describe("applyQueueFilters", () => {
   it("assigneeId numérico filtra por user_id; UUID por professional_id", () => {
     const numeric = build({ assigneeId: "20" });
     expect(numeric.sql).toContain('"assignee_user"."user_id" = ?');
-    expect(numeric.bindings).toEqual([20]);
+    expect(numeric.bindings).toEqual([20, false, 20, 20]);
 
     const uuid = "6f3a0c8e-1b2d-4f5a-9c7e-8d1a2b3c4d5e";
     const professional = build({ assigneeId: uuid });
     expect(professional.sql).toContain('"requests"."professional_id" = ?');
-    expect(professional.bindings).toEqual([uuid]);
+    expect(professional.bindings).toEqual([uuid, false, uuid, uuid]);
   });
 
   it("unassigned tem precedência sobre um assigneeId numérico", () => {
@@ -138,7 +139,7 @@ describe("applyQueueFilters", () => {
 
     expect(sql).toContain('"assignee_user"."user_id" = ?');
     expect(sql).toContain('"mapping_assignee"."user_id" = ?');
-    expect(bindings).toEqual([7, 7]);
+    expect(bindings).toEqual([7, false, 7, 7]);
   });
 
   it("combina search, status, priority e assignee com AND (sem escapar do escopo)", () => {
@@ -150,15 +151,26 @@ describe("applyQueueFilters", () => {
       scopedUserId: 7,
     });
 
-    expect(bindings).toEqual([...Array(9).fill("%MAAT%"), "Em triagem", "Alta", 20, 7, 7]);
+    expect(bindings).toEqual([
+      ...Array(9).fill("%MAAT%"),
+      "Em triagem",
+      "Alta",
+      20,
+      false,
+      20,
+      20,
+      7,
+      false,
+      7,
+      7,
+    ]);
     // O grupo do search fecha e os demais filtros entram com AND.
     expect(sql).toMatch(/\) and "status"\."name" = \?/);
     expect(sql).toMatch(/"status"\."name" = \? and "priority_tbl"\."level" = \?/);
-    expect(sql).toMatch(/"priority_tbl"\."level" = \? and "assignee_user"\."user_id" = \?/);
-    // O OR do escopo é intencional e fica entre parênteses.
-    expect(sql).toMatch(
-      /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,
-    );
+    expect(sql).toMatch(/"priority_tbl"\."level" = \? and \("assignee_user"\."user_id" = \? or /);
+    // O OR do escopo é intencional e fica entre parênteses; o responsável do
+    // mapeamento entra via EXISTS correlacionado.
+    expect(sql).toMatch(/and \("assignee_user"\."user_id" = \? or \(exists /);
   });
 
   // Bordas reais de dia e o comportamento isolado de `createdTo` são
@@ -194,12 +206,12 @@ describe("applyQueueFilters", () => {
       "UTC",
       "Desenvolvimento",
       7,
+      false,
+      7,
       7,
     ]);
     expect(sql).toContain('"requests"."created_at" >= (?::date::timestamp AT TIME ZONE ?)');
     expect(sql).toMatch(/and lower\("requester"\."department"\) = lower\(\?\)/);
-    expect(sql).toMatch(
-      /and \("assignee_user"\."user_id" = \? or "mapping_assignee"\."user_id" = \?\)/,
-    );
+    expect(sql).toMatch(/and \("assignee_user"\."user_id" = \? or \(exists /);
   });
 });

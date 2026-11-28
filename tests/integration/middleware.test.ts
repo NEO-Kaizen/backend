@@ -5,21 +5,29 @@ import {
   makeExpiredToken,
   makeTamperedToken,
   makeToken,
+  PROFILE_IDS,
 } from "../helpers/factories.ts";
 
 vi.mock("../../src/modules/auth/auth.repository.ts", () => ({
   getAuthState: vi.fn(),
+  listUserPermissions: vi.fn(),
 }));
 
 vi.mock("../../src/modules/portalConfig/portalConfig.repository.ts", () => ({
   getSolicitationMode: vi.fn(),
 }));
 
+vi.mock("../../src/shared/audit/accessDenied.ts", () => ({
+  recordAccessDeniedAttempt: vi.fn(),
+}));
+
 const authRepository = await import("../../src/modules/auth/auth.repository.ts");
 const portalConfigRepository =
   await import("../../src/modules/portalConfig/portalConfig.repository.ts");
+const accessDenied = await import("../../src/shared/audit/accessDenied.ts");
 const { authMiddleware } = await import("../../src/shared/middleware/auth.ts");
-const { requireRole } = await import("../../src/shared/middleware/requireRole.ts");
+const { requirePermission, requirePermissionIfSession } =
+  await import("../../src/shared/middleware/requirePermission.ts");
 const { requesterDualAuth } = await import("../../src/shared/middleware/dualAuth.ts");
 const { requireAccessMode } = await import("../../src/shared/middleware/accessMode.ts");
 
@@ -71,12 +79,9 @@ describe("authMiddleware", () => {
     expectNextError(next, { statusCode: 401, message: "Token não fornecido" });
   });
 
-  it("popula req.user a partir do estado no banco (papel vem do banco, não do JWT)", async () => {
+  it("popula req.user a partir do estado no banco (perfil vem do banco, não do JWT)", async () => {
     const next = makeNext();
-    const token = makeToken({
-      role: "Solicitante",
-      password_changed_at: new Date("2026-01-01T00:00:00.000Z").getTime(),
-    });
+    const token = makeToken();
     vi.mocked(authRepository.getAuthState).mockResolvedValue(
       makeAuthState({ profile_name: "analista" }),
     );
@@ -86,7 +91,12 @@ describe("authMiddleware", () => {
 
     expect(next).toHaveBeenCalledOnce();
     expect(next).toHaveBeenCalledWith();
-    expect(req.user).toMatchObject({ id: "1", role: "Analista" });
+    expect(req.user).toMatchObject({
+      id: "1",
+      profileId: String(PROFILE_IDS.Analista),
+      profileName: "analista",
+    });
+    expect(req.user).not.toHaveProperty("role");
     expect(req.authScope).toBe("session");
   });
 
@@ -216,41 +226,63 @@ describe("authMiddleware", () => {
   });
 });
 
-describe("requireRole", () => {
-  it("libera quando o papel está na lista", () => {
-    const next = makeNext();
-    const req = makeReq({
-      user: { id: "1", name: "x", email: "x@x.com", role: "Analista" },
-      authScope: "session",
-    });
+describe("requirePermission", () => {
+  const sessionUser = {
+    id: "1",
+    name: "Usuário de Teste",
+    email: "teste@neo.com",
+    profileId: String(PROFILE_IDS.Analista),
+    profileName: "analista",
+  };
 
-    requireRole("Analista", "Administrador")(req, makeRes(), next);
+  it("libera quando o Perfil tem a chave e publica as Permissões efetivas", async () => {
+    vi.mocked(authRepository.listUserPermissions).mockResolvedValue([
+      { permission_key: "queue:read", custody: "assigned" },
+    ]);
+    const next = makeNext();
+    const req = makeReq({ user: sessionUser, authScope: "session" });
+
+    await requirePermission("queue:read")(req, makeRes(), next);
+
     expect(next).toHaveBeenCalledOnce();
     expect(next).toHaveBeenCalledWith();
+    expect(req.permissions).toEqual([{ key: "queue:read", custody: "assigned" }]);
   });
 
-  it("nega papel não autorizado e sessão de troca de senha", () => {
-    const denied = makeNext();
-    requireRole("Administrador")(
-      makeReq({
-        user: { id: "1", name: "x", email: "x@x.com", role: "Analista" },
-        authScope: "session",
-      }),
-      makeRes(),
-      denied,
-    );
-    expectNextError(denied, { statusCode: 403 });
+  it("nega chave ausente, responde 403 e registra a tentativa", async () => {
+    vi.mocked(authRepository.listUserPermissions).mockResolvedValue([
+      { permission_key: "reports:read", custody: "global" },
+    ]);
+    const next = makeNext();
+    const req = makeReq({ user: sessionUser, authScope: "session", baseUrl: "/queue" });
 
-    const pending = makeNext();
-    requireRole("Analista")(
-      makeReq({
-        user: { id: "1", name: "x", email: "x@x.com", role: "Analista" },
-        authScope: "change_password",
-      }),
-      makeRes(),
-      pending,
-    );
-    expectNextError(pending, { statusCode: 403 });
+    await requirePermission("queue:read")(req, makeRes(), next);
+
+    expectNextError(next, {
+      statusCode: 403,
+      message: "Acesso restrito à permissão queue:read",
+    });
+    expect(accessDenied.recordAccessDeniedAttempt).toHaveBeenCalledOnce();
+  });
+
+  it("nega sessão de troca de senha antes de consultar o banco", async () => {
+    const next = makeNext();
+    const req = makeReq({ user: sessionUser, authScope: "change_password" });
+
+    await requirePermission("queue:read")(req, makeRes(), next);
+
+    expectNextError(next, { statusCode: 403 });
+    expect(authRepository.listUserPermissions).not.toHaveBeenCalled();
+  });
+
+  it("requirePermissionIfSession libera a porta pública sem sessão", async () => {
+    const next = makeNext();
+
+    await requirePermissionIfSession("queue:read")(makeReq(), makeRes(), next);
+
+    expect(next).toHaveBeenCalledOnce();
+    expect(next).toHaveBeenCalledWith();
+    expect(authRepository.listUserPermissions).not.toHaveBeenCalled();
   });
 });
 

@@ -8,7 +8,7 @@ import {
 } from "../../shared/validation/fieldSchemas.ts";
 
 /**
- * Dados profissionais do analista — obrigatórios na criação do perfil.
+ * Conteúdo da Extensão de profissional de um usuário atribuível.
  * `capacity` e `status` nascem dos defaults do schema (5 / "active").
  */
 export const professionalSchema = z.object({
@@ -20,9 +20,6 @@ export const professionalSchema = z.object({
   notes: z.string().trim().max(500, "Máximo de 500 caracteres.").optional(),
 });
 
-/** Perfil elegível para a extensão de profissional — apenas analista. */
-const PROFESSIONAL_ROLE = "analista";
-
 export const requesterSchema = z.object({
   area: requiredText(100),
   department: optionalText(100),
@@ -30,52 +27,54 @@ export const requesterSchema = z.object({
   additionalContact: nullableOptionalString(100),
 });
 
+/** Identidade estável do Perfil — o nome mutável não identifica nem autoriza. */
+const profileIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[1-9]\d*$/, "Perfil inválido.")
+  .max(10, "Perfil inválido.");
+
 export const createUserSchema = z
   .object({
     fullName: requiredString(150),
     email: emailSchema,
-    role: z.string().trim().min(1, "Campo obrigatório.").max(60, "Máximo de 60 caracteres."),
+    profileId: profileIdSchema,
     professional: professionalSchema.optional(),
     requester: requesterSchema,
   })
-  .superRefine((value, ctx) => {
-    const isAnalyst = value.role.trim().toLowerCase() === PROFESSIONAL_ROLE;
-    if (isAnalyst && !value.professional) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["professional"],
-        message: "Dados profissionais são obrigatórios para o perfil Analista.",
-      });
-    }
-    if (!isAnalyst && value.professional !== undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["professional"],
-        message: "Dados profissionais são exclusivos do perfil Analista.",
-      });
-    }
-  });
+  // `role` e demais campos removidos na contração são recusados, não ignorados.
+  .strict();
 
-export const listUsersQuerySchema = z.object({
-  profile: z
+export const listUsersQuerySchema = z
+  .object({
+    profileId: profileIdSchema.optional(),
+    search: z.string().trim().max(150, "Máximo de 150 caracteres.").optional(),
+    page: z.coerce
+      .number()
+      .int("Deve ser um número inteiro.")
+      .positive("Deve ser maior que zero.")
+      .max(10000, "Máximo de 10000.")
+      .default(1),
+    pageSize: z.coerce
+      .number()
+      .int("Deve ser um número inteiro.")
+      .positive("Deve ser maior que zero.")
+      .max(50, "Máximo de 50 itens por página.")
+      .default(10),
+  })
+  // Filtro por nome (`?profile=`) foi removido na contração da issue #199:
+  // ignorar o parâmetro devolveria a lista inteira sem o filtro esperado.
+  .strict();
+
+export const listAssignableProfessionalsQuerySchema = z.object({
+  stage: z.enum(["triage", "mapping"]).default("triage"),
+  /** Protocolo da solicitação: o diretório deixa de fora quem a criou. */
+  protocol: z
     .string()
     .trim()
-    .min(1, "Perfil inválido.")
-    .max(60, "Máximo de 60 caracteres.")
+    .min(1, "Protocolo inválido.")
+    .max(25, "Máximo de 25 caracteres.")
     .optional(),
-  search: z.string().trim().max(150, "Máximo de 150 caracteres.").optional(),
-  page: z.coerce
-    .number()
-    .int("Deve ser um número inteiro.")
-    .positive("Deve ser maior que zero.")
-    .max(10000, "Máximo de 10000.")
-    .default(1),
-  pageSize: z.coerce
-    .number()
-    .int("Deve ser um número inteiro.")
-    .positive("Deve ser maior que zero.")
-    .max(50, "Máximo de 50 itens por página.")
-    .default(10),
 });
 
 export const requesterPatchSchema = z.object({
@@ -93,30 +92,12 @@ export const updateUserSchema = z
   .object({
     fullName: requiredText(150).optional(),
     email: emailSchema.optional(),
-    role: z
-      .string()
-      .trim()
-      .min(1, "Campo obrigatório.")
-      .max(60, "Máximo de 60 caracteres.")
-      .optional(),
+    profileId: profileIdSchema.optional(),
     professional: professionalSchema.optional(),
     requester: requesterPatchSchema.optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
-    if (value.role !== undefined) {
-      const isAnalyst = value.role.trim().toLowerCase() === PROFESSIONAL_ROLE;
-      if (isAnalyst && value.professional === undefined) {
-        // Permitir merge sem reenviar professional se já existir — validação de presença só no service com acesso ao banco.
-        // Schema apenas bloqueia professional em role não-analista.
-      }
-      if (!isAnalyst && value.professional !== undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["professional"],
-          message: "Dados profissionais são exclusivos do perfil Analista.",
-        });
-      }
-    }
     if (Object.keys(value).length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

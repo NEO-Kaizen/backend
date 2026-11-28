@@ -30,7 +30,11 @@ async function makeOwnedRequest() {
   const { protocol } = await registerRequest(makeRequestPayload(), [], user.user_id);
   return {
     protocol,
-    actor: { id: String(user.user_id), email: user.email, role: "Solicitante" as const },
+    actor: {
+      id: user.user_id,
+      email: user.email,
+      permissions: [{ key: "request:track", custody: "own" }] as const,
+    },
     justification: "  Reavaliar solicitação.  ",
   };
 }
@@ -264,7 +268,7 @@ it("identidade do ciclo é um UUID imutável, independente do relógio", async (
   });
 });
 
-it("aplica perfil, titularidade direta, estado elegível e justificativa no serviço", async () => {
+it("aplica permissão, titularidade direta, estado elegível e justificativa no serviço", async () => {
   const request = await makeOwnedRequest();
   await expect(reopenRequest({ ...request, closureRef: randomUUID() })).rejects.toMatchObject({
     statusCode: 409,
@@ -277,11 +281,11 @@ it("aplica perfil, titularidade direta, estado elegível e justificativa no serv
     reopenRequest({
       ...request,
       closureRef,
-      actor: { ...request.actor, id: String(other.user_id) },
+      actor: { ...request.actor, id: other.user_id },
     }),
   ).rejects.toMatchObject({ statusCode: 404 });
   await expect(
-    reopenRequest({ ...request, closureRef, actor: { ...request.actor, role: "Administrador" } }),
+    reopenRequest({ ...request, closureRef, actor: { ...request.actor, permissions: [] } }),
   ).rejects.toMatchObject({ statusCode: 403 });
   await expect(
     reopenRequest({ ...request, closureRef, justification: "  " }),

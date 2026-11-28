@@ -43,7 +43,7 @@ vez de inventar uma regra nova:
 
 - `free` como destino de conclusão de triagem/mapeamento (hoje só
   `conclusion_only` é aceito).
-- Gestor como Responsável (hoje só `analista` é atribuível).
+- Perfil de leitura como Responsável (só perfis com flag de Atribuibilidade são designáveis).
 - Identificador público do responsável (`professional_id` × `user_id`).
 - Código único para erro de validação (`400` × `422`).
 - Escopo de autoatendimento de `PUT /users/me`.

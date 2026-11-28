@@ -14,10 +14,43 @@ Um profissional é atribuível quando, ao mesmo tempo:
 
 1. `details_professional.status = 'active'`;
 2. `users.is_active = true`;
-3. o perfil é `analista`.
+3. o Perfil está ativo, tem a flag da etapa (`is_assignable_triage` ou
+   `is_assignable_mapping`) e o predicado de chaves exigido.
 
 Solicitações antigas mantêm o vínculo se o profissional for desativado;
 `ON DELETE SET NULL` só age em exclusão física.
+
+## Designação e custódia
+
+Designar o mapeamento desatribui a triagem (`requests.professional_id = null`).
+A ação precisa alinhar com o vínculo existente na solicitação:
+
+- **Escrita só da triagem:** `triage:write`, `pending_item:*` e
+  `prioritization:write`.
+  `pending_item:*` e `prioritization:write` repetem o comportamento anterior
+  ao RBAC e **dependem de confirmação do Produto** — não são decisão fechada.
+- **Escrita só do mapeamento:** `mapping:write`. A triagem não edita o
+  mapeamento.
+- **Leitura das duas etapas:** `triage:read` e `mapping:read` valem para o
+  Responsável da triagem **ou** do mapeamento corrente.
+- **Designação:** `request:assign` com custódia da linha, para triagem e
+  mapeamento. Na matriz base, só Administrador e Admin Root; `mapping:write`
+  não designa. A primeira designação do mapeamento também é feita por eles.
+- **Qualquer um dos dois:** `request:read`, `request:write`,
+  `request:status_change`, `internal_note:*`, `audit:read` e `queue:*`.
+  `audit:read` não faz parte da matriz base do Analista; a timeline da
+  solicitação (`GET /audit-logs/:protocol`) usa `request:read`.
+
+O histórico completo (notas, eventos, triagens e mapeamentos) é lido por
+`internal_note:read` + custódia de triagem **ou** mapeamento.
+
+O Status não depende do vínculo: o alvo precisa ser ativo e ter `triageMode` ou
+`mappingMode` `free`; restrito ou fora do modo exige `request:status_override`
+global.
+
+Quem lê a visão interna sem `internal_note:read` recebe
+`internalObservations: null`; sem `pending_item:read` — como o Designado do
+mapeamento — os blocos de Pendência saem zerados.
 
 > Incluir `gestor` como atribuível é uma decisão pendente; ver
 > [`README.md`](README.md).
@@ -41,10 +74,11 @@ O modal de atribuição usa a lista mais permissiva; a fila usa a de atribuívei
 
 ## Autorização
 
-- Atribuir exige Administrador ou o Analista que já é responsável (triagem ou
-  mapeamento). Gestor não atribui.
-- Editar o mapeamento exige Administrador ou o responsável da solicitação;
-  designar o executor também é permitido ao designado atual.
+- Atribuir — triagem ou mapeamento — exige `request:assign`; no perfil base,
+  só Administrador e Admin Root têm a chave. O Analista não atribui.
+- Editar o mapeamento exige `mapping:write` + custódia do mapeamento corrente.
+  A designação do executor segue a regra acima: exige `request:assign`, não
+  `mapping:write`.
 - Analista sem custódia é recusado com código de permissão insuficiente.
 
 ## RN-010 — avanço automático de status

@@ -1,23 +1,26 @@
 import express from "express";
 import { authMiddleware } from "../../shared/middleware/auth.ts";
-import { requireRole } from "../../shared/middleware/requireRole.ts";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "../../shared/middleware/requirePermission.ts";
 import { evaluateScore, listCriteria } from "./prioritization.controller.ts";
 
 const prioritizationRoutes = express.Router();
 
 prioritizationRoutes.use(authMiddleware);
 
-// Leitura dos critérios: perfis internos (inclui Gestor read-only)
+// Critérios: o avaliador (`prioritization:write`) lê os critérios como parte
+// do cálculo; quem só configura usa `prioritization_config:read`.
 prioritizationRoutes.get(
   "/criteria",
-  requireRole("Analista", "Gestor", "Administrador"),
+  requireAnyPermission(["prioritization:write", "prioritization_config:read"]),
   listCriteria,
 );
-// Escrita: apenas Administrador ou Analista assignee (regra no service;
-// Gestor é read-only e não pontua)
+// Avaliação: chave custodial; a Custódia da solicitação é aplicada no service.
 prioritizationRoutes.put(
   "/:protocol/score",
-  requireRole("Analista", "Administrador"),
+  requirePermission("prioritization:write"),
   evaluateScore,
 );
 
