@@ -26,6 +26,9 @@ audiência; a API de duplicidade lê **somente** essa projeção.
 - `request_public_projections` guarda `public_id` (UUID aleatório), título,
   resumo, categoria, status, período, `publication_status`, `is_publicly_listable`
   e `version`; a busca nunca lê `requests`.
+- Exceção da seção do Acompanhamento (issue #211): a Demanda da própria
+  Solicitação é lida em `requests` só para compor os termos da consulta. Nenhum
+  campo interno entra no DTO; o corpus e o índice continuam restritos à projeção.
 - Solicitações abertas entram só com template (categoria/status/período);
   concluídas nos últimos 3 meses (configurável) entram com texto tarjado por
   regex e fallback para template.

@@ -54,8 +54,9 @@ As regras de transição estão em
 `PATCH /portal-config/duplicates` altera, em uma transação auditada, `enabled` e
 `completedWindowMonths` (inteiro de 1 a 36). A janela é aplicada pelo par de
 varreduras descrito em [`duplicate-detection.md`](duplicate-detection.md). Com a
-flag desligada, `POST /requests/duplicates/check` responde vazio e o índice não
-é construído; o `GET /requests/:protocol/duplicates` pertence à issue #211.
+flag desligada, o `POST /requests/duplicates/check` e o
+`GET /requests/:protocol/duplicates` respondem vazios e o índice não é
+construído.
 
 As allowlists de Categorias (`isPubliclyListable`) e Status
 (`isDuplicateCorpusEligible`) são editadas nos PATCHes das seções respectivas.

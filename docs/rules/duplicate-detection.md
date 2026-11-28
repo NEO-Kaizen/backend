@@ -6,15 +6,18 @@ registros nem altera Status**: a Marcação de duplicidade continua sendo o ato
 formal do RF25.
 
 A implementação cobre o corpus de Solicitações **abertas** (issue #209) e
-**concluídas com texto tarjado dentro da janela** (issue #210), o índice lexical
-e o `POST /requests/duplicates/check`. O Acompanhamento pertence à #211; a
-administração da flag/janela/allowlists à #212; canário, calibração e carga à
-#213.
+**concluídas com texto tarjado dentro da janela** (issue #210), o índice lexical,
+o `POST /requests/duplicates/check` e a seção do Acompanhamento em
+`GET /requests/:protocol/duplicates` (issue #211), além da administração da
+flag/janela/allowlists (#212); canário, calibração e carga à #213.
 
 ## Corpus público
 
-A busca lê **somente** `request_public_projections` e `system_settings`; ela
-nunca consulta `requests`. A projeção é a fronteira de privacidade (RN04).
+O corpus da busca lê **somente** `request_public_projections` e
+`system_settings`; ele nunca consulta `requests`. A projeção é a fronteira de
+privacidade (RN04). A seção do Acompanhamento (issue #211) lê a Demanda da
+própria Solicitação em `requests` apenas para montar os termos da consulta —
+os itens devolvidos continuam vindo só da projeção.
 
 ### Abertas
 
@@ -255,25 +258,33 @@ a flag (issue #213). Não existe limiar absoluto universal de 0,80.
 - **Média:** "Características em comum", até **5** itens.
 - **Nenhuma:** sem itens.
 
-## Contrato
+## Regras de resposta
+
+Rotas, parâmetros, payloads, respostas e códigos de erro são definidos pela
+especificação em `src/docs/` (servida em `GET /api-docs`); este documento só
+registra as regras de negócio.
 
 `POST /requests/duplicates/check`:
 
-- é público no modo `PUBLIC` e exige sessão no modo `AUTHENTICATED`
-  (`requireAccessMode`);
-- recebe `{ demand: DemandBlock }` estrito; chave desconhecida ou campo
-  ausente responde `422` com `fields`;
-- responde `200 { confidence, items }` com `Cache-Control: no-store`;
-- item tem exatamente `publicId`, `title`, `summary`, `category`, `status` e
-  `period`;
-- rate limit em memória: 30 requisições/10 s **e** 120/min por IP, com `429`
-  genérico;
-- flag desligada, índice indisponível ou falha de busca degradam para `200` com
-  `confidence: "none"` e `items: []`.
+- o texto da consulta não é ecoado, auditado nem logado;
+- o item expõe exatamente `publicId`, `title`, `summary`, `category`, `status` e
+  `period`, sem Protocolo, medida de Similaridade, total, contagem, Notas internas, Triagem,
+  Prioridade, Responsável, Anexos ou PII de terceiros;
+- a faixa de confiança (`high`, `medium` ou `none`) aplica piso e margem da
+  configuração provisória e limita a 3 itens em `high` e 5 em `medium`;
+- flag desligada, índice indisponível ou falha de busca degradam para `none`
+  com lista vazia; o limite de requisições por IP segue a especificação.
 
-O texto da consulta não é ecoado, auditado nem logado. O endpoint nunca devolve
-Protocolo, score, total, contagem, Notas internas, Triagem, Prioridade,
-Responsável, Anexos ou PII de terceiros.
+`GET /requests/:protocol/duplicates` (issue #211):
+
+- exige a mesma credencial do Acompanhamento — sessão do Solicitante com Posse
+  ou identidade pública no modo `PUBLIC` — e recusa perfis internos com o mesmo
+  erro do Acompanhamento;
+- usa o mesmo corpus, índice, regra de confiança e DTO do alerta, com no máximo
+  5 itens;
+- exclui a própria Solicitação pelo `public_id` da projeção publicada; se ela
+  não estiver publicada, responde com lista vazia;
+- flag desligada ou índice indisponível também degradam para lista vazia.
 
 ## Privacidade
 
@@ -287,8 +298,5 @@ Responsável, Anexos ou PII de terceiros.
 
 ## Fora do escopo desta fatia
 
-- `GET /requests/:protocol/duplicates` (issue #211).
-- `PATCH /portal-config/duplicates`, `/categories` e `/statuses` (issue #212),
-  incluindo a republicação ao aumentar a janela.
 - Marcação de duplicidade do RF25.
 - Canário, calibração e carga (issue #213).

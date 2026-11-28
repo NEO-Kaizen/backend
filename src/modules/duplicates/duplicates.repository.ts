@@ -358,6 +358,24 @@ export async function isDuplicateDetectionEnabled(trx?: Knex.Transaction): Promi
   return row?.duplicate_detection_enabled === true;
 }
 
+/**
+ * `public_id` da projeção **publicada** de uma Solicitação (issue #211).
+ *
+ * O Acompanhamento usa o identificador para excluir a própria Solicitação do
+ * resultado. Linha ausente ou suprimida devolve `undefined`, e o endpoint
+ * responde vazio: a seção só existe para quem tem a Solicitação publicada.
+ */
+export async function findPublishedPublicIdByRequestId(
+  requestId: string,
+): Promise<string | undefined> {
+  const row: { public_id: string } | undefined = await db("request_public_projections")
+    .where({ request_id: requestId })
+    .where(PUBLISHED_PROJECTION_FILTER)
+    .first("public_id");
+
+  return row?.public_id;
+}
+
 export interface GetDuplicateCompletedWindowOptions {
   trx?: Knex.Transaction;
   onFallback: DuplicateCompletedWindowFallbackWarner;

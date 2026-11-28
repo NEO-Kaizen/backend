@@ -43,6 +43,11 @@ O acompanhamento nunca inclui triagem, priorização, notas internas ou dados de
 outros solicitantes. O recorte público mostra apenas o estado externo; o recorte
 autenticado do Solicitante acrescenta os blocos do formulário e anexos.
 
+A exceção é a seção "Solicitações com características em comum" (issue #211):
+ela mostra itens públicos de outras Solicitações, sem Protocolo nem dados
+internos, conforme
+[`duplicate-detection.md`](duplicate-detection.md).
+
 ## Anti-enumeração
 
 - Identidade inválida não distingue “protocolo inexistente” de “dados

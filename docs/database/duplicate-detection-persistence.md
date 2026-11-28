@@ -165,6 +165,9 @@ não recebem data e não ganham projeção.
   caminho da requisição; o poll de 30 s executa a varredura da janela e lê
   mudanças desde o cursor da aplicação, com sobreposição de 5 min em
   `updated_at`.
+- A seção do Acompanhamento (issue #211) lê o `public_id` da própria projeção
+  publicada para excluí-la do resultado; projeção suprimida ou ausente devolve
+  lista vazia. Não há mudança de schema.
 - Linhas `suppressed`, com `is_publicly_listable = false` ou concluídas fora da
   janela são removidas do índice. O índice é sempre reconstruível a partir do
   banco.
@@ -179,4 +182,3 @@ elegível desde a #210. Os testes `db` sobem apenas `app.ts` e chamam
 ## Fora do escopo
 
 - Administração da flag/janela/allowlists e auditoria (issue #212).
-- `GET /requests/:protocol/duplicates` (issue #211).
