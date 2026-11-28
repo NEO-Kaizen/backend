@@ -326,6 +326,7 @@ export const schemas = {
   PortalCategoriesPatchBody,
   PortalStatusesPatchBody,
   PortalPrioritizationWeightsPatchBody,
+  DuplicateDetectionPatchBody,
 
   // Prioritization
   PrioritizationCriterion,
