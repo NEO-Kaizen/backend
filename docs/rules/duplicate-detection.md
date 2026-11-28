@@ -8,8 +8,8 @@ formal do RF25.
 A implementação cobre o corpus de Solicitações **abertas** (issue #209) e
 **concluídas com texto tarjado dentro da janela** (issue #210), o índice lexical,
 o `POST /requests/duplicates/check` e a seção do Acompanhamento em
-`GET /requests/:protocol/duplicates` (issue #211). A administração da
-flag/janela/allowlists pertence à #212; canário, calibração e carga à #213.
+`GET /requests/:protocol/duplicates` (issue #211), além da administração da
+flag/janela/allowlists (#212); canário, calibração e carga à #213.
 
 ## Corpus público
 
@@ -144,8 +144,16 @@ restrição, Categoria, Status, `concluded_at` e gate de PII —, regenerando o
 texto tarjado. Uma linha suprimida por restrição não é republicada só porque a
 janela aumentou.
 
-A #212 continua responsável por editar e auditar a configuração e por preservar
-o Status 16 ligado na allowlist.
+A #212 edita e audita a configuração por
+`PATCH /portal-config/duplicates` (`enabled` e `completedWindowMonths`, 1..36) e
+pelos PATCHes de Categorias/Status. O Status 16 permanece ligado na allowlist e
+o 17 desligado; 10 e 13 nascem desligados, mas podem ser ligados pelo
+Administrador (o 19 ainda não existe no catálogo e, quando criado, deve nascer
+desligado). Alternar a elegibilidade de uma Categoria ou de um Status — ou
+alterar `isActive`/`isTerminal`/`isRestricted` de um Status não-core — reavalia
+as projeções afetadas na mesma transação do PATCH, em lotes de até 50: desligar
+suprime e religar republica o que for elegível, reusando a mesma precedência de
+supressão e o mesmo gate de PII dos eventos da Solicitação.
 
 ### Backfill de `concluded_at`
 
@@ -290,7 +298,5 @@ registra as regras de negócio.
 
 ## Fora do escopo desta fatia
 
-- `PATCH /portal-config/duplicates`, `/categories` e `/statuses` (issue #212),
-  incluindo a republicação ao aumentar a janela.
 - Marcação de duplicidade do RF25.
 - Canário, calibração e carga (issue #213).

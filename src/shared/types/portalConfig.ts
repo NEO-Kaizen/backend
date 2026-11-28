@@ -110,6 +110,7 @@ export interface PortalCategory {
   name: string;
   description: string;
   isActive: boolean;
+  isPubliclyListable: boolean;
 }
 
 /**
@@ -191,6 +192,16 @@ export type CategoriesSection = Pick<PortalConfig, "categories">;
 export type StatusesSection = Pick<PortalConfig, "statuses">;
 export type PrioritizationWeightsSection = Pick<PortalConfig, "prioritizationWeights">;
 
+/**
+ * Configuração da detecção de duplicidade editada pelo Administrador (#212).
+ * O par `enabled`/`completedWindowMonths` viaja junto por controller, service e
+ * repository; o tipo evita que os dois valores sejam passados separadamente.
+ */
+export interface DuplicateDetectionSettings {
+  enabled: boolean;
+  completedWindowMonths: number;
+}
+
 /** Linha da tabela `categories` — projeção usada pelo portal config. */
 export interface CategoryRow {
   category_id: number;
@@ -198,6 +209,7 @@ export interface CategoryRow {
   description: string | null;
   status: "active" | "inactive";
   display_order: number | null;
+  is_publicly_listable: boolean;
 }
 
 /** Linha da tabela `statuses` — projeção usada pelo portal config (v4). */
@@ -213,4 +225,5 @@ export interface StatusRow {
   tone: StatusTone;
   order_number: number;
   is_active: boolean;
+  is_duplicate_corpus_eligible: boolean;
 }

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { hashPassword } from "../../src/shared/utils/passwordHandler.ts";
 import type { UserRow } from "../../src/shared/types/user.ts";
+import { STATUS_IDS } from "../../src/shared/types/status.ts";
 
 /**
  * Banco de testes real (PostgreSQL descartável).
@@ -133,14 +134,28 @@ export async function resetTestDb(): Promise<void> {
   await testDb("system_settings").insert({ settings_id: 1, theme_id: 1 });
   await testDb("profiles").update({ is_active: true });
 
-  // Allowlists do corpus de duplicidade (issues #209/#210): o reset devolve o
-  // baseline das migrations — todas as categorias publicáveis e todos os
-  // status elegíveis, exceto os desfechos 10, 13, 17 e 19. O 16 (Concluído)
-  // passou a ser elegível na #210, dentro da janela configurável.
-  await testDb("categories").update({ is_publicly_listable: true });
-  await testDb("statuses").update({ is_duplicate_corpus_eligible: true });
+  // Allowlists do corpus de duplicidade (issues #209/#210) e flags usados
+  // pelos PATCHes de configuração (#212): o reset devolve o baseline das
+  // migrations — categorias ativas e publicáveis, status ativos e elegíveis,
+  // exceto os desfechos 10, 13, 17 e 19. O 16 (Concluído) passou a ser
+  // elegível na #210, dentro da janela configurável.
+  const RESTRICTED_STATUS_ID = 11; // Priorizado (seed canônico)
+  const INELIGIBLE_STATUS_IDS = [10, 13, 19, STATUS_IDS.canceled] as const;
+  const COMPLETED_STATUS_IDS = [STATUS_IDS.completed, STATUS_IDS.canceled] as const;
+
+  await testDb("categories").update({ status: "active", is_publicly_listable: true });
+  await testDb("statuses").update({
+    is_active: true,
+    is_terminal: false,
+    is_restricted: false,
+    is_duplicate_corpus_eligible: true,
+  });
   await testDb("statuses")
-    .whereIn("status_id", [10, 13, 17, 19])
+    .where({ status_id: RESTRICTED_STATUS_ID })
+    .update({ is_restricted: true });
+  await testDb("statuses").whereIn("status_id", COMPLETED_STATUS_IDS).update({ is_terminal: true });
+  await testDb("statuses")
+    .whereIn("status_id", INELIGIBLE_STATUS_IDS)
     .update({ is_duplicate_corpus_eligible: false });
 }
 

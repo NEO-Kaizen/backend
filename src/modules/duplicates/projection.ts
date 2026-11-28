@@ -10,6 +10,8 @@ import {
   findExistingProjectionForUpdate,
   findProjectionSource,
   getDuplicateCompletedWindow,
+  lockDuplicateSettings,
+  type ExistingProjection,
   type ProjectionSourceRow,
 } from "./duplicates.repository.ts";
 import { buildCompletedProjectionText } from "./redact.ts";
@@ -46,6 +48,13 @@ interface ProjectionValues {
   published_at: Date | Knex.Raw | null;
   suppressed_at: Date | Knex.Raw | null;
   suppression_reason: SuppressionReason | null;
+}
+
+/** Linha pronta para insert/upsert em `request_public_projections`. */
+export interface ProjectionRow extends ProjectionValues {
+  request_id: string;
+  version: number;
+  updated_at: Date | Knex.Raw;
 }
 
 /** Sinais de elegibilidade usados pela precedência de supressão. */
@@ -142,33 +151,21 @@ function buildProjectionText(
 }
 
 /**
- * Cria ou atualiza a projeção de uma Solicitação. Deve rodar na MESMA
- * transação da criação, edição, transição de Status ou desfecho da Triagem.
- *
- * `window` permite que backfill e varredura leiam a configuração uma vez por
- * lote; sem ele, a janela é lida nesta chamada.
+ * Monta a linha da projeção a partir da fonte e do estado anterior. Função
+ * pura de domínio (a única dependência de banco é o relógio/UUID passados): é
+ * reaproveitada pela publicação isolada e pela reavaliação em lote das
+ * allowlists (#212), para que as duas não dupliquem a precedência de supressão.
  */
-export async function publishRequestProjection(
+export function buildProjectionRow(
   trx: Knex.Transaction,
-  requestId: string,
-  window?: DuplicateCompletedWindow,
-): Promise<void> {
-  const resolvedWindow =
-    window ??
-    (await getDuplicateCompletedWindow({ trx, onFallback: warnDuplicateCompletedWindowFallback }));
-  const source = await findProjectionSource(trx, requestId, resolvedWindow);
-
-  // Solicitação removida fisicamente: não há o que projetar.
-  if (!source) return;
-
+  source: ProjectionSourceRow,
+  existing: ExistingProjection | undefined,
+): ProjectionRow {
   const suppressionReason = resolveSuppressionReason(toSuppressionSignals(source));
   const template = buildProjectionText(source, suppressionReason);
-
   const isPubliclyListable =
     source.category_is_publicly_listable && source.status_is_duplicate_corpus_eligible;
-
   const publicationStatus: PublicationStatus = suppressionReason ? "suppressed" : "published";
-  const existing = await findExistingProjectionForUpdate(trx, requestId);
 
   // `published_at`/`suppressed_at` usam o relógio do banco, o mesmo de
   // `public_concluded_at` e da varredura. O cursor do poll usa o relógio da
@@ -185,7 +182,8 @@ export async function publishRequestProjection(
         : now
       : null;
 
-  const values: ProjectionValues = {
+  return {
+    request_id: source.request_id,
     public_id: existing?.public_id ?? randomUUID(),
     public_title: template.title,
     public_summary: template.summary,
@@ -199,23 +197,45 @@ export async function publishRequestProjection(
     published_at: publishedAt,
     suppressed_at: suppressedAt,
     suppression_reason: suppressionReason,
+    version: (existing?.version ?? 0) + 1,
+    updated_at: now,
   };
+}
+
+/**
+ * Cria ou atualiza a projeção de uma Solicitação. Deve rodar na MESMA
+ * transação da criação, edição, transição de Status ou desfecho da Triagem.
+ *
+ * O lock do singleton serializa com os PATCHes administrativos de flag/janela e
+ * allowlists (#212): a decisão lê Categoria/Status depois do lock, evitando
+ * *lost update* e Solicitações criadas durante um PATCH.
+ *
+ * `window` permite que backfill e varredura leiam a configuração uma vez por
+ * lote; sem ele, a janela é lida nesta chamada.
+ */
+export async function publishRequestProjection(
+  trx: Knex.Transaction,
+  requestId: string,
+  window?: DuplicateCompletedWindow,
+): Promise<void> {
+  await lockDuplicateSettings(trx);
+
+  const resolvedWindow =
+    window ??
+    (await getDuplicateCompletedWindow({ trx, onFallback: warnDuplicateCompletedWindowFallback }));
+  const source = await findProjectionSource(trx, requestId, resolvedWindow);
+
+  // Solicitação removida fisicamente: não há o que projetar.
+  if (!source) return;
+
+  const existing = await findExistingProjectionForUpdate(trx, requestId);
+  const row = buildProjectionRow(trx, source, existing);
 
   if (!existing) {
-    // `created_at` e `updated_at` usam o relógio do banco (default da migration).
-    await trx("request_public_projections").insert({
-      request_id: requestId,
-      ...values,
-      version: 1,
-    });
+    // `created_at` usa o relógio do banco (default da migration).
+    await trx("request_public_projections").insert(row);
     return;
   }
 
-  await trx("request_public_projections")
-    .where({ request_id: requestId })
-    .update({
-      ...values,
-      version: trx.raw("version + 1"),
-      updated_at: trx.fn.now(),
-    });
+  await trx("request_public_projections").where({ request_id: requestId }).update(row);
 }

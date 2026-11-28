@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import db from "../../database/conection.ts";
+import type { DuplicateDetectionSettings } from "../../shared/types/portalConfig.ts";
 import type {
   PortalSolicitationMode,
   SystemSettingsRow,
@@ -194,10 +195,11 @@ export async function upsertCategories(
 
   const keepIds = categories.map((c) => c.id);
   if (keepIds.length > 0) {
+    // Categoria omitida sai da allowlist: sem isso a projeção continuaria
+    // publicada mesmo depois da reavaliação (#212).
     await trx("categories")
       .whereNotIn("category_id", keepIds)
-      .andWhere({ status: "active" })
-      .update({ status: "inactive" });
+      .update({ status: "inactive", is_publicly_listable: false });
   }
 
   await trx.raw(
@@ -233,7 +235,7 @@ export async function upsertStatuses(
       mapping_mode: mappingMode,
       tone: status.tone,
       is_active: status.isActive,
-      is_duplicate_corpus_eligible: status.isDuplicateCorpusEligible ?? true,
+      is_duplicate_corpus_eligible: status.isDuplicateCorpusEligible,
     } as const;
     await trx("statuses").insert(row).onConflict("status_id").merge(row);
   }
@@ -260,6 +262,11 @@ export async function upsertStatuses(
       .whereNotIn("status_id", keepIds)
       .andWhere({ is_active: true })
       .update({ is_active: false });
+
+    await trx("statuses")
+      .whereNotIn("status_id", keepIds)
+      .andWhere({ is_duplicate_corpus_eligible: true })
+      .update({ is_duplicate_corpus_eligible: false });
   }
 
   await trx.raw(
@@ -286,15 +293,16 @@ export async function updateCriteriaWeights(
 
 export async function updateDuplicateDetectionSettings(
   trx: Knex.Transaction,
-  enabled: boolean,
-  completedWindowMonths: number,
+  settings: DuplicateDetectionSettings,
   actorUserId: number,
 ): Promise<void> {
   const now = new Date().toISOString();
-  await trx("system_settings").where({ settings_id: 1 }).update({
-    duplicate_detection_enabled: enabled,
-    duplicate_completed_window_months: completedWindowMonths,
-    updated_by: String(actorUserId),
-    updated_at: now,
-  });
+  await trx("system_settings")
+    .where({ settings_id: 1 })
+    .update({
+      duplicate_detection_enabled: settings.enabled,
+      duplicate_completed_window_months: settings.completedWindowMonths,
+      updated_by: String(actorUserId),
+      updated_at: now,
+    });
 }

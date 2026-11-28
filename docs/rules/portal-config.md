@@ -27,12 +27,19 @@ solicitante, sem cache ou restart.
 - Nomes são únicos ignorando maiúsculas/minúsculas.
 - Ao menos uma categoria precisa ficar ativa.
 - `id` é estável; a ordem do array é a ordem de exibição.
-- Categoria inativa permanece registrada e não entra em novos fluxos.
+- Categoria inativa permanece registrada e não entra em novos fluxos; uma
+  Categoria omitida do PATCH é desligada da allowlist do corpus.
+- `isPubliclyListable` é obrigatório no PATCH (não há default): a omissão é
+  rejeitada para que uma allowlist não mude em silêncio. Categoria nova nasce
+  desligada no banco; no PATCH o valor atual deve ser informado explicitamente.
 
 ## Status
 
 - Status core (`1, 3, 4, 6, 7, 16, 17`) não podem faltar, ser removidos,
-  renomeados, rebaixados, desativados nem ter flags/modos alterados.
+  renomeados, rebaixados, desativados nem ter flags/modos alterados. A
+  elegibilidade para o corpus do 16 (ligado) e do 17 (desligado) também é fixa;
+  os demais Status, inclusive os desfechos 10 e 13, têm allowlist administrável.
+- `isDuplicateCorpusEligible` é obrigatório no PATCH (não há default).
 - Status restrito exige ambos os modos como `none`.
 - Ao menos um Status precisa ficar ativo.
 - A leitura inclui Status inativos; eles permanecem registrados e não entram em
@@ -41,6 +48,26 @@ solicitante, sem cache ou restart.
 
 As regras de transição estão em
 [`requests-lifecycle.md`](requests-lifecycle.md).
+
+## Detecção de duplicidade
+
+`PATCH /portal-config/duplicates` altera, em uma transação auditada, `enabled` e
+`completedWindowMonths` (inteiro de 1 a 36). A janela é aplicada pelo par de
+varreduras descrito em [`duplicate-detection.md`](duplicate-detection.md). Com a
+flag desligada, o `POST /requests/duplicates/check` e o
+`GET /requests/:protocol/duplicates` respondem vazios e o índice não é
+construído.
+
+As allowlists de Categorias (`isPubliclyListable`) e Status
+(`isDuplicateCorpusEligible`) são editadas nos PATCHes das seções respectivas.
+Como `request_public_projections.is_publicly_listable` é um snapshot, toda
+alternância reavalia — na mesma transação do PATCH e em lotes de até 50 — as
+projeções das Solicitações afetadas: desligar suprime e religar republica o que
+for elegível, com a precedência de supressão e o gate de PII já usados nos
+eventos da Solicitação. A reavaliação também ocorre quando mudam o nome da
+Categoria ou `isActive`/`isTerminal`/`isRestricted` de um Status não-core. O
+Status 16 permanece elegível e o 17 desligado; 10 e 13 nascem desligados, mas
+são administráveis.
 
 ## Pesos de priorização
 

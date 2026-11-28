@@ -71,6 +71,7 @@ export interface ExistingProjection {
   publication_status: PublicationStatus;
   published_at: Date | null;
   suppressed_at: Date | null;
+  version: number;
 }
 
 const PROJECTION_COLUMNS = [
@@ -231,33 +232,37 @@ function parseProjectionSourceRow(row: Record<string, unknown>): ProjectionSourc
 }
 
 function parseExistingProjection(row: Record<string, unknown>): ExistingProjection {
-  const { public_id, publication_status, published_at, suppressed_at } = row;
+  const { public_id, publication_status, published_at, suppressed_at, version } = row;
 
   if (
     typeof public_id !== "string" ||
     !isPublicationStatus(publication_status) ||
     !isNullableDate(published_at) ||
-    !isNullableDate(suppressed_at)
+    !isNullableDate(suppressed_at) ||
+    typeof version !== "number"
   ) {
     throw new Error("Linha inválida em request_public_projections.");
   }
 
-  return { public_id, publication_status, published_at, suppressed_at };
+  return { public_id, publication_status, published_at, suppressed_at, version };
 }
 
 /**
- * Fonte da publicação: Solicitação + Categoria + Status + janela calculada com
- * o relógio do banco. Deve rodar na transação que alterou a Solicitação.
+ * Fontes da publicação: Solicitação + Categoria + Status + janela calculada
+ * com o relógio do banco. Uma única consulta com `whereIn` para o caso isolado
+ * e para a reavaliação em lote das allowlists (#212).
  */
-export async function findProjectionSource(
+export async function findProjectionSources(
   trx: Knex.Transaction,
-  requestId: string,
+  requestIds: readonly string[],
   window: DuplicateCompletedWindow,
-): Promise<ProjectionSourceRow | undefined> {
+): Promise<ProjectionSourceRow[]> {
+  if (requestIds.length === 0) return [];
+
   const rows: Record<string, unknown>[] = await trx("requests as r")
     .join("categories as c", "c.category_id", "r.category_id")
     .join("statuses as s", "s.status_id", "r.status_id")
-    .where("r.request_id", requestId)
+    .whereIn("r.request_id", requestIds)
     .select({
       request_id: "r.request_id",
       created_at: "r.created_at",
@@ -281,24 +286,66 @@ export async function findProjectionSource(
         "(r.concluded_at IS NOT NULL AND r.concluded_at >= now() - make_interval(months => ?)) as is_within_window",
         [window.months],
       ),
-    )
-    .limit(1);
+    );
 
-  const row = rows[0];
-  return row ? parseProjectionSourceRow(row) : undefined;
+  return rows.map(parseProjectionSourceRow);
 }
 
-/** Linha existente travada para o upsert; o `public_id` é preservado. */
+export async function findProjectionSource(
+  trx: Knex.Transaction,
+  requestId: string,
+  window: DuplicateCompletedWindow,
+): Promise<ProjectionSourceRow | undefined> {
+  const rows = await findProjectionSources(trx, [requestId], window);
+  return rows[0];
+}
+
+/** Projeções existentes travadas para o upsert; o `public_id` é preservado. */
+export async function findExistingProjectionsForUpdate(
+  trx: Knex.Transaction,
+  requestIds: readonly string[],
+): Promise<Map<string, ExistingProjection>> {
+  if (requestIds.length === 0) return new Map();
+
+  const rows: Record<string, unknown>[] = await trx("request_public_projections")
+    .whereIn("request_id", requestIds)
+    .forUpdate()
+    .select(
+      "request_id",
+      "public_id",
+      "publication_status",
+      "published_at",
+      "suppressed_at",
+      "version",
+    );
+
+  return new Map(
+    rows.map((row) => {
+      const { request_id } = row;
+      if (typeof request_id !== "string") {
+        throw new Error("Linha inválida em request_public_projections.");
+      }
+      return [request_id, parseExistingProjection(row)];
+    }),
+  );
+}
+
 export async function findExistingProjectionForUpdate(
   trx: Knex.Transaction,
   requestId: string,
 ): Promise<ExistingProjection | undefined> {
-  const row: Record<string, unknown> | undefined = await trx("request_public_projections")
-    .where({ request_id: requestId })
-    .forUpdate()
-    .first("public_id", "publication_status", "published_at", "suppressed_at");
+  const rows = await findExistingProjectionsForUpdate(trx, [requestId]);
+  return rows.get(requestId);
+}
 
-  return row ? parseExistingProjection(row) : undefined;
+/**
+ * Serializa escritas de projeção com edições administrativas de flag/janela e
+ * allowlists (#212): todas usam `FOR UPDATE` na mesma linha do singleton.
+ * Adquirido no início de `publishRequestProjection`, antes de qualquer leitura
+ * de `requests`/`categories`/`statuses`, para evitar *lost update* concorrente.
+ */
+export async function lockDuplicateSettings(trx: Knex.Transaction): Promise<void> {
+  await trx("system_settings").where({ settings_id: 1 }).forUpdate().first();
 }
 
 /** Flag nasce desligada; ausência do singleton é tratada como desligada. */
@@ -487,4 +534,38 @@ export async function listProjectionChangesSince(
     .select(...PROJECTION_COLUMNS);
 
   return rows.map(parsePublicProjectionRow);
+}
+
+function parseRequestIds(rows: Record<string, unknown>[]): string[] {
+  return rows.map((row) => {
+    const { request_id } = row;
+    if (typeof request_id !== "string") {
+      throw new Error("Linha inválida em requests ao listar projeções afetadas.");
+    }
+    return request_id;
+  });
+}
+
+/**
+ * Solicitações afetadas por mudanças nas allowlists de Categoria e/ou Status
+ * (#212). Uma única consulta com `whereIn` nas duas colunas — a leitura é da
+ * base interna porque a projeção pode não existir para Solicitações anteriores
+ * ao RF16.
+ */
+export async function listRequestIdsForAllowlists(
+  trx: Knex.Transaction,
+  categoryIds: readonly number[],
+  statusIds: readonly number[],
+): Promise<string[]> {
+  if (categoryIds.length === 0 && statusIds.length === 0) return [];
+
+  const rows: Record<string, unknown>[] = await trx("requests")
+    .where((builder) => {
+      if (categoryIds.length > 0) builder.orWhereIn("category_id", categoryIds);
+      if (statusIds.length > 0) builder.orWhereIn("status_id", statusIds);
+    })
+    .distinct()
+    .select("request_id");
+
+  return parseRequestIds(rows);
 }

@@ -1221,6 +1221,20 @@
           }
         }
       },
+      "DuplicateDetectionPatchBody": {
+        "type": "object",
+        "required": ["enabled", "completedWindowMonths"],
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean", "description": "Flag de detecção de duplicidade." },
+          "completedWindowMonths": {
+            "type": "integer",
+            "description": "Janela de conclusão em meses (1..36). Padrão 3 meses.",
+            "minimum": 1,
+            "maximum": 36
+          }
+        }
+      },
       "QueueMetrics": {
         "type": "object",
         "required": [
@@ -2297,7 +2311,7 @@
       },
       "PortalCategory": {
         "type": "object",
-        "required": ["id", "name", "description", "isActive"],
+        "required": ["id", "name", "description", "isActive", "isPubliclyListable"],
         "properties": {
           "id": { "type": "integer", "example": 1 },
           "name": { "type": "string", "maxLength": 40, "example": "Infraestrutura" },
@@ -2306,7 +2320,8 @@
             "maxLength": 200,
             "example": "Solicitações de TI e infraestrutura"
           },
-          "isActive": { "type": "boolean", "example": true }
+          "isActive": { "type": "boolean", "example": true },
+          "isPubliclyListable": { "type": "boolean", "example": true }
         }
       },
       "PortalStatus": {
@@ -2321,7 +2336,8 @@
           "mappingMode",
           "isRestricted",
           "tone",
-          "isActive"
+          "isActive",
+          "isDuplicateCorpusEligible"
         ],
         "properties": {
           "id": { "type": "integer", "minimum": 1, "maximum": 50, "example": 1 },
@@ -2337,7 +2353,8 @@
             "enum": ["error", "success", "info", "warning", "neutral"],
             "example": "neutral"
           },
-          "isActive": { "type": "boolean", "example": true }
+          "isActive": { "type": "boolean", "example": true },
+          "isDuplicateCorpusEligible": { "type": "boolean", "example": true }
         }
       },
       "PrioritizationWeights": {
@@ -4699,7 +4716,7 @@
       "patch": {
         "tags": ["Configuração do portal"],
         "summary": "Alterar categorias do portal",
-        "description": "Substitui a lista completa de categorias de forma atômica. Exige perfil `Administrador`.",
+        "description": "Substitui a lista completa de categorias de forma atômica. `isPubliclyListable` é obrigatório em cada item e controla a elegibilidade da Categoria para o corpus de duplicidade: alterná-lo suprime ou republica, na mesma transação, as projeções das Solicitações da Categoria. Exige perfil `Administrador`.",
         "operationId": "updatePortalCategories",
         "security": [{ "cookieAuth": [] }],
         "requestBody": {
@@ -4753,7 +4770,7 @@
       "patch": {
         "tags": ["Configuração do portal"],
         "summary": "Alterar status do ciclo do portal",
-        "description": "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis. Exige perfil `Administrador`.",
+        "description": "Substitui a lista completa de status do ciclo de forma atômica. Statuses de núcleo são imutáveis; a elegibilidade para o corpus do 16 (ligado) e do 17 (desligado) também é fixa. `isDuplicateCorpusEligible` é obrigatório em cada item. Alterar elegibilidade, `isActive`, `isTerminal` ou `isRestricted` reavalia, na mesma transação, as projeções das Solicitações do Status. Exige perfil `Administrador`.",
         "operationId": "updatePortalStatuses",
         "security": [{ "cookieAuth": [] }],
         "requestBody": {
@@ -4801,7 +4818,7 @@
             }
           },
           "409": {
-            "description": "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`.",
+            "description": "Violação de Status core. Códigos estáveis: `core_status_missing`, `core_status_removed`, `core_status_renamed`, `core_status_forced`, `core_status_forced_inactive`, `core_status_locked`, `core_status_corpus_eligibility_locked`.",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
             }
@@ -4838,6 +4855,51 @@
                     }
                   }
                 }
+              }
+            }
+          },
+          "400": {
+            "description": "Body inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "401": {
+            "description": "Sem sessão ou token inválido.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          },
+          "403": {
+            "description": "Perfil sem acesso (apenas Administrador).",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/portal-config/duplicates": {
+      "patch": {
+        "tags": ["Configuração do portal"],
+        "summary": "Alterar configuração de detecção de duplicidade",
+        "description": "Altera a flag de detecção de duplicidade e a janela de conclusão (1..36 meses) de forma atômica e auditada. Com a flag desligada, `POST /requests/duplicates/check` responde vazio e o índice não é construído. Exige perfil `Administrador`.",
+        "operationId": "updatePortalDuplicateDetection",
+        "security": [{ "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DuplicateDetectionPatchBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuração de detecção de duplicidade alterada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DuplicateDetectionPatchBody" }
               }
             }
           },

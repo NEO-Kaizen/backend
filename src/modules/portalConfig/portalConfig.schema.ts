@@ -6,6 +6,7 @@ import {
   THEME_TOKEN_KEYS,
   type AccessSection,
   type CategoriesSection,
+  type DuplicateDetectionSettings,
   type StatusesSection,
   type ThemeTokenKey,
 } from "../../shared/types/portalConfig.ts";
@@ -109,7 +110,9 @@ export const portalCategorySchema = z
     name: z.string().trim().min(1, "Campo obrigatório.").max(40, "Máximo de 40 caracteres."),
     description: z.string().max(200, "Máximo de 200 caracteres."),
     isActive: z.boolean(),
-    isPubliclyListable: z.boolean().default(false),
+    // O contrato (src/docs/) marca o campo como required. Um default aqui
+    // aceitaria um PATCH que omite o campo e mudaria a allowlist em silêncio.
+    isPubliclyListable: z.boolean(),
   })
   .strict();
 
@@ -165,7 +168,8 @@ export const portalStatusSchema = z
       error: "Tom inválido — opções: error, success, info, warning ou neutral.",
     }),
     isActive: z.boolean(),
-    isDuplicateCorpusEligible: z.boolean().default(true),
+    // Required no contrato: omitir no PATCH não pode religar o Status 17.
+    isDuplicateCorpusEligible: z.boolean(),
   })
   .strict()
   .superRefine((status, ctx) => {
@@ -293,7 +297,7 @@ export const portalAssetsPatchSchema = z
     path: ["assets"],
   });
 
-export const duplicateDetectionSchema = z
+export const updateDuplicateDetectionSchema = z
   .object({
     enabled: z.boolean(),
     completedWindowMonths: z
@@ -302,4 +306,4 @@ export const duplicateDetectionSchema = z
       .min(1, "Mínimo de 1 mês.")
       .max(36, "Máximo de 36 meses."),
   })
-  .strict();
+  .strict() satisfies z.ZodType<DuplicateDetectionSettings>;
