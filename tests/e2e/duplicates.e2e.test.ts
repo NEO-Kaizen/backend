@@ -245,7 +245,19 @@ describe("E2E — GET /requests/:protocol/duplicates", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ confidence: "high", items: [ITEM] });
-    expect(duplicatesRepository.findPublishedPublicIdByRequestId).toHaveBeenCalledWith("42");
+  });
+
+  it("responde vazio quando a própria Solicitação não está publicada", async () => {
+    mockSolicitanteSession();
+    vi.mocked(requestsRepository.findInternalRequestByProtocol).mockResolvedValue(makeRequestRow());
+    vi.mocked(duplicatesRepository.findPublishedPublicIdByRequestId).mockResolvedValue(undefined);
+    vi.mocked(indexLifecycle.searchDuplicateIndex).mockReturnValue([{ ...ITEM, score: 1 }]);
+
+    const client = new TestClient(server.baseUrl);
+    const response = await client.get(`/requests/${PROTOCOL}/duplicates`, solicitanteCookie());
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ confidence: "none", items: [] });
   });
 
   it("identidade pública válida devolve a seção no modo PUBLIC", async () => {

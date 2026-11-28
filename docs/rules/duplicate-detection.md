@@ -247,39 +247,33 @@ a flag (issue #213). Não existe limiar absoluto universal de 0,80.
 - **Média:** "Características em comum", até **5** itens.
 - **Nenhuma:** sem itens.
 
-## Contrato
+## Regras de resposta
+
+Rotas, parâmetros, payloads, respostas e códigos de erro são definidos pela
+especificação em `src/docs/` (servida em `GET /api-docs`); este documento só
+registra as regras de negócio.
 
 `POST /requests/duplicates/check`:
 
-- é público no modo `PUBLIC` e exige sessão no modo `AUTHENTICATED`
-  (`requireAccessMode`);
-- recebe `{ demand: DemandBlock }` estrito; chave desconhecida ou campo
-  ausente responde `422` com `fields`;
-- responde `200 { confidence, items }` com `Cache-Control: no-store`;
-- item tem exatamente `publicId`, `title`, `summary`, `category`, `status` e
-  `period`;
-- rate limit em memória: 30 requisições/10 s **e** 120/min por IP, com `429`
-  genérico;
-- flag desligada, índice indisponível ou falha de busca degradam para `200` com
-  `confidence: "none"` e `items: []`.
-
-O texto da consulta não é ecoado, auditado nem logado. O endpoint nunca devolve
-Protocolo, score, total, contagem, Notas internas, Triagem, Prioridade,
-Responsável, Anexos ou PII de terceiros.
+- o texto da consulta não é ecoado, auditado nem logado;
+- o item expõe exatamente `publicId`, `title`, `summary`, `category`, `status` e
+  `period`, sem Protocolo, score, total, contagem, Notas internas, Triagem,
+  Prioridade, Responsável, Anexos ou PII de terceiros;
+- a faixa de confiança (`high`, `medium` ou `none`) aplica piso e margem da
+  configuração provisória e limita a 3 itens em `high` e 5 em `medium`;
+- flag desligada, índice indisponível ou falha de busca degradam para `none`
+  com lista vazia; o limite de requisições por IP segue a especificação.
 
 `GET /requests/:protocol/duplicates` (issue #211):
 
-- exige `requesterDualAuth` e espelha a autorização do
-  `GET /requests/:protocol/tracking`: sessão do Solicitante dono ou identidade
-  pública (`X-Requester-Identity`) no modo `PUBLIC`;
-- perfil interno responde `403` com a mesma mensagem do Acompanhamento;
-- sem identidade, identidade divergente ou protocolo inexistente/de terceiro
-  respondem com o mesmo erro genérico do Acompanhamento (`401`/`404`);
+- exige a mesma credencial do Acompanhamento — sessão do dono ou identidade
+  pública no modo `PUBLIC` — e recusa perfis internos com o mesmo erro do
+  Acompanhamento;
 - usa o mesmo corpus, índice, regra de confiança e DTO do alerta, com no máximo
   5 itens;
-- exclui a própria Solicitação pelo `request_id` da projeção publicada; se ela
-  não estiver publicada, responde `200` com lista vazia;
-- flag desligada ou índice indisponível também degradam para `200` vazio.
+- exclui a própria Solicitação pelo `public_id` da projeção publicada; se ela
+  não estiver publicada, responde com lista vazia;
+- flag desligada ou índice indisponível também degradam para lista vazia.
 
 ## Privacidade
 

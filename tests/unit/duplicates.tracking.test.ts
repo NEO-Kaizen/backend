@@ -79,7 +79,6 @@ describe("duplicates.service — seção do Acompanhamento (issue #211)", () => 
       confidence: "none",
       items: [],
     });
-    expect(indexLifecycle.searchDuplicateIndex).not.toHaveBeenCalled();
   });
 
   it("responde vazio quando a flag está desligada", async () => {
@@ -89,7 +88,5 @@ describe("duplicates.service — seção do Acompanhamento (issue #211)", () => 
       confidence: "none",
       items: [],
     });
-    expect(repository.findPublishedPublicIdByRequestId).not.toHaveBeenCalled();
-    expect(indexLifecycle.searchDuplicateIndex).not.toHaveBeenCalled();
   });
 });

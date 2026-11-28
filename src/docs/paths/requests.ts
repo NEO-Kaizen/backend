@@ -1,4 +1,4 @@
-import { protocolParam } from "../components/parameters.ts";
+import { protocolParam, requesterIdentityHeaderParam } from "../components/parameters.ts";
 import { error, json } from "../components/responses.ts";
 
 export default {
@@ -337,18 +337,7 @@ export default {
         "O recorte nunca inclui triagem, priorização ou notas internas.",
       operationId: "getTracking",
       security: [{ cookieAuth: [] }, { requesterIdentity: [] }],
-      parameters: [
-        protocolParam,
-        {
-          name: "X-Requester-Identity",
-          in: "header",
-          required: false,
-          description:
-            'JSON `{"name":"...","email":"..."}` verificado previamente em `POST .../public/verify`.',
-          schema: { type: "string" },
-          example: '{"name":"Maria Silva","email":"maria.silva@empresa.com"}',
-        },
-      ],
+      parameters: [protocolParam, requesterIdentityHeaderParam],
       responses: {
         "200": { description: "Detalhe de acompanhamento.", ...json("TrackingResponse") },
         "401": error("Identidade ausente/divergente ou sessão inválida."),
@@ -369,18 +358,7 @@ export default {
         "O DTO é o mesmo do Alerta de duplicidade, com no máximo 5 itens e sem Protocolo, score, total ou PII.",
       operationId: "getRequestDuplicates",
       security: [{ cookieAuth: [] }, { requesterIdentity: [] }],
-      parameters: [
-        protocolParam,
-        {
-          name: "X-Requester-Identity",
-          in: "header",
-          required: false,
-          description:
-            'JSON `{"name":"...","email":"..."}` verificado previamente em `POST .../public/verify`.',
-          schema: { type: "string" },
-          example: '{"name":"Maria Silva","email":"maria.silva@empresa.com"}',
-        },
-      ],
+      parameters: [protocolParam, requesterIdentityHeaderParam],
       responses: {
         "200": {
           description:

@@ -17,6 +17,7 @@ import type {
   PublicRequestDetails,
   RequesterRequestDetails,
   TrackingDetailsResponse,
+  TrackingMode,
 } from "../DTOs/requests/RequestTracking.dto.ts";
 import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts";
 import { findDuplicatesForRequest } from "../duplicates/duplicates.service.ts";
@@ -586,7 +587,7 @@ function normalizeTrackingProtocol(protocol: string): string {
 }
 
 interface TrackingAccess {
-  mode: "authenticated" | "public";
+  mode: TrackingMode;
   row: InternalRequestRow;
 }
 
@@ -666,20 +667,6 @@ export async function getTracking(
   return { mode: "public", details: buildPublicDetails(access.row) };
 }
 
-/** Campos da aba de Demanda reconstruídos da linha para a consulta lexical. */
-function demandBlockFromRow(row: InternalRequestRow): DemandBlock {
-  return {
-    title: row.title,
-    requestType: row.request_type,
-    category: row.category,
-    processName: row.process_name,
-    description: row.need_description,
-    problem: row.problem_opportunity,
-    expectedResult: row.expected_result,
-    justification: row.justification,
-  };
-}
-
 /**
  * `GET /requests/:protocol/duplicates` (issue #211) — seção "Solicitações com
  * características em comum" do Acompanhamento. A autorização é a mesma do
@@ -691,7 +678,7 @@ export async function getRequestDuplicates(
 ): Promise<DuplicateCheckResponse> {
   const access = await resolveTrackingAccess(normalizeTrackingProtocol(protocol), caller);
 
-  return findDuplicatesForRequest(access.row.request_id, demandBlockFromRow(access.row));
+  return findDuplicatesForRequest(access.row.request_id, mapTrackingDemand(access.row));
 }
 
 // --- AtualizaÃ§Ã£o interna dos blocos (issue #88) -----------------------------
