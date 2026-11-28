@@ -17,8 +17,11 @@ import type {
   PublicRequestDetails,
   RequesterRequestDetails,
   TrackingDetailsResponse,
+  TrackingMode,
 } from "../DTOs/requests/RequestTracking.dto.ts";
 import { getSolicitationMode } from "../portalConfig/portalConfig.repository.ts";
+import { findDuplicatesForRequest } from "../duplicates/duplicates.service.ts";
+import type { DuplicateCheckResponse } from "../../shared/types/duplicates.ts";
 import { normalizeEmail, normalizeName } from "../../shared/utils/normalizeIdentity.ts";
 import type { SavedAttachment } from "../../shared/storage/fileStorage.ts";
 import { removeFiles } from "../../shared/storage/fileStorage.ts";
@@ -573,37 +576,57 @@ function isTrackingOwner(row: InternalRequestRow, user: AuthenticatedUser): bool
   return normalizeEmail(row.requester_email ?? "") === normalizeEmail(user.email);
 }
 
-async function getAuthenticatedTracking(
-  protocol: string,
-  user: AuthenticatedUser,
-): Promise<TrackingDetailsResponse> {
-  // Perfis internos tÃªm a consulta administrativa prÃ³pria (`/internal`); o
-  // acompanhamento Ã© exclusivo do solicitante. 403 uniforme (independe do
-  // protocolo) â€” nÃ£o revela existÃªncia.
-  if (user.role !== "Solicitante") {
-    throw new AppError("Perfis internos devem acompanhar pela consulta interna.", 403);
+function normalizeTrackingProtocol(protocol: string): string {
+  const normalizedProtocol = protocol.trim();
+
+  if (normalizedProtocol === "") {
+    throw new AppError("Protocolo Ã© obrigatÃ³rio", 400);
   }
 
-  const row = await repository.findInternalRequestByProtocol(protocol);
-
-  // Protocolo inexistente ou de terceiro: mesma resposta (404), para nÃ£o
-  // revelar a existÃªncia de solicitaÃ§Ãµes alheias (anti-enumeraÃ§Ã£o).
-  if (!row || !isTrackingOwner(row, user)) {
-    throw new AppError("Protocolo nÃ£o encontrado", 404);
-  }
-
-  return { mode: "authenticated", details: await buildAuthenticatedDetails(row) };
+  return normalizedProtocol;
 }
 
-async function getPublicTracking(
+interface TrackingAccess {
+  mode: TrackingMode;
+  row: InternalRequestRow;
+}
+
+/**
+ * Resolve a credencial e a Solicitação do Acompanhamento. Compartilhado por
+ * `GET /requests/:protocol/tracking` e `GET /requests/:protocol/duplicates`
+ * (issue #211), para que modo, autorização e mensagens genéricas sejam
+ * idênticos nas duas rotas.
+ */
+async function resolveTrackingAccess(
   protocol: string,
-  identity: { name: string; email: string } | null,
-): Promise<TrackingDetailsResponse> {
+  caller: TrackingCaller,
+): Promise<TrackingAccess> {
+  if (caller.user) {
+    // Perfis internos tÃªm a consulta administrativa prÃ³pria (`/internal`); o
+    // acompanhamento Ã© exclusivo do solicitante. 403 uniforme (independe do
+    // protocolo) â€” nÃ£o revela existÃªncia.
+    if (caller.user.role !== "Solicitante") {
+      throw new AppError("Perfis internos devem acompanhar pela consulta interna.", 403);
+    }
+
+    const row = await repository.findInternalRequestByProtocol(protocol);
+
+    // Protocolo inexistente ou de terceiro: mesma resposta (404), para nÃ£o
+    // revelar a existÃªncia de solicitaÃ§Ãµes alheias (anti-enumeraÃ§Ã£o).
+    if (!row || !isTrackingOwner(row, caller.user)) {
+      throw new AppError("Protocolo nÃ£o encontrado", 404);
+    }
+
+    return { mode: "authenticated", row };
+  }
+
   const mode = await getSolicitationMode();
 
   if (mode !== "PUBLIC") {
     throw new AppError("VerificaÃ§Ã£o indisponÃ­vel no modo atual", 403);
   }
+
+  const identity = caller.requesterIdentity ?? null;
 
   // Sem cookie e sem header vÃ¡lido: exige validaÃ§Ã£o prÃ©via (anti-enumeraÃ§Ã£o).
   if (!identity) {
@@ -623,7 +646,7 @@ async function getPublicTracking(
     throw new AppError(TRACKING_INVALID_IDENTITY, 401);
   }
 
-  return { mode: "public", details: buildPublicDetails(row) };
+  return { mode: "public", row };
 }
 
 /**
@@ -635,17 +658,27 @@ export async function getTracking(
   protocol: string,
   caller: TrackingCaller,
 ): Promise<TrackingDetailsResponse> {
-  const normalizedProtocol = protocol.trim();
+  const access = await resolveTrackingAccess(normalizeTrackingProtocol(protocol), caller);
 
-  if (normalizedProtocol === "") {
-    throw new AppError("Protocolo Ã© obrigatÃ³rio", 400);
+  if (access.mode === "authenticated") {
+    return { mode: "authenticated", details: await buildAuthenticatedDetails(access.row) };
   }
 
-  if (caller.user) {
-    return getAuthenticatedTracking(normalizedProtocol, caller.user);
-  }
+  return { mode: "public", details: buildPublicDetails(access.row) };
+}
 
-  return getPublicTracking(normalizedProtocol, caller.requesterIdentity ?? null);
+/**
+ * `GET /requests/:protocol/duplicates` (issue #211) — seção "Solicitações com
+ * características em comum" do Acompanhamento. A autorização é a mesma do
+ * `tracking`; a busca usa o corpus público e exclui a própria Solicitação.
+ */
+export async function getRequestDuplicates(
+  protocol: string,
+  caller: TrackingCaller,
+): Promise<DuplicateCheckResponse> {
+  const access = await resolveTrackingAccess(normalizeTrackingProtocol(protocol), caller);
+
+  return findDuplicatesForRequest(access.row.request_id, mapTrackingDemand(access.row));
 }
 
 // --- AtualizaÃ§Ã£o interna dos blocos (issue #88) -----------------------------
