@@ -628,9 +628,66 @@ test(
   },
   async () => {
     const { verifyTrackingInBrowser } = await import("./rf07.browser.mjs");
-    const frontendRoot = join(root, "../frontend");
+    const frontendRoot = process.env.RF02_FRONTEND_ROOT ?? join(root, "../frontend");
     const [cookieName, cookieValue] = cookies.requester.split("=");
     const requester = await db("users").where({ user_id: actorIds.requester }).first();
+    const sessionResponse = await fetch(origin + "/auth/me", {
+      headers: {
+        cookie: cookies.requester,
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    const sessionBody = await sessionResponse.json();
+
+    console.log("[AUTH DIRETA] HTTP:", sessionResponse.status);
+
+    console.log("[AUTH DIRETA] Campos:", Object.keys(sessionBody));
+
+    console.log(
+      "[AUTH DIRETA] Tipos:",
+      JSON.stringify({
+        id: typeof sessionBody.id,
+        email: typeof sessionBody.email,
+        profile: typeof sessionBody.profile,
+        permissions: Array.isArray(sessionBody.permissions),
+      }),
+    );
+
+    assert.equal(sessionResponse.status, 200, "Sessao recusada diretamente pelo backend");
+
+    const dbIdentity = await db.raw("SELECT current_database() AS name");
+
+    assert.equal(dbIdentity.rows[0].name, database);
+    assert.match(database, /^maat_rf07_[0-9a-f]{32}$/);
+
+    const permissionKeys = ["request:create", "request:track", "pending_item:respond"];
+
+    let savedPermissions = null;
+
+    async function assertTrackingPermission(expected) {
+      const response = await fetch(origin + "/auth/me", {
+        headers: { cookie: cookies.requester },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      assert.equal(response.status, 200);
+
+      const session = await response.json();
+
+      assert.ok(Array.isArray(session.permissions));
+
+      const granted = session.permissions.some(
+        (permission) => permission.key === "request:track" && permission.custody === "own",
+      );
+
+      assert.equal(granted, expected);
+
+      console.log("[RBAC] request:track/own:", granted);
+    }
+
+    await assertTrackingPermission(true);
+
     await verifyTrackingInBrowser({
       playwrightModule,
       frontendRoot,
@@ -644,16 +701,74 @@ test(
       },
       current,
       changeProfile: async (actor) => {
-        const { profile_id } =
-          actor === "requester"
-            ? requester
-            : await db("users").where({ user_id: actorIds[actor] }).first();
-        await db("users").where({ user_id: actorIds.requester }).update({ profile_id });
+        const profileId = requester.profile_id;
+
+        if (actor === "admin") {
+          assert.equal(savedPermissions, null);
+
+          await db.transaction(async (trx) => {
+            savedPermissions = await trx("profile_permissions")
+              .where({ profile_id: profileId })
+              .whereIn("permission_key", permissionKeys);
+
+            assert.equal(savedPermissions.length, 3);
+
+            assert.ok(
+              savedPermissions.some(
+                (p) => p.permission_key === "request:track" && p.custody === "own",
+              ),
+            );
+
+            const removed = await trx("profile_permissions")
+              .where({ profile_id: profileId })
+              .whereIn("permission_key", permissionKeys)
+              .del();
+
+            assert.equal(removed, 3);
+          });
+
+          await assertTrackingPermission(false);
+
+          console.log("[RBAC] Permissoes efetivamente revogadas.");
+        } else {
+          assert.equal(actor, "requester");
+          assert.ok(savedPermissions);
+
+          await db.transaction(async (trx) => {
+            await trx("profile_permissions").insert(savedPermissions);
+          });
+
+          savedPermissions = null;
+
+          await assertTrackingPermission(true);
+
+          console.log("[RBAC] Permissoes originais restauradas.");
+        }
       },
       changeOwner: (request) =>
         db("requests")
           .where({ request_id: request.request_id })
           .update({ requester_user_id: actorIds.other }),
     });
+
+    assert.equal(savedPermissions, null);
+
+    const reopenEvents = await db("audit_history").where({
+      entity_id: "MAAT-RF07-0002",
+      action_type: "request.reopen",
+    });
+
+    assert.equal(reopenEvents.length, 1);
+
+    const event = reopenEvents[0];
+
+    assert.equal(event.user_id, actorIds.requester);
+    assert.equal(event.actor_profile_id, requester.profile_id);
+    assert.equal(event.change_origin, "requester");
+    assert.equal(event.previous_value, "Cancelado");
+    assert.equal(event.new_value, "Solicitação enviada");
+    assert.equal(event.note, "Validacao integrada da RF02.");
+
+    console.log("[RF02] Auditoria de reabertura confirmada.");
   },
 );

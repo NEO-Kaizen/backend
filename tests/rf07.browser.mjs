@@ -16,22 +16,19 @@ export async function verifyTrackingInBrowser({
   changeOwner,
 }) {
   const { chromium } = await import(playwrightModule);
-  const vite = spawn(
-    process.execPath,
-    [
-      join(frontendRoot, "node_modules/vite/bin/vite.js"),
-      "--host",
-      "127.0.0.1",
-      "--port",
-      new URL(frontendOrigin).port,
-      "--strictPort",
-    ],
-    {
-      cwd: frontendRoot,
-      env: { ...process.env, PUBLIC_API_URL: apiOrigin },
-      stdio: ["ignore", "inherit", "inherit"],
+  const vite = spawn(process.execPath, [join(frontendRoot, "build/index.js")], {
+    cwd: frontendRoot,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      HOST: "127.0.0.1",
+      PORT: new URL(frontendOrigin).port,
+      ORIGIN: frontendOrigin,
+      PUBLIC_API_URL: apiOrigin,
+      API_INTERNAL_URL: apiOrigin,
     },
-  );
+    stdio: ["ignore", "inherit", "inherit"],
+  });
   const exited = once(vite, "exit");
   const requestA = await createRequest("MAAT-RF07-0001");
   const requestB = await createRequest("MAAT-RF07-0002");
@@ -39,12 +36,12 @@ export async function verifyTrackingInBrowser({
   try {
     const deadline = Date.now() + 20000;
     while (true) {
-      assert.equal(vite.exitCode, null, "Vite encerrou antes de iniciar");
+      assert.equal(vite.exitCode, null, "Frontend encerrou antes de iniciar");
       const ready = await fetch(frontendOrigin + "/acompanhar", {
         signal: AbortSignal.timeout(1500),
       }).catch(() => null);
       if (ready?.ok) break;
-      assert.ok(Date.now() < deadline, "Vite não ficou disponível");
+      assert.ok(Date.now() < deadline, "Frontend não ficou disponível");
       await delay(150);
     }
 
@@ -64,6 +61,7 @@ export async function verifyTrackingInBrowser({
     const path = (protocol) => "/acompanhar/" + protocol;
     const open = async (protocol) => {
       await page.goto(frontendOrigin + path(protocol));
+
       await action.waitFor();
       await page.locator(".protocol-code").getByText(protocol, { exact: true }).waitFor();
     };
@@ -147,6 +145,58 @@ export async function verifyTrackingInBrowser({
     assert.equal((await current(requestA)).status_id, 1);
     assert.equal((await current(requestB)).status_id, 17);
 
+    // RF02: reabertura real de uma solicitacao cancelada.
+    console.log("[RF02] Inicio da validacao no navegador.");
+
+    const reopenAction = page.getByRole("button", {
+      name: "Reabrir solicitação",
+      exact: true,
+    });
+
+    await reopenAction.waitFor();
+    await reopenAction.click();
+
+    await dialog.getByText("Protocolo " + requestB.protocol).waitFor();
+
+    const reopenReason = dialog.getByLabel("Justificativa da reabertura");
+
+    const reopenConfirm = dialog.getByRole("button", {
+      name: "Confirmar reabertura",
+      exact: true,
+    });
+
+    assert.equal(await reopenReason.inputValue(), "");
+    assert.equal(await reopenConfirm.isDisabled(), true);
+
+    await reopenReason.fill("   ");
+    assert.equal(await reopenConfirm.isDisabled(), true);
+
+    await reopenReason.fill("Validacao integrada da RF02.");
+
+    const reopened = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/" + requestB.protocol + "/reopen") &&
+        response.request().method() === "POST",
+    );
+
+    await reopenConfirm.click();
+
+    const reopenResponse = await reopened;
+
+    assert.equal(reopenResponse.status(), 200);
+
+    await dialog.waitFor({ state: "detached" });
+
+    await page.locator(".status-pill").getByText("Solicitação enviada", { exact: true }).waitFor();
+
+    await reopenAction.waitFor({ state: "hidden" });
+
+    assert.equal((await current(requestB)).status_id, 1);
+
+    assert.equal((await current(requestA)).status_id, 1);
+
+    console.log("[RF02] Reabertura confirmada no navegador e PostgreSQL.");
+
     for (const status of [401, 403, 404]) {
       await context.addCookies([cookie]);
       await open(requestA.protocol);
@@ -159,15 +209,36 @@ export async function verifyTrackingInBrowser({
         response.url().endsWith("/" + requestA.protocol + "/cancel"),
       );
       await confirm.click();
-      assert.equal((await rejected).status(), status);
+      const actualStatus = (await rejected).status();
+
+      console.log("[SEGURANCA] HTTP esperado:", status, "recebido:", actualStatus);
+
+      assert.equal(actualStatus, status);
       await dialog.waitFor({ state: "detached" });
       await action.waitFor({ state: "hidden" });
       await page.locator(".protocol-code").waitFor({ state: "hidden" });
-      await page
-        .getByRole(status === 404 ? "heading" : "button", {
-          name: status === 404 ? "Solicitação não encontrada" : "Tentar novamente",
-        })
-        .waitFor();
+      if (status === 403) {
+        await page
+          .getByText("Seu perfil não tem permissão para acompanhar esta solicitação.", {
+            exact: true,
+          })
+          .waitFor();
+
+        assert.equal(
+          await page
+            .getByRole("button", {
+              name: "Tentar novamente",
+            })
+            .count(),
+          0,
+        );
+      } else {
+        await page
+          .getByRole(status === 404 ? "heading" : "button", {
+            name: status === 404 ? "Solicitação não encontrada" : "Tentar novamente",
+          })
+          .waitFor();
+      }
       if (status === 403) await changeProfile("requester");
     }
     assert.equal((await current(requestA)).status_id, 1);
